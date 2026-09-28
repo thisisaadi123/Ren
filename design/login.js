@@ -1,4 +1,4 @@
-// Rise — log in: validation, show/hide password, forgot-password flow (no backend yet)
+// Ren — log in: validation, show/hide password, forgot-password flow (no backend yet)
 (() => {
   const EMAIL = /^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/;
   const views = document.querySelectorAll("[data-view]");

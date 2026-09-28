@@ -1,4 +1,4 @@
-// Rise — home page demos: practice tracks with Rev, resume builder, interview lobby
+// Ren — home page demos: practice tracks with Ren, resume builder, interview lobby
 const escapeHtml = (s) => s.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
 
 // Run `fn` once, the first time `el` is mostly on screen.
@@ -28,13 +28,13 @@ const ai = (html, label) => ({ who: "ai", html, label });
 const me = (text) => ({ who: "me", html: escapeHtml(text) });
 
 /* ==========================================================================
-   Chat engine shared by every Rev chat on the page.
+   Chat engine shared by every Ren chat on the page.
 
    - Only the first conversation a visitor sees animates (typing indicator,
      one message at a time, input disabled until it finishes). Every other
      conversation appears fully written, so nobody waits twice.
-   - After that the visitor can send one message. Rev replies, and from then
-     on every chat on the page is locked into a "Join Rise" button.
+   - After that the visitor can send one message. Ren replies, and from then
+     on every chat on the page is locked into a "Join Ren" button.
    ========================================================================== */
 const CHAT = { animated: false, chatted: false, all: [] };
 
@@ -60,7 +60,7 @@ const createChat = (msgs, form, { reply }) => {
   const typing = () => {
     const el = document.createElement("div");
     el.className = "msg msg-ai typing";
-    el.setAttribute("aria-label", "Rev is typing");
+    el.setAttribute("aria-label", "Ren is typing");
     el.innerHTML = "<i></i><i></i><i></i>";
     msgs.appendChild(el);
     scroll();
@@ -79,11 +79,11 @@ const createChat = (msgs, form, { reply }) => {
     locked = true;
     input.value = "";
     input.disabled = true;
-    input.placeholder = "Get started with Rise";
+    input.placeholder = "Get started with Ren";
     const join = document.createElement("a");
     join.href = "signup.html";
     join.className = "btn btn-primary btn-sm";
-    join.textContent = "Join Rise";
+    join.textContent = "Join Ren";
     send.replaceWith(join);
     send = join;
     form.classList.add("locked");
@@ -110,7 +110,7 @@ const createChat = (msgs, form, { reply }) => {
 
     CHAT.animated = true; // this is the one animated conversation
     playing = true;
-    setInput(false, "Rev is typing…");
+    setInput(false, "Ren is typing…");
     for (const item of script) {
       if (item.who === "ai") {
         if (!(await wait(300, t))) return;
@@ -137,12 +137,12 @@ const createChat = (msgs, form, { reply }) => {
     playing = true;
     bubble("me", escapeHtml(q));
     input.value = "";
-    setInput(false, "Rev is typing…");
+    setInput(false, "Ren is typing…");
     await new Promise((r) => setTimeout(r, 300));
     const dots = typing();
     await new Promise((r) => setTimeout(r, 900));
     dots.remove();
-    bubble("ai", reply(q), "Rev");
+    bubble("ai", reply(q), "Ren");
     playing = false;
     CHAT.chatted = true;
     CHAT.all.forEach((c) => c.lock()); // one free message across the whole page
@@ -156,7 +156,7 @@ const createChat = (msgs, form, { reply }) => {
   return { play };
 };
 
-// A Rev panel with Hint / Nudge / Explain / Solve conversations.
+// A Ren panel with Hint / Nudge / Explain / Solve conversations.
 const mountRev = ({ msgs, form, levelEl, tabs, conv, reply }) => {
   const chat = createChat(msgs, form, { reply });
   let level = "nudge";
@@ -170,7 +170,7 @@ const mountRev = ({ msgs, form, levelEl, tabs, conv, reply }) => {
   return { show };
 };
 
-// What kind of message did the visitor send? Rev's reply should fit it.
+// What kind of message did the visitor send? Ren's reply should fit it.
 const messageKind = (q) => {
   if (/^(hi|hey|hello|hiya|yo|sup|good (morning|afternoon|evening))\b/i.test(q)) return "greeting";
   if (/\?\s*$/.test(q) || /^(how|what|why|when|where|which|who|can|could|should|would|is|are|do|does|did|will|am)\b/i.test(q)) return "question";
@@ -188,7 +188,7 @@ const REV_REPLY = (what) => (q) => {
 };
 
 /* ==========================================================================
-   Coding: editable (not executable) editor in five languages + Rev
+   Coding: editable (not executable) editor in five languages + Ren
    ========================================================================== */
 (() => {
   const editor = document.getElementById("editor");
@@ -403,7 +403,7 @@ const REV_REPLY = (what) => (q) => {
 
   document.getElementById("editor-reset").addEventListener("click", () => setCode(starter(), caretAfterBlank()));
 
-  // Rev: each help level has its own conversation.
+  // Ren: each help level has its own conversation.
   const conv = (key) => {
     const n = blankLine();
     return {
@@ -452,7 +452,7 @@ const REV_REPLY = (what) => (q) => {
   render();
   document.fonts?.ready.then(render);
 
-  // Timer and Rev's first conversation start once the window is on screen.
+  // Timer and Ren's first conversation start once the window is on screen.
   whenVisible(editor, () => {
     startTimer(document.getElementById("practice-timer"));
     rev.show("nudge");
@@ -544,7 +544,7 @@ const onSlide = (index, el, fn) => {
 };
 
 /* ==========================================================================
-   SQL: layered editor with SQL highlighting + Rev
+   SQL: layered editor with SQL highlighting + Ren
    ========================================================================== */
 (() => {
   const root = document.getElementById("sql-editor");
@@ -688,7 +688,7 @@ const onSlide = (index, el, fn) => {
 
 /* ==========================================================================
    System design: an editable board (select, move, rename, delete, draw
-   boxes / diamonds / arrows / text / freehand, pan, zoom) + Rev
+   boxes / diamonds / arrows / text / freehand, pan, zoom) + Ren
    ========================================================================== */
 (() => {
   const canvas = document.getElementById("sd-canvas");
@@ -1127,7 +1127,7 @@ const onSlide = (index, el, fn) => {
 })();
 
 /* ==========================================================================
-   Resume builder: chat with Rev on the left, live preview on the right
+   Resume builder: chat with Ren on the left, live preview on the right
    ========================================================================== */
 (() => {
   const root = document.getElementById("builder");
@@ -1210,13 +1210,13 @@ const onSlide = (index, el, fn) => {
   });
 
   const SCRIPT = [
-    ai("<p>Hi Alex. What roles are you going for?</p>", "Rev"),
+    ai("<p>Hi Alex. What roles are you going for?</p>", "Ren"),
     me("Backend roles, new grad."),
-    ai("<p>Jake's Resume suits that: one page and easy for ATS to read. I've added your education, projects and skills. Where did you intern last summer?</p>", "Rev"),
+    ai("<p>Jake's Resume suits that: one page and easy for ATS to read. I've added your education, projects and skills. Where did you intern last summer?</p>", "Ren"),
     me("Acme. I built their billing API in Go."),
-    ai("<p>Nice. How much traffic did it handle, and what changed after it shipped?</p>", "Rev"),
+    ai("<p>Nice. How much traffic did it handle, and what changed after it shipped?</p>", "Ren"),
     { ...me("About 2M requests a day. Failed payments dropped 18%."), then: () => (status.textContent = "Compiling…") },
-    { ...ai("<p>Added your Acme internship to Experience, with both numbers.</p>", "Rev"), then: revealAcme },
+    { ...ai("<p>Added your Acme internship to Experience, with both numbers.</p>", "Ren"), then: revealAcme },
   ];
 
   renderSource(false);
@@ -1252,7 +1252,7 @@ const onSlide = (index, el, fn) => {
 })();
 
 /* ==========================================================================
-   Interview: the call before joining, with a short chat from Rev
+   Interview: the call before joining, with a short chat from Ren
    ========================================================================== */
 (() => {
   const root = document.getElementById("meet");
@@ -1296,10 +1296,26 @@ const onSlide = (index, el, fn) => {
 
   whenVisible(root, () =>
     chat.play([
-      ai(`<p>Hi Alex, I'm Rev. I'll be your interviewer for the ${escapeHtml(role.value)} role today.</p>`, "Rev"),
-      ai("<p>We'll start with a quick intro, then a coding round and a short system design discussion. About 45 minutes.</p>", "Rev"),
+      ai(`<p>Hi Alex, I'm Ren. I'll be your interviewer for the ${escapeHtml(role.value)} role today.</p>`, "Ren"),
+      ai("<p>We'll start with a quick intro, then a coding round and a short system design discussion. About 45 minutes.</p>", "Ren"),
       me("Sounds good. Can I code in Python?"),
-      ai("<p>Of course. Use whatever you're most comfortable with. Join when you're ready.</p>", "Rev"),
+      ai("<p>Of course. Use whatever you're most comfortable with. Join when you're ready.</p>", "Ren"),
     ])
   );
+})();
+
+/* ==========================================================================
+   The name: draw 練 once it's on screen (after its font is ready)
+   ========================================================================== */
+(() => {
+  const kanji = document.getElementById("kanji");
+  if (!kanji) return;
+  whenVisible(kanji, async () => {
+    try {
+      await document.fonts.load('600 164px "Shippori Mincho"', "練");
+    } catch (e) {
+      /* fall back to the system mincho */
+    }
+    kanji.classList.add("play");
+  }, 0.5);
 })();

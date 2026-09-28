@@ -1,4 +1,4 @@
-// Rise — sign up form: validation, show/hide password, mock submit
+// Ren — sign up form: validation, show/hide password, mock submit
 (() => {
   const form = document.getElementById("signup-form");
   const inputs = { email: form.elements.email, password: form.elements.password };

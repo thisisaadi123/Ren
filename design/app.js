@@ -1,4 +1,4 @@
-// Rise — shared interactions (nav, reveals, segmented controls, message sequences)
+// Ren — shared interactions (nav, reveals, segmented controls, message sequences)
 (() => {
   const reduceMotion = matchMedia("(prefers-reduced-motion: reduce)").matches;
 
