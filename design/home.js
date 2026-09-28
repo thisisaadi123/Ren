@@ -1303,19 +1303,3 @@ const onSlide = (index, el, fn) => {
     ])
   );
 })();
-
-/* ==========================================================================
-   The name: draw 練 once it's on screen (after its font is ready)
-   ========================================================================== */
-(() => {
-  const kanji = document.getElementById("kanji");
-  if (!kanji) return;
-  whenVisible(kanji, async () => {
-    try {
-      await document.fonts.load('600 164px "Shippori Mincho"', "練");
-    } catch (e) {
-      /* fall back to the system mincho */
-    }
-    kanji.classList.add("play");
-  }, 0.5);
-})();
