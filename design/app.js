@@ -20,6 +20,15 @@
       menuBtn.setAttribute("aria-expanded", String(open));
       menuBtn.setAttribute("aria-label", open ? "Close menu" : "Open menu");
     });
+    // A tap on a menu link (often a jump within the page) closes the menu.
+    nav.querySelectorAll(".mobile-menu a").forEach((a) =>
+      a.addEventListener("click", () => {
+        if (!nav.classList.contains("open")) return;
+        nav.classList.remove("open");
+        menuBtn?.setAttribute("aria-expanded", "false");
+        menuBtn?.setAttribute("aria-label", "Open menu");
+      })
+    );
   }
 
   // Run `fn` once when `el` first scrolls into view.

@@ -1,8 +1,9 @@
-// Ren — sign up form: validation, show/hide password, mock submit
+// Ren — sign up form: validation, show/hide password, create the account
 (() => {
   const form = document.getElementById("signup-form");
-  const inputs = { email: form.elements.email, password: form.elements.password };
+  const inputs = { name: form.elements.name, email: form.elements.email, password: form.elements.password };
   const rules = {
+    name: (v) => v.trim().length > 0,
     email: (v) => /^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/.test(v.trim()),
     password: (v) => v.length >= 8,
   };
@@ -34,22 +35,49 @@
     toggle.setAttribute("aria-label", show ? "Hide password" : "Show password");
   });
 
-  // No backend yet: fake a short request, then show the confirmation state.
-  form.addEventListener("submit", (e) => {
+  // Form-level message (server errors, offline); cleared as soon as they edit.
+  const formError = form.querySelector(".form-error");
+  const say = (html) => {
+    formError.innerHTML = html;
+    formError.hidden = !html;
+  };
+  form.addEventListener("input", () => say(""));
+
+  const btn = form.querySelector('button[type="submit"]');
+  const label = btn.querySelector(".label");
+  const busy = (on) => {
+    btn.classList.toggle("loading", on);
+    label.textContent = on ? "Creating account…" : "Create account";
+  };
+
+  form.addEventListener("submit", async (e) => {
     e.preventDefault();
     const keys = Object.keys(inputs);
     keys.forEach((k) => touched.add(k));
     const firstBad = keys.filter((k) => !check(k))[0];
     if (firstBad) return inputs[firstBad].focus();
 
-    const btn = form.querySelector('button[type="submit"]');
-    btn.classList.add("loading");
-    btn.querySelector(".label").textContent = "Creating account…";
-
-    setTimeout(() => {
-      document.getElementById("success-email").textContent = inputs.email.value.trim();
-      document.getElementById("signup-view").hidden = true;
-      document.getElementById("success-view").hidden = false;
-    }, 1200);
+    say("");
+    busy(true);
+    try {
+      const { ok, status, data } = await renApi("/api/signup", {
+        email: inputs.email.value.trim(),
+        password: inputs.password.value,
+      });
+      if (ok) {
+        renName.set(data.user.id, inputs.name.value.trim().replace(/\s+/g, " ").slice(0, 40));
+        return location.assign("app.html");
+      }
+      busy(false);
+      if (status === 409) {
+        say(`${data.error} <a href="login.html">Log in</a>`);
+        inputs.email.focus();
+      } else {
+        say(data.error || "Something went wrong. Try again.");
+      }
+    } catch (err) {
+      busy(false);
+      say(renApi.offlineMessage);
+    }
   });
 })();

@@ -1,0 +1,181 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://ren.dev/schemas/practice/dsa/problem.schema.json",
+  "title": "Ren DSA problem (problem.yaml)",
+  "description": "Metadata for one practice problem. See problem-format.md. topic and pattern must also exist in taxonomy.yaml; the pipeline checks that, since it can't be expressed here.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schema_version", "id", "title", "topic", "pattern", "difficulty", "status", "version", "kind", "limits", "checker", "hints"],
+  "properties": {
+    "schema_version": { "const": 1 },
+    "id": {
+      "description": "Folder name and permanent id. Never reused, even after a problem is retired.",
+      "$ref": "#/$defs/slug"
+    },
+    "title": { "type": "string", "minLength": 3, "maxLength": 80 },
+    "topic": { "$ref": "#/$defs/slug" },
+    "pattern": { "$ref": "#/$defs/slug" },
+    "tags": {
+      "description": "Secondary tags for search and filtering (e.g. hash-map). Not used for progress.",
+      "type": "array",
+      "items": { "$ref": "#/$defs/slug" },
+      "uniqueItems": true,
+      "maxItems": 6
+    },
+    "difficulty": { "enum": ["easy", "medium", "hard"] },
+    "status": {
+      "description": "draft → review → published. Retired problems stay in git but are hidden.",
+      "enum": ["draft", "review", "published", "retired"]
+    },
+    "version": {
+      "description": "Bumped whenever the statement or tests change after publishing.",
+      "type": "integer",
+      "minimum": 1
+    },
+    "kind": {
+      "description": "function: implement one function. design: implement a class whose methods are called in sequence.",
+      "enum": ["function", "design"]
+    },
+    "signature": { "$ref": "#/$defs/functionSignature" },
+    "design": { "$ref": "#/$defs/designSignature" },
+    "limits": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["time_ms", "memory_mb"],
+      "properties": {
+        "time_ms": {
+          "description": "Time limit per test for C++. Other languages get a fixed multiplier (see test-cases.md).",
+          "type": "integer",
+          "minimum": 100,
+          "maximum": 10000
+        },
+        "memory_mb": { "type": "integer", "minimum": 16, "maximum": 1024 }
+      }
+    },
+    "checker": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["type"],
+      "properties": {
+        "type": {
+          "description": "exact: equal after parsing. unordered: same items in any order. float: within tolerance. custom: checker.py decides.",
+          "enum": ["exact", "unordered", "float", "custom"]
+        },
+        "tolerance": { "type": "number", "exclusiveMinimum": 0, "maximum": 0.001 }
+      },
+      "if": { "properties": { "type": { "const": "float" } } },
+      "then": { "required": ["tolerance"] },
+      "else": { "properties": { "tolerance": false } }
+    },
+    "hints": {
+      "description": "Ren's help ladder. hint and nudge are written by hand; explain is optional, and Ren writes the step-by-step walkthrough when it's missing. The 'Solve' step uses reference.* and is never stored here.",
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["hint", "nudge"],
+      "properties": {
+        "hint": { "type": "string", "minLength": 10, "maxLength": 300 },
+        "nudge": { "type": "string", "minLength": 10, "maxLength": 400 },
+        "explain": { "type": "string", "maxLength": 3000 }
+      }
+    },
+    "authors": {
+      "type": "array",
+      "items": { "type": "string", "minLength": 1 },
+      "uniqueItems": true
+    },
+    "reviewed_by": {
+      "description": "Required before status can be published (checked by the pipeline).",
+      "type": "array",
+      "items": { "type": "string", "minLength": 1 },
+      "uniqueItems": true
+    }
+  },
+  "allOf": [
+    {
+      "if": { "properties": { "kind": { "const": "function" } } },
+      "then": { "required": ["signature"], "properties": { "design": false } }
+    },
+    {
+      "if": { "properties": { "kind": { "const": "design" } } },
+      "then": { "required": ["design"], "properties": { "signature": false } }
+    }
+  ],
+  "$defs": {
+    "slug": {
+      "type": "string",
+      "pattern": "^[a-z0-9]+(-[a-z0-9]+)*$",
+      "maxLength": 64
+    },
+    "identifier": {
+      "description": "camelCase name used in every language's starter code.",
+      "type": "string",
+      "pattern": "^[a-z][a-zA-Z0-9]*$",
+      "maxLength": 40
+    },
+    "className": {
+      "type": "string",
+      "pattern": "^[A-Z][a-zA-Z0-9]*$",
+      "maxLength": 40
+    },
+    "type": {
+      "description": "A base type with up to two [] for arrays. Graphs are int n plus an int[][] edge list. See problem-format.md.",
+      "type": "string",
+      "pattern": "^(int|long|double|bool|char|string|ListNode|TreeNode)(\\[\\]){0,2}$"
+    },
+    "returnType": {
+      "anyOf": [{ "$ref": "#/$defs/type" }, { "const": "void" }]
+    },
+    "param": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["name", "type"],
+      "properties": {
+        "name": { "$ref": "#/$defs/identifier" },
+        "type": { "$ref": "#/$defs/type" }
+      }
+    },
+    "params": {
+      "type": "array",
+      "items": { "$ref": "#/$defs/param" },
+      "maxItems": 6
+    },
+    "functionSignature": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["function", "params", "returns"],
+      "properties": {
+        "function": { "$ref": "#/$defs/identifier" },
+        "params": { "type": "array", "$ref": "#/$defs/params", "minItems": 1 },
+        "returns": { "$ref": "#/$defs/type" }
+      }
+    },
+    "designSignature": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["class", "constructor", "methods"],
+      "properties": {
+        "class": { "$ref": "#/$defs/className" },
+        "constructor": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["params"],
+          "properties": { "params": { "$ref": "#/$defs/params" } }
+        },
+        "methods": {
+          "type": "array",
+          "minItems": 1,
+          "items": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": ["name", "params", "returns"],
+            "properties": {
+              "name": { "$ref": "#/$defs/identifier" },
+              "params": { "$ref": "#/$defs/params" },
+              "returns": { "$ref": "#/$defs/returnType" }
+            }
+          }
+        }
+      }
+    }
+  }
+}

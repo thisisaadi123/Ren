@@ -1,4 +1,5 @@
-// Ren — log in: validation, show/hide password, forgot-password flow (no backend yet)
+// Ren — log in: validation, show/hide password, forgot-password flow.
+// Log in talks to the dev server; password reset is still a mock (no email yet).
 (() => {
   const EMAIL = /^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/;
   const views = document.querySelectorAll("[data-view]");
@@ -45,7 +46,7 @@
     };
   };
 
-  // Fake a short request, then move on.
+  // Password reset has no email service yet: fake a short request, then move on.
   const submitting = (form, label, then) => {
     const btn = form.querySelector('button[type="submit"]');
     btn.classList.add("loading");
@@ -58,9 +59,38 @@
     email: (v) => EMAIL.test(v.trim()),
     password: (v) => v.length > 0,
   });
-  login.addEventListener("submit", (e) => {
+  const loginError = login.querySelector(".form-error");
+  const say = (text) => {
+    loginError.textContent = text;
+    loginError.hidden = !text;
+  };
+  login.addEventListener("input", () => say(""));
+
+  login.addEventListener("submit", async (e) => {
     e.preventDefault();
-    if (loginValid()) submitting(login, "Logging in…", () => show("done"));
+    if (!loginValid()) return;
+    const btn = login.querySelector('button[type="submit"]');
+    const label = btn.querySelector(".label");
+    const busy = (on) => {
+      btn.classList.toggle("loading", on);
+      label.textContent = on ? "Logging in…" : "Log in";
+    };
+
+    say("");
+    busy(true);
+    try {
+      const { ok, data } = await renApi("/api/login", {
+        email: login.elements.email.value.trim(),
+        password: login.elements.password.value,
+      });
+      if (ok) return location.assign("app.html");
+      busy(false);
+      say(data.error || "Something went wrong. Try again.");
+      login.elements.password.select();
+    } catch {
+      busy(false);
+      say(renApi.offlineMessage);
+    }
   });
 
   const reset = document.getElementById("reset-form");

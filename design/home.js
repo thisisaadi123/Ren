@@ -188,7 +188,7 @@ const REV_REPLY = (what) => (q) => {
 };
 
 /* ==========================================================================
-   Coding: editable (not executable) editor in five languages + Ren
+   DSA: editable (not executable) editor in five languages + Ren
    ========================================================================== */
 (() => {
   const editor = document.getElementById("editor");
@@ -213,27 +213,6 @@ const REV_REPLY = (what) => (q) => {
         "            merged.append([start, end])",
         "",
         "    return merged",
-      ],
-    },
-    javascript: {
-      file: "solution.js",
-      comment: "//",
-      blank: "merged.at(-1)[1] = ",
-      fill: "Math.max(merged.at(-1)[1], end);",
-      code: [
-        "function merge(intervals) {",
-        "    intervals.sort((a, b) => a[0] - b[0]);",
-        "    const merged = [];",
-        "",
-        "    for (const [start, end] of intervals) {",
-        "        if (merged.length && start <= merged.at(-1)[1]) {",
-        "            merged.at(-1)[1] = ",
-        "        } else {",
-        "            merged.push([start, end]);",
-        "        }",
-        "    }",
-        "    return merged;",
-        "}",
       ],
     },
     java: {
@@ -281,25 +260,34 @@ const REV_REPLY = (what) => (q) => {
         "};",
       ],
     },
-    go: {
-      file: "solution.go",
+    c: {
+      file: "solution.c",
       comment: "//",
-      blank: "merged[n-1][1] = ",
-      fill: "max(merged[n-1][1], cur[1])",
+      blank: "merged[n - 1][1] = ",
+      fill: "MAX(merged[n - 1][1], cur[1]);",
       code: [
-        "func merge(intervals [][]int) [][]int {",
-        "    sort.Slice(intervals, func(i, j int) bool {",
-        "        return intervals[i][0] < intervals[j][0]",
-        "    })",
-        "    merged := [][]int{}",
-        "    for _, cur := range intervals {",
-        "        if n := len(merged); n > 0 && cur[0] <= merged[n-1][1] {",
-        "            merged[n-1][1] = ",
-        "        } else {",
-        "            merged = append(merged, cur)",
-        "        }",
+        "#define MAX(a, b) ((a) > (b) ? (a) : (b))",
+        "",
+        "int byStart(const void* a, const void* b) {",
+        "    return (*(int**)a)[0] - (*(int**)b)[0];",
+        "}",
+        "",
+        "int** merge(int** intervals, int intervalsSize, int* intervalsColSize,",
+        "            int* returnSize, int** returnColumnSizes) {",
+        "    qsort(intervals, intervalsSize, sizeof(int*), byStart);",
+        "    int** merged = malloc(sizeof(int*) * intervalsSize);",
+        "    int n = 0;",
+        "    for (int i = 0; i < intervalsSize; i++) {",
+        "        int* cur = intervals[i];",
+        "        if (n > 0 && cur[0] <= merged[n - 1][1])",
+        "            merged[n - 1][1] = ",
+        "        else",
+        "            merged[n++] = cur;",
         "    }",
-        "    return merged",
+        "    *returnSize = n;",
+        "    *returnColumnSizes = malloc(sizeof(int) * n);",
+        "    for (int i = 0; i < n; i++) (*returnColumnSizes)[i] = 2;",
+        "    return merged;",
         "}",
       ],
     },
@@ -460,7 +448,7 @@ const REV_REPLY = (what) => (q) => {
 })();
 
 /* ==========================================================================
-   Practice carousel: Coding / SQL / System design, moved only by the visitor
+   Practice carousel: DSA / SQL / System design, moved only by the visitor
    ========================================================================== */
 (() => {
   const car = document.getElementById("practice-carousel");
@@ -1277,8 +1265,6 @@ const onSlide = (index, el, fn) => {
   });
 
   const role = document.getElementById("mt-role");
-  const crumb = document.getElementById("mt-crumb");
-  role.addEventListener("change", () => (crumb.textContent = role.value));
 
   // Chat / Notes tabs
   const panels = root.querySelectorAll(".mt-side > [data-panel]");
@@ -1297,7 +1283,7 @@ const onSlide = (index, el, fn) => {
   whenVisible(root, () =>
     chat.play([
       ai(`<p>Hi Alex, I'm Ren. I'll be your interviewer for the ${escapeHtml(role.value)} role today.</p>`, "Ren"),
-      ai("<p>We'll start with a quick intro, then a coding round and a short system design discussion. About 45 minutes.</p>", "Ren"),
+      ai("<p>We'll start with a quick intro, then a DSA round and a short system design discussion. About 45 minutes.</p>", "Ren"),
       me("Sounds good. Can I code in Python?"),
       ai("<p>Of course. Use whatever you're most comfortable with. Join when you're ready.</p>", "Ren"),
     ])
