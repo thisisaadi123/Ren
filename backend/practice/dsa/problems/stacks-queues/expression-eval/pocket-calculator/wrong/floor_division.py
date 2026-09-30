@@ -1,0 +1,29 @@
+class Solution:
+    # Mistake: floor division rounds negative quotients down instead of toward zero.
+    def evaluate(self, expr):
+        frames = []
+        st, op, num = [], "+", 0
+        for c in expr + "#":
+            if c == " ":
+                continue
+            if c.isdigit():
+                num = num * 10 + ord(c) - 48
+                continue
+            if c == "(":
+                frames.append((st, op))
+                st, op, num = [], "+", 0
+                continue
+            if op == "+":
+                st.append(num)
+            elif op == "-":
+                st.append(-num)
+            elif op == "*":
+                st[-1] *= num
+            else:
+                st[-1] //= num
+            if c == ")":
+                num = sum(st)
+                st, op = frames.pop()
+            else:
+                op, num = c, 0
+        return sum(st)

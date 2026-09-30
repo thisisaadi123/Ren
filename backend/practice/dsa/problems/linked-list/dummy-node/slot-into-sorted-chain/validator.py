@@ -1,0 +1,6 @@
+def validate(head, value):
+    assert isinstance(head, list), "head is given as a list of values"
+    assert len(head) <= 100_000, "at most 10^5 nodes"
+    assert all(type(v) is int and -10**6 <= v <= 10**6 for v in head), "-10^6 <= node value <= 10^6"
+    assert all(head[i] <= head[i + 1] for i in range(len(head) - 1)), "the chain is in non-decreasing order"
+    assert type(value) is int and -10**6 <= value <= 10**6, "-10^6 <= value <= 10^6"

@@ -92,8 +92,37 @@ function nodeComment(lang, sig) {
   return `/* Given:\n${lines.map((l) => ` * ${l}`).join("\n")}\n */\n`;
 }
 
+// A design problem's starter: the class with its constructor and every method.
+function designStarter(lang, design) {
+  const t = (type) => typeIn(lang, type);
+  const ms = design.methods;
+  const ctor = design.constructor.params;
+  if (lang === "python") {
+    const sig = (params) => ["self", ...params.map((p) => `${p.name}: ${t(p.type)}`)].join(", ");
+    const ret = (type) => (type === "void" ? "None" : t(type));
+    const body = [`    def __init__(${sig(ctor)}):\n        pass`, ...ms.map((m) => `    def ${m.name}(${sig(m.params)}) -> ${ret(m.returns)}:\n        pass`)];
+    return `class ${design.class}:\n\n${body.join("\n\n")}\n`;
+  }
+  if (lang === "java") {
+    const sig = (params) => params.map((p) => `${t(p.type)} ${p.name}`).join(", ");
+    const ret = (type) => (type === "void" ? "void" : t(type));
+    const body = [`    public ${design.class}(${sig(ctor)}) {\n        \n    }`, ...ms.map((m) => `    public ${ret(m.returns)} ${m.name}(${sig(m.params)}) {\n        \n    }`)];
+    return `class ${design.class} {\n\n${body.join("\n\n")}\n}`;
+  }
+  if (lang === "cpp") {
+    const ref = (type) => (type.endsWith("[]") || type === "string" ? "&" : "");
+    const sig = (params) => params.map((p) => `${t(p.type)}${ref(p.type)} ${p.name}`).join(", ");
+    const ret = (type) => (type === "void" ? "void" : t(type));
+    const body = [`    ${design.class}(${sig(ctor)}) {\n        \n    }`, ...ms.map((m) => `    ${ret(m.returns)} ${m.name}(${sig(m.params)}) {\n        \n    }`)];
+    return `class ${design.class} {\npublic:\n${body.join("\n\n")}\n};`;
+  }
+  return "";
+}
+
 function starter(lang, meta) {
-  if (meta.kind !== "function" || !handles(lang, meta)) return "";
+  if (!handles(lang, meta)) return "";
+  if (meta.kind === "design") return designStarter(lang, meta.design);
+  if (meta.kind !== "function") return "";
   const sig = meta.signature;
   const { function: fn, params, returns } = sig;
   const t = (type) => typeIn(lang, type);
@@ -135,7 +164,7 @@ export async function problemView(id) {
       id: lang,
       label: LABEL[lang],
       file: FILE[lang],
-      available: meta.kind === "function" && handles(lang, meta) && (await available(lang)),
+      available: handles(lang, meta) && (await available(lang)),
       starter: starter(lang, meta),
     }))
   );
@@ -148,7 +177,7 @@ export async function problemView(id) {
     kind: meta.kind,
     topic: topic && { id: topic.id, name: topic.name },
     pattern: pattern && { id: pattern.id, name: pattern.name },
-    params: meta.kind === "function" ? meta.signature.params : [],
+    params: paramsOf(meta),
     checker: meta.checker,
     statement: intro.trim(),
     notes: rest.trim(),
@@ -159,6 +188,30 @@ export async function problemView(id) {
 }
 
 /* Checking custom input -------------------------------------------------------------- */
+
+// A design problem takes one argument, `calls`: [["ClassName", ...args], ["method", ...args], ...].
+const paramsOf = (meta) => (meta.kind === "design" ? [{ name: "calls", type: "calls" }] : meta.signature.params);
+
+// Why a list of design calls is malformed, or null when it's fine.
+function badCalls(calls, design) {
+  if (!Array.isArray(calls) || !calls.length) return "calls should be a list of calls, starting with the constructor.";
+  if (!calls.every((c) => Array.isArray(c) && typeof c[0] === "string")) return 'each call should look like ["name", arguments...].';
+  const [ctor, ...rest] = calls;
+  const argsOk = (params, args, what) =>
+    args.length !== params.length
+      ? `${what} takes ${params.length} argument${params.length === 1 ? "" : "s"}.`
+      : params.map((p, i) => (fits(args[i], p.type) ? null : `${what}: ${p.name} should be ${describe(p.type)}.`)).find(Boolean) ?? null;
+  if (ctor[0] !== design.class) return `The first call should create ${design.class}.`;
+  const ctorBad = argsOk(design.constructor.params, ctor.slice(1), design.class);
+  if (ctorBad) return ctorBad;
+  for (const [name, ...args] of rest) {
+    const m = design.methods.find((x) => x.name === name);
+    if (!m) return `${design.class} has no method ${name}.`;
+    const bad = argsOk(m.params, args, name);
+    if (bad) return bad;
+  }
+  return null;
+}
 
 const INT32 = 2 ** 31;
 function fits(value, type) {
@@ -177,6 +230,11 @@ function fits(value, type) {
     case "char":
       return typeof value === "string" && value.length === 1;
     case "ListNode":
+      // A list with a cycle is {"values": [...], "cycle_at": index}.
+      if (value && !Array.isArray(value) && typeof value === "object") {
+        return fits(value.values, "int[]") && Number.isInteger(value.cycle_at ?? -1);
+      }
+      return Array.isArray(value) && value.every((v) => Number.isInteger(v));
     case "TreeNode":
       return Array.isArray(value) && value.every((v) => v === null || Number.isInteger(v));
     default:
@@ -195,6 +253,11 @@ const jsonl = (items) => items.map((x) => JSON.stringify(x)).join("\n") + "\n";
 async function checkCases(meta, dir, cases) {
   const problems = new Map();
   cases.forEach((c, i) => {
+    if (meta.kind === "design") {
+      const bad = badCalls(c.args.calls, meta.design);
+      if (bad) problems.set(i, bad);
+      return;
+    }
     for (const p of meta.signature.params) {
       if (!(p.name in c.args)) problems.set(i, `${p.name} is missing.`);
       else if (!fits(c.args[p.name], p.type)) problems.set(i, `${p.name} should be ${describe(p.type)}.`);
@@ -221,8 +284,9 @@ const MAX_CASE_CHARS = 20_000;
 
 function prepare({ id, lang, code }) {
   const { dir, meta, tests } = load(id);
-  if (meta.kind !== "function") throw new JudgeError(400, "This problem can't be run here yet.");
+  if (meta.kind !== "function" && meta.kind !== "design") throw new JudgeError(400, "This problem can't be run here yet.");
   if (!LANGS[lang]) throw new JudgeError(400, "Pick a language.");
+  if (!handles(lang, meta)) throw new JudgeError(400, `${LABEL[lang]} can't take this problem. Pick another language.`);
   if (typeof code !== "string" || !code.trim()) throw new JudgeError(400, "Write some code first.");
   if (code.length > MAX_CODE) throw new JudgeError(400, "That's too much code for one solution.");
   return { dir, meta, tests, limitMs: meta.limits.time_ms * config.timeMultipliers[lang] };

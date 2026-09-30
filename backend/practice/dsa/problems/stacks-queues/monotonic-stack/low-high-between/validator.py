@@ -1,0 +1,3 @@
+from ren_check import ints
+def validate(values):
+    ints("values", values, 1, 10**5, -10**9, 10**9)

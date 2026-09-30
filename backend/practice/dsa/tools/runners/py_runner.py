@@ -31,6 +31,7 @@ import math
 import os
 import random
 import sys
+import threading
 import time
 import traceback
 import typing
@@ -178,7 +179,7 @@ def main():
     mode, path = sys.argv[1], sys.argv[2]
     # Shared helpers for gen.py and validator.py (ren_gen, ren_check).
     sys.path.insert(0, os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "pylib"))
-    sys.setrecursionlimit(1 << 20)
+    sys.setrecursionlimit(1 << 22)
 
     if mode == "solve":
         spec = json.loads(sys.argv[3])
@@ -248,4 +249,22 @@ def main():
 
 
 if __name__ == "__main__":
-    main()
+    # A deep stack for recursive solutions (a 10^5-node chain), as the Java harness has.
+    # Python 3.9 crashes near 50,000 frames on the main thread's 8 MB stack.
+    threading.stack_size(512 * 1024 * 1024)
+    failed = []
+
+    def run():
+        try:
+            main()
+        except SystemExit as exc:
+            failed.append(exc.code)
+        except BaseException:  # noqa: BLE001 - report it as the main thread would
+            traceback.print_exc()
+            failed.append(1)
+
+    worker = threading.Thread(target=run)
+    worker.start()
+    worker.join()
+    if failed:
+        sys.exit(failed[0])
