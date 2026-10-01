@@ -11,14 +11,14 @@ npm run test:dsa                     # self-test: plant known bugs and confirm t
 
 | File | What it defines |
 |---|---|
-| [`taxonomy.yaml`](taxonomy.yaml) | Topics → patterns → target counts (522 problems, 133 patterns). The single source of truth |
+| [`taxonomy.yaml`](taxonomy.yaml) | Topics → patterns → target counts (657 problems, 181 patterns). The single source of truth |
 | [`problem-format.md`](problem-format.md) | The folder and files for one problem, and the `problem.yaml` fields |
 | [`problem.schema.json`](problem.schema.json) | JSON Schema for `problem.yaml` |
 | [`test-cases.md`](test-cases.md) | Visible vs hidden tests, edge cases, speed tests, Run vs Submit |
 | [`pipeline.md`](pipeline.md) | The checks a problem must pass before it's published |
 | [`progress.md`](progress.md) | What we record per user, pattern mastery and topic rollups |
 | [`sheets.md`](sheets.md) | The LeetCode link sheets a user unlocks by finishing a topic |
-| `problems/` | The problems, one folder each. Written so far: **Arrays & Hashing (33/33)** and **Binary Search (35/35)**, plus one each in Linked List, Binary Trees and Design |
+| `problems/` | The problems, one folder each. Written so far: **296 of 657**. Complete: Arrays & Hashing, Sorting, Two Pointers, Strings, Sliding Window, Binary Search and BST. Started: Stack & Queue (37/40), Linked List (25/27), Backtracking (17/37), Binary Trees (21/54) and Design (1/24) |
 | `tools/` | The checking pipeline (`check.mjs`), its self-test, the language runners, `author.py` (writes a whole problem folder from one call) and `pylib/` (shared helpers for `gen.py` and `validator.py`) |
 | `build/` | Generated: built tests and rendered statements (gitignored) |
 | `sheets/` | One sheet per topic (only `_example.yaml` for now) |
@@ -42,8 +42,8 @@ npm run test:dsa                     # self-test: plant known bugs and confirm t
 - Pattern ids are unique across the whole taxonomy.
 
 ### Size and difficulty
-- **522 problems, 23 topics, 133 patterns.** Topic names follow the popular sheets (NeetCode, Striver A2Z, LeetCode Top Interview).
-- Difficulty mix across the bank: **about 30% Easy (150), 50% Medium (250), 20% Hard (100)**, each within ±5%.
+- **657 problems, 23 topics, 181 patterns.** Topic names follow the popular sheets (NeetCode, Striver A2Z, LeetCode Top Interview).
+- Difficulty mix across the bank: **about 30% Easy, 50% Medium, 20% Hard**, each within ±5%.
 - Every pattern starts with at least one Easy problem and gets harder from there.
 
 ### Tracks (the suggested order)
