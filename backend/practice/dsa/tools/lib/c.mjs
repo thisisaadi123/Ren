@@ -19,6 +19,7 @@ const SCALAR = {
   string: "char*",
   ListNode: "struct ListNode*",
   TreeNode: "struct TreeNode*",
+  RandomNode: "struct RandomNode*",
 };
 
 const baseOf = (type) => type.replace(/(\[\])+$/, "");
@@ -67,6 +68,11 @@ struct TreeNode {
   struct TreeNode* left;
   struct TreeNode* right;
 };
+struct RandomNode {
+  int val;
+  struct RandomNode* next;
+  struct RandomNode* random;
+};
 
 #include "solution.c"
 
@@ -94,9 +100,34 @@ static struct ListNode* rList(void) {
     nodes[i] = tail;
   }
   long long at = rLong();
+  static struct ListNode** prev = NULL;  /* the list read just before, for joins */
+  static long long prevN = 0;
   if (at >= 0 && at < n) tail->next = nodes[at];
-  free(nodes);
+  if (at <= -2 && -2 - at < prevN) tail->next = prev[-2 - at];
+  free(prev);
+  prev = nodes;
+  prevN = n;
   return dummy.next;
+}
+/* Input nodes come from pools, so an answer that reuses one can be spotted by address. */
+static struct RandomNode* pools[64];
+static long long poolSizes[64];
+static int poolCount = 0;
+static bool isGiven(struct RandomNode* p) {
+  for (int i = 0; i < poolCount; i++) if (p >= pools[i] && p < pools[i] + poolSizes[i]) return true;
+  return false;
+}
+static struct RandomNode* rRandom(void) {
+  long long n = rLong();
+  struct RandomNode* pool = calloc((size_t) (n ? n : 1), sizeof(struct RandomNode));
+  if (poolCount < 64) { pools[poolCount] = pool; poolSizes[poolCount++] = n; }
+  for (long long i = 0; i < n; i++) {
+    pool[i].val = rInt();
+    long long r = rLong();
+    pool[i].next = i + 1 < n ? &pool[i + 1] : NULL;
+    pool[i].random = r >= 0 ? &pool[r] : NULL;
+  }
+  return n ? &pool[0] : NULL;
 }
 static struct TreeNode* rTree(void) {
   long long n = rLong();
@@ -144,6 +175,40 @@ static void wList(struct ListNode* node) {
   }
   putchar(']');
 }
+static int cmpAt(const void* x, const void* y) {
+  uintptr_t a = *(const uintptr_t*) x, b = *(const uintptr_t*) y;
+  return a < b ? -1 : a > b;
+}
+static void wRandom(struct RandomNode* head) {
+  long long n = 0, cap = 64;
+  struct RandomNode** order = malloc(sizeof(struct RandomNode*) * (size_t) cap);
+  for (struct RandomNode* p = head; p; p = p->next) {
+    if (n > 2000000) { fputs("returned list is too long (a cycle?)", stderr); exit(4); }
+    if (isGiven(p)) { fputs("the answer reuses an original node; build new nodes", stderr); exit(4); }
+    if (n == cap) { cap *= 2; order = realloc(order, sizeof(struct RandomNode*) * (size_t) cap); }
+    order[n++] = p;
+  }
+  /* Sorted (address, index) pairs turn each random pointer into an index in O(log n). */
+  struct At { uintptr_t p; long long i; } *by = malloc(sizeof(struct At) * (size_t) (n ? n : 1));
+  for (long long k = 0; k < n; k++) { by[k].p = (uintptr_t) order[k]; by[k].i = k; }
+  qsort(by, (size_t) n, sizeof(struct At), cmpAt);
+  putchar('[');
+  for (long long k = 0; k < n; k++) {
+    if (k) putchar(',');
+    printf("[%d,", order[k]->val);
+    if (!order[k]->random) fputs("null", stdout);
+    else {
+      struct At key = {(uintptr_t) order[k]->random, 0};
+      struct At* hit = bsearch(&key, by, (size_t) n, sizeof(struct At), cmpAt);
+      if (!hit) { fputs("a random pointer leads outside the returned list", stderr); exit(4); }
+      printf("%lld", hit->i);
+    }
+    putchar(']');
+  }
+  putchar(']');
+  free(by);
+  free(order);
+}
 static void wTree(struct TreeNode* root) {
   size_t cap = 64, len = 0;
   struct TreeNode** order = malloc(sizeof(struct TreeNode*) * cap);
@@ -168,8 +233,8 @@ static double nowMs(void) {
 }
 `;
 
-const READ = { int: "rInt", long: "rLong", double: "rDouble", bool: "rBool", char: "rChar", string: "rString", ListNode: "rList", TreeNode: "rTree" };
-const WRITE = { int: "wInt", long: "wLong", double: "wDouble", bool: "wBool", char: "wChar", string: "wString", ListNode: "wList", TreeNode: "wTree" };
+const READ = { int: "rInt", long: "rLong", double: "rDouble", bool: "rBool", char: "rChar", string: "rString", ListNode: "rList", TreeNode: "rTree", RandomNode: "rRandom" };
+const WRITE = { int: "wInt", long: "wLong", double: "wDouble", bool: "wBool", char: "wChar", string: "wString", ListNode: "wList", TreeNode: "wTree", RandomNode: "wRandom" };
 
 // Reading one parameter into locals: the value, plus its sizes for arrays.
 function readParam(p, i) {

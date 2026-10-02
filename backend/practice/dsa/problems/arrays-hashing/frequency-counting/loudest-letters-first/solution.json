@@ -1,0 +1,1081 @@
+{
+ "version": 1,
+ "summary": "Count each character, then output characters by count from high to low, breaking ties by character\ncode. Sorting the (at most 62) distinct characters is already fast; bucketing them by count makes\nthe ordering linear without any comparison sort.",
+ "question": [
+  {
+   "md": "Rearrange `s` so its most frequent character comes first (all its copies together), then the next\nmost frequent, and so on.\n\n- **All copies stay together:** `tree` becomes `eert`, never `eret`.\n- **Ties are fixed by character code**, so the output is unique: digits (`0`–`9`) come before\n  uppercase (`A`–`Z`), which come before lowercase (`a`–`z`). `aAbb` → `bbAa`.\n- **Only letters and digits**, so at most 62 different characters, all in ASCII. A 128-slot array\n  can count them.\n- **Size:** up to 10⁵ characters. The output has the same length."
+  }
+ ],
+ "think": [
+  {
+   "md": "Take `s = \"banana12b\"`. Count: a×3, b×2, n×2, 1×1, 2×1. Now order them: a first (3). Then b and n\ntie at 2; `b` has the smaller code, so `bb` then `nn`. Then `1` and `2` tie at 1; `1` first.\nResult: `aaabbnn12`."
+  },
+  {
+   "panels": [
+    {
+     "type": "row",
+     "cells": [
+      "a:3",
+      "b:2",
+      "n:2",
+      "1:1",
+      "2:1"
+     ],
+     "label": "sorted by count, then code"
+    }
+   ],
+   "caption": "Write each character as many times as it appears."
+  },
+  {
+   "md": "Two separate jobs: **counting** (one pass) and **ordering** the distinct characters. The ordering\nis where approaches differ. The number of distinct characters is tiny here (≤ 62), but it's worth\nseeing the linear version too: since a count is between 1 and n, characters can be dropped into\nbuckets indexed by count."
+  }
+ ],
+ "approaches": [
+  {
+   "title": "Pick the most frequent remaining character, again and again",
+   "kind": "brute",
+   "time": "O(σ² · n)",
+   "space": "O(σ)",
+   "idea": [
+    {
+     "md": "Keep the distinct characters in code order. Repeatedly scan them, counting each with a pass over `s`, and take the one with the highest count (the first one found wins ties, which is the smallest code). Append it count times and remove it."
+    }
+   ],
+   "build": [
+    "List the distinct characters in increasing code order.",
+    "While any remain: find the one with the largest count (strictly larger replaces, so ties keep the smaller code).",
+    "Append it count times; remove it from the list."
+   ],
+   "code": {
+    "python": "class Solution:\n    def sortByFrequency(self, s: str) -> str:\n        left = sorted(set(s))\n        out = []\n        while left:\n            best = left[0]\n            for c in left:\n                if s.count(c) > s.count(best):\n                    best = c\n            out.append(best * s.count(best))\n            left.remove(best)\n        return \"\".join(out)\n",
+    "java": "class Solution {\n    public String sortByFrequency(String s) {\n        boolean[] left = new boolean[128];\n        for (char c : s.toCharArray()) left[c] = true;\n        StringBuilder out = new StringBuilder();\n        while (true) {\n            int best = -1, bestCount = 0;\n            for (int c = 0; c < 128; c++) {\n                if (!left[c]) continue;\n                int k = 0;\n                for (int i = 0; i < s.length(); i++) if (s.charAt(i) == c) k++;\n                if (k > bestCount) { best = c; bestCount = k; }\n            }\n            if (best < 0) break;\n            for (int i = 0; i < bestCount; i++) out.append((char) best);\n            left[best] = false;\n        }\n        return out.toString();\n    }\n}\n",
+    "cpp": "class Solution {\npublic:\n    string sortByFrequency(string& s) {\n        bool left[128] = {false};\n        for (char c : s) left[(int) c] = true;\n        string out;\n        while (true) {\n            int best = -1, bestCount = 0;\n            for (int c = 0; c < 128; c++) {\n                if (!left[c]) continue;\n                int k = count(s.begin(), s.end(), (char) c);\n                if (k > bestCount) { best = c; bestCount = k; }\n            }\n            if (best < 0) break;\n            out.append(bestCount, (char) best);\n            left[best] = false;\n        }\n        return out;\n    }\n};\n",
+    "c": "char* sortByFrequency(char* s) {\n    size_t n = strlen(s);\n    bool left[128] = {false};\n    for (size_t i = 0; i < n; i++) left[(int) s[i]] = true;\n    char* out = malloc(n + 1);\n    size_t w = 0;\n    while (true) {\n        int best = -1, bestCount = 0;\n        for (int c = 0; c < 128; c++) {\n            if (!left[c]) continue;\n            int k = 0;\n            for (size_t i = 0; i < n; i++) if (s[i] == c) k++;\n            if (k > bestCount) { best = c; bestCount = k; }\n        }\n        if (best < 0) break;\n        for (int i = 0; i < bestCount; i++) out[w++] = (char) best;\n        left[best] = false;\n    }\n    out[w] = '\\0';\n    return out;\n}\n"
+   },
+   "lines": [
+    {
+     "text": "The characters still to place.",
+     "at": {
+      "python": [
+       [
+        3,
+        3
+       ]
+      ],
+      "java": [
+       [
+        3,
+        4
+       ]
+      ],
+      "cpp": [
+       [
+        4,
+        5
+       ]
+      ],
+      "c": [
+       [
+        3,
+        4
+       ]
+      ]
+     },
+     "notes": {
+      "java": "A flag per ASCII code; walking codes 0…127 visits them in code order.",
+      "cpp": "A flag per ASCII code; walking codes 0…127 visits them in code order.",
+      "c": "A flag per ASCII code; walking codes 0…127 visits them in code order."
+     }
+    },
+    {
+     "text": "One round places one character.",
+     "at": {
+      "python": [
+       [
+        5,
+        5
+       ]
+      ],
+      "java": [
+       [
+        6,
+        6
+       ],
+       [
+        14,
+        14
+       ]
+      ],
+      "cpp": [
+       [
+        7,
+        7
+       ],
+       [
+        14,
+        14
+       ]
+      ],
+      "c": [
+       [
+        7,
+        7
+       ],
+       [
+        15,
+        15
+       ]
+      ]
+     },
+     "notes": {
+      "java": "No character left means we're done.",
+      "cpp": "No character left means we're done.",
+      "c": "No character left means we're done."
+     }
+    },
+    {
+     "text": "Count every remaining character by scanning `s`, and keep the largest count. Candidates are visited in code order and only a **strictly** larger count replaces the best, so ties go to the smaller code.",
+     "at": {
+      "python": [
+       [
+        6,
+        9
+       ]
+      ],
+      "java": [
+       [
+        7,
+        12
+       ]
+      ],
+      "cpp": [
+       [
+        8,
+        12
+       ]
+      ],
+      "c": [
+       [
+        8,
+        13
+       ]
+      ]
+     }
+    },
+    {
+     "text": "Write the winner as many times as it appears, then take it out of the running.",
+     "at": {
+      "python": [
+       [
+        10,
+        11
+       ]
+      ],
+      "java": [
+       [
+        15,
+        16
+       ]
+      ],
+      "cpp": [
+       [
+        15,
+        16
+       ]
+      ],
+      "c": [
+       [
+        16,
+        17
+       ]
+      ]
+     }
+    },
+    {
+     "text": "The rearranged string.",
+     "at": {
+      "python": [
+       [
+        12,
+        12
+       ]
+      ],
+      "java": [
+       [
+        18,
+        18
+       ]
+      ],
+      "cpp": [
+       [
+        18,
+        18
+       ]
+      ],
+      "c": [
+       [
+        19,
+        20
+       ]
+      ]
+     },
+     "notes": {
+      "c": "Terminate the string; the caller frees it."
+     }
+    }
+   ],
+   "complexity": [
+    {
+     "md": "**Time O(σ² · n)** for σ distinct characters: σ rounds, each counting σ characters with an O(n) scan. With σ = 62 and n = 10⁵ that's ~4 × 10⁸. **Space O(σ).**"
+    }
+   ],
+   "walk": {
+    "steps": [
+     {
+      "text": "Remaining characters in code order: digits, then letters.",
+      "panels": [
+       {
+        "type": "row",
+        "cells": [
+         "b",
+         "a",
+         "n",
+         "a",
+         "n",
+         "a",
+         "1",
+         "2",
+         "b"
+        ],
+        "slots": true
+       },
+       {
+        "type": "row",
+        "cells": [
+         "1",
+         "2",
+         "a",
+         "b",
+         "n"
+        ],
+        "label": "remaining"
+       }
+      ]
+     },
+     {
+      "text": "Count each remaining character by scanning s: 'a' wins with 3. Append it.",
+      "panels": [
+       {
+        "type": "row",
+        "cells": [
+         "1",
+         "2",
+         "a",
+         "b",
+         "n"
+        ],
+        "states": {
+         "2": "answer"
+        },
+        "label": "remaining"
+       },
+       {
+        "type": "vars",
+        "items": {
+         "output": "aaa"
+        }
+       }
+      ]
+     },
+     {
+      "text": "Count each remaining character by scanning s: 'b' wins with 2. Append it.",
+      "panels": [
+       {
+        "type": "row",
+        "cells": [
+         "1",
+         "2",
+         "b",
+         "n"
+        ],
+        "states": {
+         "2": "answer"
+        },
+        "label": "remaining"
+       },
+       {
+        "type": "vars",
+        "items": {
+         "output": "aaabb"
+        }
+       }
+      ]
+     },
+     {
+      "text": "Count each remaining character by scanning s: 'n' wins with 2. Append it.",
+      "panels": [
+       {
+        "type": "row",
+        "cells": [
+         "1",
+         "2",
+         "n"
+        ],
+        "states": {
+         "2": "answer"
+        },
+        "label": "remaining"
+       },
+       {
+        "type": "vars",
+        "items": {
+         "output": "aaabbnn"
+        }
+       }
+      ]
+     },
+     {
+      "text": "Count each remaining character by scanning s: '1' wins with 1. Append it.",
+      "panels": [
+       {
+        "type": "row",
+        "cells": [
+         "1",
+         "2"
+        ],
+        "states": {
+         "0": "answer"
+        },
+        "label": "remaining"
+       },
+       {
+        "type": "vars",
+        "items": {
+         "output": "aaabbnn1"
+        }
+       }
+      ]
+     },
+     {
+      "text": "Count each remaining character by scanning s: '2' wins with 1. Append it.",
+      "panels": [
+       {
+        "type": "row",
+        "cells": [
+         "2"
+        ],
+        "states": {
+         "0": "answer"
+        },
+        "label": "remaining"
+       },
+       {
+        "type": "vars",
+        "items": {
+         "output": "aaabbnn12"
+        }
+       }
+      ]
+     },
+     {
+      "text": "Result: aaabbnn12.",
+      "panels": [
+       {
+        "type": "row",
+        "cells": [
+         "a",
+         "a",
+         "a",
+         "b",
+         "b",
+         "n",
+         "n",
+         "1",
+         "2"
+        ]
+       }
+      ],
+      "result": "aaabbnn12"
+     }
+    ],
+    "title": "Repeatedly pick the remaining character with the most copies (counting with a full scan each time)."
+   },
+   "limits": [
+    {
+     "md": "Counts never change, yet they're recomputed in every round. Count once, then order once."
+    }
+   ],
+   "slow": true
+  },
+  {
+   "title": "Count once, then sort the distinct characters",
+   "kind": "better",
+   "time": "O(n + σ log σ)",
+   "space": "O(σ)",
+   "idea": [
+    {
+     "md": "One pass fills `count[c]` for each ASCII code. Collect the characters with a nonzero count and sort them by `(−count, code)`. Write each one `count` times."
+    }
+   ],
+   "build": [
+    "Count every character into a 128-slot array.",
+    "Collect the characters that appear.",
+    "Sort them: higher count first, then smaller code.",
+    "Append each `count[c]` times."
+   ],
+   "code": {
+    "python": "class Solution:\n    def sortByFrequency(self, s: str) -> str:\n        count = [0] * 128\n        for ch in s:\n            count[ord(ch)] += 1\n        chars = [c for c in range(128) if count[c]]\n        chars.sort(key=lambda c: (-count[c], c))\n        return \"\".join(chr(c) * count[c] for c in chars)\n",
+    "java": "class Solution {\n    public String sortByFrequency(String s) {\n        int[] count = new int[128];\n        for (char ch : s.toCharArray()) count[ch]++;\n        List<Integer> chars = new ArrayList<>();\n        for (int c = 0; c < 128; c++) if (count[c] > 0) chars.add(c);\n        chars.sort((a, b) -> count[a] != count[b] ? count[b] - count[a] : a - b);\n        StringBuilder out = new StringBuilder(s.length());\n        for (int c : chars) for (int i = 0; i < count[c]; i++) out.append((char) c);\n        return out.toString();\n    }\n}\n",
+    "cpp": "class Solution {\npublic:\n    string sortByFrequency(string& s) {\n        int count[128] = {0};\n        for (char ch : s) count[(int) ch]++;\n        vector<int> chars;\n        for (int c = 0; c < 128; c++) if (count[c]) chars.push_back(c);\n        sort(chars.begin(), chars.end(), [&](int a, int b) {\n            return count[a] != count[b] ? count[a] > count[b] : a < b;\n        });\n        string out;\n        for (int c : chars) out.append(count[c], (char) c);\n        return out;\n    }\n};\n",
+    "c": "static int gCount[128];\n\nstatic int byCountThenCode(const void* a, const void* b) {\n    int x = *(const int*) a, y = *(const int*) b;\n    if (gCount[x] != gCount[y]) return gCount[y] - gCount[x];\n    return x - y;\n}\n\nchar* sortByFrequency(char* s) {\n    size_t n = strlen(s);\n    memset(gCount, 0, sizeof gCount);\n    for (size_t i = 0; i < n; i++) gCount[(int) s[i]]++;\n    int chars[128], m = 0;\n    for (int c = 0; c < 128; c++) if (gCount[c]) chars[m++] = c;\n    qsort(chars, m, sizeof(int), byCountThenCode);\n    char* out = malloc(n + 1);\n    size_t w = 0;\n    for (int k = 0; k < m; k++) for (int i = 0; i < gCount[chars[k]]; i++) out[w++] = (char) chars[k];\n    out[w] = '\\0';\n    return out;\n}\n"
+   },
+   "lines": [
+    {
+     "text": "`qsort`'s comparator can't see local variables, so the counts live in a file-level array. Higher count sorts first; equal counts fall back to the smaller code. Counts and codes are small, so subtracting is safe.",
+     "at": {
+      "c": [
+       [
+        1,
+        1
+       ],
+       [
+        3,
+        7
+       ]
+      ]
+     }
+    },
+    {
+     "text": "A slot per ASCII code (letters and digits are all below 128).",
+     "at": {
+      "python": [
+       [
+        3,
+        5
+       ]
+      ],
+      "java": [
+       [
+        3,
+        4
+       ]
+      ],
+      "cpp": [
+       [
+        4,
+        5
+       ]
+      ],
+      "c": [
+       [
+        11,
+        12
+       ]
+      ]
+     },
+     "notes": {
+      "c": "Reset the shared counts first, since the function may be called more than once."
+     }
+    },
+    {
+     "text": "Only characters that actually appear: at most 62 of them.",
+     "at": {
+      "python": [
+       [
+        6,
+        6
+       ]
+      ],
+      "java": [
+       [
+        5,
+        6
+       ]
+      ],
+      "cpp": [
+       [
+        6,
+        7
+       ]
+      ],
+      "c": [
+       [
+        13,
+        14
+       ]
+      ]
+     }
+    },
+    {
+     "text": "Order by count descending, then code ascending.",
+     "at": {
+      "python": [
+       [
+        7,
+        7
+       ]
+      ],
+      "java": [
+       [
+        7,
+        7
+       ]
+      ],
+      "cpp": [
+       [
+        8,
+        10
+       ]
+      ],
+      "c": [
+       [
+        15,
+        15
+       ]
+      ]
+     },
+     "notes": {
+      "python": "Sorting by `(−count, code)` gives \"high count first, then small code\" with one key."
+     }
+    },
+    {
+     "text": "Write each character `count` times, keeping copies together.",
+     "at": {
+      "python": [
+       [
+        8,
+        8
+       ]
+      ],
+      "java": [
+       [
+        8,
+        10
+       ]
+      ],
+      "cpp": [
+       [
+        11,
+        13
+       ]
+      ],
+      "c": [
+       [
+        16,
+        20
+       ]
+      ]
+     },
+     "notes": {
+      "c": "Fill a new buffer and terminate it; the caller frees it."
+     }
+    }
+   ],
+   "complexity": [
+    {
+     "md": "**Time O(n + σ log σ):** a counting pass plus a sort of σ ≤ 62 items, effectively O(n). **Space O(σ)** besides the output."
+    }
+   ],
+   "walk": {
+    "steps": [
+     {
+      "text": "Counts per character.",
+      "panels": [
+       {
+        "type": "row",
+        "cells": [
+         "b",
+         "a",
+         "n",
+         "a",
+         "n",
+         "a",
+         "1",
+         "2",
+         "b"
+        ],
+        "slots": true
+       },
+       {
+        "type": "row",
+        "cells": [
+         "1:1",
+         "2:1",
+         "a:3",
+         "b:2",
+         "n:2"
+        ],
+        "label": "count"
+       }
+      ]
+     },
+     {
+      "text": "Sorted by count, ties by code: a b n 1 2.",
+      "panels": [
+       {
+        "type": "row",
+        "cells": [
+         "a:3",
+         "b:2",
+         "n:2",
+         "1:1",
+         "2:1"
+        ],
+        "label": "order"
+       }
+      ]
+     },
+     {
+      "text": "Write 'a' × 3.",
+      "panels": [
+       {
+        "type": "row",
+        "cells": [
+         "a:3",
+         "b:2",
+         "n:2",
+         "1:1",
+         "2:1"
+        ],
+        "states": {
+         "0": "active"
+        },
+        "label": "order"
+       },
+       {
+        "type": "vars",
+        "items": {
+         "output": "aaa"
+        }
+       }
+      ]
+     },
+     {
+      "text": "Write 'b' × 2.",
+      "panels": [
+       {
+        "type": "row",
+        "cells": [
+         "a:3",
+         "b:2",
+         "n:2",
+         "1:1",
+         "2:1"
+        ],
+        "states": {
+         "1": "active",
+         "0": "found"
+        },
+        "label": "order"
+       },
+       {
+        "type": "vars",
+        "items": {
+         "output": "aaabb"
+        }
+       }
+      ]
+     },
+     {
+      "text": "Write 'n' × 2.",
+      "panels": [
+       {
+        "type": "row",
+        "cells": [
+         "a:3",
+         "b:2",
+         "n:2",
+         "1:1",
+         "2:1"
+        ],
+        "states": {
+         "2": "active",
+         "0": "found",
+         "1": "found"
+        },
+        "label": "order"
+       },
+       {
+        "type": "vars",
+        "items": {
+         "output": "aaabbnn"
+        }
+       }
+      ]
+     },
+     {
+      "text": "Write '1' × 1.",
+      "panels": [
+       {
+        "type": "row",
+        "cells": [
+         "a:3",
+         "b:2",
+         "n:2",
+         "1:1",
+         "2:1"
+        ],
+        "states": {
+         "3": "active",
+         "0": "found",
+         "1": "found",
+         "2": "found"
+        },
+        "label": "order"
+       },
+       {
+        "type": "vars",
+        "items": {
+         "output": "aaabbnn1"
+        }
+       }
+      ]
+     },
+     {
+      "text": "Write '2' × 1.",
+      "panels": [
+       {
+        "type": "row",
+        "cells": [
+         "a:3",
+         "b:2",
+         "n:2",
+         "1:1",
+         "2:1"
+        ],
+        "states": {
+         "4": "active",
+         "0": "found",
+         "1": "found",
+         "2": "found",
+         "3": "found"
+        },
+        "label": "order"
+       },
+       {
+        "type": "vars",
+        "items": {
+         "output": "aaabbnn12"
+        }
+       }
+      ]
+     },
+     {
+      "text": "Result: aaabbnn12.",
+      "panels": [
+       {
+        "type": "row",
+        "cells": [
+         "a",
+         "a",
+         "a",
+         "b",
+         "b",
+         "n",
+         "n",
+         "1",
+         "2"
+        ]
+       }
+      ],
+      "result": "aaabbnn12"
+     }
+    ],
+    "title": "Count once, sort the distinct characters by (count high → low, code low → high), write them out."
+   },
+   "limits": [
+    {
+     "md": "With 62 possible characters this is as fast as anything in practice. The limit appears with a\nlarge alphabet (any Unicode text): sorting σ distinct characters costs O(σ log σ). Because a\ncount is an integer from 1 to n, bucketing by count avoids the comparison sort entirely."
+    }
+   ]
+  },
+  {
+   "title": "Buckets by count",
+   "kind": "best",
+   "time": "O(n + σ)",
+   "space": "O(n + σ)",
+   "idea": [
+    {
+     "md": "Count the characters. Make buckets `1 … n`; visit characters in increasing code order and add\neach to `bucket[count]`, so every bucket holds its characters already sorted by code. Then read\nthe buckets from `n` down to 1 and write each character `count` times."
+    }
+   ],
+   "build": [
+    "Count into a 128-slot array.",
+    "For codes 0 … 127 with a nonzero count, append the code to `bucket[count]`.",
+    "For `k` from n down to 1, write every character in `bucket[k]` k times."
+   ],
+   "code": {
+    "python": "class Solution:\n    def sortByFrequency(self, s: str) -> str:\n        count = [0] * 128\n        for ch in s:\n            count[ord(ch)] += 1\n        bucket = [[] for _ in range(len(s) + 1)]\n        for c in range(128):\n            if count[c]:\n                bucket[count[c]].append(c)\n        out = []\n        for k in range(len(s), 0, -1):\n            for c in bucket[k]:\n                out.append(chr(c) * k)\n        return \"\".join(out)\n",
+    "java": "class Solution {\n    public String sortByFrequency(String s) {\n        int n = s.length();\n        int[] count = new int[128];\n        for (char ch : s.toCharArray()) count[ch]++;\n        List<List<Integer>> bucket = new ArrayList<>();\n        for (int k = 0; k <= n; k++) bucket.add(new ArrayList<>());\n        for (int c = 0; c < 128; c++) if (count[c] > 0) bucket.get(count[c]).add(c);\n        StringBuilder out = new StringBuilder(n);\n        for (int k = n; k >= 1; k--)\n            for (int c : bucket.get(k))\n                for (int i = 0; i < k; i++) out.append((char) c);\n        return out.toString();\n    }\n}\n",
+    "cpp": "class Solution {\npublic:\n    string sortByFrequency(string& s) {\n        int n = s.size();\n        int count[128] = {0};\n        for (char ch : s) count[(int) ch]++;\n        vector<vector<int>> bucket(n + 1);\n        for (int c = 0; c < 128; c++) if (count[c]) bucket[count[c]].push_back(c);\n        string out;\n        for (int k = n; k >= 1; k--)\n            for (int c : bucket[k]) out.append(k, (char) c);\n        return out;\n    }\n};\n",
+    "c": "char* sortByFrequency(char* s) {\n    int n = strlen(s);\n    int count[128] = {0};\n    for (int i = 0; i < n; i++) count[(int) s[i]]++;\n    int* head = malloc((n + 1) * sizeof(int));\n    int next[128];\n    for (int k = 0; k <= n; k++) head[k] = -1;\n    for (int c = 127; c >= 0; c--) {\n        if (!count[c]) continue;\n        next[c] = head[count[c]];\n        head[count[c]] = c;\n    }\n    char* out = malloc(n + 1);\n    int w = 0;\n    for (int k = n; k >= 1; k--)\n        for (int c = head[k]; c != -1; c = next[c])\n            for (int i = 0; i < k; i++) out[w++] = (char) c;\n    out[w] = '\\0';\n    free(head);\n    return out;\n}\n"
+   },
+   "lines": [
+    {
+     "text": "Count each character once.",
+     "at": {
+      "python": [
+       [
+        3,
+        5
+       ]
+      ],
+      "java": [
+       [
+        4,
+        5
+       ]
+      ],
+      "cpp": [
+       [
+        5,
+        6
+       ]
+      ],
+      "c": [
+       [
+        3,
+        4
+       ]
+      ]
+     }
+    },
+    {
+     "text": "Drop each character into the bucket for its count. Characters are visited in code order, so each bucket comes out sorted by code: the tie rule for free.",
+     "at": {
+      "python": [
+       [
+        6,
+        9
+       ]
+      ],
+      "java": [
+       [
+        6,
+        8
+       ]
+      ],
+      "cpp": [
+       [
+        7,
+        8
+       ]
+      ],
+      "c": [
+       [
+        5,
+        11
+       ]
+      ]
+     },
+     "notes": {
+      "c": "Each bucket is a linked list stored in two arrays: `head[k]` is the first character with count k, `next[c]` the one after `c`. Walking codes from 127 down and pushing to the front leaves each list in increasing code order."
+     }
+    },
+    {
+     "text": "Highest count first; within a bucket, smaller code first. Each character is written `k` times.",
+     "at": {
+      "python": [
+       [
+        10,
+        13
+       ]
+      ],
+      "java": [
+       [
+        9,
+        12
+       ]
+      ],
+      "cpp": [
+       [
+        9,
+        11
+       ]
+      ],
+      "c": [
+       [
+        13,
+        17
+       ]
+      ]
+     }
+    },
+    {
+     "text": "The rearranged string.",
+     "at": {
+      "python": [
+       [
+        14,
+        14
+       ]
+      ],
+      "java": [
+       [
+        13,
+        13
+       ]
+      ],
+      "cpp": [
+       [
+        12,
+        12
+       ]
+      ],
+      "c": [
+       [
+        18,
+        20
+       ]
+      ]
+     },
+     "notes": {
+      "c": "Terminate it, free the bucket heads; the caller frees the result."
+     }
+    }
+   ],
+   "complexity": [
+    {
+     "md": "**Time O(n + σ):** counting, one pass over the alphabet, and n buckets to read. **Space O(n + σ)** for the buckets."
+    }
+   ],
+   "walk": {
+    "steps": [
+     {
+      "text": "Characters visited in code order land in bucket[count]: 1→12, 2→bn, 3→a.",
+      "panels": [
+       {
+        "type": "row",
+        "cells": [
+         "12",
+         "bn",
+         "a",
+         null,
+         null,
+         null,
+         null,
+         null,
+         null
+        ],
+        "label": "bucket 1 … n"
+       }
+      ]
+     },
+     {
+      "text": "Bucket 3: a → write each 3 times.",
+      "panels": [
+       {
+        "type": "row",
+        "cells": [
+         "12",
+         "bn",
+         "a",
+         null,
+         null,
+         null,
+         null,
+         null,
+         null
+        ],
+        "states": {
+         "2": "active"
+        },
+        "label": "bucket 1 … n"
+       },
+       {
+        "type": "vars",
+        "items": {
+         "output": "aaa"
+        }
+       }
+      ]
+     },
+     {
+      "text": "Bucket 2: b, n → write each 2 times.",
+      "panels": [
+       {
+        "type": "row",
+        "cells": [
+         "12",
+         "bn",
+         "a",
+         null,
+         null,
+         null,
+         null,
+         null,
+         null
+        ],
+        "states": {
+         "1": "active"
+        },
+        "label": "bucket 1 … n"
+       },
+       {
+        "type": "vars",
+        "items": {
+         "output": "aaabbnn"
+        }
+       }
+      ]
+     },
+     {
+      "text": "Bucket 1: 1, 2 → write each 1 time.",
+      "panels": [
+       {
+        "type": "row",
+        "cells": [
+         "12",
+         "bn",
+         "a",
+         null,
+         null,
+         null,
+         null,
+         null,
+         null
+        ],
+        "states": {
+         "0": "active"
+        },
+        "label": "bucket 1 … n"
+       },
+       {
+        "type": "vars",
+        "items": {
+         "output": "aaabbnn12"
+        }
+       }
+      ]
+     },
+     {
+      "text": "Result: aaabbnn12.",
+      "panels": [
+       {
+        "type": "row",
+        "cells": [
+         "a",
+         "a",
+         "a",
+         "b",
+         "b",
+         "n",
+         "n",
+         "1",
+         "2"
+        ]
+       }
+      ],
+      "result": "aaabbnn12"
+     }
+    ],
+    "title": "Bucket characters by their count. Read buckets from the highest count down."
+   }
+  }
+ ],
+ "takeaways": [
+  {
+   "md": "- \"Order by frequency\" = **count, then order the distinct items**. Do the counting exactly once.\n- When the sort key is a small integer (a count between 1 and n), **bucket sort** beats comparison\n  sorting.\n- Visiting keys in their natural order while filling buckets makes ties come out in the right\n  order without extra work."
+  }
+ ]
+}

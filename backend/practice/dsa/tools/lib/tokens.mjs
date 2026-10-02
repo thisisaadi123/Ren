@@ -3,7 +3,10 @@
 //
 // Token stream: numbers as decimal, bools as 0/1, chars as their code point,
 // strings as "<byte length> <bytes>", arrays as "<length> <items...>",
-// lists as "<length> <values...> <cycle_at or -1>", trees as "<length>" then "1 v" or "0" per slot.
+// lists as "<length> <values...> <link>", where link is -1 (ends), i ≥ 0 (the tail loops back
+// to node i) or -2 − i (the tail joins node i of the list read just before, so the two share it),
+// lists with random pointers as "<length>" then "<value> <random index or -1>" per node,
+// trees as "<length>" then "1 v" or "0" per slot.
 export function encode(value, type) {
   if (type.endsWith("[]")) {
     const inner = type.slice(0, -2);
@@ -23,9 +26,12 @@ export function encode(value, type) {
       return `${Buffer.byteLength(value, "utf8")} ${value}`;
     case "ListNode": {
       const values = Array.isArray(value) ? value : value.values;
-      const cycleAt = Array.isArray(value) ? -1 : value.cycle_at ?? -1;
-      return [values.length, ...values, cycleAt].join(" ");
+      let link = -1;
+      if (!Array.isArray(value)) link = value.join_at != null ? -2 - value.join_at : value.cycle_at ?? -1;
+      return [values.length, ...values, link].join(" ");
     }
+    case "RandomNode":
+      return [value.length, ...value.map(([v, r]) => `${v} ${r === null ? -1 : r}`)].join(" ");
     case "TreeNode":
       return [value.length, ...value.map((v) => (v === null ? "0" : `1 ${v}`))].join(" ");
     default:

@@ -1,0 +1,963 @@
+{
+ "version": 1,
+ "summary": "Brightness only goes **up** at a lamp's left edge and only goes **down** just past a right edge,\nso the answer is always some lamp's left edge. Sort the start points and the stop points; walking\nthe starts in order, the brightness is \"starts passed minus stops passed\". That's O(n log n), and it\nnever touches the (infinitely long) street itself.",
+ "question": [
+  {
+   "md": "Each lamp `[position, reach]` lights the whole interval `[position − reach, position + reach]`\n(integer points, both ends included). A point's brightness is how many intervals contain it. Find\nthe brightest point; if several tie, return the **smallest**.\n\n- **Endpoints count.** A lamp at 5 with reach 0 lights exactly the point 5.\n- **The street is endless** and positions go from −10⁸ to 10⁸ with reach up to 10⁸, so lit points\n  range over about 4 × 10⁸ values. An array with one cell per point would be far too big.\n- **Ties go to the smallest point.** `[[−3, 2], [1, 2], [3, 3]]` lights −1, 0 and 1 with two lamps\n  each; the answer is −1.\n- **Size:** up to 10⁵ lamps. All coordinates (including `end + 1`) stay within ±2 × 10⁸ + 1, so\n  `int` is enough."
+  }
+ ],
+ "think": [
+  {
+   "md": "Take `lamps = [[2, 3], [6, 1], [4, 1], [10, 2], [5, 2]]`. Their lit ranges are −1…5, 5…7, 3…5,\n8…12 and 3…7. Count the brightness at every point from −1 to 12:"
+  },
+  {
+   "panels": [
+    {
+     "type": "row",
+     "cells": [
+      -1,
+      0,
+      1,
+      2,
+      3,
+      4,
+      5,
+      6,
+      7,
+      8,
+      9,
+      10,
+      11,
+      12
+     ],
+     "label": "point"
+    },
+    {
+     "type": "row",
+     "cells": [
+      1,
+      1,
+      1,
+      1,
+      3,
+      3,
+      4,
+      2,
+      2,
+      1,
+      1,
+      1,
+      1,
+      1
+     ],
+     "states": {
+      "6": "answer"
+     },
+     "label": "brightness"
+    }
+   ],
+   "caption": "Point 5 is under four lamps. Nothing else reaches 4."
+  },
+  {
+   "md": "Walking left to right, the brightness changes only at two kinds of places: it goes **up by one** at\na lamp's left edge, and **down by one** just after a lamp's right edge. Between those places it's\nflat.\n\nSo the brightest stretch must **begin** at some left edge (that's where the brightness last went up\nbefore the peak). The smallest brightest point is therefore one of the n left edges, not one of\nhundreds of millions of points. That cuts the search down to n candidates.\n\nThis is the **difference array** idea (+1 where something starts, −1 just after it ends, then a\nrunning sum), except the street is too long for an array, so we keep only the places where\nsomething changes and visit them in sorted order."
+  }
+ ],
+ "approaches": [
+  {
+   "title": "Count the lamps over every left edge",
+   "kind": "brute",
+   "time": "O(n²)",
+   "space": "O(1)",
+   "idea": [
+    {
+     "md": "Only left edges can be the answer. For each lamp's left edge `x`, count how many lamps\nsatisfy `start ≤ x ≤ end`. Keep the largest count; on a tie keep the smaller `x`."
+    }
+   ],
+   "build": [
+    "For each lamp, take its left edge `x = position − reach`.",
+    "Count lamps whose range contains `x` (a scan over all lamps).",
+    "If the count beats the best, or ties it with a smaller `x`, remember `x`.",
+    "Return the remembered point."
+   ],
+   "code": {
+    "python": "class Solution:\n    def brightestSpot(self, lamps: List[List[int]]) -> int:\n        best, best_at = -1, 0\n        for p, r in lamps:\n            x = p - r\n            lit = sum(1 for q, s in lamps if q - s <= x <= q + s)\n            if lit > best or (lit == best and x < best_at):\n                best, best_at = lit, x\n        return best_at\n",
+    "java": "class Solution {\n    public int brightestSpot(int[][] lamps) {\n        int best = -1, bestAt = 0;\n        for (int[] a : lamps) {\n            int x = a[0] - a[1];\n            int lit = 0;\n            for (int[] b : lamps) if (b[0] - b[1] <= x && x <= b[0] + b[1]) lit++;\n            if (lit > best || (lit == best && x < bestAt)) {\n                best = lit;\n                bestAt = x;\n            }\n        }\n        return bestAt;\n    }\n}\n",
+    "cpp": "class Solution {\npublic:\n    int brightestSpot(vector<vector<int>>& lamps) {\n        int best = -1, bestAt = 0;\n        for (auto& a : lamps) {\n            int x = a[0] - a[1];\n            int lit = 0;\n            for (auto& b : lamps) if (b[0] - b[1] <= x && x <= b[0] + b[1]) lit++;\n            if (lit > best || (lit == best && x < bestAt)) {\n                best = lit;\n                bestAt = x;\n            }\n        }\n        return bestAt;\n    }\n};\n",
+    "c": "int brightestSpot(int** lamps, int lampsSize, int* lampsColSize) {\n    int best = -1, bestAt = 0;\n    for (int i = 0; i < lampsSize; i++) {\n        int x = lamps[i][0] - lamps[i][1];\n        int lit = 0;\n        for (int j = 0; j < lampsSize; j++) {\n            if (lamps[j][0] - lamps[j][1] <= x && x <= lamps[j][0] + lamps[j][1]) lit++;\n        }\n        if (lit > best || (lit == best && x < bestAt)) {\n            best = lit;\n            bestAt = x;\n        }\n    }\n    return bestAt;\n}\n"
+   },
+   "lines": [
+    {
+     "text": "The best brightness so far (−1 so the first candidate always wins) and where it happens.",
+     "at": {
+      "python": [
+       [
+        3,
+        3
+       ]
+      ],
+      "java": [
+       [
+        3,
+        3
+       ]
+      ],
+      "cpp": [
+       [
+        4,
+        4
+       ]
+      ],
+      "c": [
+       [
+        2,
+        2
+       ]
+      ]
+     }
+    },
+    {
+     "text": "Each lamp's left edge is a candidate answer.",
+     "at": {
+      "python": [
+       [
+        4,
+        5
+       ]
+      ],
+      "java": [
+       [
+        4,
+        5
+       ]
+      ],
+      "cpp": [
+       [
+        5,
+        6
+       ]
+      ],
+      "c": [
+       [
+        3,
+        4
+       ]
+      ]
+     },
+     "notes": {
+      "c": "A 2-D input arrives as an array of row pointers; each row is `[position, reach]`."
+     }
+    },
+    {
+     "text": "How many lamps light this point: those with `start ≤ x ≤ end`.",
+     "at": {
+      "python": [
+       [
+        6,
+        6
+       ]
+      ],
+      "java": [
+       [
+        6,
+        7
+       ]
+      ],
+      "cpp": [
+       [
+        7,
+        8
+       ]
+      ],
+      "c": [
+       [
+        5,
+        7
+       ]
+      ]
+     }
+    },
+    {
+     "text": "A brighter point wins; an equally bright but smaller point also wins, which handles the tie rule.",
+     "at": {
+      "python": [
+       [
+        7,
+        8
+       ]
+      ],
+      "java": [
+       [
+        8,
+        10
+       ]
+      ],
+      "cpp": [
+       [
+        9,
+        11
+       ]
+      ],
+      "c": [
+       [
+        9,
+        11
+       ]
+      ]
+     }
+    },
+    {
+     "text": "The smallest of the brightest points.",
+     "at": {
+      "python": [
+       [
+        9,
+        9
+       ]
+      ],
+      "java": [
+       [
+        13,
+        13
+       ]
+      ],
+      "cpp": [
+       [
+        14,
+        14
+       ]
+      ],
+      "c": [
+       [
+        14,
+        14
+       ]
+      ]
+     }
+    }
+   ],
+   "complexity": [
+    {
+     "md": "**Time O(n²):** n candidates, each checked against n lamps (10¹⁰ at the limit). **Space O(1).**"
+    }
+   ],
+   "walk": {
+    "steps": [
+     {
+      "text": "Each lamp lights [position − reach, position + reach].",
+      "panels": [
+       {
+        "type": "row",
+        "cells": [
+         "-1…5",
+         "5…7",
+         "3…5",
+         "8…12",
+         "3…7"
+        ],
+        "label": "lit range per lamp"
+       }
+      ]
+     },
+     {
+      "text": "Point -1: lit by 1 lamp — a new best.",
+      "panels": [
+       {
+        "type": "row",
+        "cells": [
+         "-1…5",
+         "5…7",
+         "3…5",
+         "8…12",
+         "3…7"
+        ],
+        "states": {
+         "0": "answer"
+        },
+        "label": "lamps covering it"
+       },
+       {
+        "type": "vars",
+        "items": {
+         "point": -1,
+         "best": 1,
+         "at": -1
+        }
+       }
+      ]
+     },
+     {
+      "text": "Point 3: lit by 3 lamps — a new best.",
+      "panels": [
+       {
+        "type": "row",
+        "cells": [
+         "-1…5",
+         "5…7",
+         "3…5",
+         "8…12",
+         "3…7"
+        ],
+        "states": {
+         "0": "answer",
+         "2": "answer",
+         "4": "answer"
+        },
+        "label": "lamps covering it"
+       },
+       {
+        "type": "vars",
+        "items": {
+         "point": 3,
+         "best": 3,
+         "at": 3
+        }
+       }
+      ]
+     },
+     {
+      "text": "Point 5: lit by 4 lamps — a new best.",
+      "panels": [
+       {
+        "type": "row",
+        "cells": [
+         "-1…5",
+         "5…7",
+         "3…5",
+         "8…12",
+         "3…7"
+        ],
+        "states": {
+         "0": "answer",
+         "1": "answer",
+         "2": "answer",
+         "4": "answer"
+        },
+        "label": "lamps covering it"
+       },
+       {
+        "type": "vars",
+        "items": {
+         "point": 5,
+         "best": 4,
+         "at": 5
+        }
+       }
+      ]
+     },
+     {
+      "text": "Point 8: lit by 1 lamp.",
+      "panels": [
+       {
+        "type": "row",
+        "cells": [
+         "-1…5",
+         "5…7",
+         "3…5",
+         "8…12",
+         "3…7"
+        ],
+        "states": {
+         "3": "answer"
+        },
+        "label": "lamps covering it"
+       },
+       {
+        "type": "vars",
+        "items": {
+         "point": 8,
+         "best": 4,
+         "at": 5
+        }
+       }
+      ]
+     },
+     {
+      "text": "The best is 4 lamps, first reached at 5.",
+      "panels": [
+       {
+        "type": "row",
+        "cells": [
+         1,
+         1,
+         1,
+         1,
+         3,
+         3,
+         4,
+         2,
+         2,
+         1,
+         1,
+         1,
+         1,
+         1
+        ],
+        "states": {
+         "6": "answer"
+        },
+        "label": "brightness at -1 … 12"
+       }
+      ],
+      "result": "5"
+     }
+    ],
+    "title": "Only a lamp's left edge can be the answer. Count the lamps over each left edge."
+   },
+   "limits": [
+    {
+     "md": "Neighbouring candidates share almost all of their lamps, yet each count starts from scratch.\nIf the candidates are visited in increasing order, the count can be **updated** as lamps\nswitch on and off, instead of recounted."
+    }
+   ],
+   "slow": true
+  },
+  {
+   "title": "Sweep sorted starts and stops",
+   "kind": "best",
+   "time": "O(n log n)",
+   "space": "O(n)",
+   "idea": [
+    {
+     "md": "Make two sorted lists: every lamp's **start** (`position − reach`) and every lamp's **stop**,\nthe first dark point after it (`position + reach + 1`). For any point `x`:\n\n`brightness(x) = (starts ≤ x) − (stops ≤ x)`\n\nbecause a lamp lights `x` exactly when it has started and hasn't yet stopped. Walk the starts\nin increasing order with one pointer `i`, and move a second pointer `j` through the stops\nwhile `stops[j] ≤ x`. Both pointers only move forward, so the walk is linear after sorting.\n\nEqual starts are handled together (we evaluate after the last of them), and the first `x`\nthat **strictly** beats the best is kept, which makes ties resolve to the smaller point."
+    }
+   ],
+   "build": [
+    "Build `starts[k] = p − r` and `stops[k] = p + r + 1`, and sort both.",
+    "Set `j = 0`, `best = −1`. Walk `i` over `starts`.",
+    "Skip ahead while the next start equals this one, so every lamp starting at `x` is counted.",
+    "Advance `j` while `stops[j] ≤ x` (those lamps are already dark at `x`).",
+    "`lit = (i + 1) − j`. If `lit > best`, record `best = lit` and the point `x`.",
+    "Return the recorded point."
+   ],
+   "code": {
+    "python": "class Solution:\n    def brightestSpot(self, lamps: List[List[int]]) -> int:\n        starts = sorted(p - r for p, r in lamps)\n        stops = sorted(p + r + 1 for p, r in lamps)\n        n = len(starts)\n        best, best_at, j, i = -1, 0, 0, 0\n        while i < n:\n            x = starts[i]\n            while i + 1 < n and starts[i + 1] == x:\n                i += 1\n            while j < n and stops[j] <= x:\n                j += 1\n            lit = (i + 1) - j\n            if lit > best:\n                best, best_at = lit, x\n            i += 1\n        return best_at\n",
+    "java": "class Solution {\n    public int brightestSpot(int[][] lamps) {\n        int n = lamps.length;\n        int[] starts = new int[n], stops = new int[n];\n        for (int k = 0; k < n; k++) {\n            starts[k] = lamps[k][0] - lamps[k][1];\n            stops[k] = lamps[k][0] + lamps[k][1] + 1;\n        }\n        Arrays.sort(starts);\n        Arrays.sort(stops);\n        int best = -1, bestAt = 0, j = 0;\n        for (int i = 0; i < n; i++) {\n            int x = starts[i];\n            while (i + 1 < n && starts[i + 1] == x) i++;\n            while (j < n && stops[j] <= x) j++;\n            int lit = (i + 1) - j;\n            if (lit > best) {\n                best = lit;\n                bestAt = x;\n            }\n        }\n        return bestAt;\n    }\n}\n",
+    "cpp": "class Solution {\npublic:\n    int brightestSpot(vector<vector<int>>& lamps) {\n        int n = lamps.size();\n        vector<int> starts(n), stops(n);\n        for (int k = 0; k < n; k++) {\n            starts[k] = lamps[k][0] - lamps[k][1];\n            stops[k] = lamps[k][0] + lamps[k][1] + 1;\n        }\n        sort(starts.begin(), starts.end());\n        sort(stops.begin(), stops.end());\n        int best = -1, bestAt = 0, j = 0;\n        for (int i = 0; i < n; i++) {\n            int x = starts[i];\n            while (i + 1 < n && starts[i + 1] == x) i++;\n            while (j < n && stops[j] <= x) j++;\n            int lit = (i + 1) - j;\n            if (lit > best) {\n                best = lit;\n                bestAt = x;\n            }\n        }\n        return bestAt;\n    }\n};\n",
+    "c": "static int cmpInt(const void* a, const void* b) {\n    int p = *(const int*) a, q = *(const int*) b;\n    return (p > q) - (p < q);\n}\n\nint brightestSpot(int** lamps, int lampsSize, int* lampsColSize) {\n    int n = lampsSize;\n    int* starts = malloc(n * sizeof(int));\n    int* stops = malloc(n * sizeof(int));\n    for (int k = 0; k < n; k++) {\n        starts[k] = lamps[k][0] - lamps[k][1];\n        stops[k] = lamps[k][0] + lamps[k][1] + 1;\n    }\n    qsort(starts, n, sizeof(int), cmpInt);\n    qsort(stops, n, sizeof(int), cmpInt);\n    int best = -1, bestAt = 0, j = 0;\n    for (int i = 0; i < n; i++) {\n        int x = starts[i];\n        while (i + 1 < n && starts[i + 1] == x) i++;\n        while (j < n && stops[j] <= x) j++;\n        int lit = (i + 1) - j;\n        if (lit > best) {\n            best = lit;\n            bestAt = x;\n        }\n    }\n    free(starts);\n    free(stops);\n    return bestAt;\n}\n"
+   },
+   "lines": [
+    {
+     "text": "Comparator for `qsort`: −1, 0 or 1, without the overflow risk of subtracting.",
+     "at": {
+      "c": [
+       [
+        1,
+        4
+       ]
+      ]
+     }
+    },
+    {
+     "text": "Where each lamp's light begins, and the first point after it ends. Using `end + 1` means \"lit at x\" is exactly `start ≤ x < stop`, so both lists can be compared with `≤ x`. Values stay within ±2 × 10⁸ + 1.",
+     "at": {
+      "python": [
+       [
+        3,
+        4
+       ]
+      ],
+      "java": [
+       [
+        4,
+        10
+       ]
+      ],
+      "cpp": [
+       [
+        5,
+        11
+       ]
+      ],
+      "c": [
+       [
+        8,
+        15
+       ]
+      ]
+     }
+    },
+    {
+     "text": "`j` counts stops at or before the current point; `best` starts below any real brightness.",
+     "at": {
+      "python": [
+       [
+        6,
+        6
+       ]
+      ],
+      "java": [
+       [
+        11,
+        11
+       ]
+      ],
+      "cpp": [
+       [
+        12,
+        12
+       ]
+      ],
+      "c": [
+       [
+        16,
+        16
+       ]
+      ]
+     }
+    },
+    {
+     "text": "Candidate points are the starts, in increasing order.",
+     "at": {
+      "python": [
+       [
+        7,
+        8
+       ],
+       [
+        16,
+        16
+       ]
+      ],
+      "java": [
+       [
+        12,
+        13
+       ]
+      ],
+      "cpp": [
+       [
+        13,
+        14
+       ]
+      ],
+      "c": [
+       [
+        17,
+        18
+       ]
+      ]
+     }
+    },
+    {
+     "text": "Several lamps can start at the same point. Jump `i` to the last of them so all of them are counted as started.",
+     "at": {
+      "python": [
+       [
+        9,
+        10
+       ]
+      ],
+      "java": [
+       [
+        14,
+        14
+       ]
+      ],
+      "cpp": [
+       [
+        15,
+        15
+       ]
+      ],
+      "c": [
+       [
+        19,
+        19
+       ]
+      ]
+     }
+    },
+    {
+     "text": "Every lamp whose stop is at or before `x` is dark at `x`. `j` only moves forward because `x` only increases.",
+     "at": {
+      "python": [
+       [
+        11,
+        12
+       ]
+      ],
+      "java": [
+       [
+        15,
+        15
+       ]
+      ],
+      "cpp": [
+       [
+        16,
+        16
+       ]
+      ],
+      "c": [
+       [
+        20,
+        20
+       ]
+      ]
+     }
+    },
+    {
+     "text": "`i + 1` lamps have started by `x`, and `j` of them have stopped: the rest are on.",
+     "at": {
+      "python": [
+       [
+        13,
+        13
+       ]
+      ],
+      "java": [
+       [
+        16,
+        16
+       ]
+      ],
+      "cpp": [
+       [
+        17,
+        17
+       ]
+      ],
+      "c": [
+       [
+        21,
+        21
+       ]
+      ]
+     }
+    },
+    {
+     "text": "Only a strictly brighter point replaces the answer. Points are visited smallest first, so a tie keeps the earlier, smaller point.",
+     "at": {
+      "python": [
+       [
+        14,
+        15
+       ]
+      ],
+      "java": [
+       [
+        17,
+        19
+       ]
+      ],
+      "cpp": [
+       [
+        18,
+        20
+       ]
+      ],
+      "c": [
+       [
+        22,
+        24
+       ]
+      ]
+     }
+    },
+    {
+     "text": "The smallest brightest point.",
+     "at": {
+      "python": [
+       [
+        17,
+        17
+       ]
+      ],
+      "java": [
+       [
+        22,
+        22
+       ]
+      ],
+      "cpp": [
+       [
+        23,
+        23
+       ]
+      ],
+      "c": [
+       [
+        27,
+        29
+       ]
+      ]
+     },
+     "notes": {
+      "c": "Free both lists first."
+     }
+    }
+   ],
+   "complexity": [
+    {
+     "md": "**Time O(n log n):** two sorts; the walk is O(n) because `i` and `j` each move at most n\ntimes.\n\n**Space O(n)** for the two lists.\n\nWith the street this long, sorting the change points is the right tool: a true\ndifference array would need hundreds of millions of cells."
+    }
+   ],
+   "walk": {
+    "steps": [
+     {
+      "text": "A lamp adds 1 from its start and takes it back at end + 1 (the first dark point).",
+      "panels": [
+       {
+        "type": "row",
+        "cells": [
+         -1,
+         3,
+         3,
+         5,
+         8
+        ],
+        "label": "starts (sorted)",
+        "slots": true
+       },
+       {
+        "type": "row",
+        "cells": [
+         6,
+         6,
+         8,
+         8,
+         13
+        ],
+        "label": "stops = end + 1 (sorted)",
+        "slots": true
+       }
+      ]
+     },
+     {
+      "text": "At -1: 1 lamps have started and 0 have stopped, so 1 are lit — new best.",
+      "panels": [
+       {
+        "type": "row",
+        "cells": [
+         -1,
+         3,
+         3,
+         5,
+         8
+        ],
+        "states": {
+         "0": "found"
+        },
+        "pointers": {
+         "i": 0
+        },
+        "label": "starts",
+        "slots": true
+       },
+       {
+        "type": "row",
+        "cells": [
+         6,
+         6,
+         8,
+         8,
+         13
+        ],
+        "pointers": {
+         "j": 0
+        },
+        "label": "stops",
+        "slots": true
+       },
+       {
+        "type": "vars",
+        "items": {
+         "lit": 1,
+         "best": 1,
+         "at": -1
+        }
+       }
+      ]
+     },
+     {
+      "text": "At 3: 3 lamps have started and 0 have stopped, so 3 are lit — new best.",
+      "panels": [
+       {
+        "type": "row",
+        "cells": [
+         -1,
+         3,
+         3,
+         5,
+         8
+        ],
+        "states": {
+         "0": "found",
+         "1": "found",
+         "2": "found"
+        },
+        "pointers": {
+         "i": 2
+        },
+        "label": "starts",
+        "slots": true
+       },
+       {
+        "type": "row",
+        "cells": [
+         6,
+         6,
+         8,
+         8,
+         13
+        ],
+        "pointers": {
+         "j": 0
+        },
+        "label": "stops",
+        "slots": true
+       },
+       {
+        "type": "vars",
+        "items": {
+         "lit": 3,
+         "best": 3,
+         "at": 3
+        }
+       }
+      ]
+     },
+     {
+      "text": "At 5: 4 lamps have started and 0 have stopped, so 4 are lit — new best.",
+      "panels": [
+       {
+        "type": "row",
+        "cells": [
+         -1,
+         3,
+         3,
+         5,
+         8
+        ],
+        "states": {
+         "0": "found",
+         "1": "found",
+         "2": "found",
+         "3": "found"
+        },
+        "pointers": {
+         "i": 3
+        },
+        "label": "starts",
+        "slots": true
+       },
+       {
+        "type": "row",
+        "cells": [
+         6,
+         6,
+         8,
+         8,
+         13
+        ],
+        "pointers": {
+         "j": 0
+        },
+        "label": "stops",
+        "slots": true
+       },
+       {
+        "type": "vars",
+        "items": {
+         "lit": 4,
+         "best": 4,
+         "at": 5
+        }
+       }
+      ]
+     },
+     {
+      "text": "At 8: 5 lamps have started and 4 have stopped, so 1 are lit.",
+      "panels": [
+       {
+        "type": "row",
+        "cells": [
+         -1,
+         3,
+         3,
+         5,
+         8
+        ],
+        "states": {
+         "0": "found",
+         "1": "found",
+         "2": "found",
+         "3": "found",
+         "4": "found"
+        },
+        "pointers": {
+         "i": 4
+        },
+        "label": "starts",
+        "slots": true
+       },
+       {
+        "type": "row",
+        "cells": [
+         6,
+         6,
+         8,
+         8,
+         13
+        ],
+        "states": {
+         "0": "dim",
+         "1": "dim",
+         "2": "dim",
+         "3": "dim"
+        },
+        "pointers": {
+         "j": 4
+        },
+        "label": "stops",
+        "slots": true
+       },
+       {
+        "type": "vars",
+        "items": {
+         "lit": 1,
+         "best": 4,
+         "at": 5
+        }
+       }
+      ]
+     },
+     {
+      "text": "Brightest: 4 lamps, first at point 5.",
+      "panels": [
+       {
+        "type": "row",
+        "cells": [
+         1,
+         1,
+         1,
+         1,
+         3,
+         3,
+         4,
+         2,
+         2,
+         1,
+         1,
+         1,
+         1,
+         1
+        ],
+        "states": {
+         "6": "answer"
+        },
+        "label": "brightness at -1 … 12"
+       }
+      ],
+      "result": "5"
+     }
+    ],
+    "title": "Sort where light starts and where it stops. Walk the starts; brightness = starts passed − stops passed."
+   }
+  }
+ ],
+ "takeaways": [
+  {
+   "md": "- Coverage counts change only at interval **edges**. Think \"+1 at start, −1 just after the end,\n  running sum\": the difference-array idea.\n- When the coordinate range is too large for an array, keep only the edge points, **sort** them, and\n  sweep (this is coordinate compression in disguise).\n- \"Lit at x\" = `starts ≤ x` minus `stops ≤ x` with `stop = end + 1`. The +1 turns an inclusive end\n  into an exclusive one and avoids off-by-one errors.\n- For \"smallest point with the max\", visit points in increasing order and replace only on a\n  strict improvement."
+  }
+ ]
+}

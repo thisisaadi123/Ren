@@ -1,0 +1,1489 @@
+{
+ "version": 1,
+ "summary": "The answers can never be larger than `n + k`: n numbers can block at most n of the values\n`1 … n + k`, so at least k of them are free. That bound turns the problem into marking flags in\nan array of size `n + k` and reading off the first k empty ones, O(n + k) with no hashing.",
+ "question": [
+  {
+   "md": "List the `k` smallest positive integers (1, 2, 3, …) that don't appear in `nums`, in increasing\norder.\n\n- **Only positive answers.** 0 and negative numbers in `nums` never block anything, because\n  they aren't candidates.\n- **Repeats block a value once.** Two 3s still only remove 3.\n- **Answers can go past the largest number in the list.** For `nums = [2, 3, 4]` and k = 3 the\n  answer is `[1, 5, 6]`: after 1, the next free values are above 4.\n- **Huge values in `nums` (up to 10⁹)** are irrelevant unless they fall among the first few\n  free numbers, which they can't, as we'll see.\n- **Size:** n and k each up to 10⁵."
+  }
+ ],
+ "think": [
+  {
+   "md": "Take `nums = [4, 3, 2, 7, 8, 2, 3, 1]` and `k = 3`. Counting up by hand: 1 ✓ taken, 2 ✓, 3 ✓,\n4 ✓, **5** free, **6** free, 7 ✓, 8 ✓, **9** free. Answer `[5, 6, 9]`.\n\nThe doing-it-by-hand method is already the algorithm: count up from 1 and skip what's taken. The\nonly question is how quickly you can ask \"is x taken?\", and how far up you might have to go.\n\n**How far?** Look at the values `1 … n + k`. There are n + k of them, and the list has only n\nnumbers, so at most n of those values are taken. That leaves at least k free values inside\n`1 … n + k`. So the counting never needs to pass `n + k`, and any number in `nums` bigger than\nthat can be ignored."
+  },
+  {
+   "panels": [
+    {
+     "type": "row",
+     "cells": [
+      1,
+      2,
+      3,
+      4,
+      null,
+      null,
+      7,
+      8,
+      null,
+      null,
+      null
+     ],
+     "states": {
+      "4": "answer",
+      "5": "answer",
+      "8": "answer"
+     },
+     "label": "values 1 … n + k = 11 (blank = free)"
+    }
+   ],
+   "caption": "With 8 numbers and k = 3, everything happens inside 1 … 11, and the first three blanks are the answer."
+  },
+  {
+   "md": "That bound is what lets a plain array replace a hash set: index `v` of an array of size `n + k`\nanswers \"is v taken?\"."
+  }
+ ],
+ "approaches": [
+  {
+   "title": "Count up and scan the list each time",
+   "kind": "brute",
+   "time": "O((n + k) · n)",
+   "space": "O(1)",
+   "idea": [
+    {
+     "md": "Try candidates 1, 2, 3, … in order. For each one, scan `nums`. If it's not there, it's\nmissing: add it to the answer. Stop once you have k.\n\nAt most n + k candidates are tried (by the bound above), and each scan costs n."
+    }
+   ],
+   "build": [
+    "Start with an empty answer and `x = 1`.",
+    "While the answer has fewer than k numbers: scan `nums` for `x`; if absent, append `x`.",
+    "Increase `x` and repeat."
+   ],
+   "code": {
+    "python": "class Solution:\n    def firstMissing(self, nums: List[int], k: int) -> List[int]:\n        out, x = [], 1\n        while len(out) < k:\n            if x not in nums:\n                out.append(x)\n            x += 1\n        return out\n",
+    "java": "class Solution {\n    public int[] firstMissing(int[] nums, int k) {\n        int[] out = new int[k];\n        int found = 0, x = 1;\n        while (found < k) {\n            boolean taken = false;\n            for (int v : nums) if (v == x) { taken = true; break; }\n            if (!taken) out[found++] = x;\n            x++;\n        }\n        return out;\n    }\n}\n",
+    "cpp": "class Solution {\npublic:\n    vector<int> firstMissing(vector<int>& nums, int k) {\n        vector<int> out;\n        int x = 1;\n        while ((int) out.size() < k) {\n            if (find(nums.begin(), nums.end(), x) == nums.end()) {\n                out.push_back(x);\n            }\n            x++;\n        }\n        return out;\n    }\n};\n",
+    "c": "int* firstMissing(int* nums, int numsSize, int k, int* returnSize) {\n    int* out = malloc(k * sizeof(int));\n    int found = 0, x = 1;\n    while (found < k) {\n        bool taken = false;\n        for (int i = 0; i < numsSize && !taken; i++) taken = nums[i] == x;\n        if (!taken) out[found++] = x;\n        x++;\n    }\n    *returnSize = k;\n    return out;\n}\n"
+   },
+   "lines": [
+    {
+     "text": "The answer so far, and the first candidate, 1.",
+     "at": {
+      "python": [
+       [
+        3,
+        3
+       ]
+      ],
+      "java": [
+       [
+        3,
+        4
+       ]
+      ],
+      "cpp": [
+       [
+        4,
+        5
+       ]
+      ],
+      "c": [
+       [
+        2,
+        3
+       ]
+      ]
+     },
+     "notes": {
+      "java": "We know the answer has exactly k numbers, so allocate them up front and fill with `found`.",
+      "c": "Room for exactly k answers; `found` counts how many are filled."
+     }
+    },
+    {
+     "text": "Keep going until k missing numbers are collected.",
+     "at": {
+      "python": [
+       [
+        4,
+        4
+       ]
+      ],
+      "java": [
+       [
+        5,
+        5
+       ]
+      ],
+      "cpp": [
+       [
+        6,
+        6
+       ]
+      ],
+      "c": [
+       [
+        4,
+        4
+       ]
+      ]
+     }
+    },
+    {
+     "text": "Look for `x` in the whole list. Not there means it's missing.",
+     "at": {
+      "python": [
+       [
+        5,
+        6
+       ]
+      ],
+      "java": [
+       [
+        6,
+        8
+       ]
+      ],
+      "cpp": [
+       [
+        7,
+        8
+       ]
+      ],
+      "c": [
+       [
+        5,
+        7
+       ]
+      ]
+     }
+    },
+    {
+     "text": "Move on to the next candidate.",
+     "at": {
+      "python": [
+       [
+        7,
+        7
+       ]
+      ],
+      "java": [
+       [
+        9,
+        9
+       ]
+      ],
+      "cpp": [
+       [
+        10,
+        10
+       ]
+      ],
+      "c": [
+       [
+        8,
+        8
+       ]
+      ]
+     }
+    },
+    {
+     "text": "The answers were found in increasing order, so no sorting is needed.",
+     "at": {
+      "python": [
+       [
+        8,
+        8
+       ]
+      ],
+      "java": [
+       [
+        11,
+        11
+       ]
+      ],
+      "cpp": [
+       [
+        12,
+        12
+       ]
+      ],
+      "c": [
+       [
+        10,
+        11
+       ]
+      ]
+     },
+     "notes": {
+      "c": "Report the length through `returnSize`; the caller frees `out`."
+     }
+    }
+   ],
+   "complexity": [
+    {
+     "md": "**Time O((n + k) · n):** up to n + k candidates, each scanning n numbers (≈ 2 × 10¹⁰ at the limits). **Space O(1)** beyond the answer."
+    }
+   ],
+   "walk": {
+    "steps": [
+     {
+      "text": "k = 3. Candidates start at 1.",
+      "panels": [
+       {
+        "type": "row",
+        "cells": [
+         4,
+         3,
+         2,
+         7,
+         8,
+         2,
+         3,
+         1
+        ],
+        "slots": true
+       },
+       {
+        "type": "vars",
+        "items": {
+         "missing": "[]"
+        }
+       }
+      ]
+     },
+     {
+      "text": "1: scan… found at index 7. Taken.",
+      "panels": [
+       {
+        "type": "row",
+        "cells": [
+         4,
+         3,
+         2,
+         7,
+         8,
+         2,
+         3,
+         1
+        ],
+        "states": {
+         "7": "found"
+        },
+        "slots": true
+       },
+       {
+        "type": "vars",
+        "items": {
+         "missing": "[]"
+        }
+       }
+      ]
+     },
+     {
+      "text": "2: scan… found at index 2. Taken.",
+      "panels": [
+       {
+        "type": "row",
+        "cells": [
+         4,
+         3,
+         2,
+         7,
+         8,
+         2,
+         3,
+         1
+        ],
+        "states": {
+         "2": "found"
+        },
+        "slots": true
+       },
+       {
+        "type": "vars",
+        "items": {
+         "missing": "[]"
+        }
+       }
+      ]
+     },
+     {
+      "text": "3: scan… found at index 1. Taken.",
+      "panels": [
+       {
+        "type": "row",
+        "cells": [
+         4,
+         3,
+         2,
+         7,
+         8,
+         2,
+         3,
+         1
+        ],
+        "states": {
+         "1": "found"
+        },
+        "slots": true
+       },
+       {
+        "type": "vars",
+        "items": {
+         "missing": "[]"
+        }
+       }
+      ]
+     },
+     {
+      "text": "4: scan… found at index 0. Taken.",
+      "panels": [
+       {
+        "type": "row",
+        "cells": [
+         4,
+         3,
+         2,
+         7,
+         8,
+         2,
+         3,
+         1
+        ],
+        "states": {
+         "0": "found"
+        },
+        "slots": true
+       },
+       {
+        "type": "vars",
+        "items": {
+         "missing": "[]"
+        }
+       }
+      ]
+     },
+     {
+      "text": "5: scan the whole list, not there. Missing #1.",
+      "panels": [
+       {
+        "type": "row",
+        "cells": [
+         4,
+         3,
+         2,
+         7,
+         8,
+         2,
+         3,
+         1
+        ],
+        "states": {
+         "0": "dim",
+         "1": "dim",
+         "2": "dim",
+         "3": "dim",
+         "4": "dim",
+         "5": "dim",
+         "6": "dim",
+         "7": "dim"
+        },
+        "slots": true
+       },
+       {
+        "type": "vars",
+        "items": {
+         "missing": "[5]"
+        }
+       }
+      ]
+     },
+     {
+      "text": "6: scan the whole list, not there. Missing #2.",
+      "panels": [
+       {
+        "type": "row",
+        "cells": [
+         4,
+         3,
+         2,
+         7,
+         8,
+         2,
+         3,
+         1
+        ],
+        "states": {
+         "0": "dim",
+         "1": "dim",
+         "2": "dim",
+         "3": "dim",
+         "4": "dim",
+         "5": "dim",
+         "6": "dim",
+         "7": "dim"
+        },
+        "slots": true
+       },
+       {
+        "type": "vars",
+        "items": {
+         "missing": "[5, 6]"
+        }
+       }
+      ]
+     },
+     {
+      "text": "7: scan… found at index 3. Taken.",
+      "panels": [
+       {
+        "type": "row",
+        "cells": [
+         4,
+         3,
+         2,
+         7,
+         8,
+         2,
+         3,
+         1
+        ],
+        "states": {
+         "3": "found"
+        },
+        "slots": true
+       },
+       {
+        "type": "vars",
+        "items": {
+         "missing": "[5, 6]"
+        }
+       }
+      ]
+     },
+     {
+      "text": "8: scan… found at index 4. Taken.",
+      "panels": [
+       {
+        "type": "row",
+        "cells": [
+         4,
+         3,
+         2,
+         7,
+         8,
+         2,
+         3,
+         1
+        ],
+        "states": {
+         "4": "found"
+        },
+        "slots": true
+       },
+       {
+        "type": "vars",
+        "items": {
+         "missing": "[5, 6]"
+        }
+       }
+      ]
+     },
+     {
+      "text": "9: scan the whole list, not there. Missing #3.",
+      "panels": [
+       {
+        "type": "row",
+        "cells": [
+         4,
+         3,
+         2,
+         7,
+         8,
+         2,
+         3,
+         1
+        ],
+        "states": {
+         "0": "dim",
+         "1": "dim",
+         "2": "dim",
+         "3": "dim",
+         "4": "dim",
+         "5": "dim",
+         "6": "dim",
+         "7": "dim"
+        },
+        "slots": true
+       },
+       {
+        "type": "vars",
+        "items": {
+         "missing": "[5, 6, 9]"
+        }
+       }
+      ]
+     },
+     {
+      "text": "Found 3: [5, 6, 9].",
+      "panels": [
+       {
+        "type": "row",
+        "cells": [
+         4,
+         3,
+         2,
+         7,
+         8,
+         2,
+         3,
+         1
+        ],
+        "slots": true
+       }
+      ],
+      "result": "[5, 6, 9]"
+     }
+    ],
+    "title": "Try 1, 2, 3, … and scan the whole list for each one."
+   },
+   "limits": [
+    {
+     "md": "Every membership question costs a full scan. Store the numbers somewhere with O(1) lookups and the scans disappear."
+    }
+   ],
+   "slow": true
+  },
+  {
+   "title": "Hash set, then count up",
+   "kind": "better",
+   "time": "O(n + k)",
+   "space": "O(n)",
+   "idea": [
+    {
+     "md": "Put every number in a hash set once. Then count up from 1 exactly as before, but each\n\"is x taken?\" is now an O(1) lookup."
+    }
+   ],
+   "build": [
+    "Build a hash set of `nums`.",
+    "Count `x` up from 1, appending each `x` not in the set, until there are k answers."
+   ],
+   "code": {
+    "python": "class Solution:\n    def firstMissing(self, nums: List[int], k: int) -> List[int]:\n        have = set(nums)\n        out, x = [], 1\n        while len(out) < k:\n            if x not in have:\n                out.append(x)\n            x += 1\n        return out\n",
+    "java": "class Solution {\n    public int[] firstMissing(int[] nums, int k) {\n        Set<Integer> have = new HashSet<>();\n        for (int v : nums) have.add(v);\n        int[] out = new int[k];\n        for (int found = 0, x = 1; found < k; x++) {\n            if (!have.contains(x)) out[found++] = x;\n        }\n        return out;\n    }\n}\n",
+    "cpp": "class Solution {\npublic:\n    vector<int> firstMissing(vector<int>& nums, int k) {\n        unordered_set<int> have(nums.begin(), nums.end());\n        vector<int> out;\n        for (int x = 1; (int) out.size() < k; x++) {\n            if (!have.count(x)) out.push_back(x);\n        }\n        return out;\n    }\n};\n",
+    "c": "// A small hash set of ints: open addressing, linear probing.\ntypedef struct { int key; bool used; } Slot;\n\nstatic unsigned slotOf(int key, unsigned mask) {\n    unsigned long long h = (unsigned long long) (long long) key * 0x9E3779B97F4A7C15ULL;\n    return (unsigned) (h >> 32) & mask;\n}\n\nint* firstMissing(int* nums, int numsSize, int k, int* returnSize) {\n    unsigned cap = 1;\n    while (cap < 2u * numsSize) cap <<= 1;\n    Slot* have = calloc(cap, sizeof(Slot));\n    for (int i = 0; i < numsSize; i++) {\n        unsigned s = slotOf(nums[i], cap - 1);\n        while (have[s].used && have[s].key != nums[i]) s = (s + 1) & (cap - 1);\n        have[s] = (Slot) {nums[i], true};\n    }\n    int* out = malloc(k * sizeof(int));\n    for (int found = 0, x = 1; found < k; x++) {\n        unsigned s = slotOf(x, cap - 1);\n        while (have[s].used && have[s].key != x) s = (s + 1) & (cap - 1);\n        if (!have[s].used) out[found++] = x;\n    }\n    free(have);\n    *returnSize = k;\n    return out;\n}\n"
+   },
+   "lines": [
+    {
+     "text": "C has no hash set, so here's a minimal one: a slot holds a key and an in-use flag, and `slotOf` scrambles a key into a starting slot (multiply by a large odd constant, keep the high bits).",
+     "at": {
+      "c": [
+       [
+        2,
+        2
+       ],
+       [
+        4,
+        7
+       ]
+      ]
+     }
+    },
+    {
+     "text": "Every number goes into the set once; repeats collapse.",
+     "at": {
+      "python": [
+       [
+        3,
+        3
+       ]
+      ],
+      "java": [
+       [
+        3,
+        4
+       ]
+      ],
+      "cpp": [
+       [
+        4,
+        4
+       ]
+      ],
+      "c": [
+       [
+        10,
+        17
+       ]
+      ]
+     },
+     "notes": {
+      "c": "The table is a power of two at least 2n in size. Each number probes forward from its slot until it finds itself or an empty slot, then claims it."
+     }
+    },
+    {
+     "text": "Candidates 1, 2, 3, … until k answers are collected.",
+     "at": {
+      "python": [
+       [
+        4,
+        5
+       ],
+       [
+        8,
+        8
+       ]
+      ],
+      "java": [
+       [
+        5,
+        6
+       ]
+      ],
+      "cpp": [
+       [
+        5,
+        6
+       ]
+      ],
+      "c": [
+       [
+        18,
+        19
+       ]
+      ]
+     }
+    },
+    {
+     "text": "An O(1) average lookup replaces the scan.",
+     "at": {
+      "python": [
+       [
+        6,
+        7
+       ]
+      ],
+      "java": [
+       [
+        7,
+        7
+       ]
+      ],
+      "cpp": [
+       [
+        7,
+        7
+       ]
+      ],
+      "c": [
+       [
+        20,
+        22
+       ]
+      ]
+     },
+     "notes": {
+      "c": "Probe from `x`'s slot; reaching an empty slot means `x` was never added."
+     }
+    },
+    {
+     "text": "Answers come out in increasing order.",
+     "at": {
+      "python": [
+       [
+        9,
+        9
+       ]
+      ],
+      "java": [
+       [
+        9,
+        9
+       ]
+      ],
+      "cpp": [
+       [
+        9,
+        9
+       ]
+      ],
+      "c": [
+       [
+        24,
+        26
+       ]
+      ]
+     },
+     "notes": {
+      "c": "Free the table and report the length."
+     }
+    }
+   ],
+   "complexity": [
+    {
+     "md": "**Time O(n + k)** on average: n inserts and at most n + k lookups. **Space O(n)** for the set."
+    }
+   ],
+   "walk": {
+    "steps": [
+     {
+      "text": "The set holds every number once: {1, 2, 3, 4, 7, 8}.",
+      "panels": [
+       {
+        "type": "row",
+        "cells": [
+         4,
+         3,
+         2,
+         7,
+         8,
+         2,
+         3,
+         1
+        ],
+        "slots": true
+       },
+       {
+        "type": "row",
+        "cells": [
+         1,
+         2,
+         3,
+         4,
+         7,
+         8
+        ],
+        "label": "set (any order)"
+       }
+      ]
+     },
+     {
+      "text": "1 is in the set.",
+      "panels": [
+       {
+        "type": "row",
+        "cells": [
+         1,
+         2,
+         3,
+         4,
+         7,
+         8
+        ],
+        "states": {
+         "0": "found"
+        },
+        "label": "set"
+       },
+       {
+        "type": "vars",
+        "items": {
+         "missing": "[]"
+        }
+       }
+      ]
+     },
+     {
+      "text": "2 is in the set.",
+      "panels": [
+       {
+        "type": "row",
+        "cells": [
+         1,
+         2,
+         3,
+         4,
+         7,
+         8
+        ],
+        "states": {
+         "1": "found"
+        },
+        "label": "set"
+       },
+       {
+        "type": "vars",
+        "items": {
+         "missing": "[]"
+        }
+       }
+      ]
+     },
+     {
+      "text": "3 is in the set.",
+      "panels": [
+       {
+        "type": "row",
+        "cells": [
+         1,
+         2,
+         3,
+         4,
+         7,
+         8
+        ],
+        "states": {
+         "2": "found"
+        },
+        "label": "set"
+       },
+       {
+        "type": "vars",
+        "items": {
+         "missing": "[]"
+        }
+       }
+      ]
+     },
+     {
+      "text": "4 is in the set.",
+      "panels": [
+       {
+        "type": "row",
+        "cells": [
+         1,
+         2,
+         3,
+         4,
+         7,
+         8
+        ],
+        "states": {
+         "3": "found"
+        },
+        "label": "set"
+       },
+       {
+        "type": "vars",
+        "items": {
+         "missing": "[]"
+        }
+       }
+      ]
+     },
+     {
+      "text": "5 isn't in the set: missing #1.",
+      "panels": [
+       {
+        "type": "row",
+        "cells": [
+         1,
+         2,
+         3,
+         4,
+         7,
+         8
+        ],
+        "label": "set"
+       },
+       {
+        "type": "vars",
+        "items": {
+         "missing": "[5]"
+        }
+       }
+      ]
+     },
+     {
+      "text": "6 isn't in the set: missing #2.",
+      "panels": [
+       {
+        "type": "row",
+        "cells": [
+         1,
+         2,
+         3,
+         4,
+         7,
+         8
+        ],
+        "label": "set"
+       },
+       {
+        "type": "vars",
+        "items": {
+         "missing": "[5, 6]"
+        }
+       }
+      ]
+     },
+     {
+      "text": "7 is in the set.",
+      "panels": [
+       {
+        "type": "row",
+        "cells": [
+         1,
+         2,
+         3,
+         4,
+         7,
+         8
+        ],
+        "states": {
+         "4": "found"
+        },
+        "label": "set"
+       },
+       {
+        "type": "vars",
+        "items": {
+         "missing": "[5, 6]"
+        }
+       }
+      ]
+     },
+     {
+      "text": "8 is in the set.",
+      "panels": [
+       {
+        "type": "row",
+        "cells": [
+         1,
+         2,
+         3,
+         4,
+         7,
+         8
+        ],
+        "states": {
+         "5": "found"
+        },
+        "label": "set"
+       },
+       {
+        "type": "vars",
+        "items": {
+         "missing": "[5, 6]"
+        }
+       }
+      ]
+     },
+     {
+      "text": "9 isn't in the set: missing #3.",
+      "panels": [
+       {
+        "type": "row",
+        "cells": [
+         1,
+         2,
+         3,
+         4,
+         7,
+         8
+        ],
+        "label": "set"
+       },
+       {
+        "type": "vars",
+        "items": {
+         "missing": "[5, 6, 9]"
+        }
+       }
+      ]
+     },
+     {
+      "text": "Answer [5, 6, 9].",
+      "panels": [
+       {
+        "type": "row",
+        "cells": [
+         1,
+         2,
+         3,
+         4,
+         7,
+         8
+        ],
+        "label": "set"
+       }
+      ],
+      "result": "[5, 6, 9]"
+     }
+    ],
+    "title": "Put the numbers in a hash set, then count up from 1 with O(1) checks."
+   },
+   "limits": [
+    {
+     "md": "Fast enough, but the set stores numbers that can never matter (negatives, zeros, anything\nabove n + k), and hash lookups are O(1) only on average. Knowing that every answer is at\nmost n + k lets us use plain array indices instead."
+    }
+   ]
+  },
+  {
+   "title": "Flags for 1 … n + k",
+   "kind": "best",
+   "time": "O(n + k)",
+   "space": "O(n + k)",
+   "idea": [
+    {
+     "md": "Every answer is at most `n + k` (n numbers can block at most n of the values\n`1 … n + k`). So make a boolean array `present` of size `n + k + 1`, flag each number of\n`nums` that falls in `1 … n + k`, and ignore the rest. Then walk `1, 2, …` and collect the\nfirst k unflagged values."
+    }
+   ],
+   "build": [
+    "Let `limit = n + k` and make `present` with `limit + 1` falses.",
+    "For each `v` in `nums` with `1 ≤ v ≤ limit`, set `present[v] = true`.",
+    "Walk `x` from 1 upward, appending every `x` with `present[x]` false, until k are found. It can't run past `limit`."
+   ],
+   "code": {
+    "python": "class Solution:\n    def firstMissing(self, nums: List[int], k: int) -> List[int]:\n        limit = len(nums) + k\n        present = [False] * (limit + 1)\n        for v in nums:\n            if 1 <= v <= limit:\n                present[v] = True\n        out = []\n        x = 1\n        while len(out) < k:\n            if not present[x]:\n                out.append(x)\n            x += 1\n        return out\n",
+    "java": "class Solution {\n    public int[] firstMissing(int[] nums, int k) {\n        int limit = nums.length + k;\n        boolean[] present = new boolean[limit + 1];\n        for (int v : nums) {\n            if (v >= 1 && v <= limit) present[v] = true;\n        }\n        int[] out = new int[k];\n        for (int found = 0, x = 1; found < k; x++) {\n            if (!present[x]) out[found++] = x;\n        }\n        return out;\n    }\n}\n",
+    "cpp": "class Solution {\npublic:\n    vector<int> firstMissing(vector<int>& nums, int k) {\n        int limit = nums.size() + k;\n        vector<bool> present(limit + 1, false);\n        for (int v : nums) {\n            if (v >= 1 && v <= limit) present[v] = true;\n        }\n        vector<int> out;\n        for (int x = 1; (int) out.size() < k; x++) {\n            if (!present[x]) out.push_back(x);\n        }\n        return out;\n    }\n};\n",
+    "c": "int* firstMissing(int* nums, int numsSize, int k, int* returnSize) {\n    int limit = numsSize + k;\n    bool* present = calloc(limit + 1, sizeof(bool));\n    for (int i = 0; i < numsSize; i++) {\n        if (nums[i] >= 1 && nums[i] <= limit) present[nums[i]] = true;\n    }\n    int* out = malloc(k * sizeof(int));\n    for (int found = 0, x = 1; found < k; x++) {\n        if (!present[x]) out[found++] = x;\n    }\n    free(present);\n    *returnSize = k;\n    return out;\n}\n"
+   },
+   "lines": [
+    {
+     "text": "The answers all lie in `1 … n + k`, so that's the only range worth tracking. One flag per value (index 0 is unused, so index `v` means value `v`).",
+     "at": {
+      "python": [
+       [
+        3,
+        4
+       ]
+      ],
+      "java": [
+       [
+        3,
+        4
+       ]
+      ],
+      "cpp": [
+       [
+        4,
+        5
+       ]
+      ],
+      "c": [
+       [
+        2,
+        3
+       ]
+      ]
+     },
+     "notes": {
+      "c": "`calloc` starts every flag at false."
+     }
+    },
+    {
+     "text": "Flag each number that could block an answer. Zeros, negatives and anything above `limit` can't, so they're skipped (and they'd be out of the array's range anyway).",
+     "at": {
+      "python": [
+       [
+        5,
+        7
+       ]
+      ],
+      "java": [
+       [
+        5,
+        6
+       ]
+      ],
+      "cpp": [
+       [
+        6,
+        7
+       ]
+      ],
+      "c": [
+       [
+        4,
+        5
+       ]
+      ]
+     }
+    },
+    {
+     "text": "Collect unflagged values in increasing order until there are k of them. Because at least k values in `1 … limit` are unflagged, `x` never runs past `limit`.",
+     "at": {
+      "python": [
+       [
+        8,
+        13
+       ]
+      ],
+      "java": [
+       [
+        8,
+        10
+       ]
+      ],
+      "cpp": [
+       [
+        9,
+        11
+       ]
+      ],
+      "c": [
+       [
+        7,
+        9
+       ]
+      ]
+     }
+    },
+    {
+     "text": "Return the k smallest missing positives.",
+     "at": {
+      "python": [
+       [
+        14,
+        14
+       ]
+      ],
+      "java": [
+       [
+        12,
+        12
+       ]
+      ],
+      "cpp": [
+       [
+        13,
+        13
+       ]
+      ],
+      "c": [
+       [
+        11,
+        13
+       ]
+      ]
+     },
+     "notes": {
+      "c": "Free the flags and report the length; the caller frees `out`."
+     }
+    }
+   ],
+   "complexity": [
+    {
+     "md": "**Time O(n + k):** one pass to flag, at most n + k steps to read. No hashing, so it's\nO(1) per step in the worst case, not just on average.\n\n**Space O(n + k)** for the flags (2 × 10⁵ booleans at most)."
+    }
+   ],
+   "walk": {
+    "steps": [
+     {
+      "text": "n = 8, k = 3. Only the numbers 1 … 11 can matter. Make 11 empty flags.",
+      "panels": [
+       {
+        "type": "row",
+        "cells": [
+         4,
+         3,
+         2,
+         7,
+         8,
+         2,
+         3,
+         1
+        ],
+        "slots": true
+       },
+       {
+        "type": "row",
+        "cells": [
+         null,
+         null,
+         null,
+         null,
+         null,
+         null,
+         null,
+         null,
+         null,
+         null,
+         null
+        ],
+        "label": "present? (1 … n + k)"
+       }
+      ]
+     },
+     {
+      "text": "4 is in range: flag it.",
+      "panels": [
+       {
+        "type": "row",
+        "cells": [
+         4,
+         3,
+         2,
+         7,
+         8,
+         2,
+         3,
+         1
+        ],
+        "states": {
+         "0": "active"
+        },
+        "slots": true
+       },
+       {
+        "type": "row",
+        "cells": [
+         null,
+         null,
+         null,
+         4,
+         null,
+         null,
+         null,
+         null,
+         null,
+         null,
+         null
+        ],
+        "states": {
+         "3": "new"
+        },
+        "label": "present? (1 … n + k)"
+       }
+      ]
+     },
+     {
+      "text": "3 is in range: flag it.",
+      "panels": [
+       {
+        "type": "row",
+        "cells": [
+         4,
+         3,
+         2,
+         7,
+         8,
+         2,
+         3,
+         1
+        ],
+        "states": {
+         "1": "active"
+        },
+        "slots": true
+       },
+       {
+        "type": "row",
+        "cells": [
+         null,
+         null,
+         3,
+         4,
+         null,
+         null,
+         null,
+         null,
+         null,
+         null,
+         null
+        ],
+        "states": {
+         "2": "new"
+        },
+        "label": "present? (1 … n + k)"
+       }
+      ]
+     },
+     {
+      "text": "2 is in range: flag it.",
+      "panels": [
+       {
+        "type": "row",
+        "cells": [
+         4,
+         3,
+         2,
+         7,
+         8,
+         2,
+         3,
+         1
+        ],
+        "states": {
+         "2": "active"
+        },
+        "slots": true
+       },
+       {
+        "type": "row",
+        "cells": [
+         null,
+         2,
+         3,
+         4,
+         null,
+         null,
+         null,
+         null,
+         null,
+         null,
+         null
+        ],
+        "states": {
+         "1": "new"
+        },
+        "label": "present? (1 … n + k)"
+       }
+      ]
+     },
+     {
+      "text": "7 is in range: flag it.",
+      "panels": [
+       {
+        "type": "row",
+        "cells": [
+         4,
+         3,
+         2,
+         7,
+         8,
+         2,
+         3,
+         1
+        ],
+        "states": {
+         "3": "active"
+        },
+        "slots": true
+       },
+       {
+        "type": "row",
+        "cells": [
+         null,
+         2,
+         3,
+         4,
+         null,
+         null,
+         7,
+         null,
+         null,
+         null,
+         null
+        ],
+        "states": {
+         "6": "new"
+        },
+        "label": "present? (1 … n + k)"
+       }
+      ]
+     },
+     {
+      "text": "8 is in range: flag it.",
+      "panels": [
+       {
+        "type": "row",
+        "cells": [
+         4,
+         3,
+         2,
+         7,
+         8,
+         2,
+         3,
+         1
+        ],
+        "states": {
+         "4": "active"
+        },
+        "slots": true
+       },
+       {
+        "type": "row",
+        "cells": [
+         null,
+         2,
+         3,
+         4,
+         null,
+         null,
+         7,
+         8,
+         null,
+         null,
+         null
+        ],
+        "states": {
+         "7": "new"
+        },
+        "label": "present? (1 … n + k)"
+       }
+      ]
+     },
+     {
+      "text": "1 is in range: flag it.",
+      "panels": [
+       {
+        "type": "row",
+        "cells": [
+         4,
+         3,
+         2,
+         7,
+         8,
+         2,
+         3,
+         1
+        ],
+        "states": {
+         "7": "active"
+        },
+        "slots": true
+       },
+       {
+        "type": "row",
+        "cells": [
+         1,
+         2,
+         3,
+         4,
+         null,
+         null,
+         7,
+         8,
+         null,
+         null,
+         null
+        ],
+        "states": {
+         "0": "new"
+        },
+        "label": "present? (1 … n + k)"
+       }
+      ]
+     },
+     {
+      "text": "Read the flags left to right; the first 3 empty ones are [5, 6, 9].",
+      "panels": [
+       {
+        "type": "row",
+        "cells": [
+         1,
+         2,
+         3,
+         4,
+         null,
+         null,
+         7,
+         8,
+         null,
+         null,
+         null
+        ],
+        "states": {
+         "4": "answer",
+         "5": "answer",
+         "8": "answer"
+        },
+        "label": "present? (1 … n + k)"
+       }
+      ],
+      "result": "[5, 6, 9]"
+     }
+    ],
+    "title": "The answers can't go past n + k = 11. Mark which of 1 … 11 appear, then read off the first k gaps."
+   }
+  }
+ ],
+ "takeaways": [
+  {
+   "md": "- **Bound the answer first.** \"n items can block at most n values\" tells you every answer lies in\n  `1 … n + k`, and a small known range means an array can replace a hash set.\n- Values outside the useful range are noise: skip them before indexing.\n- For the classic k = 1 version, the same bound is `1 … n + 1`, and if you're allowed to\n  rearrange the input you can even do it in O(1) extra space by parking each value `v` at index\n  `v − 1` (cyclic sort). See **First Missing Ticket**."
+  }
+ ]
+}

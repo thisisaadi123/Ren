@@ -74,7 +74,7 @@ export async function runSolution({ lang, file, meta, tests, limitMs, buildDir }
   const quietMs = limitMs * 2 + (lang === "java" ? 4000 : 1500);
   let proc;
   if (lang === "python") {
-    const input = tests.map((t) => JSON.stringify({ id: t.id, args: t.args })).join("\n") + "\n";
+    const input = tests.map((t) => JSON.stringify({ id: t.id, args: t.args }, (_k, x) => (typeof x === "bigint" ? `\u0000${x}` : x)).replace(/"\\u0000(-?\d+)"/g, "$1")).join("\n") + "\n";
     proc = await runLines("python3", [PY_RUNNER, "solve", file, specOf(meta)], { input, quietMs });
   } else if (lang === "cpp" || lang === "c" || lang === "java") {
     if (!handles(lang, meta)) return tests.map((t) => ({ id: t.id, error: `${LANGS[lang].label} can't run this kind of problem` }));

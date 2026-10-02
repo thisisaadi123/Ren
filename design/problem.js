@@ -1,7 +1,8 @@
 // Ren — a problem (problem.html?id=…): the statement, an editor in each
 // language, test cases you can edit, and Run / Submit against the judge
 // (/api/dsa/run and /api/dsa/submit). Code, cases and the pane sizes are
-// kept in this browser. Ren's pane is blank for now.
+// kept in this browser. Ren's pane has a chat tab (blank for now) and the
+// problem's full solution (solution.js), shown only when asked for.
 (() => {
   const main = document.getElementById("ws");
   const $ = (sel, root = main) => root.querySelector(sel);
@@ -88,12 +89,22 @@
         (ex, i) => `
           <h2 class="prob-label">Example ${i + 1}</h2>
           <div class="example">
+            ${window.renVisual ? renVisual.exampleFigure(problem, ex) : ""}
             <div class="ex-row"><b>Input</b><span>${esc(argsText(ex.args))}</span></div>
             <div class="ex-row"><b>Output</b><span>${esc(show(ex.expected))}</span></div>
             ${ex.explanation ? `<div class="ex-row why"><b>Why</b><span>${inline(ex.explanation)}</span></div>` : ""}
           </div>`
       )
       .join("");
+
+    const walk = $("[data-walk]");
+    const spec = problem.visual && problem.visual.walkthrough;
+    if (spec && window.renVisual) {
+      walk.innerHTML = `<h2 class="prob-label">Walkthrough</h2>${spec.title ? `<p class="walk-intro">${inline(spec.title)}</p>` : ""}<div data-walk-player></div>`;
+      renVisual.walkthrough($("[data-walk-player]"), spec);
+    } else {
+      walk.innerHTML = "";
+    }
 
     document.querySelector("[data-crumb-title]").textContent = problem.title;
     const topicLink = document.querySelector("[data-topic-link]");
@@ -122,7 +133,8 @@
     "public", "private", "protected", "static", "final", "int", "long", "double", "float", "char", "boolean",
     "void", "auto", "bool", "string", "vector", "unordered_map", "unordered_set", "map", "set", "pair",
     "null", "nullptr", "true", "false", "func", "range", "package", "struct", "switch", "case", "default",
-    "do", "using", "namespace", "template", "typename", "include",
+    "do", "using", "namespace", "template", "typename", "include", "sizeof", "unsigned", "typedef", "enum",
+    "extends", "implements", "interface", "throw", "throws", "assert", "del", "nonlocal", "global",
   ].join("|");
 
   const tokensFor = (comment) =>
@@ -140,10 +152,10 @@
   let tokens = tokensFor("#");
   let lang;
 
-  const highlight = (src) => {
+  const highlight = (src, re = tokens) => {
     let out = "";
     let last = 0;
-    for (const m of src.matchAll(tokens)) {
+    for (const m of src.matchAll(re)) {
       out += esc(src.slice(last, m.index));
       const group = m.findIndex((g, i) => i > 0 && g !== undefined);
       out += `<span class="${CLASS[group]}">${esc(m[0])}</span>`;
@@ -151,6 +163,10 @@
     }
     return out + esc(src.slice(last));
   };
+
+  // Any language's code, highlighted (the Solution tab's code blocks).
+  const LANG_TOKENS = { python: tokensFor("#"), other: tokensFor("//") };
+  const highlightAs = (src, l) => highlight(src, l === "python" ? LANG_TOKENS.python : LANG_TOKENS.other);
 
   const render = () => {
     const src = input.value;
@@ -669,13 +685,15 @@
   /* Pane sizes ---------------------------------------------------------------- */
 
   const LAYOUT_KEY = "ren:ws:layout";
-  const DEFAULTS = { prob: 440, ren: 340, console: 240 };
+  // Big screens start with more room for reading.
+  const DEFAULTS = innerWidth >= 1600 ? { prob: 480, ren: 480, console: 240 } : { prob: 440, ren: 360, console: 240 };
   const layout = { ...DEFAULTS, ...(store.get(LAYOUT_KEY, {}) || {}) };
 
   function limits(which) {
     const w = main.clientWidth;
     if (which === "prob") return [280, Math.max(280, Math.min(w * 0.5, w - 560))];
-    if (which === "ren") return [260, 520];
+    // Ren can grow until the code has 420px left, up to 820px.
+    if (which === "ren") return [260, Math.max(260, Math.min(820, w - 32 - clamp("prob", layout.prob) - 420))];
     const h = codePane.clientHeight;
     return [96, Math.max(96, h - 48 - 56 - 120)];
   }
@@ -688,7 +706,20 @@
     main.style.setProperty("--prob-w", `${clamp("prob", layout.prob)}px`);
     main.style.setProperty("--ren-w", `${clamp("ren", layout.ren)}px`);
     main.style.setProperty("--console-h", `${clamp("console", layout.console)}px`);
+    const wide = clamp("ren", layout.ren) >= limits("ren")[1] - 4;
+    widenBtn.setAttribute("aria-pressed", String(wide));
+    widenBtn.title = wide ? "Narrow Ren's pane" : "Widen Ren's pane";
+    widenBtn.querySelector(".sr-only").textContent = wide ? "Narrow" : "Widen";
   }
+
+  // Widen gives Ren all the room the code can spare; pressed again, back to the default.
+  const widenBtn = document.querySelector("[data-widen]");
+  widenBtn.addEventListener("click", () => {
+    layout.ren = widenBtn.getAttribute("aria-pressed") === "true" ? DEFAULTS.ren : limits("ren")[1];
+    applyLayout();
+    store.set(LAYOUT_KEY, layout);
+    dispatchEvent(new Event("resize"));
+  });
 
   main.querySelectorAll("[data-split]").forEach((handle) => {
     const which = handle.dataset.split;
@@ -742,11 +773,13 @@
   });
   addEventListener("resize", applyLayout);
 
-  /* Phones: one pane at a time ---------------------------------------------------- */
+  /* Laptops: problem or Ren beside the code. Phones: one pane at a time ---------- */
 
-  main.querySelectorAll("[data-pane]").forEach((tab) =>
+  const paneTabs = [...main.querySelectorAll("[data-pane]")];
+  paneTabs.forEach((tab) =>
     tab.addEventListener("click", () => {
       main.dataset.view = tab.dataset.pane;
+      if (tab.dataset.pane === "ren") renPane.shown();
       // The console tabs measure themselves once they can be seen.
       requestAnimationFrame(() => {
         dispatchEvent(new Event("resize"));
@@ -754,6 +787,48 @@
       });
     })
   );
+
+  // On laptops the code is always in view, so its tab goes; Problem stands in.
+  const laptop = matchMedia("(min-width: 861px) and (max-width: 1179px)");
+  const fitView = () => {
+    if (laptop.matches && main.dataset.view === "code") paneTabs.find((t) => t.dataset.pane === "prob").click();
+  };
+  laptop.addEventListener?.("change", fitView);
+
+  /* Ren: chat and solution tabs ------------------------------------------------------ */
+
+  const renPane = (() => {
+    const renTabs = [...document.querySelectorAll("[data-ren-tab]")];
+    const panelsOf = Object.fromEntries([...document.querySelectorAll("[data-ren-panel]")].map((p) => [p.dataset.renPanel, p]));
+    const wide = matchMedia("(min-width: 1180px)");
+    let solution = null;
+    let current = "chat";
+
+    function pick(name) {
+      current = name;
+      store.set("ren:ren-tab", name);
+      const tab = renTabs.find((t) => t.dataset.renTab === name);
+      if (tab.getAttribute("aria-selected") !== "true") tab.click(); // moves the underline
+      Object.entries(panelsOf).forEach(([k, p]) => (p.hidden = k !== name));
+      if (name === "solution" && solution && visible()) solution.open();
+    }
+    // The pane is on screen: always on wide screens, else when its view is picked.
+    const visible = () => wide.matches || main.dataset.view === "ren";
+
+    renTabs.forEach((t) => t.addEventListener("click", () => current !== t.dataset.renTab && pick(t.dataset.renTab)));
+    panelsOf.solution.addEventListener("sol:close", () => pick("chat"));
+    wide.addEventListener?.("change", () => current === "solution" && solution && visible() && solution.open());
+
+    return {
+      start() {
+        solution = renSolution.mount(panelsOf.solution, { id, problem, highlight: highlightAs, lang });
+        pick(store.get("ren:ren-tab") === "solution" ? "solution" : "chat");
+      },
+      shown() {
+        if (current === "solution" && solution) solution.open();
+      },
+    };
+  })();
 
   /* Load ----------------------------------------------------------------------- */
 
@@ -787,6 +862,8 @@
       if (!Array.isArray(cases) || !cases.length) cases = defaultCases();
       renderCases();
       message("Run your code to see the results here.");
+      renPane.start();
+      fitView();
       applyLayout();
       timer.begin();
     } else if (res.status === 404) {

@@ -8,6 +8,7 @@
 //   GET  /api/me                            -> 200 { user } | 401
 //   GET  /api/dsa                           -> 200 { tracks, topics } | 401
 //   GET  /api/dsa/problem?id=               -> 200 { problem for the page } | 401 | 404
+//   GET  /api/dsa/solution?id=              -> 200 { the written-out solution } | 401 | 404
 //   POST /api/dsa/run    { id, lang, code, cases } -> 200 { cases } (this machine only)
 //   POST /api/dsa/submit { id, lang, code }        -> 200 { verdict, passed, total }
 //
@@ -238,6 +239,13 @@ const api = {
     const id = new URL(req.url, "http://localhost").searchParams.get("id");
     const judge = await import("./backend/practice/dsa/tools/judge.mjs");
     send(res, 200, await judge.problemView(id));
+  },
+
+  "GET /api/dsa/solution": async (req, res) => {
+    if (!currentUser(req)) return send(res, 401, { error: "Not signed in." });
+    const id = new URL(req.url, "http://localhost").searchParams.get("id");
+    const judge = await import("./backend/practice/dsa/tools/judge.mjs");
+    send(res, 200, judge.solutionView(id));
   },
 
   "POST /api/dsa/run": (req, res) => judgeCode(req, res, "run"),

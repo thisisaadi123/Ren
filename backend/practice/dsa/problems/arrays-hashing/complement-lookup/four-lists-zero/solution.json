@@ -1,0 +1,1808 @@
+{
+ "version": 1,
+ "summary": "Split the four lists into two halves. Count every sum `a[i] + b[j]` in a hash map (n² sums), then\nfor every `c[k] + d[l]` add how many first-half sums cancel it. Four nested loops become two\nseparate double loops: O(n⁴) becomes O(n²).",
+ "question": [
+  {
+   "md": "Pick one number from each of four lists, `a`, `b`, `c` and `d` (all of length `n`). Count the\nchoices whose four numbers add up to exactly 0.\n\n- **Choices are positions, not values.** If `d` contains 2 twice, a tuple using the first 2\n  and a tuple using the second 2 are different tuples and both count.\n- **The order is fixed:** the first number always comes from `a`, the second from `b`, and so\n  on. You never mix lists.\n- **Size:** n ≤ 500, so there are up to 500⁴ = 6.25 × 10¹⁰ tuples. Even at a billion checks a\n  second that takes over a minute.\n- **The count can be huge:** if every tuple works it's 6.25 × 10¹⁰, which needs a 64-bit\n  integer. The values themselves are at most 2²⁸, so any sum of two or four of them stays\n  within ±2³⁰ and fits in an `int`."
+  }
+ ],
+ "think": [
+  {
+   "md": "Take `a = [2, −1, 0]`, `b = [1, −2, 3]`, `c = [−3, 0, 1]`, `d = [1, 2, −1]`.\n\nBrute force means 3⁴ = 81 tuples. Instead, think about what each part of a tuple **needs**.\nOnce you've chosen from `a`, `b` and `c`, the number from `d` is forced: it must be\n`−(a + b + c)`. That's the complement idea: a lookup can replace the fourth loop.\n\nPush the idea further. Group the tuple as **(a + b) + (c + d) = 0**. Once you know `c + d`, the\nfirst half must sum to exactly `−(c + d)`. And there are only n² possible first halves:"
+  },
+  {
+   "panels": [
+    {
+     "type": "grid",
+     "cells": [
+      [
+       3,
+       0,
+       5
+      ],
+      [
+       0,
+       -3,
+       2
+      ],
+      [
+       1,
+       -2,
+       3
+      ]
+     ]
+    },
+    {
+     "type": "grid",
+     "cells": [
+      [
+       -2,
+       -1,
+       -4
+      ],
+      [
+       1,
+       2,
+       -1
+      ],
+      [
+       2,
+       3,
+       0
+      ]
+     ]
+    }
+   ],
+   "caption": "Left: every a + b (rows a, columns b). Right: every c + d (rows c, columns d)."
+  },
+  {
+   "md": "So the question becomes: for each sum on the right, how many sums on the left are its\nnegative? For example, c = 1 and d = −1 give `c + d = 0`, which needs `a + b = 0`. The left grid\nhas two 0s (a = 2 with b = −2, and a = −1 with b = 1), so that single right-hand pair completes\n**two** tuples. To answer that instantly for every right-hand sum, first build a table of **how\nmany times each left sum occurs**; then each right sum is one lookup.\n\nThat is \"meet in the middle\": instead of one search over n⁴ tuples, do two searches over n²\nhalves and join them with a hash map."
+  }
+ ],
+ "approaches": [
+  {
+   "title": "Try every tuple",
+   "kind": "brute",
+   "time": "O(n⁴)",
+   "space": "O(1)",
+   "idea": [
+    {
+     "md": "Four nested loops pick one index from each list; count the tuples that sum to zero."
+    }
+   ],
+   "build": [
+    "Set `total = 0` (64-bit).",
+    "Nest four loops: `i` over `a`, `j` over `b`, `k` over `c`, `l` over `d`.",
+    "If `a[i] + b[j] + c[k] + d[l] == 0`, add 1.",
+    "Return `total`."
+   ],
+   "code": {
+    "python": "class Solution:\n    def countZeroQuads(self, a: List[int], b: List[int], c: List[int], d: List[int]) -> int:\n        total = 0\n        for w in a:\n            for x in b:\n                for y in c:\n                    for z in d:\n                        if w + x + y + z == 0:\n                            total += 1\n        return total\n",
+    "java": "class Solution {\n    public long countZeroQuads(int[] a, int[] b, int[] c, int[] d) {\n        long total = 0;\n        for (int w : a)\n            for (int x : b)\n                for (int y : c)\n                    for (int z : d)\n                        if (w + x + y + z == 0) total++;\n        return total;\n    }\n}\n",
+    "cpp": "class Solution {\npublic:\n    long long countZeroQuads(vector<int>& a, vector<int>& b, vector<int>& c, vector<int>& d) {\n        long long total = 0;\n        for (int w : a)\n            for (int x : b)\n                for (int y : c)\n                    for (int z : d)\n                        if (w + x + y + z == 0) total++;\n        return total;\n    }\n};\n",
+    "c": "long long countZeroQuads(int* a, int aSize, int* b, int bSize, int* c, int cSize, int* d, int dSize) {\n    long long total = 0;\n    for (int i = 0; i < aSize; i++)\n        for (int j = 0; j < bSize; j++)\n            for (int k = 0; k < cSize; k++)\n                for (int l = 0; l < dSize; l++)\n                    if (a[i] + b[j] + c[k] + d[l] == 0) total++;\n    return total;\n}\n"
+   },
+   "lines": [
+    {
+     "text": "The number of zero tuples, 64-bit because it can reach n⁴.",
+     "at": {
+      "python": [
+       [
+        3,
+        3
+       ]
+      ],
+      "java": [
+       [
+        3,
+        3
+       ]
+      ],
+      "cpp": [
+       [
+        4,
+        4
+       ]
+      ],
+      "c": [
+       [
+        2,
+        2
+       ]
+      ]
+     }
+    },
+    {
+     "text": "One loop per list: every combination of one element from each.",
+     "at": {
+      "python": [
+       [
+        4,
+        7
+       ]
+      ],
+      "java": [
+       [
+        4,
+        7
+       ]
+      ],
+      "cpp": [
+       [
+        5,
+        8
+       ]
+      ],
+      "c": [
+       [
+        3,
+        6
+       ]
+      ]
+     }
+    },
+    {
+     "text": "Four values of at most 2²⁸ in size sum to at most 2³⁰, so plain `int` addition is safe here.",
+     "at": {
+      "python": [
+       [
+        8,
+        9
+       ]
+      ],
+      "java": [
+       [
+        8,
+        8
+       ]
+      ],
+      "cpp": [
+       [
+        9,
+        9
+       ]
+      ],
+      "c": [
+       [
+        7,
+        7
+       ]
+      ]
+     }
+    },
+    {
+     "text": "All n⁴ tuples were checked.",
+     "at": {
+      "python": [
+       [
+        10,
+        10
+       ]
+      ],
+      "java": [
+       [
+        9,
+        9
+       ]
+      ],
+      "cpp": [
+       [
+        10,
+        10
+       ]
+      ],
+      "c": [
+       [
+        8,
+        8
+       ]
+      ]
+     }
+    }
+   ],
+   "complexity": [
+    {
+     "md": "**Time O(n⁴):** 6.25 × 10¹⁰ checks at n = 500. **Space O(1).**"
+    }
+   ],
+   "walk": {
+    "steps": [
+     {
+      "text": "With n = 3 there are 3⁴ = 81 tuples to try.",
+      "panels": [
+       {
+        "type": "row",
+        "cells": [
+         2,
+         -1,
+         0
+        ],
+        "label": "a"
+       },
+       {
+        "type": "row",
+        "cells": [
+         1,
+         -2,
+         3
+        ],
+        "label": "b"
+       },
+       {
+        "type": "row",
+        "cells": [
+         -3,
+         0,
+         1
+        ],
+        "label": "c"
+       },
+       {
+        "type": "row",
+        "cells": [
+         1,
+         2,
+         -1
+        ],
+        "label": "d"
+       }
+      ]
+     },
+     {
+      "text": "(0, 1, 2, 2): 2 + -2 + 1 + -1 = 0. Count 1.",
+      "panels": [
+       {
+        "type": "row",
+        "cells": [
+         2,
+         -1,
+         0
+        ],
+        "states": {
+         "0": "answer"
+        },
+        "label": "a"
+       },
+       {
+        "type": "row",
+        "cells": [
+         1,
+         -2,
+         3
+        ],
+        "states": {
+         "1": "answer"
+        },
+        "label": "b"
+       },
+       {
+        "type": "row",
+        "cells": [
+         -3,
+         0,
+         1
+        ],
+        "states": {
+         "2": "answer"
+        },
+        "label": "c"
+       },
+       {
+        "type": "row",
+        "cells": [
+         1,
+         2,
+         -1
+        ],
+        "states": {
+         "2": "answer"
+        },
+        "label": "d"
+       }
+      ]
+     },
+     {
+      "text": "(1, 0, 2, 2): -1 + 1 + 1 + -1 = 0. Count 2.",
+      "panels": [
+       {
+        "type": "row",
+        "cells": [
+         2,
+         -1,
+         0
+        ],
+        "states": {
+         "1": "answer"
+        },
+        "label": "a"
+       },
+       {
+        "type": "row",
+        "cells": [
+         1,
+         -2,
+         3
+        ],
+        "states": {
+         "0": "answer"
+        },
+        "label": "b"
+       },
+       {
+        "type": "row",
+        "cells": [
+         -3,
+         0,
+         1
+        ],
+        "states": {
+         "2": "answer"
+        },
+        "label": "c"
+       },
+       {
+        "type": "row",
+        "cells": [
+         1,
+         2,
+         -1
+        ],
+        "states": {
+         "2": "answer"
+        },
+        "label": "d"
+       }
+      ]
+     },
+     {
+      "text": "(1, 1, 2, 1): -1 + -2 + 1 + 2 = 0. Count 3.",
+      "panels": [
+       {
+        "type": "row",
+        "cells": [
+         2,
+         -1,
+         0
+        ],
+        "states": {
+         "1": "answer"
+        },
+        "label": "a"
+       },
+       {
+        "type": "row",
+        "cells": [
+         1,
+         -2,
+         3
+        ],
+        "states": {
+         "1": "answer"
+        },
+        "label": "b"
+       },
+       {
+        "type": "row",
+        "cells": [
+         -3,
+         0,
+         1
+        ],
+        "states": {
+         "2": "answer"
+        },
+        "label": "c"
+       },
+       {
+        "type": "row",
+        "cells": [
+         1,
+         2,
+         -1
+        ],
+        "states": {
+         "1": "answer"
+        },
+        "label": "d"
+       }
+      ]
+     },
+     {
+      "text": "(1, 2, 0, 0): -1 + 3 + -3 + 1 = 0. Count 4.",
+      "panels": [
+       {
+        "type": "row",
+        "cells": [
+         2,
+         -1,
+         0
+        ],
+        "states": {
+         "1": "answer"
+        },
+        "label": "a"
+       },
+       {
+        "type": "row",
+        "cells": [
+         1,
+         -2,
+         3
+        ],
+        "states": {
+         "2": "answer"
+        },
+        "label": "b"
+       },
+       {
+        "type": "row",
+        "cells": [
+         -3,
+         0,
+         1
+        ],
+        "states": {
+         "0": "answer"
+        },
+        "label": "c"
+       },
+       {
+        "type": "row",
+        "cells": [
+         1,
+         2,
+         -1
+        ],
+        "states": {
+         "0": "answer"
+        },
+        "label": "d"
+       }
+      ]
+     },
+     {
+      "text": "(2, 0, 0, 1): 0 + 1 + -3 + 2 = 0. Count 5.",
+      "panels": [
+       {
+        "type": "row",
+        "cells": [
+         2,
+         -1,
+         0
+        ],
+        "states": {
+         "2": "answer"
+        },
+        "label": "a"
+       },
+       {
+        "type": "row",
+        "cells": [
+         1,
+         -2,
+         3
+        ],
+        "states": {
+         "0": "answer"
+        },
+        "label": "b"
+       },
+       {
+        "type": "row",
+        "cells": [
+         -3,
+         0,
+         1
+        ],
+        "states": {
+         "0": "answer"
+        },
+        "label": "c"
+       },
+       {
+        "type": "row",
+        "cells": [
+         1,
+         2,
+         -1
+        ],
+        "states": {
+         "1": "answer"
+        },
+        "label": "d"
+       }
+      ]
+     },
+     {
+      "text": "After all 81 tuples: 8 add up to zero.",
+      "panels": [
+       {
+        "type": "row",
+        "cells": [
+         2,
+         -1,
+         0
+        ],
+        "label": "a"
+       },
+       {
+        "type": "row",
+        "cells": [
+         1,
+         -2,
+         3
+        ],
+        "label": "b"
+       },
+       {
+        "type": "row",
+        "cells": [
+         -3,
+         0,
+         1
+        ],
+        "label": "c"
+       },
+       {
+        "type": "row",
+        "cells": [
+         1,
+         2,
+         -1
+        ],
+        "label": "d"
+       }
+      ],
+      "result": "8"
+     }
+    ],
+    "title": "Four nested loops: every choice of one number from each list."
+   },
+   "limits": [
+    {
+     "md": "The innermost loop searches `d` for one specific value, `−(a + b + c)`, by checking every\nelement. That search is exactly what a hash map does in O(1), which removes a whole loop."
+    }
+   ],
+   "slow": 700
+  },
+  {
+   "title": "Three loops and a count of d",
+   "kind": "better",
+   "time": "O(n³)",
+   "space": "O(n)",
+   "idea": [
+    {
+     "md": "The fourth number is forced: `d` must be `−(a + b + c)`. So count how often each value\nappears in `d` (a hash map from value to count), loop over `a`, `b` and `c`, and add the\ncount of the needed value. Duplicates in `d` are handled by the count: two copies of the\nneeded value give two tuples."
+    }
+   ],
+   "build": [
+    "Build `countD`: value → how many times it appears in `d`.",
+    "Loop over `a`, `b` and `c` (three nested loops).",
+    "For each triple, add `countD[−(a + b + c)]` (0 if missing) to `total`.",
+    "Return `total`."
+   ],
+   "code": {
+    "python": "from collections import Counter\n\nclass Solution:\n    def countZeroQuads(self, a: List[int], b: List[int], c: List[int], d: List[int]) -> int:\n        count_d = Counter(d)\n        total = 0\n        for w in a:\n            for x in b:\n                for y in c:\n                    total += count_d[-(w + x + y)]\n        return total\n",
+    "java": "class Solution {\n    public long countZeroQuads(int[] a, int[] b, int[] c, int[] d) {\n        Map<Integer, Integer> countD = new HashMap<>();\n        for (int z : d) countD.merge(z, 1, Integer::sum);\n        long total = 0;\n        for (int w : a)\n            for (int x : b)\n                for (int y : c)\n                    total += countD.getOrDefault(-(w + x + y), 0);\n        return total;\n    }\n}\n",
+    "cpp": "class Solution {\npublic:\n    long long countZeroQuads(vector<int>& a, vector<int>& b, vector<int>& c, vector<int>& d) {\n        unordered_map<int, int> countD;\n        for (int z : d) countD[z]++;\n        long long total = 0;\n        for (int w : a)\n            for (int x : b)\n                for (int y : c) {\n                    auto it = countD.find(-(w + x + y));\n                    if (it != countD.end()) total += it->second;\n                }\n        return total;\n    }\n};\n",
+    "c": "static int cmpInt(const void* x, const void* y) {\n    int p = *(const int*) x, q = *(const int*) y;\n    return (p > q) - (p < q);\n}\n\n// How many times v appears in the sorted array s of length n.\nstatic int occurrences(const int* s, int n, int v) {\n    int lo = 0, hi = n;\n    while (lo < hi) {\n        int mid = (lo + hi) / 2;\n        if (s[mid] < v) lo = mid + 1; else hi = mid;\n    }\n    int first = lo;\n    hi = n;\n    while (lo < hi) {\n        int mid = (lo + hi) / 2;\n        if (s[mid] <= v) lo = mid + 1; else hi = mid;\n    }\n    return lo - first;\n}\n\nlong long countZeroQuads(int* a, int aSize, int* b, int bSize, int* c, int cSize, int* d, int dSize) {\n    int* sortedD = malloc(dSize * sizeof(int));\n    memcpy(sortedD, d, dSize * sizeof(int));\n    qsort(sortedD, dSize, sizeof(int), cmpInt);\n    long long total = 0;\n    for (int i = 0; i < aSize; i++)\n        for (int j = 0; j < bSize; j++)\n            for (int k = 0; k < cSize; k++)\n                total += occurrences(sortedD, dSize, -(a[i] + b[j] + c[k]));\n    free(sortedD);\n    return total;\n}\n"
+   },
+   "lines": [
+    {
+     "text": "A comparator for `qsort`. `(p > q) − (p < q)` is −1, 0 or 1 and can't overflow the way `p − q` can.",
+     "at": {
+      "c": [
+       [
+        1,
+        4
+       ]
+      ]
+     }
+    },
+    {
+     "text": "C has no hash map, and `d` is tiny (n ≤ 500), so a sorted copy plus binary search does the counting: find where `v` starts and where it ends; the difference is how many copies there are. Each call is O(log n).",
+     "at": {
+      "c": [
+       [
+        7,
+        20
+       ]
+      ]
+     }
+    },
+    {
+     "text": "Count each value of `d` once, up front.",
+     "at": {
+      "python": [
+       [
+        5,
+        5
+       ]
+      ],
+      "java": [
+       [
+        3,
+        4
+       ]
+      ],
+      "cpp": [
+       [
+        4,
+        5
+       ]
+      ],
+      "c": [
+       [
+        23,
+        25
+       ]
+      ]
+     },
+     "notes": {
+      "python": "`Counter` maps each value to its number of copies and returns 0 for values it hasn't seen.",
+      "java": "`merge(z, 1, Integer::sum)` adds 1 to `z`'s count, starting it at 1 when it's new.",
+      "cpp": "`countD[z]++` creates the entry at 0 when it's new, then adds 1.",
+      "c": "Sort a copy of `d` (we don't change the input) so copies of a value sit next to each other."
+     }
+    },
+    {
+     "text": "Three loops choose the first three numbers, n³ triples.",
+     "at": {
+      "python": [
+       [
+        7,
+        9
+       ]
+      ],
+      "java": [
+       [
+        6,
+        8
+       ]
+      ],
+      "cpp": [
+       [
+        7,
+        9
+       ]
+      ],
+      "c": [
+       [
+        27,
+        29
+       ]
+      ]
+     }
+    },
+    {
+     "text": "The fourth number must be `−(a + b + c)`. Every copy of it in `d` completes a tuple, so add its count (0 if it isn't there).",
+     "at": {
+      "python": [
+       [
+        10,
+        10
+       ]
+      ],
+      "java": [
+       [
+        9,
+        9
+       ]
+      ],
+      "cpp": [
+       [
+        10,
+        11
+       ]
+      ],
+      "c": [
+       [
+        30,
+        30
+       ]
+      ]
+     },
+     "notes": {
+      "c": "Here the count comes from two binary searches: O(log n) instead of O(1), still far better than scanning `d`."
+     }
+    },
+    {
+     "text": "Return the total.",
+     "at": {
+      "python": [
+       [
+        11,
+        11
+       ]
+      ],
+      "java": [
+       [
+        10,
+        10
+       ]
+      ],
+      "cpp": [
+       [
+        13,
+        13
+       ]
+      ],
+      "c": [
+       [
+        31,
+        32
+       ]
+      ]
+     },
+     "notes": {
+      "c": "Free the sorted copy first."
+     }
+    }
+   ],
+   "complexity": [
+    {
+     "md": "**Time O(n³):** n³ = 1.25 × 10⁸ lookups for n = 500, each O(1) on average (O(log n) in the\nC version). That's borderline: often a few seconds, too slow for a 1-second limit in most\nlanguages.\n\n**Space O(n)** for the counts of `d`."
+    }
+   ],
+   "walk": {
+    "steps": [
+     {
+      "text": "Count the values of d: {-1: 1, 1: 1, 2: 1}. For every (a, b, c), the needed d is −(a + b + c).",
+      "panels": [
+       {
+        "type": "row",
+        "cells": [
+         1,
+         2,
+         -1
+        ],
+        "label": "d"
+       },
+       {
+        "type": "row",
+        "cells": [
+         "-1×1",
+         "1×1",
+         "2×1"
+        ],
+        "label": "d value × count"
+       }
+      ]
+     },
+     {
+      "text": "a = 2, b = -2, c = 1: need d = -1, which appears 1 time. Total 1.",
+      "panels": [
+       {
+        "type": "row",
+        "cells": [
+         2,
+         -1,
+         0
+        ],
+        "states": {
+         "0": "active"
+        },
+        "label": "a"
+       },
+       {
+        "type": "row",
+        "cells": [
+         1,
+         -2,
+         3
+        ],
+        "states": {
+         "1": "active"
+        },
+        "label": "b"
+       },
+       {
+        "type": "row",
+        "cells": [
+         -3,
+         0,
+         1
+        ],
+        "states": {
+         "2": "active"
+        },
+        "label": "c"
+       },
+       {
+        "type": "row",
+        "cells": [
+         1,
+         2,
+         -1
+        ],
+        "states": {
+         "2": "answer"
+        },
+        "label": "d"
+       }
+      ]
+     },
+     {
+      "text": "a = -1, b = 1, c = 1: need d = -1, which appears 1 time. Total 2.",
+      "panels": [
+       {
+        "type": "row",
+        "cells": [
+         2,
+         -1,
+         0
+        ],
+        "states": {
+         "1": "active"
+        },
+        "label": "a"
+       },
+       {
+        "type": "row",
+        "cells": [
+         1,
+         -2,
+         3
+        ],
+        "states": {
+         "0": "active"
+        },
+        "label": "b"
+       },
+       {
+        "type": "row",
+        "cells": [
+         -3,
+         0,
+         1
+        ],
+        "states": {
+         "2": "active"
+        },
+        "label": "c"
+       },
+       {
+        "type": "row",
+        "cells": [
+         1,
+         2,
+         -1
+        ],
+        "states": {
+         "2": "answer"
+        },
+        "label": "d"
+       }
+      ]
+     },
+     {
+      "text": "a = -1, b = -2, c = 1: need d = 2, which appears 1 time. Total 3.",
+      "panels": [
+       {
+        "type": "row",
+        "cells": [
+         2,
+         -1,
+         0
+        ],
+        "states": {
+         "1": "active"
+        },
+        "label": "a"
+       },
+       {
+        "type": "row",
+        "cells": [
+         1,
+         -2,
+         3
+        ],
+        "states": {
+         "1": "active"
+        },
+        "label": "b"
+       },
+       {
+        "type": "row",
+        "cells": [
+         -3,
+         0,
+         1
+        ],
+        "states": {
+         "2": "active"
+        },
+        "label": "c"
+       },
+       {
+        "type": "row",
+        "cells": [
+         1,
+         2,
+         -1
+        ],
+        "states": {
+         "1": "answer"
+        },
+        "label": "d"
+       }
+      ]
+     },
+     {
+      "text": "a = -1, b = 3, c = -3: need d = 1, which appears 1 time. Total 4.",
+      "panels": [
+       {
+        "type": "row",
+        "cells": [
+         2,
+         -1,
+         0
+        ],
+        "states": {
+         "1": "active"
+        },
+        "label": "a"
+       },
+       {
+        "type": "row",
+        "cells": [
+         1,
+         -2,
+         3
+        ],
+        "states": {
+         "2": "active"
+        },
+        "label": "b"
+       },
+       {
+        "type": "row",
+        "cells": [
+         -3,
+         0,
+         1
+        ],
+        "states": {
+         "0": "active"
+        },
+        "label": "c"
+       },
+       {
+        "type": "row",
+        "cells": [
+         1,
+         2,
+         -1
+        ],
+        "states": {
+         "0": "answer"
+        },
+        "label": "d"
+       }
+      ]
+     },
+     {
+      "text": "a = 0, b = 1, c = -3: need d = 2, which appears 1 time. Total 5.",
+      "panels": [
+       {
+        "type": "row",
+        "cells": [
+         2,
+         -1,
+         0
+        ],
+        "states": {
+         "2": "active"
+        },
+        "label": "a"
+       },
+       {
+        "type": "row",
+        "cells": [
+         1,
+         -2,
+         3
+        ],
+        "states": {
+         "0": "active"
+        },
+        "label": "b"
+       },
+       {
+        "type": "row",
+        "cells": [
+         -3,
+         0,
+         1
+        ],
+        "states": {
+         "0": "active"
+        },
+        "label": "c"
+       },
+       {
+        "type": "row",
+        "cells": [
+         1,
+         2,
+         -1
+        ],
+        "states": {
+         "1": "answer"
+        },
+        "label": "d"
+       }
+      ]
+     },
+     {
+      "text": "a = 0, b = 1, c = 0: need d = -1, which appears 1 time. Total 6.",
+      "panels": [
+       {
+        "type": "row",
+        "cells": [
+         2,
+         -1,
+         0
+        ],
+        "states": {
+         "2": "active"
+        },
+        "label": "a"
+       },
+       {
+        "type": "row",
+        "cells": [
+         1,
+         -2,
+         3
+        ],
+        "states": {
+         "0": "active"
+        },
+        "label": "b"
+       },
+       {
+        "type": "row",
+        "cells": [
+         -3,
+         0,
+         1
+        ],
+        "states": {
+         "1": "active"
+        },
+        "label": "c"
+       },
+       {
+        "type": "row",
+        "cells": [
+         1,
+         2,
+         -1
+        ],
+        "states": {
+         "2": "answer"
+        },
+        "label": "d"
+       }
+      ]
+     },
+     {
+      "text": "All 27 triples done (most found no partner): 8 tuples.",
+      "panels": [
+       {
+        "type": "row",
+        "cells": [
+         1,
+         2,
+         -1
+        ],
+        "label": "d"
+       }
+      ],
+      "result": "8"
+     }
+    ],
+    "title": "Fix a, b and c; the last number is decided, so look it up in a count of d."
+   },
+   "limits": [
+    {
+     "md": "We used the \"forced last number\" trick once, on one list. The same trick works on **pairs**\nof lists: once `c + d` is known, `a + b` is forced. That balances the work as n² + n²\ninstead of n³ + n."
+    }
+   ],
+   "slow": 1500
+  },
+  {
+   "title": "Meet in the middle: count a + b, look up −(c + d)",
+   "kind": "best",
+   "time": "O(n²)",
+   "space": "O(n²)",
+   "idea": [
+    {
+     "md": "Write the condition as `(a[i] + b[j]) = −(c[k] + d[l])`.\n\n1. Loop over all n² pairs from `a` and `b`, and count each sum in a hash map:\n   `sums[s]` = how many `(i, j)` give `a[i] + b[j] = s`.\n2. Loop over all n² pairs from `c` and `d`. For `t = c[k] + d[l]`, every first-half pair\n   with sum `−t` completes a zero tuple, so add `sums[−t]`.\n\nTwo double loops replace four nested ones. Storing **counts** (not just \"seen\") matters:\nseveral `(i, j)` can share a sum, and each is a different tuple."
+    }
+   ],
+   "build": [
+    "Create a hash map `sums` from a sum to how many (i, j) pairs produce it.",
+    "Double loop over `a` and `b`: `sums[a[i] + b[j]] += 1`.",
+    "Double loop over `c` and `d`: add `sums[−(c[k] + d[l])]` (0 if absent) to `total`.",
+    "Return `total` (64-bit)."
+   ],
+   "code": {
+    "python": "from collections import Counter\n\nclass Solution:\n    def countZeroQuads(self, a: List[int], b: List[int], c: List[int], d: List[int]) -> int:\n        sums = Counter(w + x for w in a for x in b)\n        total = 0\n        for y in c:\n            for z in d:\n                total += sums[-(y + z)]\n        return total\n",
+    "java": "class Solution {\n    public long countZeroQuads(int[] a, int[] b, int[] c, int[] d) {\n        Map<Integer, Integer> sums = new HashMap<>();\n        for (int w : a)\n            for (int x : b)\n                sums.merge(w + x, 1, Integer::sum);\n        long total = 0;\n        for (int y : c)\n            for (int z : d)\n                total += sums.getOrDefault(-(y + z), 0);\n        return total;\n    }\n}\n",
+    "cpp": "class Solution {\npublic:\n    long long countZeroQuads(vector<int>& a, vector<int>& b, vector<int>& c, vector<int>& d) {\n        unordered_map<int, int> sums;\n        sums.reserve(a.size() * b.size() * 2);\n        for (int w : a)\n            for (int x : b)\n                sums[w + x]++;\n        long long total = 0;\n        for (int y : c)\n            for (int z : d) {\n                auto it = sums.find(-(y + z));\n                if (it != sums.end()) total += it->second;\n            }\n        return total;\n    }\n};\n",
+    "c": "// A small hash map from a sum to its count: open addressing, linear probing.\ntypedef struct { int key; int count; bool used; } Slot;\n\nstatic unsigned slotOf(int key, unsigned mask) {\n    unsigned long long h = (unsigned long long) (long long) key * 0x9E3779B97F4A7C15ULL;\n    return (unsigned) (h >> 32) & mask;\n}\n\nstatic Slot* find(Slot* t, unsigned mask, int key) {\n    unsigned s = slotOf(key, mask);\n    while (t[s].used && t[s].key != key) s = (s + 1) & mask;\n    return &t[s];\n}\n\nlong long countZeroQuads(int* a, int aSize, int* b, int bSize, int* c, int cSize, int* d, int dSize) {\n    unsigned cap = 1;\n    while (cap < 2u * aSize * bSize) cap <<= 1;\n    Slot* sums = calloc(cap, sizeof(Slot));\n    for (int i = 0; i < aSize; i++)\n        for (int j = 0; j < bSize; j++) {\n            Slot* e = find(sums, cap - 1, a[i] + b[j]);\n            e->key = a[i] + b[j];\n            e->used = true;\n            e->count++;\n        }\n    long long total = 0;\n    for (int k = 0; k < cSize; k++)\n        for (int l = 0; l < dSize; l++) {\n            Slot* e = find(sums, cap - 1, -(c[k] + d[l]));\n            if (e->used) total += e->count;\n        }\n    free(sums);\n    return total;\n}\n"
+   },
+   "lines": [
+    {
+     "text": "One slot of the table: a sum, how many pairs produced it, and whether the slot is taken.",
+     "at": {
+      "c": [
+       [
+        2,
+        2
+       ]
+      ]
+     }
+    },
+    {
+     "text": "Scrambles a sum into a slot number: multiply by a large odd constant, keep the well-mixed high bits, and mask down to the table size. Negative sums work too, since the cast reinterprets them as unsigned.",
+     "at": {
+      "c": [
+       [
+        4,
+        7
+       ]
+      ]
+     }
+    },
+    {
+     "text": "Returns the slot holding `key`, or the empty slot where it would go. It steps forward past slots that hold other keys (linear probing).",
+     "at": {
+      "c": [
+       [
+        9,
+        13
+       ]
+      ]
+     }
+    },
+    {
+     "text": "A power of two at least twice the n² entries, so the table stays at most half full and probe runs stay short.",
+     "at": {
+      "c": [
+       [
+        16,
+        17
+       ]
+      ]
+     }
+    },
+    {
+     "text": "First half: every `a[i] + b[j]`, counted. n² pairs, so at most n² different sums.",
+     "at": {
+      "python": [
+       [
+        5,
+        5
+       ]
+      ],
+      "java": [
+       [
+        3,
+        6
+       ]
+      ],
+      "cpp": [
+       [
+        4,
+        8
+       ]
+      ],
+      "c": [
+       [
+        18,
+        25
+       ]
+      ]
+     },
+     "notes": {
+      "python": "`Counter` over a generator of all n² sums builds the whole table in one line.",
+      "java": "`merge(sum, 1, Integer::sum)` increments the count (starting new sums at 1).",
+      "cpp": "`reserve` sizes the table for n² entries up front so it never rehashes; `sums[w + x]++` creates missing keys at 0 and increments.",
+      "c": "Find the sum's slot (existing or empty), claim it for this key, and add one to its count."
+     }
+    },
+    {
+     "text": "Second half: every `c[k] + d[l]`.",
+     "at": {
+      "python": [
+       [
+        6,
+        8
+       ]
+      ],
+      "java": [
+       [
+        7,
+        9
+       ]
+      ],
+      "cpp": [
+       [
+        9,
+        11
+       ]
+      ],
+      "c": [
+       [
+        26,
+        28
+       ],
+       [
+        31,
+        31
+       ]
+      ]
+     }
+    },
+    {
+     "text": "To total zero, the first half must sum to `−(c + d)`. Each of the `sums[−(c + d)]` first-half pairs makes one tuple with this second-half pair.",
+     "at": {
+      "python": [
+       [
+        9,
+        9
+       ]
+      ],
+      "java": [
+       [
+        10,
+        10
+       ]
+      ],
+      "cpp": [
+       [
+        12,
+        13
+       ]
+      ],
+      "c": [
+       [
+        29,
+        30
+       ]
+      ]
+     },
+     "notes": {
+      "c": "If `find` lands on an empty slot, no first-half pair has that sum and nothing is added."
+     }
+    },
+    {
+     "text": "Every zero tuple was counted exactly once: at its (k, l), through the count of its (i, j).",
+     "at": {
+      "python": [
+       [
+        10,
+        10
+       ]
+      ],
+      "java": [
+       [
+        11,
+        11
+       ]
+      ],
+      "cpp": [
+       [
+        15,
+        15
+       ]
+      ],
+      "c": [
+       [
+        32,
+        33
+       ]
+      ]
+     },
+     "notes": {
+      "c": "Free the table first."
+     }
+    }
+   ],
+   "complexity": [
+    {
+     "md": "**Time O(n²):** n² inserts plus n² lookups, about 500,000 hash operations for n = 500.\n\n**Space O(n²):** up to n² = 250,000 distinct first-half sums in the map.\n\nWhy not split 1 + 3 or 3 + 1? Then one side has n³ combinations. Splitting **evenly**, 2 + 2,\nmakes both sides as small as possible: that balance is the whole point of meeting in the\nmiddle."
+    }
+   ],
+   "walk": {
+    "steps": [
+     {
+      "text": "All a + b sums: n² of them. Rows are a, columns are b.",
+      "panels": [
+       {
+        "type": "grid",
+        "cells": [
+         [
+          3,
+          0,
+          5
+         ],
+         [
+          0,
+          -3,
+          2
+         ],
+         [
+          1,
+          -2,
+          3
+         ]
+        ]
+       },
+       {
+        "type": "vars",
+        "items": {
+         "a": "[2, -1, 0]",
+         "b": "[1, -2, 3]"
+        }
+       }
+      ]
+     },
+     {
+      "text": "Count them: {-3: 1, -2: 1, 0: 2, 1: 1, 2: 1, 3: 2, 5: 1}.",
+      "panels": [
+       {
+        "type": "row",
+        "cells": [
+         "-3×1",
+         "-2×1",
+         "0×2",
+         "1×1",
+         "2×1",
+         "3×2",
+         "5×1"
+        ],
+        "label": "a + b sum × count"
+       }
+      ]
+     },
+     {
+      "text": "c = -3, d = 1: c + d = -2, needs a + b = 2, which occurs 1 time. Total 1.",
+      "panels": [
+       {
+        "type": "grid",
+        "cells": [
+         [
+          -2,
+          -1,
+          -4
+         ],
+         [
+          1,
+          2,
+          -1
+         ],
+         [
+          2,
+          3,
+          0
+         ]
+        ],
+        "states": {
+         "0,0": "answer"
+        },
+        "label": "c + d sums"
+       },
+       {
+        "type": "row",
+        "cells": [
+         "-3×1",
+         "-2×1",
+         "0×2",
+         "1×1",
+         "2×1",
+         "3×2",
+         "5×1"
+        ],
+        "states": {
+         "4": "answer"
+        },
+        "label": "a + b sum × count"
+       }
+      ]
+     },
+     {
+      "text": "c = -3, d = 2: c + d = -1, needs a + b = 1, which occurs 1 time. Total 2.",
+      "panels": [
+       {
+        "type": "grid",
+        "cells": [
+         [
+          -2,
+          -1,
+          -4
+         ],
+         [
+          1,
+          2,
+          -1
+         ],
+         [
+          2,
+          3,
+          0
+         ]
+        ],
+        "states": {
+         "0,1": "answer"
+        },
+        "label": "c + d sums"
+       },
+       {
+        "type": "row",
+        "cells": [
+         "-3×1",
+         "-2×1",
+         "0×2",
+         "1×1",
+         "2×1",
+         "3×2",
+         "5×1"
+        ],
+        "states": {
+         "3": "answer"
+        },
+        "label": "a + b sum × count"
+       }
+      ]
+     },
+     {
+      "text": "c = -3, d = -1: c + d = -4, needs a + b = 4, which never occurs.",
+      "panels": [
+       {
+        "type": "grid",
+        "cells": [
+         [
+          -2,
+          -1,
+          -4
+         ],
+         [
+          1,
+          2,
+          -1
+         ],
+         [
+          2,
+          3,
+          0
+         ]
+        ],
+        "states": {
+         "0,2": "active"
+        },
+        "label": "c + d sums"
+       },
+       {
+        "type": "row",
+        "cells": [
+         "-3×1",
+         "-2×1",
+         "0×2",
+         "1×1",
+         "2×1",
+         "3×2",
+         "5×1"
+        ],
+        "label": "a + b sum × count"
+       }
+      ]
+     },
+     {
+      "text": "c = 0, d = 1: c + d = 1, needs a + b = -1, which never occurs.",
+      "panels": [
+       {
+        "type": "grid",
+        "cells": [
+         [
+          -2,
+          -1,
+          -4
+         ],
+         [
+          1,
+          2,
+          -1
+         ],
+         [
+          2,
+          3,
+          0
+         ]
+        ],
+        "states": {
+         "1,0": "active"
+        },
+        "label": "c + d sums"
+       },
+       {
+        "type": "row",
+        "cells": [
+         "-3×1",
+         "-2×1",
+         "0×2",
+         "1×1",
+         "2×1",
+         "3×2",
+         "5×1"
+        ],
+        "label": "a + b sum × count"
+       }
+      ]
+     },
+     {
+      "text": "c = 0, d = 2: c + d = 2, needs a + b = -2, which occurs 1 time. Total 3.",
+      "panels": [
+       {
+        "type": "grid",
+        "cells": [
+         [
+          -2,
+          -1,
+          -4
+         ],
+         [
+          1,
+          2,
+          -1
+         ],
+         [
+          2,
+          3,
+          0
+         ]
+        ],
+        "states": {
+         "1,1": "answer"
+        },
+        "label": "c + d sums"
+       },
+       {
+        "type": "row",
+        "cells": [
+         "-3×1",
+         "-2×1",
+         "0×2",
+         "1×1",
+         "2×1",
+         "3×2",
+         "5×1"
+        ],
+        "states": {
+         "1": "answer"
+        },
+        "label": "a + b sum × count"
+       }
+      ]
+     },
+     {
+      "text": "c = 0, d = -1: c + d = -1, needs a + b = 1, which occurs 1 time. Total 4.",
+      "panels": [
+       {
+        "type": "grid",
+        "cells": [
+         [
+          -2,
+          -1,
+          -4
+         ],
+         [
+          1,
+          2,
+          -1
+         ],
+         [
+          2,
+          3,
+          0
+         ]
+        ],
+        "states": {
+         "1,2": "answer"
+        },
+        "label": "c + d sums"
+       },
+       {
+        "type": "row",
+        "cells": [
+         "-3×1",
+         "-2×1",
+         "0×2",
+         "1×1",
+         "2×1",
+         "3×2",
+         "5×1"
+        ],
+        "states": {
+         "3": "answer"
+        },
+        "label": "a + b sum × count"
+       }
+      ]
+     },
+     {
+      "text": "c = 1, d = 1: c + d = 2, needs a + b = -2, which occurs 1 time. Total 5.",
+      "panels": [
+       {
+        "type": "grid",
+        "cells": [
+         [
+          -2,
+          -1,
+          -4
+         ],
+         [
+          1,
+          2,
+          -1
+         ],
+         [
+          2,
+          3,
+          0
+         ]
+        ],
+        "states": {
+         "2,0": "answer"
+        },
+        "label": "c + d sums"
+       },
+       {
+        "type": "row",
+        "cells": [
+         "-3×1",
+         "-2×1",
+         "0×2",
+         "1×1",
+         "2×1",
+         "3×2",
+         "5×1"
+        ],
+        "states": {
+         "1": "answer"
+        },
+        "label": "a + b sum × count"
+       }
+      ]
+     },
+     {
+      "text": "c = 1, d = 2: c + d = 3, needs a + b = -3, which occurs 1 time. Total 6.",
+      "panels": [
+       {
+        "type": "grid",
+        "cells": [
+         [
+          -2,
+          -1,
+          -4
+         ],
+         [
+          1,
+          2,
+          -1
+         ],
+         [
+          2,
+          3,
+          0
+         ]
+        ],
+        "states": {
+         "2,1": "answer"
+        },
+        "label": "c + d sums"
+       },
+       {
+        "type": "row",
+        "cells": [
+         "-3×1",
+         "-2×1",
+         "0×2",
+         "1×1",
+         "2×1",
+         "3×2",
+         "5×1"
+        ],
+        "states": {
+         "0": "answer"
+        },
+        "label": "a + b sum × count"
+       }
+      ]
+     },
+     {
+      "text": "c = 1, d = -1: c + d = 0, needs a + b = 0, which occurs 2 times. Total 8.",
+      "panels": [
+       {
+        "type": "grid",
+        "cells": [
+         [
+          -2,
+          -1,
+          -4
+         ],
+         [
+          1,
+          2,
+          -1
+         ],
+         [
+          2,
+          3,
+          0
+         ]
+        ],
+        "states": {
+         "2,2": "answer"
+        },
+        "label": "c + d sums"
+       },
+       {
+        "type": "row",
+        "cells": [
+         "-3×1",
+         "-2×1",
+         "0×2",
+         "1×1",
+         "2×1",
+         "3×2",
+         "5×1"
+        ],
+        "states": {
+         "2": "answer"
+        },
+        "label": "a + b sum × count"
+       }
+      ]
+     },
+     {
+      "text": "Answer: 8.",
+      "panels": [
+       {
+        "type": "grid",
+        "cells": [
+         [
+          -2,
+          -1,
+          -4
+         ],
+         [
+          1,
+          2,
+          -1
+         ],
+         [
+          2,
+          3,
+          0
+         ]
+        ],
+        "label": "c + d sums"
+       }
+      ],
+      "result": "8"
+     }
+    ],
+    "title": "Count every a + b sum. Then each c + d needs the a + b sum that cancels it."
+   }
+  }
+ ],
+ "takeaways": [
+  {
+   "md": "- **Meet in the middle:** when a condition joins several independent choices, split the choices\n  into two equal halves, enumerate each half, and join them with a hash map. Here n⁴ became\n  2 · n².\n- The join stores **counts**, not just presence, because many first halves can share one sum\n  and each one is a different answer.\n- The \"forced last element\" trick (look up what's missing instead of looping over it) is the\n  same idea as Two Gifts, applied to sums of pairs.\n- Check value ranges before reaching for 64-bit: here the sums fit in `int`, but the **count**\n  doesn't."
+  }
+ ]
+}

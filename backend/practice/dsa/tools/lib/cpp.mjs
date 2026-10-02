@@ -12,6 +12,7 @@ const CPP_TYPES = {
   string: "string",
   ListNode: "ListNode*",
   TreeNode: "TreeNode*",
+  RandomNode: "RandomNode*",
 };
 
 export function cppType(type) {
@@ -33,6 +34,13 @@ struct ListNode {
   ListNode() : val(0), next(nullptr) {}
   ListNode(int x) : val(x), next(nullptr) {}
   ListNode(int x, ListNode* next) : val(x), next(next) {}
+};
+struct RandomNode {
+  int val;
+  RandomNode* next;
+  RandomNode* random;
+  RandomNode() : val(0), next(nullptr), random(nullptr) {}
+  RandomNode(int x) : val(x), next(nullptr), random(nullptr) {}
 };
 struct TreeNode {
   int val;
@@ -63,8 +71,22 @@ template <> struct R<ListNode*> {
     ListNode dummy; ListNode* tail = &dummy; vector<ListNode*> nodes;
     for (size_t i = 0; i < n; i++) { int v; cin >> v; tail = tail->next = new ListNode(v); nodes.push_back(tail); }
     long long at; cin >> at;
+    static vector<ListNode*> prev;  // the list read just before, for joins
     if (at >= 0 && at < (long long)n) tail->next = nodes[at];
+    if (at <= -2 && -2 - at < (long long)prev.size()) tail->next = prev[-2 - at];
+    prev = nodes;
     return dummy.next;
+  }
+};
+static unordered_set<RandomNode*> givenRandom;  // every input node, so a copy can be told apart
+template <> struct R<RandomNode*> {
+  static RandomNode* get() {
+    size_t n; cin >> n;
+    vector<RandomNode*> nodes(n);
+    vector<long long> rnd(n);
+    for (size_t i = 0; i < n; i++) { int v; cin >> v >> rnd[i]; nodes[i] = new RandomNode(v); givenRandom.insert(nodes[i]); }
+    for (size_t i = 0; i < n; i++) { if (i + 1 < n) nodes[i]->next = nodes[i + 1]; nodes[i]->random = rnd[i] >= 0 ? nodes[rnd[i]] : nullptr; }
+    return n ? nodes[0] : nullptr;
   }
 };
 template <> struct R<TreeNode*> {
@@ -105,6 +127,26 @@ static void W(ostream& o, ListNode* node) {
     if (k > 2000000) throw runtime_error("returned list is too long (a cycle?)");
     if (k) o << ',';
     o << node->val;
+  }
+  o << ']';
+}
+static void W(ostream& o, RandomNode* head) {
+  vector<RandomNode*> order;
+  unordered_map<RandomNode*, size_t> at;
+  for (RandomNode* p = head; p; p = p->next) {
+    if (order.size() > 2000000) throw runtime_error("returned list is too long (a cycle?)");
+    if (givenRandom.count(p)) throw runtime_error("the answer reuses an original node; build new nodes");
+    at[p] = order.size();
+    order.push_back(p);
+  }
+  o << '[';
+  for (size_t k = 0; k < order.size(); k++) {
+    if (k) o << ',';
+    o << '[' << order[k]->val << ',';
+    if (!order[k]->random) o << "null";
+    else if (at.count(order[k]->random)) o << at[order[k]->random];
+    else throw runtime_error("a random pointer leads outside the returned list");
+    o << ']';
   }
   o << ']';
 }

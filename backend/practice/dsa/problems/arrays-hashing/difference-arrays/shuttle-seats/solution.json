@@ -1,0 +1,1414 @@
+{
+ "version": 1,
+ "summary": "The shuttle only moves forward, so all that matters is the number of people on board at each mark.\nRecord \"+p at boarding, −p at leaving\" in an array indexed by mark, then a running sum gives the load\nat every mark in one pass: O(trips + marks).",
+ "question": [
+  {
+   "md": "A shuttle drives forward past marks 0, 1, 2, … A trip `[p, from, to]` puts `p` people on board from\nmark `from` until mark `to`. Return whether the number on board ever exceeds `capacity`.\n\n- **People get off before others get on** at the same mark. So a party riding 0 → 2 and another\n  riding 2 → 4 never share the shuttle: at mark 2 the first leaves, then the second boards. A party\n  is on board for marks `from … to − 1`.\n- **Only the peak matters.** You return true/false, not the schedule.\n- **Size:** up to 10⁵ trips, marks up to 10⁵, at most 100 people per trip. The load can reach\n  10⁷, which fits in an `int`."
+  }
+ ],
+ "think": [
+  {
+   "md": "Take capacity 6 and trips `[[2, 1, 5], [3, 3, 7], [4, 5, 8]]`. Track the load mark by mark:"
+  },
+  {
+   "panels": [
+    {
+     "type": "row",
+     "cells": [
+      0,
+      1,
+      2,
+      3,
+      4,
+      5,
+      6,
+      7,
+      8
+     ],
+     "label": "mark"
+    },
+    {
+     "type": "row",
+     "cells": [
+      0,
+      2,
+      2,
+      5,
+      5,
+      7,
+      7,
+      4,
+      0
+     ],
+     "states": {
+      "5": "mark",
+      "6": "mark"
+     },
+     "label": "people on board"
+    }
+   ],
+   "caption": "At mark 5 the party of 2 leaves and the party of 4 boards: 3 + 4 = 7 > 6."
+  },
+  {
+   "md": "Notice what changes the load: only boarding (`+p` at `from`) and leaving (`−p` at `to`). Between\nthose marks it stays flat. So instead of recounting every party at every mark, write down the\n**changes** and add them up as you drive:\n\n- change[1] = +2, change[3] = +3, change[5] = −2 + 4 = +2, change[7] = −3, change[8] = −4.\n- Running sum: 0, 2, 2, 5, 5, **7**, 7, 4, 0.\n\nThat's the difference-array trick: a range update becomes two point updates, and one prefix-sum\npass rebuilds every value."
+  }
+ ],
+ "approaches": [
+  {
+   "title": "Recount the riders at every mark",
+   "kind": "brute",
+   "time": "O(M · T)",
+   "space": "O(1)",
+   "idea": [
+    {
+     "md": "For each mark `m` up to the last drop-off, add up the parties with `from ≤ m < to`. If any total exceeds the capacity, return false."
+    }
+   ],
+   "build": [
+    "Find the last mark, `max(to)`.",
+    "For each mark `m` from 0 to it: sum `p` over trips with `from ≤ m < to`.",
+    "If the sum exceeds `capacity`, return false. After all marks, return true."
+   ],
+   "code": {
+    "python": "class Solution:\n    def canCarryAll(self, capacity: int, trips: List[List[int]]) -> bool:\n        last = max(t[2] for t in trips)\n        for m in range(last + 1):\n            load = sum(p for p, a, b in trips if a <= m < b)\n            if load > capacity:\n                return False\n        return True\n",
+    "java": "class Solution {\n    public boolean canCarryAll(int capacity, int[][] trips) {\n        int last = 0;\n        for (int[] t : trips) last = Math.max(last, t[2]);\n        for (int m = 0; m <= last; m++) {\n            int load = 0;\n            for (int[] t : trips) if (t[1] <= m && m < t[2]) load += t[0];\n            if (load > capacity) return false;\n        }\n        return true;\n    }\n}\n",
+    "cpp": "class Solution {\npublic:\n    bool canCarryAll(int capacity, vector<vector<int>>& trips) {\n        int last = 0;\n        for (auto& t : trips) last = max(last, t[2]);\n        for (int m = 0; m <= last; m++) {\n            int load = 0;\n            for (auto& t : trips) if (t[1] <= m && m < t[2]) load += t[0];\n            if (load > capacity) return false;\n        }\n        return true;\n    }\n};\n",
+    "c": "bool canCarryAll(int capacity, int** trips, int tripsSize, int* tripsColSize) {\n    int last = 0;\n    for (int i = 0; i < tripsSize; i++) if (trips[i][2] > last) last = trips[i][2];\n    for (int m = 0; m <= last; m++) {\n        int load = 0;\n        for (int i = 0; i < tripsSize; i++) {\n            if (trips[i][1] <= m && m < trips[i][2]) load += trips[i][0];\n        }\n        if (load > capacity) return false;\n    }\n    return true;\n}\n"
+   },
+   "lines": [
+    {
+     "text": "No one rides past the last drop-off, so marks beyond it don't matter.",
+     "at": {
+      "python": [
+       [
+        3,
+        3
+       ]
+      ],
+      "java": [
+       [
+        3,
+        4
+       ]
+      ],
+      "cpp": [
+       [
+        4,
+        5
+       ]
+      ],
+      "c": [
+       [
+        2,
+        3
+       ]
+      ]
+     }
+    },
+    {
+     "text": "Check every mark the shuttle passes.",
+     "at": {
+      "python": [
+       [
+        4,
+        4
+       ]
+      ],
+      "java": [
+       [
+        5,
+        5
+       ]
+      ],
+      "cpp": [
+       [
+        6,
+        6
+       ]
+      ],
+      "c": [
+       [
+        4,
+        4
+       ]
+      ]
+     }
+    },
+    {
+     "text": "A party is aboard at `m` when it boarded at or before `m` and leaves after `m`. `m < to` (not `≤`) is the \"off before on\" rule.",
+     "at": {
+      "python": [
+       [
+        5,
+        5
+       ]
+      ],
+      "java": [
+       [
+        6,
+        7
+       ]
+      ],
+      "cpp": [
+       [
+        7,
+        8
+       ]
+      ],
+      "c": [
+       [
+        5,
+        7
+       ]
+      ]
+     }
+    },
+    {
+     "text": "One overloaded mark is enough to fail.",
+     "at": {
+      "python": [
+       [
+        6,
+        7
+       ]
+      ],
+      "java": [
+       [
+        8,
+        8
+       ]
+      ],
+      "cpp": [
+       [
+        9,
+        9
+       ]
+      ],
+      "c": [
+       [
+        9,
+        9
+       ]
+      ]
+     }
+    },
+    {
+     "text": "No mark was over capacity.",
+     "at": {
+      "python": [
+       [
+        8,
+        8
+       ]
+      ],
+      "java": [
+       [
+        10,
+        10
+       ]
+      ],
+      "cpp": [
+       [
+        11,
+        11
+       ]
+      ],
+      "c": [
+       [
+        11,
+        11
+       ]
+      ]
+     }
+    }
+   ],
+   "complexity": [
+    {
+     "md": "**Time O(M · T)** for M marks and T trips: 10⁵ × 10⁵ = 10¹⁰ in the worst case. **Space O(1).**"
+    }
+   ],
+   "walk": {
+    "steps": [
+     {
+      "text": "Capacity 6. Trips: 2 people 1→5, 3 people 3→7, 4 people 5→8.",
+      "panels": [
+       {
+        "type": "row",
+        "cells": [
+         0,
+         1,
+         2,
+         3,
+         4,
+         5,
+         6,
+         7,
+         8
+        ],
+        "label": "mark"
+       },
+       {
+        "type": "vars",
+        "items": {
+         "capacity": 6
+        }
+       }
+      ]
+     },
+     {
+      "text": "Mark 0: nobody = 0.",
+      "panels": [
+       {
+        "type": "row",
+        "cells": [
+         0,
+         null,
+         null,
+         null,
+         null,
+         null,
+         null,
+         null,
+         null
+        ],
+        "states": {
+         "0": "active"
+        },
+        "label": "people on board",
+        "slots": true
+       },
+       {
+        "type": "vars",
+        "items": {
+         "on board": 0
+        }
+       }
+      ]
+     },
+     {
+      "text": "Mark 1: 2 (1→5) = 2.",
+      "panels": [
+       {
+        "type": "row",
+        "cells": [
+         0,
+         2,
+         null,
+         null,
+         null,
+         null,
+         null,
+         null,
+         null
+        ],
+        "states": {
+         "0": "found",
+         "1": "active"
+        },
+        "label": "people on board",
+        "slots": true
+       },
+       {
+        "type": "vars",
+        "items": {
+         "on board": 2
+        }
+       }
+      ]
+     },
+     {
+      "text": "Mark 2: 2 (1→5) = 2.",
+      "panels": [
+       {
+        "type": "row",
+        "cells": [
+         0,
+         2,
+         2,
+         null,
+         null,
+         null,
+         null,
+         null,
+         null
+        ],
+        "states": {
+         "0": "found",
+         "1": "found",
+         "2": "active"
+        },
+        "label": "people on board",
+        "slots": true
+       },
+       {
+        "type": "vars",
+        "items": {
+         "on board": 2
+        }
+       }
+      ]
+     },
+     {
+      "text": "Mark 3: 2 (1→5) + 3 (3→7) = 5.",
+      "panels": [
+       {
+        "type": "row",
+        "cells": [
+         0,
+         2,
+         2,
+         5,
+         null,
+         null,
+         null,
+         null,
+         null
+        ],
+        "states": {
+         "0": "found",
+         "1": "found",
+         "2": "found",
+         "3": "active"
+        },
+        "label": "people on board",
+        "slots": true
+       },
+       {
+        "type": "vars",
+        "items": {
+         "on board": 5
+        }
+       }
+      ]
+     },
+     {
+      "text": "Mark 4: 2 (1→5) + 3 (3→7) = 5.",
+      "panels": [
+       {
+        "type": "row",
+        "cells": [
+         0,
+         2,
+         2,
+         5,
+         5,
+         null,
+         null,
+         null,
+         null
+        ],
+        "states": {
+         "0": "found",
+         "1": "found",
+         "2": "found",
+         "3": "found",
+         "4": "active"
+        },
+        "label": "people on board",
+        "slots": true
+       },
+       {
+        "type": "vars",
+        "items": {
+         "on board": 5
+        }
+       }
+      ]
+     },
+     {
+      "text": "Mark 5: 3 (3→7) + 4 (5→8) = 7 > 6. Over capacity.",
+      "panels": [
+       {
+        "type": "row",
+        "cells": [
+         0,
+         2,
+         2,
+         5,
+         5,
+         7,
+         null,
+         null,
+         null
+        ],
+        "states": {
+         "0": "found",
+         "1": "found",
+         "2": "found",
+         "3": "found",
+         "4": "found",
+         "5": "mark"
+        },
+        "label": "people on board",
+        "slots": true
+       },
+       {
+        "type": "vars",
+        "items": {
+         "on board": 7
+        }
+       }
+      ]
+     },
+     {
+      "text": "So the answer is false.",
+      "panels": [
+       {
+        "type": "row",
+        "cells": [
+         0,
+         2,
+         2,
+         5,
+         5,
+         7,
+         null,
+         null,
+         null
+        ],
+        "states": {
+         "5": "mark"
+        },
+        "label": "people on board",
+        "slots": true
+       }
+      ],
+      "result": "false"
+     }
+    ],
+    "title": "At every mark, add up everyone on board."
+   },
+   "limits": [
+    {
+     "md": "Each mark recounts every trip, although from one mark to the next only the parties boarding or leaving there change the load."
+    }
+   ],
+   "slow": true
+  },
+  {
+   "title": "Sort boarding and leaving events",
+   "kind": "better",
+   "time": "O(T log T)",
+   "space": "O(T)",
+   "idea": [
+    {
+     "md": "Each trip becomes two events: `(from, +p)` and `(to, −p)`. Sort by mark, and at equal marks put\nthe negative changes first (people get off before others get on). Then walk the events with a\nrunning load; if it ever exceeds the capacity, return false.\n\nThis never looks at marks where nothing happens, so it works even if marks were huge."
+    }
+   ],
+   "build": [
+    "Make a list of `(mark, change)` pairs: `(from, +p)` and `(to, −p)` per trip.",
+    "Sort by mark, then by change (so −p comes before +p at the same mark).",
+    "Add the changes in order; if the running load exceeds `capacity`, return false.",
+    "Return true."
+   ],
+   "code": {
+    "python": "class Solution:\n    def canCarryAll(self, capacity: int, trips: List[List[int]]) -> bool:\n        events = []\n        for p, a, b in trips:\n            events.append((a, p))\n            events.append((b, -p))\n        events.sort()\n        load = 0\n        for _, change in events:\n            load += change\n            if load > capacity:\n                return False\n        return True\n",
+    "java": "class Solution {\n    public boolean canCarryAll(int capacity, int[][] trips) {\n        int[][] events = new int[2 * trips.length][];\n        for (int i = 0; i < trips.length; i++) {\n            events[2 * i] = new int[] {trips[i][1], trips[i][0]};\n            events[2 * i + 1] = new int[] {trips[i][2], -trips[i][0]};\n        }\n        Arrays.sort(events, (x, y) -> x[0] != y[0] ? Integer.compare(x[0], y[0]) : Integer.compare(x[1], y[1]));\n        int load = 0;\n        for (int[] e : events) {\n            load += e[1];\n            if (load > capacity) return false;\n        }\n        return true;\n    }\n}\n",
+    "cpp": "class Solution {\npublic:\n    bool canCarryAll(int capacity, vector<vector<int>>& trips) {\n        vector<pair<int, int>> events;\n        for (auto& t : trips) {\n            events.push_back({t[1], t[0]});\n            events.push_back({t[2], -t[0]});\n        }\n        sort(events.begin(), events.end());\n        int load = 0;\n        for (auto& [mark, change] : events) {\n            load += change;\n            if (load > capacity) return false;\n        }\n        return true;\n    }\n};\n",
+    "c": "typedef struct { int mark, change; } Event;\n\nstatic int byMarkThenChange(const void* a, const void* b) {\n    const Event* x = a;\n    const Event* y = b;\n    if (x->mark != y->mark) return (x->mark > y->mark) - (x->mark < y->mark);\n    return (x->change > y->change) - (x->change < y->change);\n}\n\nbool canCarryAll(int capacity, int** trips, int tripsSize, int* tripsColSize) {\n    Event* events = malloc(2 * tripsSize * sizeof(Event));\n    for (int i = 0; i < tripsSize; i++) {\n        events[2 * i] = (Event) {trips[i][1], trips[i][0]};\n        events[2 * i + 1] = (Event) {trips[i][2], -trips[i][0]};\n    }\n    qsort(events, 2 * tripsSize, sizeof(Event), byMarkThenChange);\n    int load = 0;\n    bool ok = true;\n    for (int i = 0; i < 2 * tripsSize && ok; i++) {\n        load += events[i].change;\n        if (load > capacity) ok = false;\n    }\n    free(events);\n    return ok;\n}\n"
+   },
+   "lines": [
+    {
+     "text": "An event is a mark and a change in load. The comparator orders by mark, then by change, so at the same mark negative changes (drop-offs) come first.",
+     "at": {
+      "c": [
+       [
+        1,
+        1
+       ],
+       [
+        3,
+        8
+       ]
+      ]
+     }
+    },
+    {
+     "text": "Two events per trip: boarding adds `p`, leaving removes `p`.",
+     "at": {
+      "python": [
+       [
+        3,
+        6
+       ]
+      ],
+      "java": [
+       [
+        3,
+        6
+       ]
+      ],
+      "cpp": [
+       [
+        4,
+        7
+       ]
+      ],
+      "c": [
+       [
+        11,
+        14
+       ]
+      ]
+     }
+    },
+    {
+     "text": "Order the events along the road. Ties at one mark: smaller change first, so `−p` before `+p`: off before on.",
+     "at": {
+      "python": [
+       [
+        7,
+        7
+       ]
+      ],
+      "java": [
+       [
+        8,
+        8
+       ]
+      ],
+      "cpp": [
+       [
+        9,
+        9
+       ]
+      ],
+      "c": [
+       [
+        16,
+        16
+       ]
+      ]
+     },
+     "notes": {
+      "python": "Tuples compare by mark first, then by change, which is exactly the order we need.",
+      "cpp": "Pairs compare by `first`, then `second`: mark, then change."
+     }
+    },
+    {
+     "text": "Apply the changes in road order; `load` is the number on board right after each event.",
+     "at": {
+      "python": [
+       [
+        8,
+        10
+       ]
+      ],
+      "java": [
+       [
+        9,
+        11
+       ]
+      ],
+      "cpp": [
+       [
+        10,
+        12
+       ]
+      ],
+      "c": [
+       [
+        17,
+        20
+       ]
+      ]
+     }
+    },
+    {
+     "text": "Any moment over capacity fails.",
+     "at": {
+      "python": [
+       [
+        11,
+        12
+       ]
+      ],
+      "java": [
+       [
+        12,
+        12
+       ]
+      ],
+      "cpp": [
+       [
+        13,
+        13
+       ]
+      ],
+      "c": [
+       [
+        21,
+        21
+       ]
+      ]
+     },
+     "notes": {
+      "c": "`ok` lets the loop stop early and still free the array."
+     }
+    },
+    {
+     "text": "The load never went over capacity.",
+     "at": {
+      "python": [
+       [
+        13,
+        13
+       ]
+      ],
+      "java": [
+       [
+        14,
+        14
+       ]
+      ],
+      "cpp": [
+       [
+        15,
+        15
+       ]
+      ],
+      "c": [
+       [
+        23,
+        24
+       ]
+      ]
+     }
+    }
+   ],
+   "complexity": [
+    {
+     "md": "**Time O(T log T)** for sorting 2T events. **Space O(T)** for the events."
+    }
+   ],
+   "walk": {
+    "steps": [
+     {
+      "text": "Each trip is two events: +people at 'from', −people at 'to'. At the same mark, −'s sort first: off before on.",
+      "panels": [
+       {
+        "type": "row",
+        "cells": [
+         "1:+2",
+         "3:+3",
+         "5:-2",
+         "5:+4",
+         "7:-3",
+         "8:-4"
+        ],
+        "label": "events (mark: change)"
+       }
+      ]
+     },
+     {
+      "text": "Mark 1: +2 → 2 on board.",
+      "panels": [
+       {
+        "type": "row",
+        "cells": [
+         "1:+2",
+         "3:+3",
+         "5:-2",
+         "5:+4",
+         "7:-3",
+         "8:-4"
+        ],
+        "states": {
+         "0": "active"
+        },
+        "label": "events"
+       },
+       {
+        "type": "vars",
+        "items": {
+         "on board": 2
+        }
+       }
+      ]
+     },
+     {
+      "text": "Mark 3: +3 → 5 on board.",
+      "panels": [
+       {
+        "type": "row",
+        "cells": [
+         "1:+2",
+         "3:+3",
+         "5:-2",
+         "5:+4",
+         "7:-3",
+         "8:-4"
+        ],
+        "states": {
+         "0": "found",
+         "1": "active"
+        },
+        "label": "events"
+       },
+       {
+        "type": "vars",
+        "items": {
+         "on board": 5
+        }
+       }
+      ]
+     },
+     {
+      "text": "Mark 5: -2 → 3 on board.",
+      "panels": [
+       {
+        "type": "row",
+        "cells": [
+         "1:+2",
+         "3:+3",
+         "5:-2",
+         "5:+4",
+         "7:-3",
+         "8:-4"
+        ],
+        "states": {
+         "0": "found",
+         "1": "found",
+         "2": "active"
+        },
+        "label": "events"
+       },
+       {
+        "type": "vars",
+        "items": {
+         "on board": 3
+        }
+       }
+      ]
+     },
+     {
+      "text": "Mark 5: +4 → 7 on board > 6. Over capacity.",
+      "panels": [
+       {
+        "type": "row",
+        "cells": [
+         "1:+2",
+         "3:+3",
+         "5:-2",
+         "5:+4",
+         "7:-3",
+         "8:-4"
+        ],
+        "states": {
+         "0": "found",
+         "1": "found",
+         "2": "found",
+         "3": "mark"
+        },
+        "label": "events"
+       },
+       {
+        "type": "vars",
+        "items": {
+         "on board": 7
+        }
+       }
+      ]
+     },
+     {
+      "text": "False.",
+      "panels": [
+       {
+        "type": "row",
+        "cells": [
+         "1:+2",
+         "3:+3",
+         "5:-2",
+         "5:+4",
+         "7:-3",
+         "8:-4"
+        ],
+        "states": {
+         "3": "mark"
+        },
+        "label": "events"
+       }
+      ],
+      "result": "false"
+     }
+    ],
+    "title": "Turn trips into get-on and get-off events, sort them, and keep a running count."
+   },
+   "limits": [
+    {
+     "md": "Sorting is needed only because the events arrive in random order. Here the marks are small\nintegers (≤ 10⁵), so they can index an array directly, which puts every event in place\nwithout sorting."
+    }
+   ]
+  },
+  {
+   "title": "Difference array over the marks",
+   "kind": "best",
+   "time": "O(T + M)",
+   "space": "O(M)",
+   "idea": [
+    {
+     "md": "Make an array `change` with one slot per mark. For each trip, `change[from] += p` and\n`change[to] −= p`. Walking the marks in order with a running sum gives the load at each\nmark: at mark `m` it equals all boardings at marks ≤ m minus all drop-offs at marks ≤ m.\n\n\"Off before on\" is automatic: at one mark the `+` and `−` are already combined into a single\nnumber, so a party leaving and a party boarding at the same mark never overlap."
+    }
+   ],
+   "build": [
+    "Find the last mark and make `change` with that many slots + 1, all zero.",
+    "For each trip: `change[from] += p`, `change[to] −= p`.",
+    "Walk `m` from 0 up, adding `change[m]` to `load`; return false as soon as `load > capacity`.",
+    "Return true."
+   ],
+   "code": {
+    "python": "class Solution:\n    def canCarryAll(self, capacity: int, trips: List[List[int]]) -> bool:\n        last = max(t[2] for t in trips)\n        change = [0] * (last + 1)\n        for p, a, b in trips:\n            change[a] += p\n            change[b] -= p\n        load = 0\n        for c in change:\n            load += c\n            if load > capacity:\n                return False\n        return True\n",
+    "java": "class Solution {\n    public boolean canCarryAll(int capacity, int[][] trips) {\n        int last = 0;\n        for (int[] t : trips) last = Math.max(last, t[2]);\n        int[] change = new int[last + 1];\n        for (int[] t : trips) {\n            change[t[1]] += t[0];\n            change[t[2]] -= t[0];\n        }\n        int load = 0;\n        for (int c : change) {\n            load += c;\n            if (load > capacity) return false;\n        }\n        return true;\n    }\n}\n",
+    "cpp": "class Solution {\npublic:\n    bool canCarryAll(int capacity, vector<vector<int>>& trips) {\n        int last = 0;\n        for (auto& t : trips) last = max(last, t[2]);\n        vector<int> change(last + 1, 0);\n        for (auto& t : trips) {\n            change[t[1]] += t[0];\n            change[t[2]] -= t[0];\n        }\n        int load = 0;\n        for (int c : change) {\n            load += c;\n            if (load > capacity) return false;\n        }\n        return true;\n    }\n};\n",
+    "c": "bool canCarryAll(int capacity, int** trips, int tripsSize, int* tripsColSize) {\n    int last = 0;\n    for (int i = 0; i < tripsSize; i++) if (trips[i][2] > last) last = trips[i][2];\n    int* change = calloc(last + 1, sizeof(int));\n    for (int i = 0; i < tripsSize; i++) {\n        change[trips[i][1]] += trips[i][0];\n        change[trips[i][2]] -= trips[i][0];\n    }\n    int load = 0;\n    bool ok = true;\n    for (int m = 0; m <= last && ok; m++) {\n        load += change[m];\n        if (load > capacity) ok = false;\n    }\n    free(change);\n    return ok;\n}\n"
+   },
+   "lines": [
+    {
+     "text": "One slot per mark up to the last drop-off, all starting at 0.",
+     "at": {
+      "python": [
+       [
+        3,
+        4
+       ]
+      ],
+      "java": [
+       [
+        3,
+        5
+       ]
+      ],
+      "cpp": [
+       [
+        4,
+        6
+       ]
+      ],
+      "c": [
+       [
+        2,
+        4
+       ]
+      ]
+     },
+     "notes": {
+      "c": "`calloc` zeroes the slots."
+     }
+    },
+    {
+     "text": "A trip changes the load in exactly two places: up by `p` where it boards, down by `p` where it leaves. The marks in between need no update: that's the whole trick.",
+     "at": {
+      "python": [
+       [
+        5,
+        7
+       ]
+      ],
+      "java": [
+       [
+        6,
+        8
+       ]
+      ],
+      "cpp": [
+       [
+        7,
+        9
+       ]
+      ],
+      "c": [
+       [
+        5,
+        7
+       ]
+      ]
+     }
+    },
+    {
+     "text": "The running sum of changes up to mark `m` is the number of people on board just after the shuttle leaves mark `m`.",
+     "at": {
+      "python": [
+       [
+        8,
+        10
+       ]
+      ],
+      "java": [
+       [
+        10,
+        12
+       ]
+      ],
+      "cpp": [
+       [
+        11,
+        13
+       ]
+      ],
+      "c": [
+       [
+        9,
+        12
+       ]
+      ]
+     }
+    },
+    {
+     "text": "Over capacity anywhere means it can't carry everyone.",
+     "at": {
+      "python": [
+       [
+        11,
+        12
+       ]
+      ],
+      "java": [
+       [
+        13,
+        13
+       ]
+      ],
+      "cpp": [
+       [
+        14,
+        14
+       ]
+      ],
+      "c": [
+       [
+        13,
+        13
+       ]
+      ]
+     },
+     "notes": {
+      "c": "`ok` stops the loop and still lets us free the array."
+     }
+    },
+    {
+     "text": "Every mark was within capacity.",
+     "at": {
+      "python": [
+       [
+        13,
+        13
+       ]
+      ],
+      "java": [
+       [
+        15,
+        15
+       ]
+      ],
+      "cpp": [
+       [
+        16,
+        16
+       ]
+      ],
+      "c": [
+       [
+        15,
+        16
+       ]
+      ]
+     }
+    }
+   ],
+   "complexity": [
+    {
+     "md": "**Time O(T + M):** two writes per trip, then one pass over at most 10⁵ + 1 marks.\n\n**Space O(M)** for the `change` array."
+    }
+   ],
+   "walk": {
+    "steps": [
+     {
+      "text": "change[m] starts at 0 for every mark.",
+      "panels": [
+       {
+        "type": "row",
+        "cells": [
+         0,
+         0,
+         0,
+         0,
+         0,
+         0,
+         0,
+         0,
+         0
+        ],
+        "label": "change",
+        "slots": true
+       }
+      ]
+     },
+     {
+      "text": "Trip of 2 from 1 to 5: change[1] += 2, change[5] −= 2.",
+      "panels": [
+       {
+        "type": "row",
+        "cells": [
+         0,
+         2,
+         0,
+         0,
+         0,
+         -2,
+         0,
+         0,
+         0
+        ],
+        "states": {
+         "1": "new",
+         "5": "new"
+        },
+        "label": "change",
+        "slots": true
+       }
+      ]
+     },
+     {
+      "text": "Trip of 3 from 3 to 7: change[3] += 3, change[7] −= 3.",
+      "panels": [
+       {
+        "type": "row",
+        "cells": [
+         0,
+         2,
+         0,
+         3,
+         0,
+         -2,
+         0,
+         -3,
+         0
+        ],
+        "states": {
+         "3": "new",
+         "7": "new"
+        },
+        "label": "change",
+        "slots": true
+       }
+      ]
+     },
+     {
+      "text": "Trip of 4 from 5 to 8: change[5] += 4, change[8] −= 4.",
+      "panels": [
+       {
+        "type": "row",
+        "cells": [
+         0,
+         2,
+         0,
+         3,
+         0,
+         2,
+         0,
+         -3,
+         -4
+        ],
+        "states": {
+         "5": "new",
+         "8": "new"
+        },
+        "label": "change",
+        "slots": true
+       }
+      ]
+     },
+     {
+      "text": "Running sum at mark 0: 0.",
+      "panels": [
+       {
+        "type": "row",
+        "cells": [
+         0,
+         2,
+         0,
+         3,
+         0,
+         2,
+         0,
+         -3,
+         -4
+        ],
+        "states": {
+         "0": "active"
+        },
+        "label": "change",
+        "slots": true
+       },
+       {
+        "type": "row",
+        "cells": [
+         0,
+         null,
+         null,
+         null,
+         null,
+         null,
+         null,
+         null,
+         null
+        ],
+        "states": {
+         "0": "active"
+        },
+        "label": "on board",
+        "slots": true
+       }
+      ]
+     },
+     {
+      "text": "Running sum at mark 1: 2.",
+      "panels": [
+       {
+        "type": "row",
+        "cells": [
+         0,
+         2,
+         0,
+         3,
+         0,
+         2,
+         0,
+         -3,
+         -4
+        ],
+        "states": {
+         "1": "active"
+        },
+        "label": "change",
+        "slots": true
+       },
+       {
+        "type": "row",
+        "cells": [
+         0,
+         2,
+         null,
+         null,
+         null,
+         null,
+         null,
+         null,
+         null
+        ],
+        "states": {
+         "1": "active"
+        },
+        "label": "on board",
+        "slots": true
+       }
+      ]
+     },
+     {
+      "text": "Running sum at mark 2: 2.",
+      "panels": [
+       {
+        "type": "row",
+        "cells": [
+         0,
+         2,
+         0,
+         3,
+         0,
+         2,
+         0,
+         -3,
+         -4
+        ],
+        "states": {
+         "2": "active"
+        },
+        "label": "change",
+        "slots": true
+       },
+       {
+        "type": "row",
+        "cells": [
+         0,
+         2,
+         2,
+         null,
+         null,
+         null,
+         null,
+         null,
+         null
+        ],
+        "states": {
+         "2": "active"
+        },
+        "label": "on board",
+        "slots": true
+       }
+      ]
+     },
+     {
+      "text": "Running sum at mark 3: 5.",
+      "panels": [
+       {
+        "type": "row",
+        "cells": [
+         0,
+         2,
+         0,
+         3,
+         0,
+         2,
+         0,
+         -3,
+         -4
+        ],
+        "states": {
+         "3": "active"
+        },
+        "label": "change",
+        "slots": true
+       },
+       {
+        "type": "row",
+        "cells": [
+         0,
+         2,
+         2,
+         5,
+         null,
+         null,
+         null,
+         null,
+         null
+        ],
+        "states": {
+         "3": "active"
+        },
+        "label": "on board",
+        "slots": true
+       }
+      ]
+     },
+     {
+      "text": "Running sum at mark 4: 5.",
+      "panels": [
+       {
+        "type": "row",
+        "cells": [
+         0,
+         2,
+         0,
+         3,
+         0,
+         2,
+         0,
+         -3,
+         -4
+        ],
+        "states": {
+         "4": "active"
+        },
+        "label": "change",
+        "slots": true
+       },
+       {
+        "type": "row",
+        "cells": [
+         0,
+         2,
+         2,
+         5,
+         5,
+         null,
+         null,
+         null,
+         null
+        ],
+        "states": {
+         "4": "active"
+        },
+        "label": "on board",
+        "slots": true
+       }
+      ]
+     },
+     {
+      "text": "Running sum at mark 5: 7 > 6. Over capacity.",
+      "panels": [
+       {
+        "type": "row",
+        "cells": [
+         0,
+         2,
+         0,
+         3,
+         0,
+         2,
+         0,
+         -3,
+         -4
+        ],
+        "states": {
+         "5": "active"
+        },
+        "label": "change",
+        "slots": true
+       },
+       {
+        "type": "row",
+        "cells": [
+         0,
+         2,
+         2,
+         5,
+         5,
+         7,
+         null,
+         null,
+         null
+        ],
+        "states": {
+         "5": "mark"
+        },
+        "label": "on board",
+        "slots": true
+       }
+      ]
+     },
+     {
+      "text": "False: at mark 5 there would be 7 people.",
+      "panels": [
+       {
+        "type": "row",
+        "cells": [
+         0,
+         2,
+         2,
+         5,
+         5,
+         7,
+         null,
+         null,
+         null
+        ],
+        "states": {
+         "5": "mark"
+        },
+        "label": "on board",
+        "slots": true
+       }
+      ],
+      "result": "false"
+     }
+    ],
+    "title": "One array slot per mark: +people where a party boards, −people where it leaves. A running sum gives the load."
+   }
+  }
+ ],
+ "takeaways": [
+  {
+   "md": "- **Range add, then read everything once?** Use a difference array: `+v` at the start, `−v` just\n  past the end, then a running sum.\n- Exclusive ends (`to` is the first mark the party is *not* on board) make \"off before on\" fall out\n  naturally.\n- If the coordinates are too large or sparse for an array, sort the events instead (the\n  **Brightest Spot** approach)."
+  }
+ ]
+}

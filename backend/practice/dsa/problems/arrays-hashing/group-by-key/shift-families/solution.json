@@ -1,0 +1,1291 @@
+{
+ "version": 1,
+ "summary": "A shift changes every letter by the same amount, so it doesn't change the **gaps** between letters.\nNormalise each word by shifting it until it starts with `a`; two words are in the same family exactly\nwhen their normal forms are equal. Count distinct normal forms with a hash set: O(total letters).",
+ "question": [
+  {
+   "md": "Shifting moves every letter of a word forward by the same number of places, wrapping `z` → `a`. Words\nthat can be shifted into one another form a **family**. Count the families.\n\n- **Wrap-around counts:** `\"az\"` shifted by 1 is `\"ba\"`, so they're one family.\n- **Lengths must match:** a shift never changes length, so `\"a\"` and `\"aa\"` are different families.\n- **Identical words** are one family (a shift by 0).\n- **Every one-letter word** is in a single family: any letter shifts into any other.\n- **Size:** up to 10⁴ words of at most 50 letters."
+  }
+ ],
+ "think": [
+  {
+   "md": "Take `[\"abc\", \"bcd\", \"xyz\", \"az\", \"ba\", \"a\", \"z\", \"acd\"]`.\n\nWhat doesn't change when you shift? The **distance from each letter to the next**: abc goes +1, +1;\nso do bcd and xyz. az goes +25 (a to z), and ba goes from b to a, which is also +25 with wrap-around.\nSo family = same length and same sequence of gaps.\n\nAn equivalent, easier-to-code fingerprint: **shift every word so its first letter becomes `a`**. Every\nmember of a family lands on the same word."
+  },
+  {
+   "panels": [
+    {
+     "type": "row",
+     "cells": [
+      "abc",
+      "bcd",
+      "xyz",
+      "az",
+      "ba",
+      "a",
+      "z",
+      "acd"
+     ],
+     "label": "word"
+    },
+    {
+     "type": "row",
+     "cells": [
+      "abc",
+      "abc",
+      "abc",
+      "az",
+      "az",
+      "a",
+      "a",
+      "acd"
+     ],
+     "label": "shifted to start at a"
+    }
+   ],
+   "caption": "abc, bcd, xyz → abc;  az, ba → az;  a, z → a;  acd → acd. Four families."
+  },
+  {
+   "md": "The normal form is a **key**: same key, same family. Counting families becomes counting distinct\nkeys."
+  }
+ ],
+ "approaches": [
+  {
+   "title": "Try all 26 shifts against each family's representative",
+   "kind": "brute",
+   "time": "O(n · f · 26 · L)",
+   "space": "O(n · L)",
+   "idea": [
+    {
+     "md": "Keep one representative word per family found so far. For a new word, try every representative of the same length with all 26 shifts; if one equals the word, it joins that family. Otherwise it's a new family."
+    }
+   ],
+   "build": [
+    "Keep a list of representatives.",
+    "For each word, for each representative of the same length, for each shift k in 0 … 25: compare the shifted representative with the word.",
+    "No match anywhere: add the word as a new representative.",
+    "Return the number of representatives."
+   ],
+   "code": {
+    "python": "class Solution:\n    def countShiftFamilies(self, words: List[str]) -> int:\n        def shifted_equal(r, w, k):\n            return all((ord(a) - 97 + k) % 26 == ord(b) - 97 for a, b in zip(r, w))\n        reps = []\n        for w in words:\n            if not any(len(r) == len(w) and any(shifted_equal(r, w, k) for k in range(26))\n                       for r in reps):\n                reps.append(w)\n        return len(reps)\n",
+    "java": "class Solution {\n    public int countShiftFamilies(String[] words) {\n        List<String> reps = new ArrayList<>();\n        for (String w : words) {\n            boolean found = false;\n            for (String r : reps) {\n                if (r.length() != w.length()) continue;\n                for (int k = 0; k < 26 && !found; k++) found = shiftedEqual(r, w, k);\n                if (found) break;\n            }\n            if (!found) reps.add(w);\n        }\n        return reps.size();\n    }\n\n    private boolean shiftedEqual(String r, String w, int k) {\n        for (int i = 0; i < r.length(); i++)\n            if ((r.charAt(i) - 'a' + k) % 26 != w.charAt(i) - 'a') return false;\n        return true;\n    }\n}\n",
+    "cpp": "class Solution {\npublic:\n    int countShiftFamilies(vector<string>& words) {\n        auto shiftedEqual = [](const string& r, const string& w, int k) {\n            for (size_t i = 0; i < r.size(); i++)\n                if ((r[i] - 'a' + k) % 26 != w[i] - 'a') return false;\n            return true;\n        };\n        vector<string> reps;\n        for (const string& w : words) {\n            bool found = false;\n            for (const string& r : reps) {\n                if (r.size() != w.size()) continue;\n                for (int k = 0; k < 26 && !found; k++) found = shiftedEqual(r, w, k);\n                if (found) break;\n            }\n            if (!found) reps.push_back(w);\n        }\n        return reps.size();\n    }\n};\n",
+    "c": "static bool shiftedEqual(const char* r, const char* w, int k) {\n    for (int i = 0; r[i]; i++)\n        if ((r[i] - 'a' + k) % 26 != w[i] - 'a') return false;\n    return true;\n}\n\nint countShiftFamilies(char** words, int wordsSize) {\n    char** reps = malloc(wordsSize * sizeof(char*));\n    int f = 0;\n    for (int i = 0; i < wordsSize; i++) {\n        bool found = false;\n        for (int j = 0; j < f && !found; j++) {\n            if (strlen(reps[j]) != strlen(words[i])) continue;\n            for (int k = 0; k < 26 && !found; k++) found = shiftedEqual(reps[j], words[i], k);\n        }\n        if (!found) reps[f++] = words[i];\n    }\n    free(reps);\n    return f;\n}\n"
+   },
+   "lines": [
+    {
+     "text": "Does shifting `r` by `k` places produce `w`? Letter by letter, `(r − 'a' + k) mod 26` must equal `w − 'a'` (the `mod 26` is the wrap-around). Assumes equal lengths.",
+     "at": {
+      "python": [
+       [
+        3,
+        4
+       ]
+      ],
+      "java": [
+       [
+        16,
+        20
+       ]
+      ],
+      "cpp": [
+       [
+        4,
+        8
+       ]
+      ],
+      "c": [
+       [
+        1,
+        5
+       ]
+      ]
+     }
+    },
+    {
+     "text": "One representative word per family found so far.",
+     "at": {
+      "python": [
+       [
+        5,
+        5
+       ]
+      ],
+      "java": [
+       [
+        3,
+        3
+       ]
+      ],
+      "cpp": [
+       [
+        9,
+        9
+       ]
+      ],
+      "c": [
+       [
+        8,
+        9
+       ]
+      ]
+     }
+    },
+    {
+     "text": "Place each word into a family.",
+     "at": {
+      "python": [
+       [
+        6,
+        6
+       ]
+      ],
+      "java": [
+       [
+        4,
+        4
+       ]
+      ],
+      "cpp": [
+       [
+        10,
+        10
+       ]
+      ],
+      "c": [
+       [
+        10,
+        10
+       ]
+      ]
+     }
+    },
+    {
+     "text": "Only same-length representatives can match; try all 26 shifts of each.",
+     "at": {
+      "python": [
+       [
+        7,
+        8
+       ]
+      ],
+      "java": [
+       [
+        5,
+        9
+       ]
+      ],
+      "cpp": [
+       [
+        11,
+        15
+       ]
+      ],
+      "c": [
+       [
+        11,
+        14
+       ]
+      ]
+     }
+    },
+    {
+     "text": "Nothing matched: the word founds a new family.",
+     "at": {
+      "python": [
+       [
+        9,
+        9
+       ]
+      ],
+      "java": [
+       [
+        11,
+        11
+       ]
+      ],
+      "cpp": [
+       [
+        17,
+        17
+       ]
+      ],
+      "c": [
+       [
+        16,
+        16
+       ]
+      ]
+     }
+    },
+    {
+     "text": "One representative per family.",
+     "at": {
+      "python": [
+       [
+        10,
+        10
+       ]
+      ],
+      "java": [
+       [
+        13,
+        13
+       ]
+      ],
+      "cpp": [
+       [
+        19,
+        19
+       ]
+      ],
+      "c": [
+       [
+        18,
+        19
+       ]
+      ]
+     },
+     "notes": {
+      "c": "Free the list (it only holds pointers to the input words)."
+     }
+    }
+   ],
+   "complexity": [
+    {
+     "md": "**Time O(n · f · 26 · L)** for f families: up to 10⁴ × 10⁴ × 26 × 50 in the worst case. **Space O(n · L)** in the worst case (representatives)."
+    }
+   ],
+   "walk": {
+    "steps": [
+     {
+      "text": "'abc': no representative of length 3 shifts into it (each tried with all 26 shifts). New family.",
+      "panels": [
+       {
+        "type": "row",
+        "cells": [
+         "abc",
+         "bcd",
+         "xyz",
+         "az",
+         "ba",
+         "a",
+         "z",
+         "acd"
+        ],
+        "states": {
+         "0": "active"
+        }
+       },
+       {
+        "type": "row",
+        "cells": [
+         "abc"
+        ],
+        "states": {
+         "0": "new"
+        },
+        "label": "representatives"
+       }
+      ]
+     },
+     {
+      "text": "'bcd': shifting representative 'abc' by 1 gives 'bcd'. Same family.",
+      "panels": [
+       {
+        "type": "row",
+        "cells": [
+         "abc",
+         "bcd",
+         "xyz",
+         "az",
+         "ba",
+         "a",
+         "z",
+         "acd"
+        ],
+        "states": {
+         "0": "dim",
+         "1": "active"
+        }
+       },
+       {
+        "type": "row",
+        "cells": [
+         "abc"
+        ],
+        "states": {
+         "0": "answer"
+        },
+        "label": "representatives"
+       }
+      ]
+     },
+     {
+      "text": "'xyz': shifting representative 'abc' by 23 gives 'xyz'. Same family.",
+      "panels": [
+       {
+        "type": "row",
+        "cells": [
+         "abc",
+         "bcd",
+         "xyz",
+         "az",
+         "ba",
+         "a",
+         "z",
+         "acd"
+        ],
+        "states": {
+         "0": "dim",
+         "1": "dim",
+         "2": "active"
+        }
+       },
+       {
+        "type": "row",
+        "cells": [
+         "abc"
+        ],
+        "states": {
+         "0": "answer"
+        },
+        "label": "representatives"
+       }
+      ]
+     },
+     {
+      "text": "'az': no representative of length 2 shifts into it (each tried with all 26 shifts). New family.",
+      "panels": [
+       {
+        "type": "row",
+        "cells": [
+         "abc",
+         "bcd",
+         "xyz",
+         "az",
+         "ba",
+         "a",
+         "z",
+         "acd"
+        ],
+        "states": {
+         "0": "dim",
+         "1": "dim",
+         "2": "dim",
+         "3": "active"
+        }
+       },
+       {
+        "type": "row",
+        "cells": [
+         "abc",
+         "az"
+        ],
+        "states": {
+         "1": "new"
+        },
+        "label": "representatives"
+       }
+      ]
+     },
+     {
+      "text": "'ba': shifting representative 'az' by 1 gives 'ba'. Same family.",
+      "panels": [
+       {
+        "type": "row",
+        "cells": [
+         "abc",
+         "bcd",
+         "xyz",
+         "az",
+         "ba",
+         "a",
+         "z",
+         "acd"
+        ],
+        "states": {
+         "0": "dim",
+         "1": "dim",
+         "2": "dim",
+         "3": "dim",
+         "4": "active"
+        }
+       },
+       {
+        "type": "row",
+        "cells": [
+         "abc",
+         "az"
+        ],
+        "states": {
+         "1": "answer"
+        },
+        "label": "representatives"
+       }
+      ]
+     },
+     {
+      "text": "'a': no representative of length 1 shifts into it (each tried with all 26 shifts). New family.",
+      "panels": [
+       {
+        "type": "row",
+        "cells": [
+         "abc",
+         "bcd",
+         "xyz",
+         "az",
+         "ba",
+         "a",
+         "z",
+         "acd"
+        ],
+        "states": {
+         "0": "dim",
+         "1": "dim",
+         "2": "dim",
+         "3": "dim",
+         "4": "dim",
+         "5": "active"
+        }
+       },
+       {
+        "type": "row",
+        "cells": [
+         "abc",
+         "az",
+         "a"
+        ],
+        "states": {
+         "2": "new"
+        },
+        "label": "representatives"
+       }
+      ]
+     },
+     {
+      "text": "'z': shifting representative 'a' by 25 gives 'z'. Same family.",
+      "panels": [
+       {
+        "type": "row",
+        "cells": [
+         "abc",
+         "bcd",
+         "xyz",
+         "az",
+         "ba",
+         "a",
+         "z",
+         "acd"
+        ],
+        "states": {
+         "0": "dim",
+         "1": "dim",
+         "2": "dim",
+         "3": "dim",
+         "4": "dim",
+         "5": "dim",
+         "6": "active"
+        }
+       },
+       {
+        "type": "row",
+        "cells": [
+         "abc",
+         "az",
+         "a"
+        ],
+        "states": {
+         "2": "answer"
+        },
+        "label": "representatives"
+       }
+      ]
+     },
+     {
+      "text": "'acd': no representative of length 3 shifts into it (each tried with all 26 shifts). New family.",
+      "panels": [
+       {
+        "type": "row",
+        "cells": [
+         "abc",
+         "bcd",
+         "xyz",
+         "az",
+         "ba",
+         "a",
+         "z",
+         "acd"
+        ],
+        "states": {
+         "0": "dim",
+         "1": "dim",
+         "2": "dim",
+         "3": "dim",
+         "4": "dim",
+         "5": "dim",
+         "6": "dim",
+         "7": "active"
+        }
+       },
+       {
+        "type": "row",
+        "cells": [
+         "abc",
+         "az",
+         "a",
+         "acd"
+        ],
+        "states": {
+         "3": "new"
+        },
+        "label": "representatives"
+       }
+      ]
+     },
+     {
+      "text": "4 families.",
+      "panels": [
+       {
+        "type": "row",
+        "cells": [
+         "abc",
+         "az",
+         "a",
+         "acd"
+        ],
+        "label": "representatives"
+       }
+      ],
+      "result": "4"
+     }
+    ],
+    "title": "Keep one representative per family. A word joins a family if some shift of the representative equals it."
+   },
+   "limits": [
+    {
+     "md": "Membership in a family is tested by trying shifts against every family. A fingerprint that's identical for the whole family would make membership an equality test, and equal fingerprints can be sorted or hashed."
+    }
+   ],
+   "slow": true
+  },
+  {
+   "title": "Normalise, sort, count distinct",
+   "kind": "better",
+   "time": "O(n · L · log n)",
+   "space": "O(n · L)",
+   "idea": [
+    {
+     "md": "Shift every word back so its first letter is `a`: letter `c` becomes `(c − first) mod 26`. Family members all become the same string. Sort the normal forms and count how many differ from their predecessor."
+    }
+   ],
+   "build": [
+    "For each word, build its normal form with `(c − w[0] + 26) % 26 + 'a'`.",
+    "Sort the normal forms.",
+    "Count positions where the value differs from the one before (plus the first)."
+   ],
+   "code": {
+    "python": "class Solution:\n    def countShiftFamilies(self, words: List[str]) -> int:\n        def normal(w):\n            return \"\".join(chr((ord(c) - ord(w[0])) % 26 + 97) for c in w)\n        keys = sorted(normal(w) for w in words)\n        return sum(1 for i in range(len(keys)) if i == 0 or keys[i] != keys[i - 1])\n",
+    "java": "class Solution {\n    public int countShiftFamilies(String[] words) {\n        String[] keys = new String[words.length];\n        for (int i = 0; i < words.length; i++) keys[i] = normal(words[i]);\n        Arrays.sort(keys);\n        int families = 0;\n        for (int i = 0; i < keys.length; i++) if (i == 0 || !keys[i].equals(keys[i - 1])) families++;\n        return families;\n    }\n\n    private String normal(String w) {\n        char[] out = new char[w.length()];\n        for (int i = 0; i < out.length; i++) out[i] = (char) ((w.charAt(i) - w.charAt(0) + 26) % 26 + 'a');\n        return new String(out);\n    }\n}\n",
+    "cpp": "class Solution {\npublic:\n    int countShiftFamilies(vector<string>& words) {\n        vector<string> keys;\n        for (const string& w : words) {\n            string k = w;\n            for (char& c : k) c = (c - w[0] + 26) % 26 + 'a';\n            keys.push_back(k);\n        }\n        sort(keys.begin(), keys.end());\n        return unique(keys.begin(), keys.end()) - keys.begin();\n    }\n};\n",
+    "c": "static int cmpStr(const void* a, const void* b) {\n    return strcmp(*(char* const*) a, *(char* const*) b);\n}\n\nint countShiftFamilies(char** words, int wordsSize) {\n    char** keys = malloc(wordsSize * sizeof(char*));\n    for (int i = 0; i < wordsSize; i++) {\n        size_t len = strlen(words[i]);\n        keys[i] = malloc(len + 1);\n        for (size_t j = 0; j < len; j++) keys[i][j] = (words[i][j] - words[i][0] + 26) % 26 + 'a';\n        keys[i][len] = '\\0';\n    }\n    qsort(keys, wordsSize, sizeof(char*), cmpStr);\n    int families = 0;\n    for (int i = 0; i < wordsSize; i++) if (i == 0 || strcmp(keys[i], keys[i - 1]) != 0) families++;\n    for (int i = 0; i < wordsSize; i++) free(keys[i]);\n    free(keys);\n    return families;\n}\n"
+   },
+   "lines": [
+    {
+     "text": "Shift the word back by its first letter: `(c − first + 26) mod 26` keeps every gap and turns the first letter into `a`. The `+ 26` keeps the value non-negative before `mod` in languages where `%` can return negatives.",
+     "at": {
+      "python": [
+       [
+        3,
+        4
+       ]
+      ],
+      "java": [
+       [
+        11,
+        15
+       ]
+      ],
+      "cpp": [
+       [
+        6,
+        7
+       ]
+      ],
+      "c": [
+       [
+        7,
+        12
+       ]
+      ]
+     }
+    },
+    {
+     "text": "Sort the normal forms so equal ones sit together.",
+     "at": {
+      "python": [
+       [
+        5,
+        5
+       ]
+      ],
+      "java": [
+       [
+        3,
+        5
+       ]
+      ],
+      "cpp": [
+       [
+        4,
+        5
+       ],
+       [
+        8,
+        10
+       ]
+      ],
+      "c": [
+       [
+        1,
+        3
+       ],
+       [
+        6,
+        6
+       ],
+       [
+        13,
+        13
+       ]
+      ]
+     },
+     "notes": {
+      "c": "`qsort` on the array of string pointers with `strcmp`."
+     }
+    },
+    {
+     "text": "Each new value in sorted order starts a new family.",
+     "at": {
+      "python": [
+       [
+        6,
+        6
+       ]
+      ],
+      "java": [
+       [
+        6,
+        8
+       ]
+      ],
+      "cpp": [
+       [
+        11,
+        11
+       ]
+      ],
+      "c": [
+       [
+        14,
+        18
+       ]
+      ]
+     },
+     "notes": {
+      "cpp": "`unique` squeezes out adjacent duplicates and returns the new end; the distance from the start is the number of distinct keys.",
+      "c": "Count, then free every key."
+     }
+    }
+   ],
+   "complexity": [
+    {
+     "md": "**Time O(n · L · log n):** normalising is O(n · L); sorting compares strings of length L about n log n times. **Space O(n · L)** for the keys."
+    }
+   ],
+   "walk": {
+    "steps": [
+     {
+      "text": "Shift each word back by its first letter's distance from 'a'.",
+      "panels": [
+       {
+        "type": "row",
+        "cells": [
+         "abc",
+         "bcd",
+         "xyz",
+         "az",
+         "ba",
+         "a",
+         "z",
+         "acd"
+        ],
+        "label": "word"
+       },
+       {
+        "type": "row",
+        "cells": [
+         "abc",
+         "abc",
+         "abc",
+         "az",
+         "az",
+         "a",
+         "a",
+         "acd"
+        ],
+        "label": "starts at a"
+       }
+      ]
+     },
+     {
+      "text": "Sorted: equal normal forms are neighbours.",
+      "panels": [
+       {
+        "type": "row",
+        "cells": [
+         "a",
+         "a",
+         "abc",
+         "abc",
+         "abc",
+         "acd",
+         "az",
+         "az"
+        ],
+        "states": {
+         "0": "answer",
+         "1": "dim",
+         "2": "answer",
+         "3": "dim",
+         "4": "dim",
+         "5": "answer",
+         "6": "answer",
+         "7": "dim"
+        },
+        "label": "sorted"
+       }
+      ]
+     },
+     {
+      "text": "Count the positions where a new value starts: 4.",
+      "panels": [
+       {
+        "type": "row",
+        "cells": [
+         "a",
+         "a",
+         "abc",
+         "abc",
+         "abc",
+         "acd",
+         "az",
+         "az"
+        ],
+        "states": {
+         "0": "answer",
+         "2": "answer",
+         "5": "answer",
+         "6": "answer"
+        },
+        "label": "sorted"
+       }
+      ],
+      "result": "4"
+     }
+    ],
+    "title": "Shift every word so it starts with 'a'. Family members become identical; sort and count distinct."
+   },
+   "limits": [
+    {
+     "md": "The sort is only there to bring equal keys together. A hash set recognises equal keys directly, without ordering anything."
+    }
+   ]
+  },
+  {
+   "title": "Normalise into a hash set",
+   "kind": "best",
+   "time": "O(n · L)",
+   "space": "O(n · L)",
+   "idea": [
+    {
+     "md": "Same normal form (shift so the word starts with `a`), but put every normal form into a hash set. Equal forms collapse into one entry, so the set's size is the number of families."
+    }
+   ],
+   "build": [
+    "Create an empty hash set of strings.",
+    "For each word, add its normal form.",
+    "Return the set's size."
+   ],
+   "code": {
+    "python": "class Solution:\n    def countShiftFamilies(self, words: List[str]) -> int:\n        seen = set()\n        for w in words:\n            seen.add(\"\".join(chr((ord(c) - ord(w[0])) % 26 + 97) for c in w))\n        return len(seen)\n",
+    "java": "class Solution {\n    public int countShiftFamilies(String[] words) {\n        Set<String> seen = new HashSet<>();\n        for (String w : words) {\n            char[] key = new char[w.length()];\n            for (int i = 0; i < key.length; i++) key[i] = (char) ((w.charAt(i) - w.charAt(0) + 26) % 26 + 'a');\n            seen.add(new String(key));\n        }\n        return seen.size();\n    }\n}\n",
+    "cpp": "class Solution {\npublic:\n    int countShiftFamilies(vector<string>& words) {\n        unordered_set<string> seen;\n        for (const string& w : words) {\n            string key = w;\n            for (char& c : key) c = (c - w[0] + 26) % 26 + 'a';\n            seen.insert(key);\n        }\n        return seen.size();\n    }\n};\n",
+    "c": "static unsigned long long fnv(const char* s) {\n    unsigned long long h = 1469598103934665603ULL;\n    for (; *s; s++) h = (h ^ (unsigned char) *s) * 1099511628211ULL;\n    return h;\n}\n\nint countShiftFamilies(char** words, int wordsSize) {\n    unsigned cap = 1;\n    while (cap < 2u * wordsSize) cap <<= 1;\n    char** table = calloc(cap, sizeof(char*));\n    int families = 0;\n    for (int i = 0; i < wordsSize; i++) {\n        size_t len = strlen(words[i]);\n        char* key = malloc(len + 1);\n        for (size_t j = 0; j < len; j++) key[j] = (words[i][j] - words[i][0] + 26) % 26 + 'a';\n        key[len] = '\\0';\n        unsigned s = (unsigned) (fnv(key) >> 32) & (cap - 1);\n        while (table[s] && strcmp(table[s], key) != 0) s = (s + 1) & (cap - 1);\n        if (table[s]) free(key);\n        else { table[s] = key; families++; }\n    }\n    for (unsigned s = 0; s < cap; s++) free(table[s]);\n    free(table);\n    return families;\n}\n"
+   },
+   "lines": [
+    {
+     "text": "C has no string set; FNV-1a turns a string into a 64-bit hash, byte by byte.",
+     "at": {
+      "c": [
+       [
+        1,
+        5
+       ]
+      ]
+     }
+    },
+    {
+     "text": "A set of normal forms; its size will be the answer.",
+     "at": {
+      "python": [
+       [
+        3,
+        3
+       ]
+      ],
+      "java": [
+       [
+        3,
+        3
+       ]
+      ],
+      "cpp": [
+       [
+        4,
+        4
+       ]
+      ],
+      "c": [
+       [
+        8,
+        11
+       ]
+      ]
+     },
+     "notes": {
+      "c": "An open-addressing table of string pointers (NULL = empty slot), at least twice as many slots as words. `families` counts the distinct keys added."
+     }
+    },
+    {
+     "text": "One pass over the words.",
+     "at": {
+      "python": [
+       [
+        4,
+        4
+       ]
+      ],
+      "java": [
+       [
+        4,
+        4
+       ]
+      ],
+      "cpp": [
+       [
+        5,
+        5
+       ]
+      ],
+      "c": [
+       [
+        12,
+        12
+       ]
+      ]
+     }
+    },
+    {
+     "text": "Shift the word so it starts with `a`. Every member of a family produces the same string.",
+     "at": {
+      "python": [
+       [
+        5,
+        5
+       ]
+      ],
+      "java": [
+       [
+        5,
+        7
+       ]
+      ],
+      "cpp": [
+       [
+        6,
+        8
+       ]
+      ],
+      "c": [
+       [
+        13,
+        16
+       ]
+      ]
+     },
+     "notes": {
+      "python": "Python's `%` is never negative, so no `+ 26` is needed."
+     }
+    },
+    {
+     "text": "Probe from the key's slot: finding an equal string means the family is already counted (free the duplicate key); reaching an empty slot means a new family.",
+     "at": {
+      "c": [
+       [
+        17,
+        20
+       ]
+      ]
+     }
+    },
+    {
+     "text": "The number of distinct normal forms is the number of families.",
+     "at": {
+      "python": [
+       [
+        6,
+        6
+       ]
+      ],
+      "java": [
+       [
+        9,
+        9
+       ]
+      ],
+      "cpp": [
+       [
+        10,
+        10
+       ]
+      ],
+      "c": [
+       [
+        22,
+        24
+       ]
+      ]
+     },
+     "notes": {
+      "c": "Free every stored key and the table."
+     }
+    }
+   ],
+   "complexity": [
+    {
+     "md": "**Time O(n · L)** on average: one normalising pass and one hash insert (hashing L characters) per word. **Space O(n · L)** for the set."
+    }
+   ],
+   "walk": {
+    "steps": [
+     {
+      "text": "'abc' → 'abc': new, add it.",
+      "panels": [
+       {
+        "type": "row",
+        "cells": [
+         "abc",
+         "bcd",
+         "xyz",
+         "az",
+         "ba",
+         "a",
+         "z",
+         "acd"
+        ],
+        "states": {
+         "0": "active"
+        }
+       },
+       {
+        "type": "row",
+        "cells": [
+         "abc"
+        ],
+        "states": {
+         "0": "new"
+        },
+        "label": "set"
+       }
+      ]
+     },
+     {
+      "text": "'bcd' → 'abc': already in the set.",
+      "panels": [
+       {
+        "type": "row",
+        "cells": [
+         "abc",
+         "bcd",
+         "xyz",
+         "az",
+         "ba",
+         "a",
+         "z",
+         "acd"
+        ],
+        "states": {
+         "0": "dim",
+         "1": "active"
+        }
+       },
+       {
+        "type": "row",
+        "cells": [
+         "abc"
+        ],
+        "states": {
+         "0": "found"
+        },
+        "label": "set"
+       }
+      ]
+     },
+     {
+      "text": "'xyz' → 'abc': already in the set.",
+      "panels": [
+       {
+        "type": "row",
+        "cells": [
+         "abc",
+         "bcd",
+         "xyz",
+         "az",
+         "ba",
+         "a",
+         "z",
+         "acd"
+        ],
+        "states": {
+         "0": "dim",
+         "1": "dim",
+         "2": "active"
+        }
+       },
+       {
+        "type": "row",
+        "cells": [
+         "abc"
+        ],
+        "states": {
+         "0": "found"
+        },
+        "label": "set"
+       }
+      ]
+     },
+     {
+      "text": "'az' → 'az': new, add it.",
+      "panels": [
+       {
+        "type": "row",
+        "cells": [
+         "abc",
+         "bcd",
+         "xyz",
+         "az",
+         "ba",
+         "a",
+         "z",
+         "acd"
+        ],
+        "states": {
+         "0": "dim",
+         "1": "dim",
+         "2": "dim",
+         "3": "active"
+        }
+       },
+       {
+        "type": "row",
+        "cells": [
+         "abc",
+         "az"
+        ],
+        "states": {
+         "1": "new"
+        },
+        "label": "set"
+       }
+      ]
+     },
+     {
+      "text": "'ba' → 'az': already in the set.",
+      "panels": [
+       {
+        "type": "row",
+        "cells": [
+         "abc",
+         "bcd",
+         "xyz",
+         "az",
+         "ba",
+         "a",
+         "z",
+         "acd"
+        ],
+        "states": {
+         "0": "dim",
+         "1": "dim",
+         "2": "dim",
+         "3": "dim",
+         "4": "active"
+        }
+       },
+       {
+        "type": "row",
+        "cells": [
+         "abc",
+         "az"
+        ],
+        "states": {
+         "1": "found"
+        },
+        "label": "set"
+       }
+      ]
+     },
+     {
+      "text": "'a' → 'a': new, add it.",
+      "panels": [
+       {
+        "type": "row",
+        "cells": [
+         "abc",
+         "bcd",
+         "xyz",
+         "az",
+         "ba",
+         "a",
+         "z",
+         "acd"
+        ],
+        "states": {
+         "0": "dim",
+         "1": "dim",
+         "2": "dim",
+         "3": "dim",
+         "4": "dim",
+         "5": "active"
+        }
+       },
+       {
+        "type": "row",
+        "cells": [
+         "abc",
+         "az",
+         "a"
+        ],
+        "states": {
+         "2": "new"
+        },
+        "label": "set"
+       }
+      ]
+     },
+     {
+      "text": "'z' → 'a': already in the set.",
+      "panels": [
+       {
+        "type": "row",
+        "cells": [
+         "abc",
+         "bcd",
+         "xyz",
+         "az",
+         "ba",
+         "a",
+         "z",
+         "acd"
+        ],
+        "states": {
+         "0": "dim",
+         "1": "dim",
+         "2": "dim",
+         "3": "dim",
+         "4": "dim",
+         "5": "dim",
+         "6": "active"
+        }
+       },
+       {
+        "type": "row",
+        "cells": [
+         "abc",
+         "az",
+         "a"
+        ],
+        "states": {
+         "2": "found"
+        },
+        "label": "set"
+       }
+      ]
+     },
+     {
+      "text": "'acd' → 'acd': new, add it.",
+      "panels": [
+       {
+        "type": "row",
+        "cells": [
+         "abc",
+         "bcd",
+         "xyz",
+         "az",
+         "ba",
+         "a",
+         "z",
+         "acd"
+        ],
+        "states": {
+         "0": "dim",
+         "1": "dim",
+         "2": "dim",
+         "3": "dim",
+         "4": "dim",
+         "5": "dim",
+         "6": "dim",
+         "7": "active"
+        }
+       },
+       {
+        "type": "row",
+        "cells": [
+         "abc",
+         "az",
+         "a",
+         "acd"
+        ],
+        "states": {
+         "3": "new"
+        },
+        "label": "set"
+       }
+      ]
+     },
+     {
+      "text": "The set holds 4 normal forms: 4 families.",
+      "panels": [
+       {
+        "type": "row",
+        "cells": [
+         "abc",
+         "az",
+         "a",
+         "acd"
+        ],
+        "label": "set"
+       }
+      ],
+      "result": "4"
+     }
+    ],
+    "title": "Shift every word so it starts with 'a' and put the result in a hash set. The set's size is the answer."
+   }
+  }
+ ],
+ "takeaways": [
+  {
+   "md": "- For \"equivalent under some transformation\", find an **invariant** or a **canonical representative**:\n  here, the gaps between letters, or the word shifted to start at `a`.\n- Counting equivalence classes = counting distinct canonical keys: a hash set's size.\n- Modular arithmetic handles wrap-around; add the modulus before `%` in languages where `%` can be\n  negative."
+  }
+ ]
+}

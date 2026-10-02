@@ -1,0 +1,1024 @@
+{
+ "version": 1,
+ "summary": "Every bib \"points\" at the position where it belongs. Following those pointers splits the\npositions into separate cycles, and a cycle of length L needs exactly L − 1 swaps. So the answer\nis `n − (number of cycles)`, found in one O(n) pass.",
+ "question": [
+  {
+   "md": "The list holds the bibs 1 to n in some order. A swap exchanges any two positions (they don't have\nto be next to each other). Find the **smallest** number of swaps that sorts the list.\n\n- **Any two positions can be swapped**, which is different from sorting by swapping neighbours\n  (that would count inversions instead).\n- **Every bib appears exactly once**, so bib `b` has exactly one correct home: position `b − 1`\n  (0-indexed). This is what makes the problem easy to reason about.\n- **You count swaps, you don't perform them.** You may simulate them, but only the number is\n  returned.\n- **Size:** up to 10⁵ bibs, so anything quadratic is too slow."
+  }
+ ],
+ "think": [
+  {
+   "md": "Take `order = [2, 3, 1, 5, 4, 7, 6]`.\n\nLook at position 0: it holds bib 2, which belongs at position 1. Position 1 holds bib 3, which\nbelongs at position 2. Position 2 holds bib 1, which belongs back at position 0. These three\npositions form a **closed loop**: their bibs only need to move among themselves."
+  },
+  {
+   "panels": [
+    {
+     "type": "row",
+     "cells": [
+      2,
+      3,
+      1,
+      5,
+      4,
+      7,
+      6
+     ],
+     "states": {
+      "0": "answer",
+      "1": "answer",
+      "2": "answer",
+      "3": "found",
+      "4": "found",
+      "5": "mark",
+      "6": "mark"
+     },
+     "slots": true
+    }
+   ],
+   "caption": "Same shade = same cycle: positions 0 → 1 → 2 → 0, then 3 ↔ 4, then 5 ↔ 6."
+  },
+  {
+   "md": "Now count swaps per loop. A loop of 2 (bibs 5 and 4 swapped) takes **1** swap. For the loop of\n3, one swap can put one bib home (swap bib 1 into position 0), which leaves a loop of 2, one more\nswap: **2** in total. In general, each swap can send at most one more bib home *within* a loop,\nand the last swap sends two home at once, so a loop of length L takes **L − 1** swaps.\n\nCan you do better by swapping across two loops? No: that merges them into one bigger loop, which\nonly adds work. So the minimum is the sum of (L − 1) over the loops:\n\n`(3 − 1) + (2 − 1) + (2 − 1) = 4` = n − (number of loops) = 7 − 3.\n\nA bib already in place is a loop of length 1 and costs 0, which fits the same formula."
+  }
+ ],
+ "approaches": [
+  {
+   "title": "Fix positions left to right, searching for each bib",
+   "kind": "brute",
+   "time": "O(n²)",
+   "space": "O(n)",
+   "idea": [
+    {
+     "md": "Work on a copy. For each position `i` from left to right: if it doesn't hold `i + 1`,\nsearch the rest of the list for bib `i + 1` and swap it in. Count the swaps.\n\nEach swap puts bib `i + 1` home for good, and it never swaps when position `i` is already\nright. In cycle terms, every swap splits one bib off its cycle (a cycle of L becomes a cycle\nof L − 1 plus a fixed point), so it uses exactly L − 1 swaps per cycle: the minimum."
+    }
+   ],
+   "build": [
+    "Copy the list (so the input isn't changed).",
+    "For `i` from 0 to n − 1: if `a[i] == i + 1`, continue.",
+    "Otherwise find `j > i` with `a[j] == i + 1` by scanning, swap `a[i]` and `a[j]`, and count the swap.",
+    "Return the count."
+   ],
+   "code": {
+    "python": "class Solution:\n    def minSwaps(self, order: List[int]) -> int:\n        a = order[:]\n        swaps = 0\n        for i in range(len(a)):\n            if a[i] != i + 1:\n                j = a.index(i + 1, i + 1)\n                a[i], a[j] = a[j], a[i]\n                swaps += 1\n        return swaps\n",
+    "java": "class Solution {\n    public int minSwaps(int[] order) {\n        int[] a = order.clone();\n        int n = a.length, swaps = 0;\n        for (int i = 0; i < n; i++) {\n            if (a[i] != i + 1) {\n                int j = i + 1;\n                while (a[j] != i + 1) j++;\n                int t = a[i]; a[i] = a[j]; a[j] = t;\n                swaps++;\n            }\n        }\n        return swaps;\n    }\n}\n",
+    "cpp": "class Solution {\npublic:\n    int minSwaps(vector<int>& order) {\n        vector<int> a = order;\n        int n = a.size(), swaps = 0;\n        for (int i = 0; i < n; i++) {\n            if (a[i] != i + 1) {\n                int j = i + 1;\n                while (a[j] != i + 1) j++;\n                swap(a[i], a[j]);\n                swaps++;\n            }\n        }\n        return swaps;\n    }\n};\n",
+    "c": "int minSwaps(int* order, int orderSize) {\n    int* a = malloc(orderSize * sizeof(int));\n    memcpy(a, order, orderSize * sizeof(int));\n    int swaps = 0;\n    for (int i = 0; i < orderSize; i++) {\n        if (a[i] != i + 1) {\n            int j = i + 1;\n            while (a[j] != i + 1) j++;\n            int t = a[i]; a[i] = a[j]; a[j] = t;\n            swaps++;\n        }\n    }\n    free(a);\n    return swaps;\n}\n"
+   },
+   "lines": [
+    {
+     "text": "Work on a copy so the caller's list stays as it was.",
+     "at": {
+      "python": [
+       [
+        3,
+        3
+       ]
+      ],
+      "java": [
+       [
+        3,
+        3
+       ]
+      ],
+      "cpp": [
+       [
+        4,
+        4
+       ]
+      ],
+      "c": [
+       [
+        2,
+        3
+       ]
+      ]
+     }
+    },
+    {
+     "text": "Fix positions in order. Everything left of `i` is already final.",
+     "at": {
+      "python": [
+       [
+        5,
+        5
+       ]
+      ],
+      "java": [
+       [
+        5,
+        5
+       ]
+      ],
+      "cpp": [
+       [
+        6,
+        6
+       ]
+      ],
+      "c": [
+       [
+        5,
+        5
+       ]
+      ]
+     }
+    },
+    {
+     "text": "Position `i` should hold bib `i + 1`. If it does, there's nothing to do (and doing nothing is what keeps the count minimal).",
+     "at": {
+      "python": [
+       [
+        6,
+        6
+       ]
+      ],
+      "java": [
+       [
+        6,
+        6
+       ]
+      ],
+      "cpp": [
+       [
+        7,
+        7
+       ]
+      ],
+      "c": [
+       [
+        6,
+        6
+       ]
+      ]
+     }
+    },
+    {
+     "text": "Bib `i + 1` must be somewhere to the right: everything to the left is already final. Scan for it.",
+     "at": {
+      "python": [
+       [
+        7,
+        7
+       ]
+      ],
+      "java": [
+       [
+        7,
+        8
+       ]
+      ],
+      "cpp": [
+       [
+        8,
+        9
+       ]
+      ],
+      "c": [
+       [
+        7,
+        8
+       ]
+      ]
+     },
+     "notes": {
+      "python": "`index(value, start)` searches from `start` onwards."
+     }
+    },
+    {
+     "text": "Bring it home with one swap and count it. The bib that was at `i` moves to `j`; it'll be handled later.",
+     "at": {
+      "python": [
+       [
+        8,
+        9
+       ]
+      ],
+      "java": [
+       [
+        9,
+        10
+       ]
+      ],
+      "cpp": [
+       [
+        10,
+        11
+       ]
+      ],
+      "c": [
+       [
+        9,
+        10
+       ]
+      ]
+     }
+    },
+    {
+     "text": "This count equals n minus the number of cycles, the minimum.",
+     "at": {
+      "python": [
+       [
+        10,
+        10
+       ]
+      ],
+      "java": [
+       [
+        13,
+        13
+       ]
+      ],
+      "cpp": [
+       [
+        14,
+        14
+       ]
+      ],
+      "c": [
+       [
+        13,
+        14
+       ]
+      ]
+     },
+     "notes": {
+      "c": "Free the copy, then return."
+     }
+    }
+   ],
+   "complexity": [
+    {
+     "md": "**Time O(n²):** each search can scan most of the list. A reversed list of 10⁵ bibs means\nbillions of steps.\n\n**Space O(n)** for the copy."
+    }
+   ],
+   "walk": {
+    "steps": [
+     {
+      "text": "Position i should hold bib i + 1.",
+      "panels": [
+       {
+        "type": "row",
+        "cells": [
+         2,
+         3,
+         1,
+         5,
+         4,
+         7,
+         6
+        ],
+        "slots": true
+       },
+       {
+        "type": "vars",
+        "items": {
+         "swaps": 0
+        }
+       }
+      ]
+     },
+     {
+      "text": "Position 0 holds 2, but should hold 1. Scan: 1 is at position 2.",
+      "panels": [
+       {
+        "type": "row",
+        "cells": [
+         2,
+         3,
+         1,
+         5,
+         4,
+         7,
+         6
+        ],
+        "states": {
+         "0": "active",
+         "2": "mark"
+        },
+        "pointers": {
+         "i": 0,
+         "j": 2
+        },
+        "slots": true
+       },
+       {
+        "type": "vars",
+        "items": {
+         "swaps": 0
+        }
+       }
+      ]
+     },
+     {
+      "text": "Swap them. Position 0 is now final. Swaps: 1.",
+      "panels": [
+       {
+        "type": "row",
+        "cells": [
+         1,
+         3,
+         2,
+         5,
+         4,
+         7,
+         6
+        ],
+        "states": {
+         "0": "found",
+         "2": "new"
+        },
+        "pointers": {
+         "i": 0
+        },
+        "slots": true
+       },
+       {
+        "type": "vars",
+        "items": {
+         "swaps": 1
+        }
+       }
+      ]
+     },
+     {
+      "text": "Position 1 holds 3, but should hold 2. Scan: 2 is at position 2.",
+      "panels": [
+       {
+        "type": "row",
+        "cells": [
+         1,
+         3,
+         2,
+         5,
+         4,
+         7,
+         6
+        ],
+        "states": {
+         "0": "found",
+         "1": "active",
+         "2": "mark"
+        },
+        "pointers": {
+         "i": 1,
+         "j": 2
+        },
+        "slots": true
+       },
+       {
+        "type": "vars",
+        "items": {
+         "swaps": 1
+        }
+       }
+      ]
+     },
+     {
+      "text": "Swap them. Position 1 is now final. Swaps: 2.",
+      "panels": [
+       {
+        "type": "row",
+        "cells": [
+         1,
+         2,
+         3,
+         5,
+         4,
+         7,
+         6
+        ],
+        "states": {
+         "0": "found",
+         "1": "found",
+         "2": "new"
+        },
+        "pointers": {
+         "i": 1
+        },
+        "slots": true
+       },
+       {
+        "type": "vars",
+        "items": {
+         "swaps": 2
+        }
+       }
+      ]
+     },
+     {
+      "text": "Position 2 already holds 3. Nothing to do.",
+      "panels": [
+       {
+        "type": "row",
+        "cells": [
+         1,
+         2,
+         3,
+         5,
+         4,
+         7,
+         6
+        ],
+        "states": {
+         "0": "found",
+         "1": "found",
+         "2": "found"
+        },
+        "pointers": {
+         "i": 2
+        },
+        "slots": true
+       },
+       {
+        "type": "vars",
+        "items": {
+         "swaps": 2
+        }
+       }
+      ]
+     },
+     {
+      "text": "Position 3 holds 5, but should hold 4. Scan: 4 is at position 4.",
+      "panels": [
+       {
+        "type": "row",
+        "cells": [
+         1,
+         2,
+         3,
+         5,
+         4,
+         7,
+         6
+        ],
+        "states": {
+         "0": "found",
+         "1": "found",
+         "2": "found",
+         "3": "active",
+         "4": "mark"
+        },
+        "pointers": {
+         "i": 3,
+         "j": 4
+        },
+        "slots": true
+       },
+       {
+        "type": "vars",
+        "items": {
+         "swaps": 2
+        }
+       }
+      ]
+     },
+     {
+      "text": "Swap them. Position 3 is now final. Swaps: 3.",
+      "panels": [
+       {
+        "type": "row",
+        "cells": [
+         1,
+         2,
+         3,
+         4,
+         5,
+         7,
+         6
+        ],
+        "states": {
+         "0": "found",
+         "1": "found",
+         "2": "found",
+         "3": "found",
+         "4": "new"
+        },
+        "pointers": {
+         "i": 3
+        },
+        "slots": true
+       },
+       {
+        "type": "vars",
+        "items": {
+         "swaps": 3
+        }
+       }
+      ]
+     },
+     {
+      "text": "Position 4 already holds 5. Nothing to do.",
+      "panels": [
+       {
+        "type": "row",
+        "cells": [
+         1,
+         2,
+         3,
+         4,
+         5,
+         7,
+         6
+        ],
+        "states": {
+         "0": "found",
+         "1": "found",
+         "2": "found",
+         "3": "found",
+         "4": "found"
+        },
+        "pointers": {
+         "i": 4
+        },
+        "slots": true
+       },
+       {
+        "type": "vars",
+        "items": {
+         "swaps": 3
+        }
+       }
+      ]
+     },
+     {
+      "text": "Position 5 holds 7, but should hold 6. Scan: 6 is at position 6.",
+      "panels": [
+       {
+        "type": "row",
+        "cells": [
+         1,
+         2,
+         3,
+         4,
+         5,
+         7,
+         6
+        ],
+        "states": {
+         "0": "found",
+         "1": "found",
+         "2": "found",
+         "3": "found",
+         "4": "found",
+         "5": "active",
+         "6": "mark"
+        },
+        "pointers": {
+         "i": 5,
+         "j": 6
+        },
+        "slots": true
+       },
+       {
+        "type": "vars",
+        "items": {
+         "swaps": 3
+        }
+       }
+      ]
+     },
+     {
+      "text": "Swap them. Position 5 is now final. Swaps: 4.",
+      "panels": [
+       {
+        "type": "row",
+        "cells": [
+         1,
+         2,
+         3,
+         4,
+         5,
+         6,
+         7
+        ],
+        "states": {
+         "0": "found",
+         "1": "found",
+         "2": "found",
+         "3": "found",
+         "4": "found",
+         "5": "found",
+         "6": "new"
+        },
+        "pointers": {
+         "i": 5
+        },
+        "slots": true
+       },
+       {
+        "type": "vars",
+        "items": {
+         "swaps": 4
+        }
+       }
+      ]
+     },
+     {
+      "text": "Position 6 already holds 7. Nothing to do.",
+      "panels": [
+       {
+        "type": "row",
+        "cells": [
+         1,
+         2,
+         3,
+         4,
+         5,
+         6,
+         7
+        ],
+        "states": {
+         "0": "found",
+         "1": "found",
+         "2": "found",
+         "3": "found",
+         "4": "found",
+         "5": "found",
+         "6": "found"
+        },
+        "pointers": {
+         "i": 6
+        },
+        "slots": true
+       },
+       {
+        "type": "vars",
+        "items": {
+         "swaps": 4
+        }
+       }
+      ]
+     },
+     {
+      "text": "Sorted with 4 swaps.",
+      "panels": [
+       {
+        "type": "row",
+        "cells": [
+         1,
+         2,
+         3,
+         4,
+         5,
+         6,
+         7
+        ],
+        "states": {
+         "0": "found",
+         "1": "found",
+         "2": "found",
+         "3": "found",
+         "4": "found",
+         "5": "found",
+         "6": "found"
+        },
+        "slots": true
+       }
+      ],
+      "result": "4"
+     }
+    ],
+    "title": "Left to right: if position i has the wrong bib, find bib i + 1 and swap it in."
+   },
+   "limits": [
+    {
+     "md": "The swaps are already minimal; only the **searching** is slow. Two fixes exist: keep a\n\"where is each bib?\" array so each search is O(1), or skip the swapping altogether and just\ncount cycles, which is what the best approach does."
+    }
+   ],
+   "slow": true
+  },
+  {
+   "title": "Count the cycles",
+   "kind": "best",
+   "time": "O(n)",
+   "space": "O(n)",
+   "idea": [
+    {
+     "md": "Position `i` holds bib `order[i]`, which belongs at position `order[i] − 1`. Starting from\nany position and repeatedly jumping to \"where my bib belongs\" always comes back to the\nstart, tracing one cycle. Mark the positions you visit so each cycle is traced once.\n\nA cycle of length L needs L − 1 swaps (and can't do with fewer: each swap inside a cycle\nraises the number of cycles by at most one, and the sorted list has n cycles of length 1).\nAdding up, the answer is `n − cycles`."
+    }
+   ],
+   "build": [
+    "Make a `seen` array of n falses and set `cycles = 0`.",
+    "For each position `i` not yet seen: it starts a new cycle, so add 1 to `cycles`.",
+    "Trace the cycle: `j = i`; while `j` isn't seen, mark it and jump to `j = order[j] − 1`.",
+    "Return `n − cycles`."
+   ],
+   "code": {
+    "python": "class Solution:\n    def minSwaps(self, order: List[int]) -> int:\n        n = len(order)\n        seen = [False] * n\n        cycles = 0\n        for i in range(n):\n            if seen[i]:\n                continue\n            cycles += 1\n            j = i\n            while not seen[j]:\n                seen[j] = True\n                j = order[j] - 1\n        return n - cycles\n",
+    "java": "class Solution {\n    public int minSwaps(int[] order) {\n        int n = order.length;\n        boolean[] seen = new boolean[n];\n        int cycles = 0;\n        for (int i = 0; i < n; i++) {\n            if (seen[i]) continue;\n            cycles++;\n            for (int j = i; !seen[j]; j = order[j] - 1) {\n                seen[j] = true;\n            }\n        }\n        return n - cycles;\n    }\n}\n",
+    "cpp": "class Solution {\npublic:\n    int minSwaps(vector<int>& order) {\n        int n = order.size();\n        vector<bool> seen(n, false);\n        int cycles = 0;\n        for (int i = 0; i < n; i++) {\n            if (seen[i]) continue;\n            cycles++;\n            for (int j = i; !seen[j]; j = order[j] - 1) {\n                seen[j] = true;\n            }\n        }\n        return n - cycles;\n    }\n};\n",
+    "c": "int minSwaps(int* order, int orderSize) {\n    bool* seen = calloc(orderSize, sizeof(bool));\n    int cycles = 0;\n    for (int i = 0; i < orderSize; i++) {\n        if (seen[i]) continue;\n        cycles++;\n        for (int j = i; !seen[j]; j = order[j] - 1) {\n            seen[j] = true;\n        }\n    }\n    free(seen);\n    return orderSize - cycles;\n}\n"
+   },
+   "lines": [
+    {
+     "text": "Marks positions whose cycle has already been traced.",
+     "at": {
+      "python": [
+       [
+        4,
+        4
+       ]
+      ],
+      "java": [
+       [
+        4,
+        4
+       ]
+      ],
+      "cpp": [
+       [
+        5,
+        5
+       ]
+      ],
+      "c": [
+       [
+        2,
+        2
+       ]
+      ]
+     }
+    },
+    {
+     "text": "Visit each position once; a position already marked belongs to a cycle we've counted.",
+     "at": {
+      "python": [
+       [
+        6,
+        8
+       ]
+      ],
+      "java": [
+       [
+        6,
+        7
+       ]
+      ],
+      "cpp": [
+       [
+        7,
+        8
+       ]
+      ],
+      "c": [
+       [
+        4,
+        5
+       ]
+      ]
+     }
+    },
+    {
+     "text": "An unmarked position starts a cycle we haven't seen yet.",
+     "at": {
+      "python": [
+       [
+        9,
+        9
+       ]
+      ],
+      "java": [
+       [
+        8,
+        8
+       ]
+      ],
+      "cpp": [
+       [
+        9,
+        9
+       ]
+      ],
+      "c": [
+       [
+        6,
+        6
+       ]
+      ]
+     }
+    },
+    {
+     "text": "Jump from each position to where its bib belongs (`order[j] − 1`) until we land on a marked position. Because each position has exactly one bib and each bib exactly one home, that marked position is always the start `i`: the walk is a closed loop.",
+     "at": {
+      "python": [
+       [
+        10,
+        13
+       ]
+      ],
+      "java": [
+       [
+        9,
+        10
+       ]
+      ],
+      "cpp": [
+       [
+        10,
+        11
+       ]
+      ],
+      "c": [
+       [
+        7,
+        8
+       ]
+      ]
+     }
+    },
+    {
+     "text": "Each cycle of length L costs L − 1 swaps, and those add up to n − cycles.",
+     "at": {
+      "python": [
+       [
+        14,
+        14
+       ]
+      ],
+      "java": [
+       [
+        13,
+        13
+       ]
+      ],
+      "cpp": [
+       [
+        14,
+        14
+       ]
+      ],
+      "c": [
+       [
+        11,
+        12
+       ]
+      ]
+     },
+     "notes": {
+      "c": "Free the marks, then return."
+     }
+    }
+   ],
+   "complexity": [
+    {
+     "md": "**Time O(n):** every position is marked exactly once, and each mark costs O(1). The inner\nloop doesn't make it quadratic, because it only ever visits unmarked positions.\n\n**Space O(n)** for the marks. If you're allowed to modify the input, you can mark a visited\nposition by negating `order[j]` instead (and read `abs(order[j])`), for O(1) extra space."
+    }
+   ],
+   "walk": {
+    "steps": [
+     {
+      "text": "Position i holds bib order[i], which belongs at position order[i] − 1. Follow those arrows.",
+      "panels": [
+       {
+        "type": "row",
+        "cells": [
+         2,
+         3,
+         1,
+         5,
+         4,
+         7,
+         6
+        ],
+        "slots": true
+       },
+       {
+        "type": "vars",
+        "items": {
+         "cycles": 0
+        }
+       }
+      ]
+     },
+     {
+      "text": "New cycle from position 0: positions 0 → 1 → 2 → 0. Length 3, so 2 swaps.",
+      "panels": [
+       {
+        "type": "row",
+        "cells": [
+         2,
+         3,
+         1,
+         5,
+         4,
+         7,
+         6
+        ],
+        "states": {
+         "0": "answer",
+         "1": "answer",
+         "2": "answer"
+        },
+        "slots": true
+       },
+       {
+        "type": "vars",
+        "items": {
+         "cycles": 1
+        }
+       }
+      ]
+     },
+     {
+      "text": "New cycle from position 3: positions 3 → 4 → 3. Length 2, so 1 swap.",
+      "panels": [
+       {
+        "type": "row",
+        "cells": [
+         2,
+         3,
+         1,
+         5,
+         4,
+         7,
+         6
+        ],
+        "states": {
+         "0": "answer",
+         "1": "answer",
+         "2": "answer",
+         "3": "found",
+         "4": "found"
+        },
+        "slots": true
+       },
+       {
+        "type": "vars",
+        "items": {
+         "cycles": 2
+        }
+       }
+      ]
+     },
+     {
+      "text": "New cycle from position 5: positions 5 → 6 → 5. Length 2, so 1 swap.",
+      "panels": [
+       {
+        "type": "row",
+        "cells": [
+         2,
+         3,
+         1,
+         5,
+         4,
+         7,
+         6
+        ],
+        "states": {
+         "0": "answer",
+         "1": "answer",
+         "2": "answer",
+         "3": "found",
+         "4": "found",
+         "5": "mark",
+         "6": "mark"
+        },
+        "slots": true
+       },
+       {
+        "type": "vars",
+        "items": {
+         "cycles": 3
+        }
+       }
+      ]
+     },
+     {
+      "text": "3 cycles among 7 positions: 7 − 3 = 4 swaps.",
+      "panels": [
+       {
+        "type": "row",
+        "cells": [
+         2,
+         3,
+         1,
+         5,
+         4,
+         7,
+         6
+        ],
+        "states": {
+         "0": "answer",
+         "1": "answer",
+         "2": "answer",
+         "3": "found",
+         "4": "found",
+         "5": "mark",
+         "6": "mark"
+        },
+        "slots": true
+       }
+      ],
+      "result": "4"
+     }
+    ],
+    "title": "Follow 'where does this bib belong?' until you loop back. Each loop of length L costs L − 1 swaps."
+   }
+  }
+ ],
+ "takeaways": [
+  {
+   "md": "- In a permutation, **\"where does this element belong?\"** links every position to exactly one\n  other, which splits the positions into disjoint cycles.\n- Minimum arbitrary swaps to sort a permutation = **n − number of cycles**.\n- Tracing cycles with a visited marker is O(n) even though it looks like a nested loop: each\n  element is visited once in total.\n- If swaps were restricted to neighbours, the answer would instead be the number of inversions,\n  a different problem."
+  }
+ ]
+}

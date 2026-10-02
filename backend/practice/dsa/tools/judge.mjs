@@ -65,9 +65,9 @@ function load(id) {
 /* Starter code ---------------------------------------------------------------- */
 
 const TYPES = {
-  python: { int: "int", long: "int", double: "float", bool: "bool", string: "str", char: "str", ListNode: "Optional[ListNode]", TreeNode: "Optional[TreeNode]", list: (t) => `List[${t}]` },
-  java: { int: "int", long: "long", double: "double", bool: "boolean", string: "String", char: "char", ListNode: "ListNode", TreeNode: "TreeNode", list: (t) => `${t}[]` },
-  cpp: { int: "int", long: "long long", double: "double", bool: "bool", string: "string", char: "char", ListNode: "ListNode*", TreeNode: "TreeNode*", list: (t) => `vector<${t}>` },
+  python: { int: "int", long: "int", double: "float", bool: "bool", string: "str", char: "str", ListNode: "Optional[ListNode]", TreeNode: "Optional[TreeNode]", RandomNode: "Optional[RandomNode]", list: (t) => `List[${t}]` },
+  java: { int: "int", long: "long", double: "double", bool: "boolean", string: "String", char: "char", ListNode: "ListNode", TreeNode: "TreeNode", RandomNode: "RandomNode", list: (t) => `${t}[]` },
+  cpp: { int: "int", long: "long long", double: "double", bool: "bool", string: "string", char: "char", ListNode: "ListNode*", TreeNode: "TreeNode*", RandomNode: "RandomNode*", list: (t) => `vector<${t}>` },
 };
 
 function typeIn(lang, type) {
@@ -78,14 +78,14 @@ function typeIn(lang, type) {
 
 // What ListNode and TreeNode look like, as a comment above the starter (as on LeetCode).
 const NODES = {
-  python: { ListNode: ["class ListNode:", "    def __init__(self, val=0, next=None):", "        self.val = val", "        self.next = next"], TreeNode: ["class TreeNode:", "    def __init__(self, val=0, left=None, right=None):", "        self.val = val", "        self.left = left", "        self.right = right"] },
-  java: { ListNode: ["class ListNode {", "    int val;", "    ListNode next;", "}"], TreeNode: ["class TreeNode {", "    int val;", "    TreeNode left;", "    TreeNode right;", "}"] },
-  cpp: { ListNode: ["struct ListNode {", "    int val;", "    ListNode *next;", "};"], TreeNode: ["struct TreeNode {", "    int val;", "    TreeNode *left;", "    TreeNode *right;", "};"] },
-  c: { ListNode: ["struct ListNode {", "    int val;", "    struct ListNode *next;", "};"], TreeNode: ["struct TreeNode {", "    int val;", "    struct TreeNode *left;", "    struct TreeNode *right;", "};"] },
+  python: { ListNode: ["class ListNode:", "    def __init__(self, val=0, next=None):", "        self.val = val", "        self.next = next"], TreeNode: ["class TreeNode:", "    def __init__(self, val=0, left=None, right=None):", "        self.val = val", "        self.left = left", "        self.right = right"], RandomNode: ["class RandomNode:", "    def __init__(self, val=0, next=None, random=None):", "        self.val = val", "        self.next = next", "        self.random = random"] },
+  java: { ListNode: ["class ListNode {", "    int val;", "    ListNode next;", "}"], TreeNode: ["class TreeNode {", "    int val;", "    TreeNode left;", "    TreeNode right;", "}"], RandomNode: ["class RandomNode {", "    int val;", "    RandomNode next;", "    RandomNode random;", "}"] },
+  cpp: { ListNode: ["struct ListNode {", "    int val;", "    ListNode *next;", "};"], TreeNode: ["struct TreeNode {", "    int val;", "    TreeNode *left;", "    TreeNode *right;", "};"], RandomNode: ["struct RandomNode {", "    int val;", "    RandomNode *next;", "    RandomNode *random;", "};"] },
+  c: { ListNode: ["struct ListNode {", "    int val;", "    struct ListNode *next;", "};"], TreeNode: ["struct TreeNode {", "    int val;", "    struct TreeNode *left;", "    struct TreeNode *right;", "};"], RandomNode: ["struct RandomNode {", "    int val;", "    struct RandomNode *next;", "    struct RandomNode *random;", "};"] },
 };
 
 function nodeComment(lang, sig) {
-  const used = ["ListNode", "TreeNode"].filter((n) => [sig.returns, ...sig.params.map((p) => p.type)].some((t) => t.replace(/(\[\])+$/, "") === n));
+  const used = ["ListNode", "TreeNode", "RandomNode"].filter((n) => [sig.returns, ...sig.params.map((p) => p.type)].some((t) => t.replace(/(\[\])+$/, "") === n));
   if (!used.length) return "";
   const lines = used.flatMap((n, i) => [...(i ? [""] : []), ...NODES[lang][n]]);
   if (lang === "python") return `# Given:\n${lines.map((l) => `# ${l}`).join("\n")}\n\n`;
@@ -170,7 +170,12 @@ export async function problemView(id) {
   );
 
   const visible = tests.filter((t) => t.visible);
+  // Optional drawing hints and a step-by-step walkthrough, written per problem.
+  const visualFile = path.join(dir, "visual.json");
+  const visual = existsSync(visualFile) ? JSON.parse(readFileSync(visualFile, "utf8")) : null;
   return {
+    // A written-out solution (solution.json) the page fetches only when asked.
+    solution: existsSync(path.join(dir, "solution.json")),
     id: meta.id,
     title: meta.title,
     difficulty: meta.difficulty,
@@ -178,6 +183,8 @@ export async function problemView(id) {
     topic: topic && { id: topic.id, name: topic.name },
     pattern: pattern && { id: pattern.id, name: pattern.name },
     params: paramsOf(meta),
+    returns: meta.kind === "function" ? meta.signature.returns : null,
+    visual,
     checker: meta.checker,
     statement: intro.trim(),
     notes: rest.trim(),
@@ -185,6 +192,15 @@ export async function problemView(id) {
     cases: visible.map((t) => ({ args: t.args })),
     languages,
   };
+}
+
+// The full solution: every approach explained, with code in each language.
+// Written ahead of time (tools/solutions), so showing it costs nothing.
+export function solutionView(id) {
+  const dir = findDir(id);
+  const file = dir && path.join(dir, "solution.json");
+  if (!file || !existsSync(file)) throw new JudgeError(404, "This problem's solution isn't written yet.");
+  return JSON.parse(readFileSync(file, "utf8"));
 }
 
 /* Checking custom input -------------------------------------------------------------- */
@@ -230,13 +246,17 @@ function fits(value, type) {
     case "char":
       return typeof value === "string" && value.length === 1;
     case "ListNode":
-      // A list with a cycle is {"values": [...], "cycle_at": index}.
+      // A list with a cycle is {"values": [...], "cycle_at": index}; one that joins the
+      // list before it is {"values": [...], "join_at": index}.
       if (value && !Array.isArray(value) && typeof value === "object") {
-        return fits(value.values, "int[]") && Number.isInteger(value.cycle_at ?? -1);
+        return fits(value.values, "int[]") && Number.isInteger(value.cycle_at ?? -1) && Number.isInteger(value.join_at ?? 0);
       }
       return Array.isArray(value) && value.every((v) => Number.isInteger(v));
     case "TreeNode":
       return Array.isArray(value) && value.every((v) => v === null || Number.isInteger(v));
+    case "RandomNode":
+      // [[value, index of the random target or null], ...]
+      return Array.isArray(value) && value.every((p) => Array.isArray(p) && p.length === 2 && Number.isInteger(p[0]) && (p[1] === null || (Number.isInteger(p[1]) && p[1] >= 0 && p[1] < value.length)));
     default:
       return false;
   }
@@ -246,7 +266,7 @@ const TYPE_WORDS = { int: "an integer", long: "an integer", double: "a number", 
 const describe = (type) =>
   type.endsWith("[]") ? `a list of ${describe(type.slice(0, -2)).replace(/^an? /, "")}s` : TYPE_WORDS[type] ?? `a ${type}`;
 
-const jsonl = (items) => items.map((x) => JSON.stringify(x)).join("\n") + "\n";
+const jsonl = (items) => items.map((x) => exactJson(x)).join("\n") + "\n";
 
 // Each case must have every parameter, of the right type, within the
 // problem's constraints (its validator.py). Returns a message per bad case.
@@ -354,7 +374,7 @@ export async function run({ id, lang, code, cases }) {
   const { dir, meta, tests, limitMs } = prepare({ id, lang, code });
   if (!Array.isArray(cases) || !cases.length) throw new JudgeError(400, "Add a test case first.");
   if (cases.length > MAX_CASES) throw new JudgeError(400, `Run at most ${MAX_CASES} cases at a time.`);
-  if (cases.some((c) => !c?.args || typeof c.args !== "object" || JSON.stringify(c.args).length > MAX_CASE_CHARS)) {
+  if (cases.some((c) => !c?.args || typeof c.args !== "object" || exactJson(c.args).length > MAX_CASE_CHARS)) {
     throw new JudgeError(400, "One of the cases is too big to run here. Submit to try the large tests.");
   }
 
@@ -364,7 +384,7 @@ export async function run({ id, lang, code, cases }) {
   }
 
   // Expected answers: the stored one for a visible case, else the reference's.
-  const key = (args) => JSON.stringify(args);
+  const key = (args) => exactJson(args);
   const known = new Map(tests.filter((t) => t.visible).map((t) => [key(t.args), t.expected]));
   const list = cases.map((c, i) => ({ id: `case-${i + 1}`, args: c.args, expected: known.get(key(c.args)) }));
   const unknown = list.filter((c) => c.expected === undefined);
@@ -418,4 +438,16 @@ export async function submit({ id, lang, code }) {
     };
   }
   return safe(out);
+}
+
+// Every test for one solution, judged one by one (tools/check-solutions.mjs).
+// `maxChars` keeps only the tests whose input is at most that long, for
+// approaches that are meant to be too slow for the big ones.
+export async function check({ id, lang, code, maxChars, limitMs: override }) {
+  const { dir, meta, tests, limitMs } = prepare({ id, lang, code });
+  const list = maxChars ? tests.filter((t) => exactJson(t.args).length <= maxChars) : tests;
+  const limit = override ?? limitMs;
+  const runs = await withSolution(lang, code, (file) => runSolution({ lang, file, meta, tests: list, limitMs: limit, buildDir: BUILD }));
+  const results = await judge(meta, dir, limit, list, runs);
+  return { total: list.length, results: results.map((r, i) => ({ ...r, args: list[i].args, expected: list[i].expected })) };
 }

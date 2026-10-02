@@ -43,6 +43,13 @@ class ListNode:
         self.next = next
 
 
+class RandomNode:
+    def __init__(self, val=0, next=None, random=None):
+        self.val = val
+        self.next = next
+        self.random = random
+
+
 class TreeNode:
     def __init__(self, val=0, left=None, right=None):
         self.val = val
@@ -50,11 +57,18 @@ class TreeNode:
         self.right = right
 
 
+LAST_LIST = []  # nodes of the list built just before, for {"join_at": i}
+INPUT_NODES = []  # every RandomNode handed to a solution, so a copy can be told apart
+
+
 def build_list(value):
-    """[1, 2, 3] -> 1 -> 2 -> 3.  {"values": [...], "cycle_at": i} links the tail back to node i."""
-    cycle_at = -1
+    """[1, 2, 3] -> 1 -> 2 -> 3.  {"values": [...], "cycle_at": i} links the tail back to node i;
+    {"values": [...], "join_at": i} continues the tail into node i of the list built just before."""
+    global LAST_LIST
+    cycle_at, join_at = -1, None
     if isinstance(value, dict):
         cycle_at = value.get("cycle_at", -1)
+        join_at = value.get("join_at")
         value = value["values"]
     dummy = ListNode()
     tail = dummy
@@ -65,7 +79,40 @@ def build_list(value):
         nodes.append(tail)
     if 0 <= cycle_at < len(nodes):
         tail.next = nodes[cycle_at]
+    if join_at is not None:
+        tail.next = LAST_LIST[join_at]
+    LAST_LIST = nodes
     return dummy.next
+
+
+def build_random(pairs):
+    """[[val, random index or None], ...] -> nodes linked by next, with random pointers."""
+    nodes = [RandomNode(v) for v, _ in pairs]
+    for i, (_, r) in enumerate(pairs):
+        if i + 1 < len(nodes):
+            nodes[i].next = nodes[i + 1]
+        nodes[i].random = nodes[r] if r is not None else None
+    INPUT_NODES.extend(nodes)
+    return nodes[0] if nodes else None
+
+
+def random_values(head, limit=2_000_000):
+    given = {id(n) for n in INPUT_NODES}
+    order, index, node = [], {}, head
+    while node is not None and len(order) < limit:
+        if id(node) in given:
+            raise ValueError("the answer reuses an original node; build new nodes")
+        index[id(node)] = len(order)
+        order.append(node)
+        node = node.next
+    if node is not None:
+        raise ValueError("returned list is longer than %d nodes (a cycle?)" % limit)
+    out = []
+    for n in order:
+        if n.random is not None and id(n.random) not in index:
+            raise ValueError("a random pointer leads outside the returned list")
+        out.append([n.val, index[id(n.random)] if n.random is not None else None])
+    return out
 
 
 def list_values(node, limit=2_000_000):
@@ -117,20 +164,24 @@ def tree_values(root):
 def to_arg(value, type_):
     base = type_.rstrip("[]")
     depth = (len(type_) - len(base)) // 2
-    if base not in ("ListNode", "TreeNode"):
+    if base not in ("ListNode", "TreeNode", "RandomNode"):
         return value
     if depth:
         return [to_arg(v, type_[:-2]) for v in value]
+    if base == "RandomNode":
+        return build_random(value)
     return build_list(value) if base == "ListNode" else build_tree(value)
 
 
 def from_out(value, type_):
     base = type_.rstrip("[]")
     depth = (len(type_) - len(base)) // 2
-    if base not in ("ListNode", "TreeNode"):
+    if base not in ("ListNode", "TreeNode", "RandomNode"):
         return plain(value)
     if depth:
         return [from_out(v, type_[:-2]) for v in value]
+    if base == "RandomNode":
+        return random_values(value)
     return list_values(value) if base == "ListNode" else tree_values(value)
 
 
@@ -139,6 +190,7 @@ def load(path, name):
     module = importlib.util.module_from_spec(spec)
     # What LeetCode-style solutions expect to find without importing.
     module.ListNode = ListNode
+    module.RandomNode = RandomNode
     module.TreeNode = TreeNode
     for extra in ("List", "Optional", "Dict", "Tuple", "Set"):
         setattr(module, extra, getattr(typing, extra))

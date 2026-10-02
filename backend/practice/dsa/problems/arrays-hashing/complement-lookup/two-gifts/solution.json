@@ -1,0 +1,1392 @@
+{
+ "version": 1,
+ "summary": "For each gift, the second gift is already decided: it must cost `budget − price`. The whole problem\nis about how fast you can answer \"have I seen that price, and where?\" A hash map answers it in\nO(1), which takes the solution from O(n²) to O(n).",
+ "question": [
+  {
+   "md": "You get a list of gift prices and a budget. Exactly two **different** gifts add up to the budget\nexactly, and you return their positions (indices), smaller one first.\n\nThe details that matter:\n\n- **Indices, not prices.** You return where the gifts sit in the list, so any trick that\n  rearranges the list has to remember the original positions.\n- **Two different gifts.** One gift can't be bought twice. With `prices = [3, 2, 4]` and budget 6,\n  the gift at index 0 costs 3, and 3 + 3 = 6, but that would be the same gift twice. The answer is\n  `[1, 2]` (2 + 4).\n- **Equal prices are fine.** Two *different* gifts may cost the same: `[5, 5]` with budget 10 is\n  `[0, 1]`.\n- **Prices can be negative** (coupons), so you can't throw a price away just because it's bigger\n  than the budget: 15 + (−6) = 9.\n- **Exactly one answer exists**, so you can stop the moment you find a pair.\n- **Size:** up to 10⁵ prices. Checking every pair is about 5 × 10⁹ checks, far too slow.\n  You need something close to one pass.\n- **Big numbers:** prices go to ±10⁹ and the budget to ±2 × 10⁹. In Java, C++ and C,\n  `budget − price` can reach 3 × 10⁹, past the 32-bit `int` limit (about 2.1 × 10⁹), so that\n  arithmetic needs 64-bit integers."
+  }
+ ],
+ "think": [
+  {
+   "md": "Take `prices = [3, 8, 11, 2, 15, 7]` and `budget = 9`, and solve it by hand.\n\nYou'd probably pick a gift and ask \"what would go with this?\" For the 3, the partner must cost\n9 − 3 = **6**. Is there a 6? You scan the list: no. For the 8 you need a **1**: no. For the 11 you\nneed **−2**: no. For the 2 you need a **7**: yes, at index 5."
+  },
+  {
+   "panels": [
+    {
+     "type": "row",
+     "cells": [
+      3,
+      8,
+      11,
+      2,
+      15,
+      7
+     ],
+     "states": {
+      "3": "answer",
+      "5": "answer"
+     },
+     "slots": true
+    },
+    {
+     "type": "row",
+     "cells": [
+      6,
+      1,
+      -2,
+      7,
+      -6,
+      2
+     ],
+     "states": {
+      "3": "answer",
+      "5": "answer"
+     },
+     "label": "partner needed (9 − price)"
+    }
+   ],
+   "caption": "Every price has exactly one partner value. The answer is the pair where a price's partner is also in the list."
+  },
+  {
+   "md": "Two things stand out:\n\n1. **The partner is fixed.** You never search for \"some gift that works\". You search for one exact\n   value, `budget − price`. That turns the problem into a lookup problem.\n2. **The slow part is the scan.** Each \"is there a 6?\" scans the whole list, and n scans of n items\n   is O(n²). The rest of this solution is about making that question cheap: first by sorting,\n   then with a hash map.\n\nAlso notice the order: if you only ever look *backwards* (at gifts you've already passed), the 7\nat index 5 finds the 2 at index 3. You never need to look ahead, because the second gift of the\npair will find the first."
+  }
+ ],
+ "approaches": [
+  {
+   "title": "Check every pair",
+   "kind": "brute",
+   "time": "O(n²)",
+   "space": "O(1)",
+   "idea": [
+    {
+     "md": "Try every pair of different gifts `(i, j)` with `i < j` and return the first pair whose\nprices add up to the budget. Starting `j` at `i + 1` does two things at once: it never pairs\na gift with itself, and it never checks a pair twice (`(2, 5)` and `(5, 2)` are the same\npair)."
+    }
+   ],
+   "build": [
+    "Loop `i` over every index: the first gift.",
+    "Inside it, loop `j` from `i + 1` to the end: the second gift, always after the first.",
+    "If `prices[i] + prices[j] == budget`, return `[i, j]`. It's already in order because `i < j`.",
+    "After the loops, return an empty list. The problem promises an answer, so this line never runs, but the compiler or reader still wants every path to return."
+   ],
+   "code": {
+    "python": "class Solution:\n    def pickTwo(self, prices: List[int], budget: int) -> List[int]:\n        n = len(prices)\n        for i in range(n):\n            for j in range(i + 1, n):\n                if prices[i] + prices[j] == budget:\n                    return [i, j]\n        return []\n",
+    "java": "class Solution {\n    public int[] pickTwo(int[] prices, int budget) {\n        int n = prices.length;\n        for (int i = 0; i < n; i++) {\n            for (int j = i + 1; j < n; j++) {\n                if ((long) prices[i] + prices[j] == budget) {\n                    return new int[] {i, j};\n                }\n            }\n        }\n        return new int[0];\n    }\n}\n",
+    "cpp": "class Solution {\npublic:\n    vector<int> pickTwo(vector<int>& prices, int budget) {\n        int n = prices.size();\n        for (int i = 0; i < n; i++) {\n            for (int j = i + 1; j < n; j++) {\n                if ((long long) prices[i] + prices[j] == budget) {\n                    return {i, j};\n                }\n            }\n        }\n        return {};\n    }\n};\n",
+    "c": "int* pickTwo(int* prices, int pricesSize, int budget, int* returnSize) {\n    int* answer = malloc(2 * sizeof(int));\n    *returnSize = 2;\n    for (int i = 0; i < pricesSize; i++) {\n        for (int j = i + 1; j < pricesSize; j++) {\n            if ((long long) prices[i] + prices[j] == budget) {\n                answer[0] = i;\n                answer[1] = j;\n                return answer;\n            }\n        }\n    }\n    *returnSize = 0;\n    return answer;\n}\n"
+   },
+   "lines": [
+    {
+     "text": "The function takes the prices and the budget and returns two indices.",
+     "at": {
+      "python": [
+       [
+        2,
+        2
+       ]
+      ],
+      "java": [
+       [
+        2,
+        2
+       ]
+      ],
+      "cpp": [
+       [
+        3,
+        3
+       ]
+      ],
+      "c": [
+       [
+        1,
+        1
+       ]
+      ]
+     },
+     "notes": {
+      "c": "In C an array arrives as a pointer plus its length (`pricesSize`). The answer is an array too, so the function also gets `returnSize`, where it writes how long the answer is."
+     }
+    },
+    {
+     "text": "Keep the length in `n` so the loops read clearly.",
+     "at": {
+      "python": [
+       [
+        3,
+        3
+       ]
+      ],
+      "java": [
+       [
+        3,
+        3
+       ]
+      ],
+      "cpp": [
+       [
+        4,
+        4
+       ]
+      ]
+     }
+    },
+    {
+     "text": "C has no list to return, so make room for two ints with `malloc` and say the answer has length 2. The caller frees it.",
+     "at": {
+      "c": [
+       [
+        2,
+        3
+       ]
+      ]
+     }
+    },
+    {
+     "text": "`i` is the first gift. It goes over every index.",
+     "at": {
+      "python": [
+       [
+        4,
+        4
+       ]
+      ],
+      "java": [
+       [
+        4,
+        4
+       ]
+      ],
+      "cpp": [
+       [
+        5,
+        5
+       ]
+      ],
+      "c": [
+       [
+        4,
+        4
+       ]
+      ]
+     }
+    },
+    {
+     "text": "`j` is the second gift and always starts right after `i`. That rules out using one gift twice, and it visits each pair exactly once.",
+     "at": {
+      "python": [
+       [
+        5,
+        5
+       ]
+      ],
+      "java": [
+       [
+        5,
+        5
+       ]
+      ],
+      "cpp": [
+       [
+        6,
+        6
+       ]
+      ],
+      "c": [
+       [
+        5,
+        5
+       ]
+      ]
+     }
+    },
+    {
+     "text": "Do the two prices hit the budget exactly?",
+     "at": {
+      "python": [
+       [
+        6,
+        6
+       ]
+      ],
+      "java": [
+       [
+        6,
+        6
+       ]
+      ],
+      "cpp": [
+       [
+        7,
+        7
+       ]
+      ],
+      "c": [
+       [
+        6,
+        6
+       ]
+      ]
+     },
+     "notes": {
+      "java": "`(long)` widens the sum to 64 bits before adding. Two prices near 10⁹ add up to 2 × 10⁹, close to `int`'s limit; widening is the safe habit.",
+      "cpp": "`(long long)` widens the sum to 64 bits before adding, so it can't overflow.",
+      "c": "`(long long)` widens the sum to 64 bits before adding, so it can't overflow."
+     }
+    },
+    {
+     "text": "The first match is the answer. `i < j` already, so the order is right.",
+     "at": {
+      "python": [
+       [
+        7,
+        7
+       ]
+      ],
+      "java": [
+       [
+        7,
+        7
+       ]
+      ],
+      "cpp": [
+       [
+        8,
+        8
+       ]
+      ],
+      "c": [
+       [
+        7,
+        9
+       ]
+      ]
+     }
+    },
+    {
+     "text": "Unreachable with valid input (exactly one pair exists), but every path must return something.",
+     "at": {
+      "python": [
+       [
+        8,
+        8
+       ]
+      ],
+      "java": [
+       [
+        11,
+        11
+       ]
+      ],
+      "cpp": [
+       [
+        12,
+        12
+       ]
+      ],
+      "c": [
+       [
+        13,
+        14
+       ]
+      ]
+     }
+    }
+   ],
+   "complexity": [
+    {
+     "md": "**Time O(n²).** For `i = 0` the inner loop runs n − 1 times, for `i = 1` it runs n − 2\ntimes, and so on: (n − 1) + (n − 2) + … + 1 = n(n − 1)/2 pair checks in the worst case.\nWith n = 10⁵ that's about 5 × 10⁹ checks.\n\n**Space O(1).** Just two loop counters (and the two-number answer)."
+    }
+   ],
+   "walk": {
+    "steps": [
+     {
+      "text": "Six gifts, budget 9. Each gift i is paired with every j after it.",
+      "panels": [
+       {
+        "type": "row",
+        "cells": [
+         3,
+         8,
+         11,
+         2,
+         15,
+         7
+        ],
+        "slots": true
+       }
+      ]
+     },
+     {
+      "text": "i = 0 (price 3): 3+8=11, 3+11=14, 3+2=5, 3+15=18, 3+7=10. None is 9.",
+      "panels": [
+       {
+        "type": "row",
+        "cells": [
+         3,
+         8,
+         11,
+         2,
+         15,
+         7
+        ],
+        "states": {
+         "0": "active",
+         "1": "mark",
+         "2": "mark",
+         "3": "mark",
+         "4": "mark",
+         "5": "mark"
+        },
+        "pointers": {
+         "i": 0
+        },
+        "slots": true
+       }
+      ]
+     },
+     {
+      "text": "i = 1 (price 8): 8+11=19, 8+2=10, 8+15=23, 8+7=15. None is 9.",
+      "panels": [
+       {
+        "type": "row",
+        "cells": [
+         3,
+         8,
+         11,
+         2,
+         15,
+         7
+        ],
+        "states": {
+         "0": "dim",
+         "1": "active",
+         "2": "mark",
+         "3": "mark",
+         "4": "mark",
+         "5": "mark"
+        },
+        "pointers": {
+         "i": 1
+        },
+        "slots": true
+       }
+      ]
+     },
+     {
+      "text": "i = 2 (price 11): 11+2=13, 11+15=26, 11+7=18. None is 9.",
+      "panels": [
+       {
+        "type": "row",
+        "cells": [
+         3,
+         8,
+         11,
+         2,
+         15,
+         7
+        ],
+        "states": {
+         "0": "dim",
+         "1": "dim",
+         "2": "active",
+         "3": "mark",
+         "4": "mark",
+         "5": "mark"
+        },
+        "pointers": {
+         "i": 2
+        },
+        "slots": true
+       }
+      ]
+     },
+     {
+      "text": "i = 3 (price 2): 2 + 7 = 9. Found it.",
+      "panels": [
+       {
+        "type": "row",
+        "cells": [
+         3,
+         8,
+         11,
+         2,
+         15,
+         7
+        ],
+        "states": {
+         "0": "dim",
+         "1": "dim",
+         "2": "dim",
+         "3": "answer",
+         "4": "mark",
+         "5": "answer"
+        },
+        "pointers": {
+         "i": 3,
+         "j": 5
+        },
+        "slots": true
+       }
+      ],
+      "result": "[3, 5]"
+     }
+    ],
+    "title": "Fix the first gift, then try every gift after it as the second."
+   },
+   "limits": [
+    {
+     "md": "It's correct, but it re-asks the same question over and over: \"is there a 6 somewhere after\nme?\" is answered by scanning, every time. At 10⁵ prices that's billions of additions, many\nseconds even in C. Interviewers expect you to say this version out loud as a baseline and\nthen improve it."
+    }
+   ],
+   "slow": true
+  },
+  {
+   "title": "Sort, then walk inward from both ends",
+   "kind": "better",
+   "time": "O(n log n)",
+   "space": "O(n)",
+   "idea": [
+    {
+     "md": "In a **sorted** list, a pair sum tells you which way to move. Put one finger on the cheapest\nprice (`lo`) and one on the most expensive (`hi`):\n\n- If the sum is **too big**, the price at `hi` can't be in the answer: even paired with the\n  cheapest gift left it overshoots, and every other partner is pricier. Drop it: `hi − 1`.\n- If the sum is **too small**, the price at `lo` can't be in the answer: even paired with the\n  priciest gift left it falls short. Drop it: `lo + 1`.\n- If it's **equal**, you found the pair.\n\nEach step throws away one gift for good, so the walk takes at most n − 1 steps.\n\nThe catch: sorting moves the prices, and we must return **original** indices. So sort the\n*indices* by price (or sort (price, index) pairs), and read the positions off at the end."
+    }
+   ],
+   "build": [
+    "Make a list of indices `0 … n−1` and sort it by `prices[index]`. Now `order[0]` is the index of the cheapest gift.",
+    "Set `lo = 0` and `hi = n − 1`, pointing into `order`.",
+    "While `lo < hi`: add the two prices. Equal: you're done. Too big: `hi -= 1`. Too small: `lo += 1`.",
+    "When they match, the answer is the two original indices `order[lo]` and `order[hi]`, smaller first. Sorting by price may have put the later index first."
+   ],
+   "code": {
+    "python": "class Solution:\n    def pickTwo(self, prices: List[int], budget: int) -> List[int]:\n        order = sorted(range(len(prices)), key=lambda k: prices[k])\n        lo, hi = 0, len(prices) - 1\n        while lo < hi:\n            total = prices[order[lo]] + prices[order[hi]]\n            if total == budget:\n                a, b = order[lo], order[hi]\n                return [min(a, b), max(a, b)]\n            if total > budget:\n                hi -= 1\n            else:\n                lo += 1\n        return []\n",
+    "java": "class Solution {\n    public int[] pickTwo(int[] prices, int budget) {\n        int n = prices.length;\n        Integer[] order = new Integer[n];\n        for (int k = 0; k < n; k++) order[k] = k;\n        Arrays.sort(order, (a, b) -> Integer.compare(prices[a], prices[b]));\n        int lo = 0, hi = n - 1;\n        while (lo < hi) {\n            long total = (long) prices[order[lo]] + prices[order[hi]];\n            if (total == budget) {\n                int a = order[lo], b = order[hi];\n                return new int[] {Math.min(a, b), Math.max(a, b)};\n            }\n            if (total > budget) hi--;\n            else lo++;\n        }\n        return new int[0];\n    }\n}\n",
+    "cpp": "class Solution {\npublic:\n    vector<int> pickTwo(vector<int>& prices, int budget) {\n        int n = prices.size();\n        vector<int> order(n);\n        iota(order.begin(), order.end(), 0);\n        sort(order.begin(), order.end(), [&](int a, int b) { return prices[a] < prices[b]; });\n        int lo = 0, hi = n - 1;\n        while (lo < hi) {\n            long long total = (long long) prices[order[lo]] + prices[order[hi]];\n            if (total == budget) {\n                int a = order[lo], b = order[hi];\n                return {min(a, b), max(a, b)};\n            }\n            if (total > budget) hi--;\n            else lo++;\n        }\n        return {};\n    }\n};\n",
+    "c": "static int* gPrices;\n\nstatic int byPrice(const void* x, const void* y) {\n    int a = gPrices[*(const int*) x], b = gPrices[*(const int*) y];\n    return (a > b) - (a < b);\n}\n\nint* pickTwo(int* prices, int pricesSize, int budget, int* returnSize) {\n    int* order = malloc(pricesSize * sizeof(int));\n    for (int k = 0; k < pricesSize; k++) order[k] = k;\n    gPrices = prices;\n    qsort(order, pricesSize, sizeof(int), byPrice);\n    int* answer = malloc(2 * sizeof(int));\n    *returnSize = 0;\n    int lo = 0, hi = pricesSize - 1;\n    while (lo < hi) {\n        long long total = (long long) prices[order[lo]] + prices[order[hi]];\n        if (total == budget) {\n            int a = order[lo], b = order[hi];\n            answer[0] = a < b ? a : b;\n            answer[1] = a < b ? b : a;\n            *returnSize = 2;\n            break;\n        }\n        if (total > budget) hi--;\n        else lo++;\n    }\n    free(order);\n    return answer;\n}\n"
+   },
+   "lines": [
+    {
+     "text": "C's `qsort` compares two elements without any extra context, so the prices go in a file-level pointer, `gPrices`, and `byPrice` compares two indices by their prices. `(a > b) - (a < b)` gives −1, 0 or 1 without the overflow that `a − b` could cause.",
+     "at": {
+      "c": [
+       [
+        1,
+        1
+       ],
+       [
+        3,
+        6
+       ]
+      ]
+     }
+    },
+    {
+     "text": "Build the indices `0 … n−1` and sort them by price. The prices themselves don't move, so each entry of `order` still knows its gift's original position.",
+     "at": {
+      "python": [
+       [
+        3,
+        3
+       ]
+      ],
+      "java": [
+       [
+        4,
+        6
+       ]
+      ],
+      "cpp": [
+       [
+        5,
+        7
+       ]
+      ],
+      "c": [
+       [
+        9,
+        12
+       ]
+      ]
+     },
+     "notes": {
+      "java": "`Arrays.sort` with a comparator needs objects, hence `Integer[]` instead of `int[]`.",
+      "cpp": "`iota` fills `0, 1, 2, …`; the lambda compares two indices by their prices."
+     }
+    },
+    {
+     "text": "`lo` starts at the cheapest gift, `hi` at the most expensive (positions in `order`).",
+     "at": {
+      "python": [
+       [
+        4,
+        4
+       ]
+      ],
+      "java": [
+       [
+        7,
+        7
+       ]
+      ],
+      "cpp": [
+       [
+        8,
+        8
+       ]
+      ],
+      "c": [
+       [
+        15,
+        15
+       ]
+      ]
+     }
+    },
+    {
+     "text": "Keep going while the fingers point at two different gifts.",
+     "at": {
+      "python": [
+       [
+        5,
+        5
+       ]
+      ],
+      "java": [
+       [
+        8,
+        8
+       ]
+      ],
+      "cpp": [
+       [
+        9,
+        9
+       ]
+      ],
+      "c": [
+       [
+        16,
+        16
+       ]
+      ]
+     }
+    },
+    {
+     "text": "The current pair's total.",
+     "at": {
+      "python": [
+       [
+        6,
+        6
+       ]
+      ],
+      "java": [
+       [
+        9,
+        9
+       ]
+      ],
+      "cpp": [
+       [
+        10,
+        10
+       ]
+      ],
+      "c": [
+       [
+        17,
+        17
+       ]
+      ]
+     },
+     "notes": {
+      "java": "Computed as `long`, so two big prices can't overflow.",
+      "cpp": "Computed as `long long`, so two big prices can't overflow.",
+      "c": "Computed as `long long`, so two big prices can't overflow."
+     }
+    },
+    {
+     "text": "A match. The two original indices can come out in either order (the cheaper gift might sit later in the list), so return the smaller one first.",
+     "at": {
+      "python": [
+       [
+        7,
+        9
+       ]
+      ],
+      "java": [
+       [
+        10,
+        12
+       ]
+      ],
+      "cpp": [
+       [
+        11,
+        13
+       ]
+      ],
+      "c": [
+       [
+        18,
+        23
+       ]
+      ]
+     }
+    },
+    {
+     "text": "Too big: the gift at `hi` overshoots even with the cheapest partner left, so it can't be in the answer. Drop it.",
+     "at": {
+      "python": [
+       [
+        10,
+        11
+       ]
+      ],
+      "java": [
+       [
+        14,
+        14
+       ]
+      ],
+      "cpp": [
+       [
+        15,
+        15
+       ]
+      ],
+      "c": [
+       [
+        25,
+        25
+       ]
+      ]
+     }
+    },
+    {
+     "text": "Too small: the gift at `lo` falls short even with the priciest partner left. Drop it.",
+     "at": {
+      "python": [
+       [
+        12,
+        13
+       ]
+      ],
+      "java": [
+       [
+        15,
+        15
+       ]
+      ],
+      "cpp": [
+       [
+        16,
+        16
+       ]
+      ],
+      "c": [
+       [
+        26,
+        26
+       ]
+      ]
+     }
+    },
+    {
+     "text": "Free the scratch array; return the answer (the caller frees that).",
+     "at": {
+      "c": [
+       [
+        28,
+        29
+       ]
+      ]
+     }
+    },
+    {
+     "text": "Unreachable with valid input.",
+     "at": {
+      "python": [
+       [
+        14,
+        14
+       ]
+      ],
+      "java": [
+       [
+        17,
+        17
+       ]
+      ],
+      "cpp": [
+       [
+        18,
+        18
+       ]
+      ]
+     }
+    }
+   ],
+   "complexity": [
+    {
+     "md": "**Time O(n log n).** Sorting costs O(n log n). The two-pointer walk is O(n): every step\nmoves `lo` or `hi` one place inward, and they meet after at most n − 1 steps. The sort\ndominates.\n\n**Space O(n)** for the `order` array of indices (plus whatever the sort uses internally)."
+    }
+   ],
+   "walk": {
+    "steps": [
+     {
+      "text": "Pair every price with its original index, then sort by price. The indices ride along.",
+      "panels": [
+       {
+        "type": "row",
+        "cells": [
+         2,
+         3,
+         7,
+         8,
+         11,
+         15
+        ],
+        "label": "sorted prices"
+       },
+       {
+        "type": "row",
+        "cells": [
+         "#3",
+         "#0",
+         "#5",
+         "#1",
+         "#2",
+         "#4"
+        ],
+        "label": "original index"
+       }
+      ]
+     },
+     {
+      "text": "2 + 15 = 17, too much. 15 is too big even with the cheapest gift, so drop it: hi moves left.",
+      "panels": [
+       {
+        "type": "row",
+        "cells": [
+         2,
+         3,
+         7,
+         8,
+         11,
+         15
+        ],
+        "states": {
+         "0": "active",
+         "5": "active"
+        },
+        "pointers": {
+         "lo": 0,
+         "hi": 5
+        },
+        "label": "sorted prices"
+       },
+       {
+        "type": "vars",
+        "items": {
+         "sum": 17
+        }
+       }
+      ]
+     },
+     {
+      "text": "2 + 11 = 13, too much. 11 is too big even with the cheapest gift, so drop it: hi moves left.",
+      "panels": [
+       {
+        "type": "row",
+        "cells": [
+         2,
+         3,
+         7,
+         8,
+         11,
+         15
+        ],
+        "states": {
+         "5": "dim",
+         "0": "active",
+         "4": "active"
+        },
+        "pointers": {
+         "lo": 0,
+         "hi": 4
+        },
+        "label": "sorted prices"
+       },
+       {
+        "type": "vars",
+        "items": {
+         "sum": 13
+        }
+       }
+      ]
+     },
+     {
+      "text": "2 + 8 = 10, too much. 8 is too big even with the cheapest gift, so drop it: hi moves left.",
+      "panels": [
+       {
+        "type": "row",
+        "cells": [
+         2,
+         3,
+         7,
+         8,
+         11,
+         15
+        ],
+        "states": {
+         "4": "dim",
+         "5": "dim",
+         "0": "active",
+         "3": "active"
+        },
+        "pointers": {
+         "lo": 0,
+         "hi": 3
+        },
+        "label": "sorted prices"
+       },
+       {
+        "type": "vars",
+        "items": {
+         "sum": 10
+        }
+       }
+      ]
+     },
+     {
+      "text": "2 + 7 = 9. Their original indices are 3 and 5.",
+      "panels": [
+       {
+        "type": "row",
+        "cells": [
+         2,
+         3,
+         7,
+         8,
+         11,
+         15
+        ],
+        "states": {
+         "3": "dim",
+         "4": "dim",
+         "5": "dim",
+         "0": "answer",
+         "2": "answer"
+        },
+        "pointers": {
+         "lo": 0,
+         "hi": 2
+        },
+        "label": "sorted prices"
+       },
+       {
+        "type": "row",
+        "cells": [
+         "#3",
+         "#0",
+         "#5",
+         "#1",
+         "#2",
+         "#4"
+        ],
+        "states": {
+         "0": "answer",
+         "2": "answer"
+        },
+        "label": "original index"
+       }
+      ],
+      "result": "[3, 5]"
+     }
+    ],
+    "title": "Sort (price, index) pairs, then squeeze from both ends."
+   },
+   "limits": [
+    {
+     "md": "Much faster than checking every pair (about 1.7 million steps for n = 10⁵ instead of 5\nbillion), but the sort is work the problem never asked for, and it forces the extra index\nbookkeeping. This is the right tool when the input is **already sorted** (then it's O(n)\ntime and O(1) space). Here the input is unsorted, and a hash map skips the sort entirely."
+    }
+   ]
+  },
+  {
+   "title": "One pass with a hash map",
+   "kind": "best",
+   "time": "O(n)",
+   "space": "O(n)",
+   "idea": [
+    {
+     "md": "Go through the gifts once, left to right, and keep a **hash map from price to index** of the\ngifts you've already passed. At gift `j` with price `p`, the partner must cost\n`budget − p`. Ask the map: is that price there?\n\n- **Yes:** the partner sits at `map[budget − p]`, which is earlier than `j`. Return\n  `[map[budget − p], j]`, already in order.\n- **No:** store `p → j` and move on. If `p`'s partner comes later, that gift will find `p`\n  here.\n\nThe order inside the loop matters: **look up first, store second.** If you stored first,\na price of 3 with budget 6 would find itself and you'd return one gift twice."
+    }
+   ],
+   "build": [
+    "Create an empty map from price to index.",
+    "Loop `j` over the indices, with `p = prices[j]`.",
+    "Compute `need = budget − p` (in 64 bits in Java, C++ and C).",
+    "If `need` is in the map, return `[map[need], j]`.",
+    "Otherwise store `map[p] = j` and continue.",
+    "Equal prices: if a price appears twice, the second copy overwrites nothing important. When the pair *is* the two copies (`[5, 5]`, budget 10), the second 5 looks up 5 and finds the first one before storing itself."
+   ],
+   "code": {
+    "python": "class Solution:\n    def pickTwo(self, prices: List[int], budget: int) -> List[int]:\n        where = {}\n        for j, p in enumerate(prices):\n            need = budget - p\n            if need in where:\n                return [where[need], j]\n            where[p] = j\n        return []\n",
+    "java": "class Solution {\n    public int[] pickTwo(int[] prices, int budget) {\n        Map<Long, Integer> where = new HashMap<>();\n        for (int j = 0; j < prices.length; j++) {\n            long need = (long) budget - prices[j];\n            Integer i = where.get(need);\n            if (i != null) return new int[] {i, j};\n            where.put((long) prices[j], j);\n        }\n        return new int[0];\n    }\n}\n",
+    "cpp": "class Solution {\npublic:\n    vector<int> pickTwo(vector<int>& prices, int budget) {\n        unordered_map<long long, int> where;\n        where.reserve(prices.size() * 2);\n        for (int j = 0; j < (int) prices.size(); j++) {\n            long long need = (long long) budget - prices[j];\n            auto it = where.find(need);\n            if (it != where.end()) return {it->second, j};\n            where[prices[j]] = j;\n        }\n        return {};\n    }\n};\n",
+    "c": "// C has no built-in hash map, so here is a small one: open addressing\n// with linear probing. Keys are prices, values are indices.\ntypedef struct { long long key; int val; bool used; } Slot;\n\nstatic unsigned slotOf(long long key, unsigned mask) {\n    unsigned long long h = (unsigned long long) key * 0x9E3779B97F4A7C15ULL;\n    return (unsigned) (h >> 32) & mask;\n}\n\nint* pickTwo(int* prices, int pricesSize, int budget, int* returnSize) {\n    unsigned cap = 1;\n    while (cap < 2u * pricesSize) cap <<= 1;\n    Slot* where = calloc(cap, sizeof(Slot));\n    int* answer = malloc(2 * sizeof(int));\n    *returnSize = 0;\n    for (int j = 0; j < pricesSize; j++) {\n        long long need = (long long) budget - prices[j];\n        unsigned s = slotOf(need, cap - 1);\n        while (where[s].used && where[s].key != need) s = (s + 1) & (cap - 1);\n        if (where[s].used) {\n            answer[0] = where[s].val;\n            answer[1] = j;\n            *returnSize = 2;\n            break;\n        }\n        s = slotOf(prices[j], cap - 1);\n        while (where[s].used && where[s].key != prices[j]) s = (s + 1) & (cap - 1);\n        where[s] = (Slot) {prices[j], j, true};\n    }\n    free(where);\n    return answer;\n}\n"
+   },
+   "lines": [
+    {
+     "text": "A slot in the table: a key (a price), a value (its index) and whether it's taken.",
+     "at": {
+      "c": [
+       [
+        3,
+        3
+       ]
+      ]
+     }
+    },
+    {
+     "text": "Turns a price into a slot number. Multiplying by a large odd constant scrambles the bits so nearby prices land far apart. The high bits are the most mixed, so we take those and keep the ones that fit the table (`& mask`).",
+     "at": {
+      "c": [
+       [
+        5,
+        8
+       ]
+      ]
+     }
+    },
+    {
+     "text": "The table gets a power-of-two size at least twice the number of prices. Half-empty tables keep the probe runs short, and a power of two lets `& (cap − 1)` stand in for `% cap`.",
+     "at": {
+      "c": [
+       [
+        11,
+        12
+       ]
+      ]
+     }
+    },
+    {
+     "text": "The map from a price to the index where we saw it. It starts empty.",
+     "at": {
+      "python": [
+       [
+        3,
+        3
+       ]
+      ],
+      "java": [
+       [
+        3,
+        3
+       ]
+      ],
+      "cpp": [
+       [
+        4,
+        5
+       ]
+      ],
+      "c": [
+       [
+        13,
+        13
+       ]
+      ]
+     },
+     "notes": {
+      "java": "Keys are `Long` because we look up `budget − price`, which can be past `int` range.",
+      "cpp": "Keys are `long long` because we look up `budget − price`, which can be past `int` range. `reserve` sizes the table up front so it doesn't rehash as it grows.",
+      "c": "`calloc` zeroes the table, so every slot starts unused."
+     }
+    },
+    {
+     "text": "One pass, left to right. `j` is the current gift, which is always the second gift of any pair it completes.",
+     "at": {
+      "python": [
+       [
+        4,
+        4
+       ]
+      ],
+      "java": [
+       [
+        4,
+        4
+       ]
+      ],
+      "cpp": [
+       [
+        6,
+        6
+       ]
+      ],
+      "c": [
+       [
+        16,
+        16
+       ]
+      ]
+     }
+    },
+    {
+     "text": "The only price that pairs with this one.",
+     "at": {
+      "python": [
+       [
+        5,
+        5
+       ]
+      ],
+      "java": [
+       [
+        5,
+        5
+       ]
+      ],
+      "cpp": [
+       [
+        7,
+        7
+       ]
+      ],
+      "c": [
+       [
+        17,
+        17
+       ]
+      ]
+     },
+     "notes": {
+      "java": "`(long) budget − prices[j]` is computed in 64 bits: 2 × 10⁹ − (−10⁹) = 3 × 10⁹ doesn't fit in `int`.",
+      "cpp": "Computed in 64 bits: 2 × 10⁹ − (−10⁹) = 3 × 10⁹ doesn't fit in `int`.",
+      "c": "Computed in 64 bits: 2 × 10⁹ − (−10⁹) = 3 × 10⁹ doesn't fit in `int`."
+     }
+    },
+    {
+     "text": "Look the partner up **before** storing the current price, so a gift can never pair with itself. If the partner is there, its index is smaller than `j`, so `[partner, j]` is already in order.",
+     "at": {
+      "python": [
+       [
+        6,
+        7
+       ]
+      ],
+      "java": [
+       [
+        6,
+        7
+       ]
+      ],
+      "cpp": [
+       [
+        8,
+        9
+       ]
+      ],
+      "c": [
+       [
+        18,
+        24
+       ]
+      ]
+     },
+     "notes": {
+      "c": "Start at the partner's slot and step forward past slots holding other keys. Landing on a used slot with our key means found; landing on an empty slot means it isn't in the table."
+     }
+    },
+    {
+     "text": "Not found yet: remember this price and its index for the gifts still to come.",
+     "at": {
+      "python": [
+       [
+        8,
+        8
+       ]
+      ],
+      "java": [
+       [
+        8,
+        8
+       ]
+      ],
+      "cpp": [
+       [
+        10,
+        10
+       ]
+      ],
+      "c": [
+       [
+        26,
+        28
+       ]
+      ]
+     },
+     "notes": {
+      "c": "Same probing as the lookup to find this price's slot (or an empty one), then write the entry."
+     }
+    },
+    {
+     "text": "Free the table and return the answer.",
+     "at": {
+      "c": [
+       [
+        30,
+        31
+       ]
+      ]
+     }
+    },
+    {
+     "text": "Unreachable with valid input.",
+     "at": {
+      "python": [
+       [
+        9,
+        9
+       ]
+      ],
+      "java": [
+       [
+        10,
+        10
+       ]
+      ],
+      "cpp": [
+       [
+        12,
+        12
+       ]
+      ]
+     }
+    }
+   ],
+   "complexity": [
+    {
+     "md": "**Time O(n).** One pass over the prices, and each step does one lookup and at most one\ninsert, each O(1) on average for a hash map.\n\n**Space O(n).** In the worst case the pair is the last two gifts, so nearly every price\ngoes into the map first.\n\n\"On average\" matters: a hash map can degrade when many keys collide, but with a decent hash\nfunction (every standard library has one) that doesn't happen on real inputs."
+    }
+   ],
+   "walk": {
+    "steps": [
+     {
+      "text": "j = 0, price 3: partner 6 isn't in the map. Store 3→0.",
+      "panels": [
+       {
+        "type": "row",
+        "cells": [
+         3,
+         8,
+         11,
+         2,
+         15,
+         7
+        ],
+        "states": {
+         "0": "active"
+        },
+        "pointers": {
+         "j": 0
+        },
+        "slots": true
+       },
+       {
+        "type": "row",
+        "cells": [],
+        "label": "price → index"
+       }
+      ]
+     },
+     {
+      "text": "j = 1, price 8: partner 1 isn't in the map. Store 8→1.",
+      "panels": [
+       {
+        "type": "row",
+        "cells": [
+         3,
+         8,
+         11,
+         2,
+         15,
+         7
+        ],
+        "states": {
+         "0": "dim",
+         "1": "active"
+        },
+        "pointers": {
+         "j": 1
+        },
+        "slots": true
+       },
+       {
+        "type": "row",
+        "cells": [
+         "3→0"
+        ],
+        "label": "price → index"
+       }
+      ]
+     },
+     {
+      "text": "j = 2, price 11: partner -2 isn't in the map. Store 11→2.",
+      "panels": [
+       {
+        "type": "row",
+        "cells": [
+         3,
+         8,
+         11,
+         2,
+         15,
+         7
+        ],
+        "states": {
+         "0": "dim",
+         "1": "dim",
+         "2": "active"
+        },
+        "pointers": {
+         "j": 2
+        },
+        "slots": true
+       },
+       {
+        "type": "row",
+        "cells": [
+         "3→0",
+         "8→1"
+        ],
+        "label": "price → index"
+       }
+      ]
+     },
+     {
+      "text": "j = 3, price 2: partner 7 isn't in the map. Store 2→3.",
+      "panels": [
+       {
+        "type": "row",
+        "cells": [
+         3,
+         8,
+         11,
+         2,
+         15,
+         7
+        ],
+        "states": {
+         "0": "dim",
+         "1": "dim",
+         "2": "dim",
+         "3": "active"
+        },
+        "pointers": {
+         "j": 3
+        },
+        "slots": true
+       },
+       {
+        "type": "row",
+        "cells": [
+         "3→0",
+         "8→1",
+         "11→2"
+        ],
+        "label": "price → index"
+       }
+      ]
+     },
+     {
+      "text": "j = 4, price 15: partner -6 isn't in the map. Store 15→4.",
+      "panels": [
+       {
+        "type": "row",
+        "cells": [
+         3,
+         8,
+         11,
+         2,
+         15,
+         7
+        ],
+        "states": {
+         "0": "dim",
+         "1": "dim",
+         "2": "dim",
+         "3": "dim",
+         "4": "active"
+        },
+        "pointers": {
+         "j": 4
+        },
+        "slots": true
+       },
+       {
+        "type": "row",
+        "cells": [
+         "3→0",
+         "8→1",
+         "11→2",
+         "2→3"
+        ],
+        "label": "price → index"
+       }
+      ]
+     },
+     {
+      "text": "j = 5, price 7: partner 9 − 7 = 2 is in the map at index 3. Done.",
+      "panels": [
+       {
+        "type": "row",
+        "cells": [
+         3,
+         8,
+         11,
+         2,
+         15,
+         7
+        ],
+        "states": {
+         "0": "dim",
+         "1": "dim",
+         "2": "dim",
+         "3": "answer",
+         "4": "dim",
+         "5": "answer"
+        },
+        "pointers": {
+         "j": 5
+        },
+        "slots": true
+       },
+       {
+        "type": "row",
+        "cells": [
+         "3→0",
+         "8→1",
+         "11→2",
+         "2→3",
+         "15→4"
+        ],
+        "states": {
+         "3": "answer"
+        },
+        "label": "price → index"
+       }
+      ],
+      "result": "[3, 5]"
+     }
+    ],
+    "title": "Walk once. For each price, ask the map whether its partner (9 − price) has already gone by."
+   }
+  }
+ ],
+ "takeaways": [
+  {
+   "md": "- When the partner of an item is **fully determined** (here `budget − price`), stop searching\n  for pairs and start **looking up** the partner. A hash map makes each lookup O(1).\n- **Look up before you insert** when an item must not pair with itself.\n- Store whatever the answer needs as the map's value. We needed indices, so the map goes\n  price → index.\n- Sort + two pointers is the go-to when the input is already sorted (O(1) extra space), but\n  sorting first costs O(n log n) and loses the original positions unless you carry them along.\n- In fixed-width languages, check whether a subtraction like `budget − price` can overflow, and\n  use 64-bit integers when it can."
+  }
+ ]
+}

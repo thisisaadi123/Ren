@@ -13,6 +13,7 @@ const JAVA_TYPES = {
   string: "String",
   ListNode: "ListNode",
   TreeNode: "TreeNode",
+  RandomNode: "RandomNode",
 };
 
 export function javaType(type) {
@@ -48,7 +49,7 @@ function readers(types) {
 function readerName(type) {
   const base = type.replace(/(\[\])+$/, "");
   const dims = (type.length - base.length) / 2;
-  const scalar = { int: "rInt", long: "rLong", double: "rDouble", bool: "rBool", char: "rChar", string: "rString", ListNode: "rList", TreeNode: "rTree" }[base];
+  const scalar = { int: "rInt", long: "rLong", double: "rDouble", bool: "rBool", char: "rChar", string: "rString", ListNode: "rList", TreeNode: "rTree", RandomNode: "rRandom" }[base];
   if (!scalar) throw new Error(`Java harness: type ${type} isn't supported`);
   return dims ? `r_${base}_${dims}` : scalar;
 }
@@ -58,6 +59,13 @@ import java.io.*;
 import java.nio.charset.StandardCharsets;
 import java.util.*;
 
+class RandomNode {
+  int val;
+  RandomNode next;
+  RandomNode random;
+  RandomNode() {}
+  RandomNode(int val) { this.val = val; }
+}
 class ListNode {
   int val;
   ListNode next;
@@ -115,7 +123,19 @@ public class Main {
     for (int i = 0; i < n; i++) { tail = tail.next = new ListNode((int) in.nextLong()); nodes.add(tail); }
     long at = in.nextLong();
     if (at >= 0 && at < n) tail.next = nodes.get((int) at);
+    if (at <= -2 && -2 - at < prevList.size()) tail.next = prevList.get((int) (-2 - at));
+    prevList = nodes;
     return dummy.next;
+  }
+  static List<ListNode> prevList = new ArrayList<>();  // the list read just before, for joins
+  static Set<RandomNode> givenRandom = Collections.newSetFromMap(new IdentityHashMap<>());
+  static RandomNode rRandom() throws IOException {
+    int n = (int) in.nextLong();
+    RandomNode[] nodes = new RandomNode[n];
+    long[] rnd = new long[n];
+    for (int i = 0; i < n; i++) { nodes[i] = new RandomNode((int) in.nextLong()); rnd[i] = in.nextLong(); givenRandom.add(nodes[i]); }
+    for (int i = 0; i < n; i++) { if (i + 1 < n) nodes[i].next = nodes[i + 1]; nodes[i].random = rnd[i] >= 0 ? nodes[(int) rnd[i]] : null; }
+    return n > 0 ? nodes[0] : null;
   }
   static TreeNode rTree() throws IOException {
     int n = (int) in.nextLong();
@@ -160,6 +180,26 @@ public class Main {
         if (k > 2000000) throw new RuntimeException("returned list is too long (a cycle?)");
         if (k > 0) sb.append(',');
         sb.append(node.val);
+      }
+      sb.append(']');
+    } else if (o instanceof RandomNode head) {
+      List<RandomNode> order = new ArrayList<>();
+      Map<RandomNode, Integer> at = new IdentityHashMap<>();
+      for (RandomNode p = head; p != null; p = p.next) {
+        if (order.size() > 2000000) throw new RuntimeException("returned list is too long (a cycle?)");
+        if (givenRandom.contains(p)) throw new RuntimeException("the answer reuses an original node; build new nodes");
+        at.put(p, order.size());
+        order.add(p);
+      }
+      sb.append('[');
+      for (int k = 0; k < order.size(); k++) {
+        if (k > 0) sb.append(',');
+        RandomNode p = order.get(k);
+        sb.append('[').append(p.val).append(',');
+        if (p.random == null) sb.append("null");
+        else if (at.containsKey(p.random)) sb.append(at.get(p.random));
+        else throw new RuntimeException("a random pointer leads outside the returned list");
+        sb.append(']');
       }
       sb.append(']');
     } else if (o instanceof TreeNode root) {
@@ -208,7 +248,7 @@ function functionRun(sig) {
   const reads = sig.params.map((p, i) => `      ${javaType(p.type)} a${i} = ${readerName(p.type)}();`).join("\n");
   const args = sig.params.map((_, i) => `a${i}`).join(", ");
   // An empty list or tree comes back as null; the answer is still [].
-  const emptyNode = ["ListNode", "TreeNode"].includes(sig.returns) ? 'if (res == null) sb.append("[]"); else ' : "";
+  const emptyNode = ["ListNode", "TreeNode", "RandomNode"].includes(sig.returns) ? 'if (res == null) sb.append("[]"); else ' : "";
   return `${readers(types)}
 
   static void run() throws IOException {
