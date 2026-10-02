@@ -6,6 +6,7 @@ from lib import *
 DONE = []
 CUSTOM = {
     "cheapest-pair-totals": [{"a": [1, 3, 8], "b": [2, 4, 9], "k": 5}],
+    "running-middle": [{"readings": [5, 15, 1, 3, 8, 7, 9]}],
 }
 run = make_runner(DONE, CUSTOM)
 
@@ -60,6 +61,24 @@ def cheapest_pair_totals(pid):
         st[(i, j)] = "answer"
         st.update({(r, c): "active" for _, r, c in h})
         W.step(f"Pop {s} (main {A[i]} + side {B[j]}). The heap now holds the next candidates: {sorted(t[0] for t in h)}.", Grid(grid, st, label="a[i] + b[j]"), Row(out, label="cheapest so far"), result=out if len(out) == k else None)
+    assert out == exp
+    return W.save()
+
+
+@run
+def running_middle(pid):
+    a, exp = example(pid)
+    W = Walk(pid, "Keep the lower half in a max-heap and the upper half in a min-heap, with the lower half never smaller. The middle is the top of the lower half.")
+    low, high, out = [], [], []
+    for x in a["readings"]:
+        heapq.heappush(low, -x)
+        heapq.heappush(high, -heapq.heappop(low))
+        moved = len(high) > len(low)
+        if moved:
+            heapq.heappush(low, -heapq.heappop(high))
+        out.append(-low[0])
+        W.step(f"Reading {x} arrives" + (", and the upper half's smallest moves down to keep the halves even" if moved else "") + f". Middle: {-low[0]}.",
+               HP([-t for t in low], {0: "answer"}, label="lower half (max-heap)"), HP(list(high), {0: "active"}, label="upper half (min-heap)") if high else None, Row(out, st={len(out) - 1: "new"}, label="middles"), result=out if len(out) == len(a["readings"]) else None)
     assert out == exp
     return W.save()
 
