@@ -6,10 +6,32 @@ from lib import *
 DONE = []
 
 
-def run(fn):
-    pid = fn.__name__.replace("_", "-")
-    DONE.append((pid, fn(pid)))
-    return fn
+CUSTOM = {
+    "loudest-letters-first": [{"s": "mississippi"}],
+    "matching-rows-and-columns": [{"grid": [[3, 1, 2, 2], [1, 4, 4, 5], [2, 4, 2, 2], [2, 4, 2, 2]]}],
+    "running-balance": [{"changes": [5, -2, 10, -7, 3]}],
+    "range-totals": [{"sales": [3, -1, 4, 1, 5, 9, -2], "queries": [[0, 2], [1, 4], [3, 3], [2, 6]]}],
+    "balance-point": [{"weights": [1, 2, 3, 4, 6]}],
+    "subarrays-hitting-target": [{"nums": [1, 2, 1, 2, 1, 3], "target": 3}],
+    "stadium-sections": [{"n": 6, "groups": [[0, 2, 10], [1, 4, 5], [3, 5, 2]]}],
+    "shuttle-seats": [{"capacity": 5, "trips": [[2, 1, 5], [3, 3, 7], [1, 6, 8]]}],
+    "missing-seat": [{"seats": [3, 0, 1, 5, 2]}],
+    "first-k-missing": [{"nums": [4, 3, 2, 7, 8, 2, 3, 1], "k": 3}],
+    "fewest-swaps-to-sort": [{"order": [2, 3, 1, 5, 4, 7, 6]}],
+    "longest-streak": [{"days": [100, 4, 200, 1, 3, 2, 101, 102, 50]}],
+    "longest-chain-with-step": [{"values": [10, 4, 1, 7, 5, 13, 8, 2, 20, 23], "step": 3}],
+    "influence-score": [{"citations": [3, 0, 6, 1, 5, 4, 8]}],
+    "closest-heights": [{"heights": [170, 182, 165, 180, 176, 190]}],
+    "flip-the-grid": [{"grid": [[1, 2, 3, 4], [5, 6, 7, 8]]}],
+    "first-missing-ticket": [{"nums": [3, 4, -1, 1, 7]}],
+    "swapped-label": [{"labels": [3, 1, 2, 5, 3]}],
+    "two-gifts": [{"prices": [3, 8, 11, 2, 15, 7], "budget": 9}],
+    "rotate-the-carousel": [{"slots": [1, 2, 3, 4, 5, 6, 7], "k": 3}],
+    "next-arrangement": [{"values": [1, 5, 8, 4, 7, 6, 5, 3, 1]}],
+    "next-badge-number": [{"code": "158476531"}],
+    "one-step-back": [{"ratings": [1, 5, 8, 4, 1, 3, 5, 6, 7]}],
+}
+run = make_runner(DONE, CUSTOM)
 
 
 def kv(d, label, st=None):
@@ -658,13 +680,23 @@ def longest_chain_with_step(pid):
 def is_it_a_straight(pid):
     a, exp = example(pid)
     v = a["cards"]
-    W = Walk(pid, "A straight has no repeats and its largest card is exactly n − 1 above its smallest.")
-    ok = len(set(v)) == len(v) and max(v) - min(v) == len(v) - 1
-    W.step(f"{len(v)} cards, {len(set(v))} different; max {max(v)} − min {min(v)} = {max(v) - min(v)}.", Row(v, st={v.index(max(v)): "mark", v.index(min(v)): "mark"}), Vars(needed=len(v) - 1))
-    W.step("It's a straight." if ok else "Not a straight.", Row(sorted(v)), result=ok)
-    W.intro("Sorting would work, but two facts are enough: all different, and max − min = n − 1.", Row(v))
+    W = Walk(pid, "A straight has no repeats and its largest card is exactly n − 1 above its smallest. One pass with a set and running min and max checks both.")
+    seen, lo, hi, ok = [], None, None, True
+    for i, x in enumerate(v):
+        if x in seen:
+            ok = False
+            W.step(f"{x} repeats: not a straight.", Row(v, st={i: "mark", v.index(x): "mark"}), Row(seen, label="seen"), result=False)
+            break
+        seen.append(x)
+        lo = x if lo is None else min(lo, x)
+        hi = x if hi is None else max(hi, x)
+        W.step(f"Card {x}: min {lo}, max {hi}.", Row(v, st={**{k: "found" for k in range(i)}, i: "active"}), Row(seen, label="seen"), Vars(min=lo, max=hi))
+    if ok:
+        ok = hi - lo == len(v) - 1
+        W.step(f"{hi} − {lo} = {hi - lo}, and n − 1 = {len(v) - 1}: " + ("a straight." if ok else "not a straight."), Vars(answer=ok), result=ok)
     assert ok == exp
     return W.save()
+
 
 
 @run
@@ -788,18 +820,21 @@ def blackout_lines(pid):
     a, exp = example(pid)
     g = [r[:] for r in a["grid"]]
     m, n = len(g), len(g[0])
-    W = Walk(pid, "First find every dead pixel's row and column, THEN black them out, so new zeros don't spread further.")
-    rows = {r for r in range(m) for c in range(n) if g[r][c] == 0}
-    cols = {c for r in range(m) for c in range(n) if g[r][c] == 0}
-    W.step(f"Dead pixels are in rows {sorted(rows)} and columns {sorted(cols)}.", Grid(g, {(r, c): "mark" for r in range(m) for c in range(n) if g[r][c] == 0}))
+    W = Walk(pid, "First scan for dead pixels and note their rows and columns; only then black them out, so new zeros don't spread further.")
+    rows, cols = set(), set()
+    for r in range(m):
+        z = [c for c in range(n) if g[r][c] == 0]
+        rows |= {r} if z else set()
+        cols |= set(z)
+        W.step(f"Row {r}: " + (f"dead pixels in columns {z}." if z else "no dead pixels."), Grid(g, {**{(r, c): "active" for c in range(n)}, **{(rr, c): "mark" for rr in range(m) for c in range(n) if a['grid'][rr][c] == 0 and rr <= r}}), Vars(rows=sorted(rows), cols=sorted(cols)))
     for r in range(m):
         for c in range(n):
             if r in rows or c in cols:
                 g[r][c] = 0
-    W.step("Zero those rows and columns.", Grid(g, {(r, c): "dim" for r in range(m) for c in range(n) if r in rows or c in cols}))
-    W.intro("Zeroing as you go would let new zeros spread to rows and columns that shouldn't go dark.", Grid(a["grid"]))
+        W.step(f"Black out row {r}" + (" (it had a dead pixel)." if r in rows else f" in columns {sorted(cols)}."), Grid(g, {(rr, c): "dim" for rr in range(r + 1) for c in range(n) if rr in rows or c in cols}))
     assert g == exp
     return W.save()
+
 
 
 @run
@@ -826,12 +861,13 @@ def rotate_the_photo(pid):
     for r in range(n):
         for c in range(r + 1, n):
             g[r][c], g[c][r] = g[c][r], g[r][c]
-    W.step("Flip over the main diagonal (swap row r, column c with row c, column r).", Grid(g, {(r, c): "new" for r in range(n) for c in range(n) if r != c}))
-    for r in g:
-        r.reverse()
-    W.step("Reverse each row.", Grid(g, {(r, c): "found" for r in range(n) for c in range(n)}))
+            W.step(f"Flip: swap ({r}, {c}) with ({c}, {r}).", Grid(g, {(r, c): "new", (c, r): "new"}))
+    for r in range(n):
+        g[r].reverse()
+        W.step(f"Reverse row {r}.", Grid(g, {(r, c): "new" for c in range(n)}))
     assert g == exp
     return W.save()
+
 
 
 # ======================================================================== rotate-reverse / next-permutation
@@ -839,6 +875,7 @@ def rotate_the_photo(pid):
 def next_perm_steps(W, d, label="values", wrap=True):
     i = len(d) - 2
     while i >= 0 and d[i] >= d[i + 1]:
+        W.step(f"{d[i]} ≥ {d[i + 1]}: still descending from the right, keep scanning.", Row(d, st={i: "active", **{k: "dim" for k in range(i + 1, len(d))}}, label=label))
         i -= 1
     if i < 0:
         W.step("It's fully descending, the last arrangement.", Row(d, label=label))
@@ -846,15 +883,20 @@ def next_perm_steps(W, d, label="values", wrap=True):
             d.reverse()
             W.step("Wrap around to the first arrangement.", Row(d, st={k: "new" for k in range(len(d))}, label=label))
         return None
-    W.step(f"From the right, {d[i]} is the first value smaller than the one after it.", Row(d, st={i: "mark", **{k: "dim" for k in range(i + 1, len(d))}}, label=label))
+    W.step(f"{d[i]} < {d[i + 1]}: position {i} is where the next arrangement differs.", Row(d, st={i: "mark", **{k: "dim" for k in range(i + 1, len(d))}}, label=label))
     j = len(d) - 1
     while d[j] <= d[i]:
         j -= 1
     W.step(f"The smallest value after it that's still bigger is {d[j]}: swap them.", Row(d, st={i: "mark", j: "active"}, label=label))
     d[i], d[j] = d[j], d[i]
-    d[i + 1:] = reversed(d[i + 1:])
-    W.step("Reverse everything after that position so it reads smallest first.", Row(d, st={**{i: "found"}, **{k: "new" for k in range(i + 1, len(d))}}, label=label))
+    lo, hi = i + 1, len(d) - 1
+    while lo < hi:
+        d[lo], d[hi] = d[hi], d[lo]
+        W.step(f"Reverse the tail: swap positions {lo} and {hi}.", Row(d, st={i: "found", lo: "new", hi: "new"}, label=label))
+        lo += 1
+        hi -= 1
     return d
+
 
 
 @run
@@ -884,24 +926,30 @@ def next_badge_number(pid):
 def one_step_back(pid):
     a, exp = example(pid)
     d = list(a["ratings"])
-    W = Walk(pid, "The mirror image of next arrangement: find the rightmost DROP, swap with the largest smaller value after it (last copy), reverse the rest.")
+    W = Walk(pid, "The mirror image of next arrangement: find the rightmost DROP, swap it with the largest smaller value after it (its last copy), then reverse the rest.")
     i = len(d) - 2
     while i >= 0 and d[i] <= d[i + 1]:
+        W.step(f"{d[i]} ≤ {d[i + 1]}: still rising from the right, keep scanning.", Row(d, st={i: "active", **{k: "dim" for k in range(i + 1, len(d))}}))
         i -= 1
     if i < 0:
         W.step("It's the first arrangement (ascending): wrap to the last.", Row(d))
         d.reverse()
     else:
-        W.step(f"From the right, {d[i]} is the first value bigger than the one after it.", Row(d, st={i: "mark"}))
+        W.step(f"{d[i]} > {d[i + 1]}: position {i} is where the previous arrangement differs.", Row(d, st={i: "mark"}))
         j = len(d) - 1
         while d[j] >= d[i]:
             j -= 1
         W.step(f"The largest smaller value after it is {d[j]} (its last copy): swap.", Row(d, st={i: "mark", j: "active"}))
         d[i], d[j] = d[j], d[i]
-        d[i + 1:] = reversed(d[i + 1:])
-        W.step("Reverse the rest so it reads largest first.", Row(d, st={k: "new" for k in range(i + 1, len(d))}))
+        lo, hi = i + 1, len(d) - 1
+        while lo < hi:
+            d[lo], d[hi] = d[hi], d[lo]
+            W.step(f"Reverse the tail: swap positions {lo} and {hi}.", Row(d, st={i: "found", lo: "new", hi: "new"}))
+            lo += 1
+            hi -= 1
     assert d == exp
     return W.save()
+
 
 
 @run
@@ -930,15 +978,21 @@ def rotate_the_carousel(pid):
     v, k = list(a["slots"]), a["k"]
     n = len(v)
     k %= n
-    W = Walk(pid, f"Turning right by {k} = reverse everything, then reverse the first {k} and the last {n - k} separately.")
-    v.reverse()
-    W.step("Reverse the whole list.", Row(v, st={i: "new" for i in range(n)}))
-    v[:k] = reversed(v[:k])
-    W.step(f"Reverse the first {k}.", Row(v, st={i: "new" for i in range(k)}))
-    v[k:] = reversed(v[k:])
-    W.step(f"Reverse the last {n - k}.", Row(v, st={i: "new" for i in range(k, n)}))
+    W = Walk(pid, f"Turning right by {k} = reverse everything, then reverse the first {k} and the last {n - k}. Each reversal swaps pairs from the outside in.")
+
+    def rev(lo, hi, what):
+        while lo < hi:
+            v[lo], v[hi] = v[hi], v[lo]
+            W.step(f"{what}: swap positions {lo} and {hi}.", Row(v, st={lo: "new", hi: "new"}))
+            lo += 1
+            hi -= 1
+
+    rev(0, n - 1, "Reverse all")
+    rev(0, k - 1, f"Reverse the first {k}")
+    rev(k, n - 1, f"Reverse the last {n - k}")
     assert v == exp
     return W.save()
+
 
 
 # ======================================================================== matrix-in-place
@@ -948,14 +1002,16 @@ def colony_next_generation(pid):
     a, exp = example(pid)
     g = a["board"]
     m, n = len(g), len(g[0])
-    W = Walk(pid, "Count each cell's living neighbours on the OLD board, then apply the rules to every cell at once.")
-    counts = [[sum(g[r + dr][c + dc] for dr in (-1, 0, 1) for dc in (-1, 0, 1) if (dr or dc) and 0 <= r + dr < m and 0 <= c + dc < n) for c in range(n)] for r in range(m)]
-    W.step("The board now.", Grid(g, {(r, c): "found" for r in range(m) for c in range(n) if g[r][c]}))
-    W.step("Living neighbours of each cell.", Grid(counts, {(r, c): "found" for r in range(m) for c in range(n) if g[r][c]}))
-    out = [[1 if counts[r][c] == 3 or (counts[r][c] == 2 and g[r][c]) else 0 for c in range(n)] for r in range(m)]
-    W.step("Alive next if 3 neighbours, or alive now with 2.", Grid(out, {(r, c): ("new" if out[r][c] and not g[r][c] else "found" if out[r][c] else ("dim" if g[r][c] else "")) for r in range(m) for c in range(n)}))
+    W = Walk(pid, "Count each cell's living neighbours on the OLD board, then apply the rules. Here it goes one row at a time.")
+    out = [["" for _ in range(n)] for _ in range(m)]
+    for r in range(m):
+        for c in range(n):
+            live = sum(g[r + dr][c + dc] for dr in (-1, 0, 1) for dc in (-1, 0, 1) if (dr or dc) and 0 <= r + dr < m and 0 <= c + dc < n)
+            out[r][c] = 1 if live == 3 or (live == 2 and g[r][c]) else 0
+        W.step(f"Row {r}: each cell survives with 2–3 neighbours or is born with exactly 3.", Grid(g, {**{(rr, c): "found" for rr in range(m) for c in range(n) if g[rr][c]}, **{(r, c): "active" for c in range(n)}}, label="now"), Grid(out, {(r, c): "new" for c in range(n)}, label="next"))
     assert out == exp
     return W.save()
+
 
 
 @run

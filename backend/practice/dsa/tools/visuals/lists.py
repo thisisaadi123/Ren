@@ -5,10 +5,15 @@ from lib import *
 DONE = []
 
 
-def run(fn):
-    pid = fn.__name__.replace("_", "-")
-    DONE.append((pid, fn(pid)))
-    return fn
+CUSTOM = {
+    "flip-in-batches": [{"head": [1, 2, 3, 4, 5, 6, 7, 8], "k": 2}],
+    "flip-a-stretch": [{"head": [1, 2, 3, 4, 5, 6, 7], "left": 2, "right": 6}],
+    "closest-to-zero-first": [{"head": [3, -1, -4, 2, 4, -2, 0, 1]}],
+    "swap-dance-partners": [{"head": [1, 2, 3, 4, 5, 6, 7, 8]}],
+    "tick-the-odometer": [{"head": [3, 4, 9, 9, 9]}],
+    "shift-the-conga-line": [{"head": [1, 2, 3, 4, 5, 6], "k": 8}],
+}
+run = make_runner(DONE, CUSTOM)
 
 
 # ======================================================================== reversal
@@ -274,22 +279,25 @@ def drop_faulty_beads(pid):
 def tick_the_odometer(pid):
     a, exp = example(pid)
     v = list(a["head"])
-    W = Walk(pid, "Find the last digit that isn't 9. Add 1 there and turn every 9 after it into 0.")
+    W = Walk(pid, "Walk the list remembering the last digit that isn't 9. Adding one bumps that digit and turns every 9 after it into 0.")
     last = -1
     for i, d in enumerate(v):
         if d != 9:
             last = i
-    W.step(f"The last non-9 digit is at position {last}" + (f" ({v[last]})." if last >= 0 else ": there isn't one, so a new leading 1 is needed."), L(v, st={**({last: "active"} if last >= 0 else {}), **{i: "mark" for i in range(last + 1, len(v))}}))
+        W.step(f"Digit {d}: " + ("a 9, keep going." if d == 9 else "not a 9, the last non-9 so far."), L(v, st={i: "active", **({last: "mark"} if last >= 0 else {})}, ptr={"cur": i, "last": last if last >= 0 else None}))
     if last >= 0:
         v[last] += 1
+        W.step(f"Add 1 at position {last}.", L(v, st={last: "new"}))
     else:
         v = [1] + v
         last = 0
+        W.step("Every digit is 9: add a new leading 1.", L(v, st={0: "new"}))
     for i in range(last + 1, len(v)):
         v[i] = 0
-    W.step("Add 1 there and zero the rest.", L(v, st={i: "new" for i in range(last, len(v))}))
+        W.step(f"Turn the 9 at position {i} into 0.", L(v, st={i: "new"}))
     assert v == exp
     return W.save()
+
 
 
 @run
@@ -452,15 +460,18 @@ def shift_the_conga_line(pid):
     a, exp = example(pid)
     v, k = a["head"], a["k"]
     n = len(v)
-    W = Walk(pid, "k beats move the last k dancers to the front. Only k mod n matters.")
+    W = Walk(pid, "Count the dancers, reduce k mod n, then walk to the new tail, cut there, and hang the old front after the old tail.")
+    for i in range(n):
+        W.step(f"Counting: {i + 1}.", L(v, st={i: "active"}, ptr={"cur": i}))
     r = k % n if n else 0
-    W.step(f"The line has {n} dancers, so {k} beats act like {r}.", L(v, st={i: "active" for i in range(n - r, n)}))
+    W.step(f"{n} dancers, so {k} beats act like {r}. The new tail is {n - r} dancers from the front.", L(v, st={i: "active" for i in range(n - r, n)}))
     if r:
-        W.step(f"Cut after {v[n - r - 1]} (the new tail) and close the line into a loop.", L(v, st={n - r - 1: "mark", **{i: "active" for i in range(n - r, n)}}, cycle=0))
+        W.step(f"Cut after {v[n - r - 1]} and join the old tail to the old head.", L(v, st={n - r - 1: "mark", **{i: "active" for i in range(n - r, n)}}, cycle=0))
     out = v[n - r:] + v[:n - r]
     W.step(f"{out[0]} is the new head.", L(out, st={0: "answer"}))
     assert out == exp
     return W.save()
+
 
 
 @run
@@ -480,6 +491,30 @@ def fold_the_chain(pid):
             out.append(second[i])
         W.step(f"Weave: take {first[i]}" + (f", then {second[i]}." if i < len(second) else "."), L(out, st={len(out) - 1: "new"}, label="folded"))
     assert out == exp
+    return W.save()
+
+
+@run
+def repeated_ticket_number(pid):
+    a, exp = example(pid)
+    v = a["tickets"]
+    W = Walk(pid, "Read each ticket as a pointer: from index i go to index tickets[i]. The repeated number is where two arrows land on the same index, the entrance of a loop, so Floyd's slow/fast pointers find it.")
+    slow = fast = v[0]
+    W.step("Both start at tickets[0].", Row(v, ptr={"slow": slow, "fast": fast}))
+    while True:
+        slow = v[slow]
+        fast = v[v[fast]]
+        W.step(f"slow → {slow}, fast → {fast}." + (" They meet inside the loop." if slow == fast else ""), Row(v, st={slow: "active"} if slow == fast else {}, ptr={"slow": slow, "fast": fast}))
+        if slow == fast:
+            break
+    slow = v[0]
+    W.step("Send slow back to the start; now move both one step at a time.", Row(v, ptr={"slow": slow, "fast": fast}))
+    while slow != fast:
+        slow = v[slow]
+        fast = v[fast]
+        W.step(f"slow → {slow}, fast → {fast}." + (" They meet at the loop's entrance." if slow == fast else ""), Row(v, ptr={"slow": slow, "fast": fast}))
+    W.step(f"The repeated number is {slow}.", Row(v, st={i: "answer" for i, x in enumerate(v) if x == slow}), result=slow)
+    assert slow == exp
     return W.save()
 
 

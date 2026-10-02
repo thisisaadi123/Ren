@@ -5,10 +5,8 @@ from lib import *
 DONE = []
 
 
-def run(fn):
-    pid = fn.__name__.replace("_", "-")
-    DONE.append((pid, fn(pid)))
-    return fn
+CUSTOM = {}
+run = make_runner(DONE, CUSTOM)
 
 
 def call_text(c):

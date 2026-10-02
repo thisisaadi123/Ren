@@ -5,10 +5,11 @@ from lib import *
 DONE = []
 
 
-def run(fn):
-    pid = fn.__name__.replace("_", "-")
-    DONE.append((pid, fn(pid)))
-    return fn
+CUSTOM = {
+    "archive-shelf-lookup": [{"root": [40, 20, 60, 10, 30, 50, 70], "queries": [[15, 55, 2], [15, 55, 5], [0, 100, 7], [25, 65, 1]]}],
+    "two-misplaced-keys": [{"root": [10, 5, 20, 3, 15, 8, 25]}],
+}
+run = make_runner(DONE, CUSTOM)
 
 
 def search_path(root, x):
@@ -330,17 +331,23 @@ def audio_guide_steps(pid):
 def two_misplaced_keys(pid):
     a, exp = example(pid)
     root = tree(a["root"])
-    W = Walk(pid, "In-order should be increasing. The swapped keys show up as the places where it goes down.")
+    W = Walk(pid, "Walk in order, comparing each key with the one before. The first drop's larger key and the last drop's smaller key were swapped.")
     order = inorder(root)
     vals = [n.val for n in order]
-    drops = [i for i in range(len(vals) - 1) if vals[i] > vals[i + 1]]
-    W.step("In-order reads " + ", ".join(map(str, vals)) + ".", T(root), Row(vals, st={i: "mark" for d in drops for i in (d, d + 1)}, label="in-order"))
-    first, second = order[drops[0]], order[drops[-1] + 1]
-    W.step(f"The first drop's larger key ({first.val}) and the last drop's smaller key ({second.val}) are the swapped pair.", T(root, {first: "mark", second: "mark"}), Row(vals, st={drops[0]: "active", drops[-1] + 1: "active"}, label="in-order"))
+    first = second = None
+    for i in range(1, len(order)):
+        if vals[i - 1] > vals[i]:
+            if first is None:
+                first = order[i - 1]
+            second = order[i]
+            W.step(f"{vals[i - 1]} > {vals[i]}: a drop.", T(root, {order[i - 1]: "mark", order[i]: "mark"}), Row(vals, st={i - 1: "mark", i: "mark"}, label="in-order"))
+        else:
+            W.step(f"{vals[i - 1]} < {vals[i]}: in order.", T(root, {order[i]: "active"}), Row(vals, st={i - 1: "found", i: "found"}, label="in-order"))
     first.val, second.val = second.val, first.val
+    W.step(f"Swap {second.val} and {first.val} back.", T(root, {first: "new", second: "new"}), Row([n.val for n in order], label="in-order"))
     assert level_of(root) == exp
-    W.step("Swap them back.", T(root, {first: "new", second: "new"}), Row([n.val for n in order], label="in-order"))
     return W.save()
+
 
 
 @run
@@ -367,6 +374,58 @@ def crate_pairs_by_weight(pid):
             j -= 1
     W.step(f"The pointers met: {count} pairs.", T(root), result=count)
     assert count == exp
+    return W.save()
+
+
+@run
+def depth_on_arrival(pid):
+    a, exp = example(pid)
+    keys = a["keys"]
+    W = Walk(pid, "Insert the keys one by one, walking down from the root; the depth is the number of nodes on the walk, including the new one.")
+    root, out = None, []
+    for i, k in enumerate(keys):
+        if root is None:
+            root = Node(k)
+            out.append(1)
+            W.step(f"{k} becomes the root, at depth 1.", T(root, {root: "new"}), Row(out, label="depths"))
+            continue
+        n, d, path = root, 1, [root]
+        while True:
+            d += 1
+            side = "left" if k < n.val else "right"
+            nxt = getattr(n, side)
+            if nxt is None:
+                setattr(n, side, Node(k))
+                new = getattr(n, side)
+                break
+            n = nxt
+            path.append(n)
+        out.append(d)
+        W.step(f"{k}: walk {' → '.join(str(p.val) for p in path)}, attach at depth {d}.", T(root, {**{p: "found" for p in path}, new: "new"}), Row(out, st={i: "new"}, label="depths"))
+    assert out == exp
+    return W.save()
+
+
+@run
+def saved_in_preorder(pid):
+    a, exp = example(pid)
+    keys = a["keys"]
+    W = Walk(pid, "Read the keys with a stack of the path so far. A bigger key means we've moved right: pop smaller keys, and the last popped becomes a floor every later key must exceed.")
+    st, floor, ok = [], None, True
+    for i, k in enumerate(keys):
+        if floor is not None and k < floor:
+            ok = False
+            W.step(f"{k} is below the floor {floor}: it would have to be on a left side we already left. Corrupted.", Row(keys, st={i: "mark"}), Row(st, label="stack"), Vars(floor=floor), result=False)
+            break
+        popped = []
+        while st and st[-1] < k:
+            floor = st.pop()
+            popped.append(floor)
+        st.append(k)
+        W.step(f"{k}" + (f": bigger than {popped}, so we moved right; floor is now {floor}." if popped else ": smaller than the top, so it's on a left side."), Row(keys, st={**{j: "found" for j in range(i)}, i: "active"}), Row(st, label="stack"), Vars(floor=floor if floor is not None else "none"))
+    if ok:
+        W.step("Every key respected its floor: a valid preorder.", Row(keys, st={j: "found" for j in range(len(keys))}), result=True)
+    assert ok == exp
     return W.save()
 
 

@@ -7,10 +7,13 @@ from lib import *
 DONE = []
 
 
-def run(fn):
-    pid = fn.__name__.replace("_", "-")
-    DONE.append((pid, fn(pid)))
-    return fn
+CUSTOM = {
+    "largest-pool": [{"walls": [3, 0, 2, 0, 4, 1, 1, 2, 0, 3, 5, 0, 2]}],
+    "shortest-net-gain": [{"changes": [2, -1, 2, 3, -4, 5, 1], "target": 5}],
+    "best-pair-of-posts": [{"posts": [[1, 3], [2, 0], [3, 5], [5, 10], [6, -10], [8, 4]], "k": 3}],
+    "comet-collisions": [{"comets": [5, 10, -5, 3, -12, 8, -8, 6]}],
+}
+run = make_runner(DONE, CUSTOM)
 
 
 def S(text, st=None, ptr=None, label=None):
@@ -670,13 +673,16 @@ def ticket_line(pid):
     a, exp = example(pid)
     v, k = a["wants"], a["k"]
     need = v[k]
-    W = Walk(pid, f"No need to simulate: by the time person {k} buys their last ticket, people up to {k} bought min(want, {need}) and people after bought min(want, {need - 1}).")
-    parts = [min(w, need) if i <= k else min(w, need - 1) for i, w in enumerate(v)]
-    W.step("Tickets each person buys before person k finishes.", Row(v, st={k: "mark"}, label="wants"), Row(parts, label="bought by then"))
-    W.step(f"Seconds = {' + '.join(map(str, parts))} = {sum(parts)}.", Vars(answer=sum(parts)), result=sum(parts))
-    W.intro(f"Each second the front person buys one ticket and rejoins the back if they still want more. Person {k} wants {need}.", Row(v, st={k: "mark"}, label="wants"))
+    W = Walk(pid, f"No need to simulate every second. By the time person {k} buys their last ticket, people up to {k} have bought min(want, {need}), and people after them min(want, {need - 1}).")
+    parts = []
+    for i, w in enumerate(v):
+        got = min(w, need) if i <= k else min(w, need - 1)
+        parts.append(got)
+        W.step(f"Person {i} wants {w}: buys {got} by then ({'at or before' if i <= k else 'after'} person {k}). Seconds so far {sum(parts)}.", Row(v, st={i: "active", k: "mark"}, label="wants"), Row(parts, label="bought by then"))
+    W.step(f"Total: {sum(parts)} seconds.", Vars(answer=sum(parts)), result=sum(parts))
     assert sum(parts) == exp
     return W.save()
+
 
 
 @run

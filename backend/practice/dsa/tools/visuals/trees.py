@@ -5,11 +5,24 @@ from lib import *
 DONE = []
 
 
-def run(fn):
-    pid = fn.__name__.replace("_", "-")
-    n = fn(pid)
-    DONE.append((pid, n))
-    return fn
+CUSTOM = {
+    "widest-floor": [{"root": [1, 3, 2, 5, 3, None, 9, 6, None, None, None, None, None, 7]}],
+    "shallowest-leaf": [{"root": [2, None, 3, None, 4, None, 5, None, 6]}],
+    "average-per-floor": [{"root": [3, 9, 20, 1, None, 15, 7, None, 2, None, None, 8]}],
+    "zigzag-floors": [{"root": [3, 9, 20, 1, 4, 15, 7, 6, None, None, None, 5]}],
+    "mirror-trails": [{"root": [2, 3, 1, 3, 1, 4, 1, None, None, 2, 3]}],
+    "smallest-leaf-word": [{"root": [25, 1, 3, 1, 3, 0, 2, 4, None, None, None, None, 7]}],
+    "right-side-view": [{"root": [1, 2, 3, 4, 5, None, 6, 7, None, None, 8]}],
+    "nearest-exit": [{"root": [1, None, 2, None, 3, None, 4, None, 5, None, 6], "start": 3}],
+    "twin-trees": [{"a": [1, 2, 3, 4, 5, 6, 7], "b": [1, 2, 3, 4, 5, 6, 7]}],
+    "mirror-image-check": [{"root": [1, 2, 2, 3, 4, 4, 3, 5, None, None, 6, 6, None, None, 5]}],
+    "shared-ancestor-queries": [{"parent": [-1, 0, 0, 1, 1, 2, 2, 3, 3, 6], "queries": [[7, 8], [7, 4], [8, 9], [4, 5], [9, 6]]}],
+    "hops-between-nodes": [{"root": [3, 5, 1, 6, 2, 0, 8, None, None, 7, 4], "p": 7, "q": 8}],
+    "ancestor-or-none": [{"root": [3, 5, 1, 6, 2, 0, 8, None, None, 7, 4], "p": 7, "q": 4}],
+    "tree-outline": [{"root": [1, 2, 3, 4, 5, 6, None, None, None, 7, 8, 9, 10]}],
+    "longest-zigzag-walk": [{"root": [1, 1, 1, None, 1, None, None, 1, 1, None, 1]}],
+}
+run = make_runner(DONE, CUSTOM)
 
 
 def _left_edge(n):
@@ -533,25 +546,30 @@ def hops_between_nodes(pid):
     p, q = a["p"], a["q"]
     byv = nodes_by_val(root)
     par, dep = parents(root), depth_map(root)
-    W = Walk(pid, f"The route from {p} to {q} climbs to where their paths split, then goes down.")
+    W = Walk(pid, f"Climb from the deeper of {p} and {q} until both are at the same depth, then climb both together until they meet. Each climb is one hop.")
     x, y = byv[p], byv[q]
-    W.step(f"{p} is at depth {dep[id(x)]} and {q} at depth {dep[id(y)]}.", T(root, {x: "mark", y: "mark"}, {n: dep[id(n)] for n in bfs_nodes(root)}))
-    a1, b1 = x, y
-    while dep[id(a1)] > dep[id(b1)]:
-        a1 = par[id(a1)]
-    while dep[id(b1)] > dep[id(a1)]:
-        b1 = par[id(b1)]
+    notes = {n: dep[id(n)] for n in bfs_nodes(root)}
+    W.step(f"{p} is at depth {dep[id(x)]} and {q} at depth {dep[id(y)]} (notes are depths).", T(root, {x: "mark", y: "mark"}, notes))
+    a1, b1, hops, trail = x, y, 0, set()
+    while dep[id(a1)] > dep[id(b1)] or dep[id(b1)] > dep[id(a1)]:
+        if dep[id(a1)] > dep[id(b1)]:
+            trail.add(a1)
+            a1 = par[id(a1)]
+        else:
+            trail.add(b1)
+            b1 = par[id(b1)]
+        hops += 1
+        W.step(f"Even out the depths: climb to {a1.val if a1 not in trail else b1.val}. Hops so far {hops}.", T(root, {**{n: "found" for n in trail}, a1: "active", b1: "active", x: "mark", y: "mark"}, notes))
     while a1 is not b1:
+        trail.add(a1)
+        trail.add(b1)
         a1, b1 = par[id(a1)], par[id(b1)]
-    path = set()
-    for s in (x, y):
-        while s is not a1:
-            path.add(s)
-            s = par[id(s)]
-    h = dep[id(x)] + dep[id(y)] - 2 * dep[id(a1)]
-    W.step(f"Their paths meet at {a1.val}, depth {dep[id(a1)]}. Hops = {dep[id(x)]} + {dep[id(y)]} − 2 × {dep[id(a1)]} = {h}.", T(root, {**{n: "found" for n in path}, a1: "answer", x: "mark", y: "mark"}), result=h)
-    assert h == exp
+        hops += 2
+        W.step(f"Climb both: now at {a1.val} and {b1.val}. Hops so far {hops}.", T(root, {**{n: "found" for n in trail}, a1: "active", b1: "active", x: "mark", y: "mark"}, notes))
+    W.step(f"They meet at {a1.val}: {hops} hops.", T(root, {**{n: "found" for n in trail}, a1: "answer", x: "mark", y: "mark"}, notes), result=hops)
+    assert hops == exp
     return W.save(mark=["p", "q"])
+
 
 
 @run
@@ -585,19 +603,20 @@ def ancestor_or_none(pid):
     a, exp = example(pid)
     root = tree(a["root"])
     p, q = a["p"], a["q"]
-    W = Walk(pid, f"Count, in one full pass, how many of {p} and {q} each subtree contains. The lowest node with a count of 2 is the answer.")
-    cnt = {}
-    ans = None
+    W = Walk(pid, f"One full post-order pass counts how many of {p} and {q} each subtree holds (notes). The lowest node whose count reaches 2 is the answer; if none does, one is missing.")
+    cnt, ans = {}, None
     for n in postorder(root):
         c = (n.val == p) + (n.val == q) + (cnt.get(id(n.left), 0) if n.left else 0) + (cnt.get(id(n.right), 0) if n.right else 0)
         cnt[id(n)] = c
+        notes = {m: cnt[id(m)] for m in bfs_nodes(root) if id(m) in cnt}
         if c == 2 and ans is None:
             ans = n
-            W.step(f"{n.val}'s subtree holds both, the first to do so: the answer is {n.val}.", T(root, {n: "answer"}, {m: cnt[id(m)] for m in bfs_nodes(root) if id(m) in cnt}))
+            W.step(f"{n.val}'s subtree holds both: it's the lowest common node.", T(root, {n: "answer"}, notes))
             break
-        if c:
-            W.step(f"{n.val}'s subtree holds {c} of the two.", T(root, {n: "active"}, {m: cnt[id(m)] for m in bfs_nodes(root) if id(m) in cnt}))
+        W.step(f"{n.val}'s subtree holds {c} of the two" + (" (it is one of them)." if n.val in (p, q) else "."), T(root, {**{m: "found" for m in bfs_nodes(root) if cnt.get(id(m))}, n: "active"}, notes))
     res = ans.val if ans else -1
+    if ans is None:
+        W.step("No subtree holds both: -1.", T(root), result=-1)
     assert res == exp
     return W.save(mark=["p", "q"], answer="nodes")
 
@@ -608,28 +627,31 @@ def ancestor_or_none(pid):
 def tree_outline(pid):
     a, exp = example(pid)
     root = tree(a["root"])
-    W = Walk(pid, "The outline is the root, the left edge, the leaves, then the right edge from the bottom up.")
-    out = [root.val]
-    W.step("Start with the root.", T(root, {root: "answer"}), Row(out, label="outline"))
-    edge = []
-    n = root.left
-    while n and not leaf(n):
-        edge.append(n)
-        n = n.left or n.right
-    out += [x.val for x in edge]
-    W.step("Left edge: " + (", ".join(str(x.val) for x in edge) if edge else "empty (no left child, or it's a leaf)") + ".", T(root, {root: "answer", **{x: "active" for x in edge}}), Row(out, label="outline"))
-    leaves = [x for x in preorder(root) if leaf(x) and x is not root]
-    out += [x.val for x in leaves]
-    W.step("Leaves, left to right: " + ", ".join(str(x.val) for x in leaves) + ".", T(root, {**{x: "found" for x in edge}, root: "answer", **{x: "active" for x in leaves}}), Row(out, label="outline"))
-    right = []
-    n = root.right
-    while n and not leaf(n):
-        right.append(n)
-        n = n.right or n.left
-    out += [x.val for x in reversed(right)]
-    W.step("Right edge, bottom to top: " + (", ".join(str(x.val) for x in reversed(right)) if right else "empty") + ".", T(root, {**{x: "found" for x in edge + leaves}, root: "answer", **{x: "active" for x in right}}), Row(out, label="outline"))
+    W = Walk(pid, "The outline is the root, the left edge going down, every leaf left to right, then the right edge coming back up.")
+    out, st = [root.val], {root: "answer"}
+    W.step("Start with the root.", T(root, dict(st)), Row(out, label="outline"))
+    if not leaf(root):
+        n = root.left
+        while n and not leaf(n):
+            out.append(n.val)
+            st[n] = "found"
+            W.step(f"Left edge: {n.val}.", T(root, {**st, n: "active"}), Row(out, label="outline"))
+            n = n.left or n.right
+        for x in [m for m in preorder(root) if leaf(m) and m is not root]:
+            out.append(x.val)
+            st[x] = "found"
+            W.step(f"Leaf {x.val}.", T(root, {**st, x: "active"}), Row(out, label="outline"))
+        right, n = [], root.right
+        while n and not leaf(n):
+            right.append(n)
+            n = n.right or n.left
+        for x in reversed(right):
+            out.append(x.val)
+            st[x] = "found"
+            W.step(f"Right edge, coming up: {x.val}.", T(root, {**st, x: "active"}), Row(out, label="outline"))
     assert out == exp
     return W.save()
+
 
 
 @run
@@ -1241,30 +1263,24 @@ def coin_moves(pid):
 def longest_zigzag_walk(pid):
     a, exp = example(pid)
     root = tree(a["root"])
-    W = Walk(pid, "Carry the length of the zigzag that arrives at each node. Turning extends it; going the same way starts again at 1.")
-    best = 0
-    length = {id(root): 0}
-    order = [(root, 0)]
+    W = Walk(pid, "Carry, into each node, the length of the zigzag that arrives there: turning extends it by 1, going the same way starts over at 1.")
+    best, length, seen = 0, {}, []
     stack = [(root, 0, 0)]
-    seen = []
     while stack:
         n, came, ln = stack.pop()
         length[id(n)] = ln
         best = max(best, ln)
         seen.append(n)
-        if n.left:
-            stack.append((n.left, -1, ln + 1 if came == 1 else 1))
+        how = "the start" if n is root else ("a turn, so the zigzag grows" if ln > 1 else "a first step, or the same direction twice, so it starts at 1")
+        W.step(f"Arrive by {how}: length {ln}. Longest {best}.", T(root, {**{m: "found" for m in seen[:-1]}, n: "active"}, {m: length[id(m)] for m in seen}))
         if n.right:
             stack.append((n.right, 1, ln + 1 if came == -1 else 1))
-    W.step("Each note is the length of the zigzag that ends at that node.", T(root, nt={n: length[id(n)] for n in bfs_nodes(root)}))
-    end = max(bfs_nodes(root), key=lambda n: length[id(n)])
-    path = [end]
-    par = parents(root)
-    while length[id(path[-1])] > 0 and len(path) <= length[id(end)]:
-        path.append(par[id(path[-1])])
-    W.step(f"The longest ends at a node with length {best}.", T(root, {**{n: "found" for n in path}, end: "answer"}, {n: length[id(n)] for n in bfs_nodes(root)}), result=best)
+        if n.left:
+            stack.append((n.left, -1, ln + 1 if came == 1 else 1))
+    W.step(f"The longest zigzag has {best} edges.", T(root, {m: ("answer" if length[id(m)] == best else "") for m in seen}, {m: length[id(m)] for m in seen}), result=best)
     assert best == exp
     return W.save()
+
 
 
 @run

@@ -6,10 +6,13 @@ from lib import *
 DONE = []
 
 
-def run(fn):
-    pid = fn.__name__.replace("_", "-")
-    DONE.append((pid, fn(pid)))
-    return fn
+CUSTOM = {
+    "best-sales-week": [{"sales": [4, -2, 7, 1, -5, 3, 6, -1, 2], "k": 3}],
+    "shortest-trail-window": [{"s": "abcdebdbdeabde", "t": "bde"}],
+    "products-under-a-cap": [{"factors": [10, 5, 2, 6, 3, 1], "cap": 100}],
+    "variety-per-window": [{"items": [1, 2, 1, 3, 4, 2, 3, 3], "k": 3}],
+}
+run = make_runner(DONE, CUSTOM)
 
 
 def win(cells, lo, hi, st=None, label=None, extra_ptr=None):
@@ -313,12 +316,12 @@ def every_flavour_sampler(pid):
 
 @run
 def balance_the_quartet(pid):
-    a, exp = example(pid, 2)
+    a, exp = example(pid)
     s = a["s"]
     n = len(s)
     q = n // 4
     out = Counter(s)
-    W = Walk(pid, f"Using example 3. Each voice needs {q}. A piece works if every voice OUTSIDE it appears at most {q} times; the piece can then be rewritten to fix the rest.")
+    W = Walk(pid, f"Each voice needs {q}. A piece works if every voice OUTSIDE it appears at most {q} times; the piece can then be rewritten to fix the rest.")
     if all(out[c] == q for c in "SATB"):
         W.step("Already balanced.", Row(list(s)), result=0)
         assert exp == 0

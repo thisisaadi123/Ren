@@ -7,10 +7,11 @@ from design import Trie
 DONE = []
 
 
-def run(fn):
-    pid = fn.__name__.replace("_", "-")
-    DONE.append((pid, fn(pid)))
-    return fn
+CUSTOM = {
+    "count-pattern-matches": [{"words": ["cat", "car", "cut", "cart", "cot"], "patterns": ["ca.", "c.t", "..rt", "c..", "x.."]}],
+    "xor-under-a-cap": [{"nums": [0, 1, 2, 3, 4], "queries": [[3, 1], [1, 3], [5, 6], [6, 2]]}],
+}
+run = make_runner(DONE, CUSTOM)
 
 
 @run

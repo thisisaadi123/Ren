@@ -6,10 +6,17 @@ from lib import *
 DONE = []
 
 
-def run(fn):
-    pid = fn.__name__.replace("_", "-")
-    DONE.append((pid, fn(pid)))
-    return fn
+CUSTOM = {
+    "one-slip-palindrome": [{"s": "levexvel"}],
+    "cut-out-the-middle": [{"s": "abxyzcdcba"}],
+    "justify-the-column": [{"words": ["the", "quick", "brown", "fox", "jumps", "over", "a", "lazy", "dog"], "width": 12}],
+    "unpack-the-bundle": [{"bundle": "3#a#10#2#hi4#ab#c"}],
+    "shared-tune": [{"a": "abcdxyzpq", "b": "zpqxyzabcd"}],
+    "scrambled-name-tag": [{"a": "Listen", "b": "Silent"}],
+    "repeating-unit": [{"s": "abcabcabcabc"}],
+    "front-padding": [{"s": "aacecaaa"}],
+}
+run = make_runner(DONE, CUSTOM)
 
 
 def S(text, st=None, ptr=None, label=None):
@@ -90,30 +97,42 @@ def repaint_the_letters(pid):
 def scrambled_name_tag(pid):
     a, exp = example(pid)
     x, y = a["a"], a["b"]
-    W = Walk(pid, "Ignore spaces and case, then compare letter counts.")
-    cx = Counter(c for c in x.lower() if c != " ")
-    cy = Counter(c for c in y.lower() if c != " ")
-    W.step("Letter counts of a.", S(x, label="a"), kv(dict(sorted(cx.items())), "counts"))
-    W.step("Letter counts of b.", S(y, label="b"), kv(dict(sorted(cy.items())), "counts"))
-    ok = cx == cy
-    W.step("The counts match." if ok else "The counts differ.", Vars(answer=ok), result=ok)
+    W = Walk(pid, "Ignore spaces and case. Add one for each letter of a, take one away for each letter of b; scrambles end with every count at zero.")
+    c = Counter()
+    for i, ch in enumerate(x):
+        if ch != " ":
+            c[ch.lower()] += 1
+            W.step(f"a: +1 for \"{ch.lower()}\".", S(x, st={i: "active"}, label="a"), Row([f"{k}:{v}" for k, v in sorted(c.items())], label="counts"))
+    for i, ch in enumerate(y):
+        if ch != " ":
+            c[ch.lower()] -= 1
+            W.step(f"b: −1 for \"{ch.lower()}\".", S(y, st={i: "active"}, label="b"), Row([f"{k}:{v}" for k, v in sorted(c.items())], label="counts"))
+    ok = all(v == 0 for v in c.values())
+    W.step("Every count is zero: scrambles." if ok else "Some count isn't zero: not scrambles.", Vars(answer=ok), result=ok)
     assert ok == exp
     return W.save()
+
 
 
 @run
 def swap_and_relabel(pid):
     a, exp = example(pid)
     x, y = a["a"], a["b"]
-    W = Walk(pid, "Swaps let you reorder freely; relabels let you trade counts between letters already present. So: same letters, and the same multiset of counts.")
-    cx, cy = Counter(x), Counter(y)
-    W.step("Counts of a and of b.", kv(dict(sorted(cx.items())), "a"), kv(dict(sorted(cy.items())), "b"))
+    W = Walk(pid, "Swaps reorder freely; relabels trade counts between letters already present. So both words need the same letters and the same multiset of counts.")
+    cx, cy = Counter(), Counter()
+    for i, ch in enumerate(x):
+        cx[ch] += 1
+        W.step(f"Count a's \"{ch}\".", S(x, st={i: "active"}, label="a"), Row([f"{k}:{v}" for k, v in sorted(cx.items())], label="a counts"))
+    for i, ch in enumerate(y):
+        cy[ch] += 1
+        W.step(f"Count b's \"{ch}\".", S(y, st={i: "active"}, label="b"), Row([f"{k}:{v}" for k, v in sorted(cy.items())], label="b counts"))
     same_letters = set(cx) == set(cy)
     same_counts = sorted(cx.values()) == sorted(cy.values())
     ok = same_letters and same_counts
-    W.step(f"Same set of letters: {same_letters}. Same counts once sorted ({sorted(cx.values())} vs {sorted(cy.values())}): {same_counts}.", Vars(answer=ok), result=ok)
+    W.step(f"Same letters: {same_letters}. Same counts once sorted ({sorted(cx.values())} vs {sorted(cy.values())}): {same_counts}.", Vars(answer=ok), result=ok)
     assert ok == exp
     return W.save()
+
 
 
 @run
@@ -179,35 +198,42 @@ def palindrome_census(pid):
 def longest_echo(pid):
     a, exp = example(pid)
     s = a["s"]
-    W = Walk(pid, "Expand from every centre; remember the longest palindrome reached.")
-    best = [0]
-
-    def found(l, r):
-        if r - l + 1 > best[0]:
-            best[0] = r - l + 1
-            W.step(f"\"{s[l:r + 1]}\": length {best[0]}, the longest so far.", S(s, st={i: "answer" for i in range(l, r + 1)}))
-
-    centers(W, s, found)
-    assert best[0] == exp
+    W = Walk(pid, "Try every centre (each letter, and each gap between letters) and expand while both ends match. Keep the longest.")
+    best = 0
+    for c in range(2 * len(s) - 1):
+        l, r = c // 2, c // 2 + c % 2
+        while l >= 0 and r < len(s) and s[l] == s[r]:
+            l -= 1
+            r += 1
+        length = r - l - 1
+        if length > best:
+            best = length
+        where = f"letter {c // 2}" if c % 2 == 0 else f"the gap after {c // 2}"
+        W.step(f"Centre at {where}: expands to length {length}. Longest {best}.", S(s, st={i: ("answer" if length == best else "active") for i in range(l + 1, r)} if length else {}))
+    assert best == exp
     return W.save()
+
 
 
 @run
 def longest_echo_text(pid):
     a, exp = example(pid)
     s = a["s"]
-    W = Walk(pid, "Expand from every centre, left to right; keep the first palindrome of the greatest length.")
-    best = [""]
-    pos = [len(s)]
-
-    def found(l, r):
-        if r - l + 1 > len(best[0]) or (r - l + 1 == len(best[0]) and l < pos[0]):
-            best[0], pos[0] = s[l:r + 1], l
-            W.step(f"\"{best[0]}\" is the best so far.", S(s, st={i: "answer" for i in range(l, r + 1)}))
-
-    centers(W, s, found)
-    assert best[0] == exp
+    W = Walk(pid, "Try every centre left to right and expand while both ends match. Keep the first palindrome of the greatest length.")
+    best, at = "", len(s)
+    for c in range(2 * len(s) - 1):
+        l, r = c // 2, c // 2 + c % 2
+        while l >= 0 and r < len(s) and s[l] == s[r]:
+            l -= 1
+            r += 1
+        cand = s[l + 1:r]
+        if len(cand) > len(best) or (len(cand) == len(best) and l + 1 < at):
+            best, at = cand, l + 1
+        where = f"letter {c // 2}" if c % 2 == 0 else f"the gap after {c // 2}"
+        W.step(f"Centre at {where}: \"{cand}\". Best \"{best}\".", S(s, st={i: ("answer" if cand == best and l + 1 == at else "active") for i in range(l + 1, r)} if cand else {}))
+    assert best == exp
     return W.save()
+
 
 
 # ======================================================================== palindrome-checks
@@ -264,20 +290,22 @@ def cut_out_the_middle(pid):
     a, exp = example(pid)
     s = a["s"]
     n = len(s)
-    W = Walk(pid, "Keep matching letters from both ends. The cut must lie in the middle that's left; keep the longest palindrome at either end of that middle.")
+    W = Walk(pid, "Match letters from both ends as long as they agree. The cut must lie in the middle that's left; keep the longest palindrome at either end of that middle.")
     i = 0
     while i < n - 1 - i and s[i] == s[n - 1 - i]:
+        W.step(f"\"{s[i]}\" at both ends: keep them.", S(s, st={**{k: "found" for k in range(i)}, **{n - 1 - k: "found" for k in range(i)}, i: "active", n - 1 - i: "active"}))
         i += 1
     mid = s[i:n - i]
-    W.step(f"{i} pair{'s' if i != 1 else ''} match from the ends. The middle is \"{mid}\".", S(s, st={**{k: "found" for k in range(i)}, **{n - 1 - k: "found" for k in range(i)}, **{k: "active" for k in range(i, n - i)}}))
-    pre = max((L_ for L_ in range(len(mid) + 1) if mid[:L_] == mid[:L_][::-1]), default=0)
-    suf = max((L_ for L_ in range(len(mid) + 1) if mid[len(mid) - L_:] == mid[len(mid) - L_:][::-1]), default=0)
-    keep = max(pre, suf)
-    cut = len(mid) - keep
-    W.step(f"Longest palindrome at the start of the middle: {pre}; at the end: {suf}. Keep {keep}, cut {cut}.",
-           S(s, st={**{k: "dim" for k in range(i + (pre if pre >= suf else 0), n - i - (suf if suf > pre else 0))}}), result=cut)
+    W.step(f"The ends disagree. The middle left is \"{mid}\".", S(s, st={k: "mark" for k in range(i, n - i)}))
+    pre = max(L_ for L_ in range(len(mid) + 1) if mid[:L_] == mid[:L_][::-1])
+    W.step(f"Longest palindrome at the start of the middle: \"{mid[:pre]}\" ({pre}).", S(mid, st={k: "found" for k in range(pre)}, label="middle"))
+    suf = max(L_ for L_ in range(len(mid) + 1) if mid[len(mid) - L_:] == mid[len(mid) - L_:][::-1])
+    W.step(f"Longest palindrome at its end: \"{mid[len(mid) - suf:]}\" ({suf}).", S(mid, st={k: "found" for k in range(len(mid) - suf, len(mid))}, label="middle"))
+    cut = len(mid) - max(pre, suf)
+    W.step(f"Keep the longer one; cut the other {cut} letter{'s' if cut != 1 else ''}.", Vars(cut=cut), result=cut)
     assert cut == exp
     return W.save()
+
 
 
 # ======================================================================== parsing-simulation
@@ -446,30 +474,45 @@ def repeating_unit(pid):
     a, exp = example(pid)
     s = a["s"]
     n = len(s)
-    lps = lps_table(s)
-    W = Walk(pid, "The longest border of the whole strip tells the shortest period: n − border. It's a true repeating block only if it divides n.")
-    W.step("Border lengths.", S(s), Row(lps, label="border"))
+    W = Walk(pid, "Build KMP's border table: border[i] is the longest proper prefix of s[0..i] that is also its suffix. The whole string's border gives the shortest period.")
+    lps, k = [0] * n, 0
+    for i in range(1, n):
+        while k and s[i] != s[k]:
+            k = lps[k - 1]
+        if s[i] == s[k]:
+            k += 1
+        lps[i] = k
+        W.step(f"border[{i}] = {k}" + (f": \"{s[:k]}\" starts and ends s[0..{i}]." if k else "."), S(s, st={**{j: "found" for j in range(k)}, **{j: "active" for j in range(i - k + 1, i + 1)}}), Row(lps[:i + 1], label="border"))
     p = n - lps[-1]
     res = p if n % p == 0 else n
-    W.step(f"Border {lps[-1]}, so the period is {n} − {lps[-1]} = {p}. {'It divides' if n % p == 0 else 'It does not divide'} {n}: answer {res}.", S(s, st={i: "answer" for i in range(res)}), result=res)
+    W.step(f"Period {n} − {lps[-1]} = {p}; {'it divides' if n % p == 0 else 'it does not divide'} {n}, so the answer is {res}.", S(s, st={i: "answer" for i in range(res)}), result=res)
     assert res == exp
     return W.save()
+
 
 
 @run
 def front_padding(pid):
     a, exp = example(pid)
     s = a["s"]
-    W = Walk(pid, "Find the longest palindrome at the START of s: run KMP's border table on s + \"#\" + reverse(s). Then copy the rest, reversed, to the front.")
+    W = Walk(pid, "The longest palindrome at the start of s is the last border of s + \"#\" + reverse(s). Build that border table, then copy the rest of s, reversed, to the front.")
     t = s + "#" + s[::-1]
-    lps = lps_table(t)
-    W.step("Border table of s#reverse(s).", S(t), Row(lps, label="border"))
+    lps, k = [0] * len(t), 0
+    for i in range(1, len(t)):
+        while k and t[i] != t[k]:
+            k = lps[k - 1]
+        if t[i] == t[k]:
+            k += 1
+        lps[i] = k
+        if i > len(s):
+            W.step(f"border[{i}] = {k}.", S(t, st={**{j: "found" for j in range(k)}, i: "active"}), Row(lps[:i + 1], label="border"))
     k = lps[-1]
-    W.step(f"The last border is {k}: \"{s[:k]}\" is the longest palindromic start.", S(s, st={i: "found" for i in range(k)}))
+    W.step(f"\"{s[:k]}\" is the longest palindromic start.", S(s, st={i: "found" for i in range(k)}))
     res = s[k:][::-1] + s
     W.step(f"Add \"{s[k:][::-1]}\" to the front: \"{res}\".", S(res, st={i: "new" for i in range(len(s) - k)}), result=res)
     assert res == exp
     return W.save()
+
 
 
 # ======================================================================== rolling-hash

@@ -5,10 +5,23 @@ from lib import *
 DONE = []
 
 
-def run(fn):
-    pid = fn.__name__.replace("_", "-")
-    DONE.append((pid, fn(pid)))
-    return fn
+CUSTOM = {
+    "budget-pair": [{"prices": [1, 3, 4, 6, 8, 11, 15], "budget": 10}],
+    "closest-pair-sum": [{"nums": [-7, -3, 0, 2, 5, 9, 12], "target": 4}],
+    "reverse-letters-only": [{"text": "Ab-cD=ef-Gh"}],
+    "fewest-swaps-to-palindrome": [{"word": "aabbcc"}, {"word": "mamad"}],
+    "triples-under-a-cap": [{"values": [-2, 0, 1, 3, 4, -1], "cap": 3}],
+    "triples-in-a-band": [{"values": [1, 2, 3, 4, 5], "low": 7, "high": 10}],
+    "three-weights": [{"weights": [4, 9, 2, 7, 1, 12, 3], "target": 24}],
+    "closest-triple-sum": [{"values": [-4, -1, 1, 2, 6, 9], "target": 5}],
+    "hidden-word": [{"word": "rena", "text": "recentgains"}],
+    "count-hidden-words": [{"text": "abcdefg", "words": ["a", "bb", "ace", "gfe", "bdf", "acg"]}],
+    "longest-word-by-deleting": [{"text": "abpcplea", "dictionary": ["ale", "apple", "monkey", "plea", "pal", "bpc"]}],
+    "pairs-within-budget": [{"mains": [3, 5, 8, 12, 15], "sides": [1, 2, 4, 7, 9], "budget": 13}],
+    "sort-k-colours": [{"balls": [3, 1, 4, 2, 5, 2, 4, 1, 3, 5], "k": 5}],
+    "fewest-swaps-three-colours": [{"balls": [2, 0, 1, 2, 1, 0, 0, 2, 1]}],
+}
+run = make_runner(DONE, CUSTOM)
 
 
 def S(text, st=None, ptr=None, label=None):
@@ -164,6 +177,7 @@ def fewest_swaps_to_palindrome(pid):
         W.step(f"Move the partner of {s[i]} from position {k} to {j}: {j - k} swap{'s' if j - k != 1 else ''}.", S(s, st={i: "found", j: "found"}, ptr={"i": i, "j": j}), Vars(moves=moves))
         i += 1
         j -= 1
+    W.intro("Work from the outside in. Bringing a letter's partner to the far end costs one swap per position it moves.", S(a["word"]))
     assert moves == exp
     return W.save()
 
@@ -229,25 +243,29 @@ def triples_under_a_cap(pid):
 def triples_in_a_band(pid):
     a, exp = example(pid)
     v, lo, hi = sorted(a["values"]), a["low"], a["high"]
-    W = Walk(pid, f"Count triples with sum < {hi + 1}, subtract those with sum < {lo}. Each count is the two-pointer sweep.")
+    W = Walk(pid, f"Count triples with sum < {hi + 1}, then subtract those with sum < {lo}. Each count is a two-pointer sweep for every first value.")
 
-    def below(cap, show):
+    def below(cap):
         c = 0
         for i in range(len(v) - 2):
             j, k = i + 1, len(v) - 1
             while j < k:
-                if v[i] + v[j] + v[k] < cap:
+                s = v[i] + v[j] + v[k]
+                if s < cap:
                     c += k - j
+                    W.step(f"Sum below {cap}: {v[i]} + {v[j]} + {v[k]} = {s}, so all {k - j} choices up to hi work. Count {c}.", ksum_frame(v, i, j, k))
                     j += 1
                 else:
+                    W.step(f"Sum below {cap}: {v[i]} + {v[j]} + {v[k]} = {s} is too big, move hi left.", ksum_frame(v, i, j, k))
                     k -= 1
-        W.step(f"Triples with sum below {cap}: {c}.", Row(v), Vars(**{f"below_{cap}": c}))
         return c
 
-    res = below(hi + 1, True) - below(lo, True)
-    W.step(f"In the band: {res}.", Row(v), result=res)
+    up, down = below(hi + 1), below(lo)
+    res = up - down
+    W.step(f"{up} − {down} = {res} triples in the band.", Vars(answer=res), result=res)
     assert res == exp
     return W.save()
+
 
 
 @run
@@ -586,21 +604,23 @@ def fewest_swaps_three_colours(pid):
     c = [v.count(i) for i in range(3)]
     zone = [0] * c[0] + [1] * c[1] + [2] * c[2]
     m = [[0] * 3 for _ in range(3)]
-    for z, x in zip(zone, v):
+    for i, (z, x) in enumerate(zip(zone, v)):
         m[z][x] += 1
-    W.step(f"Target zones: {c[0]} zeros, then {c[1]} ones, then {c[2]} twos.", Row(v, st={i: ("found" if v[i] == zone[i] else "mark") for i in range(len(v))}), Row(zone, label="target"))
+        W.step(f"Position {i} is in the {z}-zone and holds a {x}" + (": already right." if z == x else ": misplaced."), Row(v, st={**{k: ("found" if v[k] == zone[k] else "mark") for k in range(i)}, i: "active"}), Row(zone, label="target zone"))
     swaps = 0
     for x, y in ((0, 1), (0, 2), (1, 2)):
         d = min(m[x][y], m[y][x])
         swaps += d
         m[x][y] -= d
         m[y][x] -= d
-    W.step(f"Pairs that can swap straight into place: {swaps} swap{'s' if swaps != 1 else ''}.", Vars(direct_swaps=swaps))
+        if d:
+            W.step(f"{d} {x} ↔ {y} pair{'s' if d != 1 else ''} swap straight into place. Swaps {swaps}.", Vars(swaps=swaps))
     left = sum(m[x][y] for x in range(3) for y in range(3) if x != y)
     swaps += 2 * (left // 3)
     W.step(f"{left} balls remain in {left // 3} three-way cycle{'s' if left // 3 != 1 else ''}, 2 swaps each. Total {swaps}.", Vars(total=swaps), result=swaps)
     assert swaps == exp
     return W.save()
+
 
 
 if __name__ == "__main__":

@@ -5,6 +5,7 @@ step is a list of panels the page's renderer (design/visual.js) can draw.
 """
 import json
 import os
+import sys
 from collections import deque
 
 PROBLEMS = os.path.join(os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))), "problems")
@@ -18,12 +19,92 @@ def find(pid):
     raise KeyError(pid)
 
 
+# The input a trace is running on. make_runner() sets it while it tries
+# candidates; outside that, example() falls back to the problem's examples.
+CURRENT = None
+DRY = False
+MIN_STEPS = 5  # a setup step, at least three iterations, and the result
+MAX_INPUT_CHARS = 260
+
+
 def example(pid, k=0):
+    if CURRENT is not None:
+        return CURRENT
     with open(os.path.join(find(pid), "tests.json")) as f:
         tests = json.load(f)["tests"]
     exs = [t for t in tests if t.get("example")]
     t = exs[k]
     return t["input"], t.get("expected")
+
+
+def stored_candidates(pid):
+    """Examples first, then samples, then hand-written edge cases: small inputs with known answers."""
+    with open(os.path.join(find(pid), "tests.json")) as f:
+        tests = json.load(f)["tests"]
+    rank = {"example": 0, "sample": 1, "edge": 2}
+    out = [t for t in tests if "input" in t and "expected" in t and t.get("kind") in rank and len(json.dumps(t["input"])) <= MAX_INPUT_CHARS]
+    out.sort(key=lambda t: rank[t["kind"]])
+    return [(t["input"], t["expected"]) for t in out]
+
+
+RUNNER = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "runners", "py_runner.py")
+
+
+def reference_answer(pid, args):
+    """Validate a custom input, then answer it with the problem's reference solution."""
+    import subprocess
+    import yaml_lite
+    d = find(pid)
+    meta = yaml_lite.load(os.path.join(d, "problem.yaml"))
+    line = json.dumps({"id": "x", "args": args})
+    v = subprocess.run([sys.executable, RUNNER, "validate", os.path.join(d, "validator.py")], input=line, capture_output=True, text=True)
+    res = json.loads(v.stdout.strip().splitlines()[-1])
+    if not res.get("ok"):
+        raise ValueError(f"{pid}: custom input rejected by the validator: {res.get('msg')}")
+    if meta["kind"] == "design":
+        spec = {"kind": "design", **meta["design"]}
+    else:
+        spec = {"kind": "function", **meta["signature"]}
+    r = subprocess.run([sys.executable, RUNNER, "solve", os.path.join(d, "reference.py"), json.dumps(spec)], input=line, capture_output=True, text=True)
+    out = [json.loads(x) for x in r.stdout.strip().splitlines() if x.strip()]
+    out = [o for o in out if "out" in o or "error" in o]
+    if not out or "error" in out[-1]:
+        raise ValueError(f"{pid}: reference failed on custom input: {out}")
+    return out[-1]["out"]
+
+
+def make_runner(done, custom=None):
+    """Decorator: try candidate inputs dry, then record the walkthrough for the best one."""
+    custom = custom or {}
+
+    def run(fn):
+        global CURRENT, DRY
+        pid = fn.__name__.replace("_", "-")
+        cands = stored_candidates(pid) + [(args, None) for args in custom.get(pid, [])]
+        best, best_n = None, -1
+        for args, expected in cands:
+            if expected is None:
+                expected = reference_answer(pid, args)
+            CURRENT, DRY = (args, expected), True
+            try:
+                n = fn(pid)
+            except Exception:
+                n = -1
+            finally:
+                CURRENT, DRY = None, False
+            if n > best_n:
+                best, best_n = (args, expected), n
+            if n >= MIN_STEPS:
+                break
+        CURRENT = best
+        try:
+            n = fn(pid)
+        finally:
+            CURRENT = None
+        done.append((pid, n))
+        return fn
+
+    return run
 
 
 # ---------------------------------------------------------------- binary trees
@@ -228,6 +309,8 @@ class Walk:
 
     def save(self, **hints):
         assert self.steps, self.pid
+        if DRY:
+            return len(self.steps)
         if len(self.steps) > MAX_STEPS:
             # Keep the first and last steps and an even spread in between.
             keep = [round(i * (len(self.steps) - 1) / (MAX_STEPS - 1)) for i in range(MAX_STEPS)]

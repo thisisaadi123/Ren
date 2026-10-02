@@ -5,10 +5,25 @@ from lib import *
 DONE = []
 
 
-def run(fn):
-    pid = fn.__name__.replace("_", "-")
-    DONE.append((pid, fn(pid)))
-    return fn
+CUSTOM = {
+    "insert-position": [{"scores": [2, 4, 7, 9, 12, 15, 18, 21, 25, 30, 33], "target": 20}],
+    "next-gate-letter": [{"gates": "bdfhjlnprt", "current": "m"}],
+    "scores-in-range": [{"scores": [70, 85, 90, 60, 85, 55, 95, 40], "queries": [[80, 90], [0, 59], [85, 85], [60, 100]]}],
+    "closest-prices": [{"prices": [1, 3, 5, 7, 9, 11, 13, 15, 17, 19, 21, 23], "k": 3, "x": 14}],
+    "rotated-playlist": [{"playlist": [20, 23, 26, 29, 31, 35, 40, 1, 4, 7, 10, 13, 16, 18], "target": 16}],
+    "rotation-low-point": [{"readings": [11, 13, 15, 17, 19, 21, 2, 4, 6, 8, 9]}],
+    "mountain-top": [{"elevations": [1, 3, 5, 7, 9, 12, 14, 11, 8, 6, 4, 2]}],
+    "any-summit": [{"heights": [1, 2, 4, 7, 9, 12, 10, 8, 5, 3, 6, 2]}],
+    "kth-of-two-lists": [{"a": [1, 4, 7, 10, 13, 16, 19], "b": [2, 3, 5, 8, 12, 20, 22, 25], "k": 8}],
+    "median-of-two-queues": [{"a": [1, 3, 8, 9, 15], "b": [7, 11, 18, 19, 21, 25]}],
+    "seat-map-lookup": [{"rows": [[1, 3, 5, 7], [10, 11, 16, 20], [23, 30, 34, 60], [61, 63, 67, 70]], "target": 63}],
+    "find-the-locker": [{"lockers": [-8, -3, 0, 2, 5, 9, 14, 20, 27, 35, 44], "target": 27}],
+    "perfect-square-tiles": [{"tiles": 144}],
+    "square-floor": [{"x": 90}],
+    "rotated-with-repeats": [{"shelf": [4, 5, 6, 6, 7, 0, 1, 2, 4, 4], "target": 1}],
+    "low-point-with-repeats": [{"readings": [3, 3, 4, 5, 6, 1, 2, 3, 3]}],
+}
+run = make_runner(DONE, CUSTOM)
 
 
 def span(v, lo, hi, mid=None, st=None, label=None):
@@ -234,6 +249,7 @@ def rotated_playlist(pid):
                 lo = mid + 1
             else:
                 hi = mid - 1
+    W.intro(f"Looking for {t}. The list was sorted, then rotated, so it rises, drops once, then rises again.", span(v, 0, len(v) - 1))
     assert res == exp
     return W.save()
 
@@ -337,6 +353,7 @@ def mountain_top(pid):
     W = Walk(pid, "Compare each middle point with the next one: rising means the top is further right.")
     top = climb(W, v)
     W.step(f"The top is at {top}.", Row(v, st={top: "answer"}), result=top)
+    W.intro("The trail rises to one top, then falls. Comparing a point with the next tells you which side of the top you're on.", Row(v))
     assert top == exp
     return W.save()
 
@@ -348,6 +365,7 @@ def any_summit(pid):
     W = Walk(pid, "Walk uphill by halves: if the next point is higher, a summit must lie that way.")
     top = climb(W, v)
     W.step(f"Index {top} is a summit.", Row(v, st={top: "answer"}), result=top)
+    W.intro("Neighbours are never equal, and the ends drop off to nothing, so walking uphill always reaches a summit.", Row(v))
     assert v[top] == v[exp] or top == exp
     return W.save()
 
@@ -514,6 +532,7 @@ def seat_map_lookup(pid):
             hi = mid - 1
     if not found:
         W.step("Not found.", Grid(g), result=False)
+    W.intro(f"Looking for {t}. Rows are sorted and each row starts after the previous one ends, so the whole grid reads as one sorted list.", Grid(g))
     assert found == exp
     return W.save()
 
