@@ -26,6 +26,21 @@ LANGS = ["python", "java", "cpp", "c"]
 KINDS = {"brute": "Brute force", "better": "Better", "best": "Best"}
 MARK = re.compile(r"\s*(?:#|//)@(\w+)\s*$")
 WRITTEN = []
+REGISTRY = []
+
+
+def problem(fn):
+    """Register a function that writes one problem's solution; its name is the id with _ for -."""
+    REGISTRY.append(fn)
+    return fn
+
+
+def run(only=()):
+    for fn in REGISTRY:
+        pid = fn.__name__.replace("_", "-")
+        if not only or pid in only:
+            fn()
+    print(f"wrote {len(WRITTEN)} solutions: {', '.join(WRITTEN)}")
 
 
 def dd(s):
@@ -100,7 +115,9 @@ def parse(src):
 
 
 def approach(title, kind, time, space, idea, build, code, lines, complexity, walk=None, limits=None, slow=False):
-    """One way to solve it. kind: brute, better or best. slow: too slow for the big tests (checked on small ones)."""
+    """One way to solve it. kind: brute, better or best.
+    slow: too slow for the big tests, so the checker runs it on small ones only
+    (True: inputs up to 2500 characters; a number: up to that many)."""
     assert kind in KINDS, kind
     assert set(code) == set(LANGS), f"{title}: code needs {LANGS}, has {sorted(code)}"
     clean, tags = {}, {}
@@ -136,7 +153,7 @@ def approach(title, kind, time, space, idea, build, code, lines, complexity, wal
     if limits:
         a["limits"] = blocks(limits, title)
     if slow:
-        a["slow"] = True
+        a["slow"] = slow if isinstance(slow, int) and not isinstance(slow, bool) else True
     return a
 
 

@@ -1,7 +1,8 @@
 // Checks the written-out solutions (each problem's solution.json): every
 // approach's code, in every language, must pass the problem's tests. An
 // approach marked slow is meant to time out on the big tests, so it runs on
-// the small ones only, with a generous limit.
+// the small ones only (up to 2500 characters of input, or its own "slow"
+// number), with a generous limit.
 //   node tools/check-solutions.mjs [--jobs 4] [problem dir or id ...]
 import { existsSync, readdirSync, readFileSync, statSync } from "node:fs";
 import path from "node:path";
@@ -40,7 +41,7 @@ const work = [];
 for (const dir of dirs) {
   const sol = JSON.parse(readFileSync(path.join(dir, "solution.json"), "utf8"));
   sol.approaches.forEach((a, k) => {
-    for (const [lang, code] of Object.entries(a.code)) work.push({ id: path.basename(dir), k: k + 1, title: a.title, slow: !!a.slow, lang, code });
+    for (const [lang, code] of Object.entries(a.code)) work.push({ id: path.basename(dir), k: k + 1, title: a.title, slow: a.slow, lang, code });
   });
 }
 
@@ -53,7 +54,7 @@ const failures = [];
 let done = 0;
 async function one(w) {
   try {
-    const { total, results } = await check({ id: w.id, lang: w.lang, code: w.code, ...(w.slow ? { maxChars: SMALL_CHARS, limitMs: SLOW_LIMIT_MS } : {}) });
+    const { total, results } = await check({ id: w.id, lang: w.lang, code: w.code, ...(w.slow ? { maxChars: typeof w.slow === "number" ? w.slow : SMALL_CHARS, limitMs: SLOW_LIMIT_MS } : {}) });
     const bad = results.findIndex((r) => r.verdict !== "passed");
     if (!total) failures.push({ ...w, why: "no tests to run" });
     else if (bad >= 0) {
