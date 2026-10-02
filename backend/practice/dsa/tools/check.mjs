@@ -103,7 +103,7 @@ async function python(mode, file, extra, input) {
   if (!results.length && stderr.trim()) throw new Error(`${path.basename(file)} (${mode}): ${stderr.trim().split("\n").slice(-2).join(" | ")}`);
   return results;
 }
-const jsonl = (items) => items.map((x) => JSON.stringify(x)).join("\n") + "\n";
+const jsonl = (items) => items.map((x) => exactJson(x)).join("\n") + "\n";
 
 // A recipe with "count": n stands for n tests, <id>-1 … <id>-n, each with its own seed.
 function expandTests(tests) {
@@ -275,7 +275,7 @@ async function checkProblem(dir) {
   if (!notes3.length) {
     // Brute force on the random small inputs and on stored tests that are small enough.
     // Small stored tests also go through the brute force, unless marked "no_brute" (short input, huge values).
-    const bruteOk = (t) => !t.no_brute && JSON.stringify(t.args).length <= config.bruteMaxInputChars;
+    const bruteOk = (t) => !t.no_brute && exactJson(t.args).length <= config.bruteMaxInputChars;
     const cases = [...small, ...tests.filter((t) => !t.generated && bruteOk(t)).map((t) => ({ id: t.id, args: t.args }))];
     const quiet = 30_000;
     const [bruteRuns, refSmall] = await Promise.all([

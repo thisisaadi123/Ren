@@ -255,7 +255,7 @@ const TYPE_WORDS = { int: "an integer", long: "an integer", double: "a number", 
 const describe = (type) =>
   type.endsWith("[]") ? `a list of ${describe(type.slice(0, -2)).replace(/^an? /, "")}s` : TYPE_WORDS[type] ?? `a ${type}`;
 
-const jsonl = (items) => items.map((x) => JSON.stringify(x)).join("\n") + "\n";
+const jsonl = (items) => items.map((x) => exactJson(x)).join("\n") + "\n";
 
 // Each case must have every parameter, of the right type, within the
 // problem's constraints (its validator.py). Returns a message per bad case.
@@ -363,7 +363,7 @@ export async function run({ id, lang, code, cases }) {
   const { dir, meta, tests, limitMs } = prepare({ id, lang, code });
   if (!Array.isArray(cases) || !cases.length) throw new JudgeError(400, "Add a test case first.");
   if (cases.length > MAX_CASES) throw new JudgeError(400, `Run at most ${MAX_CASES} cases at a time.`);
-  if (cases.some((c) => !c?.args || typeof c.args !== "object" || JSON.stringify(c.args).length > MAX_CASE_CHARS)) {
+  if (cases.some((c) => !c?.args || typeof c.args !== "object" || exactJson(c.args).length > MAX_CASE_CHARS)) {
     throw new JudgeError(400, "One of the cases is too big to run here. Submit to try the large tests.");
   }
 
@@ -373,7 +373,7 @@ export async function run({ id, lang, code, cases }) {
   }
 
   // Expected answers: the stored one for a visible case, else the reference's.
-  const key = (args) => JSON.stringify(args);
+  const key = (args) => exactJson(args);
   const known = new Map(tests.filter((t) => t.visible).map((t) => [key(t.args), t.expected]));
   const list = cases.map((c, i) => ({ id: `case-${i + 1}`, args: c.args, expected: known.get(key(c.args)) }));
   const unknown = list.filter((c) => c.expected === undefined);

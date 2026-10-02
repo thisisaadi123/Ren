@@ -18,7 +18,7 @@ npm run test:dsa                     # self-test: plant known bugs and confirm t
 | [`pipeline.md`](pipeline.md) | The checks a problem must pass before it's published |
 | [`progress.md`](progress.md) | What we record per user, pattern mastery and topic rollups |
 | [`sheets.md`](sheets.md) | The LeetCode link sheets a user unlocks by finishing a topic |
-| `problems/` | The problems, one folder each. Written so far: **344 of 657**. Complete: Arrays & Hashing, Sorting, Two Pointers, Strings, Sliding Window, Stack & Queue, Binary Search, Linked List, Binary Trees, BST and Tries. Started: Backtracking (17/37) and Design (1/24) |
+| `problems/` | The problems, one folder each. Written so far: **377 of 657**. Complete: Arrays & Hashing, Sorting, Two Pointers, Strings, Sliding Window, Stack & Queue, Binary Search, Linked List, Binary Trees, BST, Tries, Intervals and Backtracking. Started: Design (1/24) |
 | `tools/` | The checking pipeline (`check.mjs`), its self-test, the language runners, `author.py` (writes a whole problem folder from one call) and `pylib/` (shared helpers for `gen.py` and `validator.py`) |
 | `build/` | Generated: built tests and rendered statements (gitignored) |
 | `sheets/` | One sheet per topic (only `_example.yaml` for now) |
