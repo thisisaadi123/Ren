@@ -88,12 +88,22 @@
         (ex, i) => `
           <h2 class="prob-label">Example ${i + 1}</h2>
           <div class="example">
+            ${window.renVisual ? renVisual.exampleFigure(problem, ex) : ""}
             <div class="ex-row"><b>Input</b><span>${esc(argsText(ex.args))}</span></div>
             <div class="ex-row"><b>Output</b><span>${esc(show(ex.expected))}</span></div>
             ${ex.explanation ? `<div class="ex-row why"><b>Why</b><span>${inline(ex.explanation)}</span></div>` : ""}
           </div>`
       )
       .join("");
+
+    const walk = $("[data-walk]");
+    const spec = problem.visual && problem.visual.walkthrough;
+    if (spec && window.renVisual) {
+      walk.innerHTML = `<h2 class="prob-label">Walkthrough</h2>${spec.title ? `<p class="walk-intro">${inline(spec.title)}</p>` : ""}<div data-walk-player></div>`;
+      renVisual.walkthrough($("[data-walk-player]"), spec);
+    } else {
+      walk.innerHTML = "";
+    }
 
     document.querySelector("[data-crumb-title]").textContent = problem.title;
     const topicLink = document.querySelector("[data-topic-link]");

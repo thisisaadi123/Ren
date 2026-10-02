@@ -170,6 +170,9 @@ export async function problemView(id) {
   );
 
   const visible = tests.filter((t) => t.visible);
+  // Optional drawing hints and a step-by-step walkthrough, written per problem.
+  const visualFile = path.join(dir, "visual.json");
+  const visual = existsSync(visualFile) ? JSON.parse(readFileSync(visualFile, "utf8")) : null;
   return {
     id: meta.id,
     title: meta.title,
@@ -178,6 +181,8 @@ export async function problemView(id) {
     topic: topic && { id: topic.id, name: topic.name },
     pattern: pattern && { id: pattern.id, name: pattern.name },
     params: paramsOf(meta),
+    returns: meta.kind === "function" ? meta.signature.returns : null,
+    visual,
     checker: meta.checker,
     statement: intro.trim(),
     notes: rest.trim(),
