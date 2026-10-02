@@ -1,0 +1,1449 @@
+{
+ "version": 1,
+ "summary": "A value that fills **more than half** the list survives any cancelling: pair each copy of it with a\ndifferent value and there are copies left over. Boyer–Moore voting does exactly that in one pass with\ntwo variables, O(n) time and O(1) space.",
+ "question": [
+  {
+   "md": "One value appears in more than half of the readings. Return it.\n\n- **More than half** means strictly more than n/2: in 7 readings it appears at least 4 times; in 8,\n  at least 5. It's guaranteed to exist, so there's no \"no answer\" case to handle.\n- **Values can be negative** and as large as ±10⁹, so you can't index an array by value.\n- **Size:** up to 10⁵ readings.\n- The guarantee is what makes the clever O(1)-space method valid. Without it, you'd need a second\n  pass to confirm the candidate."
+  }
+ ],
+ "think": [
+  {
+   "md": "Take `[2, 8, 8, 1, 8, 8, 3, 8, 2]`: 8 appears 5 times out of 9.\n\nCounting with a hash map clearly works. But here's a sharper observation: **pair up readings that\nare different and throw both away.** Each 8 can be paired with at most one non-8, and there are only\n4 non-8s. However you pair things, at least one 8 survives, and nothing else can survive more than 8\ndoes."
+  },
+  {
+   "panels": [
+    {
+     "type": "row",
+     "cells": [
+      2,
+      8
+     ],
+     "states": {
+      "0": "dim",
+      "1": "dim"
+     },
+     "label": "cancel"
+    },
+    {
+     "type": "row",
+     "cells": [
+      8,
+      1
+     ],
+     "states": {
+      "0": "dim",
+      "1": "dim"
+     },
+     "label": "cancel"
+    },
+    {
+     "type": "row",
+     "cells": [
+      8,
+      3
+     ],
+     "states": {
+      "0": "dim",
+      "1": "dim"
+     },
+     "label": "cancel"
+    },
+    {
+     "type": "row",
+     "cells": [
+      8,
+      2
+     ],
+     "states": {
+      "0": "dim",
+      "1": "dim"
+     },
+     "label": "cancel"
+    },
+    {
+     "type": "row",
+     "cells": [
+      8
+     ],
+     "states": {
+      "0": "answer"
+     },
+     "label": "left over"
+    }
+   ],
+   "caption": "Four non-8s can cancel at most four 8s. The fifth 8 survives."
+  },
+  {
+   "md": "Boyer–Moore turns that into a scan: keep a **candidate** and a **count**. A matching reading adds a\nvote; a different reading cancels one; when the count hits zero, the next reading becomes the new\ncandidate. Whatever is left at the end is the majority.\n\nAnother view, useful for the sorting approach: a value covering more than half the positions of a\n**sorted** list must cover the middle position."
+  }
+ ],
+ "approaches": [
+  {
+   "title": "Count every value by scanning",
+   "kind": "brute",
+   "time": "O(n²)",
+   "space": "O(1)",
+   "idea": [
+    {
+     "md": "For each reading, count its copies with a full scan. The first one whose count exceeds n/2 is the answer."
+    }
+   ],
+   "build": [
+    "For each reading `r`, count how many readings equal `r`.",
+    "If `count × 2 > n`, return `r`."
+   ],
+   "code": {
+    "python": "class Solution:\n    def majorityValue(self, readings: List[int]) -> int:\n        n = len(readings)\n        for r in readings:\n            if readings.count(r) * 2 > n:\n                return r\n        return readings[0]\n",
+    "java": "class Solution {\n    public int majorityValue(int[] readings) {\n        int n = readings.length;\n        for (int r : readings) {\n            int c = 0;\n            for (int x : readings) if (x == r) c++;\n            if (c * 2 > n) return r;\n        }\n        return readings[0];\n    }\n}\n",
+    "cpp": "class Solution {\npublic:\n    int majorityValue(vector<int>& readings) {\n        int n = readings.size();\n        for (int r : readings) {\n            if (count(readings.begin(), readings.end(), r) * 2 > n) return r;\n        }\n        return readings[0];\n    }\n};\n",
+    "c": "int majorityValue(int* readings, int readingsSize) {\n    for (int i = 0; i < readingsSize; i++) {\n        int c = 0;\n        for (int j = 0; j < readingsSize; j++) if (readings[j] == readings[i]) c++;\n        if (c * 2 > readingsSize) return readings[i];\n    }\n    return readings[0];\n}\n"
+   },
+   "lines": [
+    {
+     "text": "Try each reading as the answer.",
+     "at": {
+      "python": [
+       [
+        4,
+        4
+       ]
+      ],
+      "java": [
+       [
+        4,
+        4
+       ]
+      ],
+      "cpp": [
+       [
+        5,
+        5
+       ]
+      ],
+      "c": [
+       [
+        2,
+        2
+       ]
+      ]
+     }
+    },
+    {
+     "text": "Count its copies. More than half (`c × 2 > n`, which avoids rounding issues with `n / 2`) means it's the majority.",
+     "at": {
+      "python": [
+       [
+        5,
+        6
+       ]
+      ],
+      "java": [
+       [
+        5,
+        7
+       ]
+      ],
+      "cpp": [
+       [
+        6,
+        6
+       ]
+      ],
+      "c": [
+       [
+        3,
+        5
+       ]
+      ]
+     }
+    },
+    {
+     "text": "Unreachable: the majority is guaranteed.",
+     "at": {
+      "python": [
+       [
+        7,
+        7
+       ]
+      ],
+      "java": [
+       [
+        9,
+        9
+       ]
+      ],
+      "cpp": [
+       [
+        8,
+        8
+       ]
+      ],
+      "c": [
+       [
+        7,
+        7
+       ]
+      ]
+     }
+    }
+   ],
+   "complexity": [
+    {
+     "md": "**Time O(n²):** each candidate costs a full scan. **Space O(1).**"
+    }
+   ],
+   "walk": {
+    "steps": [
+     {
+      "text": "2 appears 2 times, not more than 9/2.",
+      "panels": [
+       {
+        "type": "row",
+        "cells": [
+         2,
+         8,
+         8,
+         1,
+         8,
+         8,
+         3,
+         8,
+         2
+        ],
+        "states": {
+         "0": "active",
+         "8": "found"
+        },
+        "pointers": {
+         "i": 0
+        },
+        "slots": true
+       }
+      ]
+     },
+     {
+      "text": "8 appears 5 times — more than 9/2. Answer.",
+      "panels": [
+       {
+        "type": "row",
+        "cells": [
+         2,
+         8,
+         8,
+         1,
+         8,
+         8,
+         3,
+         8,
+         2
+        ],
+        "states": {
+         "1": "answer",
+         "2": "answer",
+         "4": "answer",
+         "5": "answer",
+         "7": "answer"
+        },
+        "pointers": {
+         "i": 1
+        },
+        "slots": true
+       }
+      ],
+      "result": "8"
+     }
+    ],
+    "title": "Count each reading's copies with a full scan until one has more than half."
+   },
+   "limits": [
+    {
+     "md": "The same values get recounted over and over. Count each value once, or use the order a sort provides."
+    }
+   ],
+   "slow": true
+  },
+  {
+   "title": "Sort and take the middle",
+   "kind": "better",
+   "time": "O(n log n)",
+   "space": "O(n)",
+   "idea": [
+    {
+     "md": "In sorted order the majority's copies form one block longer than n/2. Any block that long must cover index `n // 2`, so the answer is simply `sorted[n // 2]`."
+    }
+   ],
+   "build": [
+    "Sort a copy.",
+    "Return the element at index `n // 2`."
+   ],
+   "code": {
+    "python": "class Solution:\n    def majorityValue(self, readings: List[int]) -> int:\n        s = sorted(readings)\n        return s[len(s) // 2]\n",
+    "java": "class Solution {\n    public int majorityValue(int[] readings) {\n        int[] s = readings.clone();\n        Arrays.sort(s);\n        return s[s.length / 2];\n    }\n}\n",
+    "cpp": "class Solution {\npublic:\n    int majorityValue(vector<int>& readings) {\n        vector<int> s = readings;\n        sort(s.begin(), s.end());\n        return s[s.size() / 2];\n    }\n};\n",
+    "c": "static int cmpInt(const void* a, const void* b) {\n    int p = *(const int*) a, q = *(const int*) b;\n    return (p > q) - (p < q);\n}\n\nint majorityValue(int* readings, int readingsSize) {\n    int* s = malloc(readingsSize * sizeof(int));\n    memcpy(s, readings, readingsSize * sizeof(int));\n    qsort(s, readingsSize, sizeof(int), cmpInt);\n    int answer = s[readingsSize / 2];\n    free(s);\n    return answer;\n}\n"
+   },
+   "lines": [
+    {
+     "text": "Overflow-safe comparator for `qsort`.",
+     "at": {
+      "c": [
+       [
+        1,
+        4
+       ]
+      ]
+     }
+    },
+    {
+     "text": "Sorted copy: each value's copies form one contiguous block.",
+     "at": {
+      "python": [
+       [
+        3,
+        3
+       ]
+      ],
+      "java": [
+       [
+        3,
+        4
+       ]
+      ],
+      "cpp": [
+       [
+        4,
+        5
+       ]
+      ],
+      "c": [
+       [
+        7,
+        9
+       ]
+      ]
+     }
+    },
+    {
+     "text": "A block longer than half the list can't fit entirely left or right of the middle, so it covers index n / 2.",
+     "at": {
+      "python": [
+       [
+        4,
+        4
+       ]
+      ],
+      "java": [
+       [
+        5,
+        5
+       ]
+      ],
+      "cpp": [
+       [
+        6,
+        6
+       ]
+      ],
+      "c": [
+       [
+        10,
+        12
+       ]
+      ]
+     },
+     "notes": {
+      "c": "Read the answer before freeing the copy."
+     }
+    }
+   ],
+   "complexity": [
+    {
+     "md": "**Time O(n log n).** **Space O(n)** for the copy."
+    }
+   ],
+   "walk": {
+    "steps": [
+     {
+      "text": "Sorted: [1, 2, 2, 3, 8, 8, 8, 8, 8].",
+      "panels": [
+       {
+        "type": "row",
+        "cells": [
+         2,
+         8,
+         8,
+         1,
+         8,
+         8,
+         3,
+         8,
+         2
+        ],
+        "label": "readings"
+       },
+       {
+        "type": "row",
+        "cells": [
+         1,
+         2,
+         2,
+         3,
+         8,
+         8,
+         8,
+         8,
+         8
+        ],
+        "label": "sorted",
+        "slots": true
+       }
+      ]
+     },
+     {
+      "text": "A value filling more than half the slots must cover index n // 2 = 4.",
+      "panels": [
+       {
+        "type": "row",
+        "cells": [
+         1,
+         2,
+         2,
+         3,
+         8,
+         8,
+         8,
+         8,
+         8
+        ],
+        "states": {
+         "4": "answer",
+         "5": "found",
+         "6": "found",
+         "7": "found",
+         "8": "found"
+        },
+        "label": "sorted",
+        "slots": true
+       }
+      ],
+      "result": "8"
+     }
+    ],
+    "title": "Sort; the majority value always covers the middle position."
+   },
+   "limits": [
+    {
+     "md": "Sorting orders all values when we only need the one that dominates. Counting avoids the log factor."
+    }
+   ]
+  },
+  {
+   "title": "Count with a hash map",
+   "kind": "better",
+   "time": "O(n)",
+   "space": "O(n)",
+   "idea": [
+    {
+     "md": "Count readings in a hash map as you go. As soon as some count exceeds n/2, return that value."
+    }
+   ],
+   "build": [
+    "Create an empty value → count map.",
+    "For each reading, add 1 to its count; if `count × 2 > n`, return it."
+   ],
+   "code": {
+    "python": "class Solution:\n    def majorityValue(self, readings: List[int]) -> int:\n        n = len(readings)\n        count = {}\n        for r in readings:\n            count[r] = count.get(r, 0) + 1\n            if count[r] * 2 > n:\n                return r\n        return readings[0]\n",
+    "java": "class Solution {\n    public int majorityValue(int[] readings) {\n        int n = readings.length;\n        Map<Integer, Integer> count = new HashMap<>();\n        for (int r : readings) {\n            int c = count.merge(r, 1, Integer::sum);\n            if (c * 2 > n) return r;\n        }\n        return readings[0];\n    }\n}\n",
+    "cpp": "class Solution {\npublic:\n    int majorityValue(vector<int>& readings) {\n        int n = readings.size();\n        unordered_map<int, int> count;\n        for (int r : readings) {\n            if (++count[r] * 2 > n) return r;\n        }\n        return readings[0];\n    }\n};\n",
+    "c": "// A small hash map from a value to its count: open addressing, linear probing.\ntypedef struct { int key; int count; bool used; } Slot;\n\nstatic unsigned slotOf(int key, unsigned mask) {\n    unsigned long long h = (unsigned long long) (long long) key * 0x9E3779B97F4A7C15ULL;\n    return (unsigned) (h >> 32) & mask;\n}\n\nint majorityValue(int* readings, int readingsSize) {\n    unsigned cap = 1;\n    while (cap < 2u * readingsSize) cap <<= 1;\n    Slot* count = calloc(cap, sizeof(Slot));\n    int answer = readings[0];\n    for (int i = 0; i < readingsSize; i++) {\n        int r = readings[i];\n        unsigned s = slotOf(r, cap - 1);\n        while (count[s].used && count[s].key != r) s = (s + 1) & (cap - 1);\n        count[s].key = r;\n        count[s].used = true;\n        if (++count[s].count * 2 > readingsSize) { answer = r; break; }\n    }\n    free(count);\n    return answer;\n}\n"
+   },
+   "lines": [
+    {
+     "text": "C has no hash map: a slot holds a value, its count and an in-use flag, and `slotOf` scrambles a value into a starting slot.",
+     "at": {
+      "c": [
+       [
+        2,
+        2
+       ],
+       [
+        4,
+        7
+       ]
+      ]
+     }
+    },
+    {
+     "text": "Counts per value, filled as we go.",
+     "at": {
+      "python": [
+       [
+        4,
+        4
+       ]
+      ],
+      "java": [
+       [
+        4,
+        4
+       ]
+      ],
+      "cpp": [
+       [
+        5,
+        5
+       ]
+      ],
+      "c": [
+       [
+        10,
+        13
+       ]
+      ]
+     },
+     "notes": {
+      "c": "A power-of-two table at least 2n big, zeroed by `calloc`."
+     }
+    },
+    {
+     "text": "Add one to this reading's count.",
+     "at": {
+      "python": [
+       [
+        5,
+        6
+       ]
+      ],
+      "java": [
+       [
+        5,
+        6
+       ]
+      ],
+      "cpp": [
+       [
+        6,
+        6
+       ]
+      ],
+      "c": [
+       [
+        14,
+        19
+       ]
+      ]
+     },
+     "notes": {
+      "java": "`merge(r, 1, Integer::sum)` returns the new count.",
+      "c": "Probe from the value's slot to its entry (or an empty slot) and claim it."
+     }
+    },
+    {
+     "text": "The first count to pass half is the majority; stop right there.",
+     "at": {
+      "python": [
+       [
+        7,
+        8
+       ]
+      ],
+      "java": [
+       [
+        7,
+        7
+       ]
+      ],
+      "cpp": [
+       [
+        7,
+        7
+       ]
+      ],
+      "c": [
+       [
+        20,
+        20
+       ]
+      ]
+     },
+     "notes": {
+      "cpp": "`++count[r]` creates the entry at 0 if needed, increments it, and gives the new value."
+     }
+    },
+    {
+     "text": "Unreachable with valid input.",
+     "at": {
+      "python": [
+       [
+        9,
+        9
+       ]
+      ],
+      "java": [
+       [
+        9,
+        9
+       ]
+      ],
+      "cpp": [
+       [
+        9,
+        9
+       ]
+      ],
+      "c": [
+       [
+        22,
+        23
+       ]
+      ]
+     },
+     "notes": {
+      "c": "Free the table and return the answer found."
+     }
+    }
+   ],
+   "complexity": [
+    {
+     "md": "**Time O(n)** on average. **Space O(n)**: up to about n/2 distinct values can be stored."
+    }
+   ],
+   "walk": {
+    "steps": [
+     {
+      "text": "2: count 1.",
+      "panels": [
+       {
+        "type": "row",
+        "cells": [
+         2,
+         8,
+         8,
+         1,
+         8,
+         8,
+         3,
+         8,
+         2
+        ],
+        "states": {
+         "0": "active"
+        },
+        "slots": true
+       },
+       {
+        "type": "row",
+        "cells": [
+         "2:1"
+        ],
+        "states": {
+         "0": "new"
+        },
+        "label": "value:count"
+       }
+      ]
+     },
+     {
+      "text": "8: count 1.",
+      "panels": [
+       {
+        "type": "row",
+        "cells": [
+         2,
+         8,
+         8,
+         1,
+         8,
+         8,
+         3,
+         8,
+         2
+        ],
+        "states": {
+         "0": "dim",
+         "1": "active"
+        },
+        "slots": true
+       },
+       {
+        "type": "row",
+        "cells": [
+         "2:1",
+         "8:1"
+        ],
+        "states": {
+         "1": "new"
+        },
+        "label": "value:count"
+       }
+      ]
+     },
+     {
+      "text": "8: count 2.",
+      "panels": [
+       {
+        "type": "row",
+        "cells": [
+         2,
+         8,
+         8,
+         1,
+         8,
+         8,
+         3,
+         8,
+         2
+        ],
+        "states": {
+         "0": "dim",
+         "1": "dim",
+         "2": "active"
+        },
+        "slots": true
+       },
+       {
+        "type": "row",
+        "cells": [
+         "2:1",
+         "8:2"
+        ],
+        "states": {
+         "1": "new"
+        },
+        "label": "value:count"
+       }
+      ]
+     },
+     {
+      "text": "1: count 1.",
+      "panels": [
+       {
+        "type": "row",
+        "cells": [
+         2,
+         8,
+         8,
+         1,
+         8,
+         8,
+         3,
+         8,
+         2
+        ],
+        "states": {
+         "0": "dim",
+         "1": "dim",
+         "2": "dim",
+         "3": "active"
+        },
+        "slots": true
+       },
+       {
+        "type": "row",
+        "cells": [
+         "2:1",
+         "8:2",
+         "1:1"
+        ],
+        "states": {
+         "2": "new"
+        },
+        "label": "value:count"
+       }
+      ]
+     },
+     {
+      "text": "8: count 3.",
+      "panels": [
+       {
+        "type": "row",
+        "cells": [
+         2,
+         8,
+         8,
+         1,
+         8,
+         8,
+         3,
+         8,
+         2
+        ],
+        "states": {
+         "0": "dim",
+         "1": "dim",
+         "2": "dim",
+         "3": "dim",
+         "4": "active"
+        },
+        "slots": true
+       },
+       {
+        "type": "row",
+        "cells": [
+         "2:1",
+         "8:3",
+         "1:1"
+        ],
+        "states": {
+         "1": "new"
+        },
+        "label": "value:count"
+       }
+      ]
+     },
+     {
+      "text": "8: count 4.",
+      "panels": [
+       {
+        "type": "row",
+        "cells": [
+         2,
+         8,
+         8,
+         1,
+         8,
+         8,
+         3,
+         8,
+         2
+        ],
+        "states": {
+         "0": "dim",
+         "1": "dim",
+         "2": "dim",
+         "3": "dim",
+         "4": "dim",
+         "5": "active"
+        },
+        "slots": true
+       },
+       {
+        "type": "row",
+        "cells": [
+         "2:1",
+         "8:4",
+         "1:1"
+        ],
+        "states": {
+         "1": "new"
+        },
+        "label": "value:count"
+       }
+      ]
+     },
+     {
+      "text": "3: count 1.",
+      "panels": [
+       {
+        "type": "row",
+        "cells": [
+         2,
+         8,
+         8,
+         1,
+         8,
+         8,
+         3,
+         8,
+         2
+        ],
+        "states": {
+         "0": "dim",
+         "1": "dim",
+         "2": "dim",
+         "3": "dim",
+         "4": "dim",
+         "5": "dim",
+         "6": "active"
+        },
+        "slots": true
+       },
+       {
+        "type": "row",
+        "cells": [
+         "2:1",
+         "8:4",
+         "1:1",
+         "3:1"
+        ],
+        "states": {
+         "3": "new"
+        },
+        "label": "value:count"
+       }
+      ]
+     },
+     {
+      "text": "8: count 5 > 9/2. Answer.",
+      "panels": [
+       {
+        "type": "row",
+        "cells": [
+         2,
+         8,
+         8,
+         1,
+         8,
+         8,
+         3,
+         8,
+         2
+        ],
+        "states": {
+         "0": "dim",
+         "1": "dim",
+         "2": "dim",
+         "3": "dim",
+         "4": "dim",
+         "5": "dim",
+         "6": "dim",
+         "7": "answer"
+        },
+        "slots": true
+       },
+       {
+        "type": "row",
+        "cells": [
+         "2:1",
+         "8:5",
+         "1:1",
+         "3:1"
+        ],
+        "states": {
+         "1": "answer"
+        },
+        "label": "value:count"
+       }
+      ],
+      "result": "8"
+     }
+    ],
+    "title": "Count every value in a hash map; stop when a count passes n / 2."
+   },
+   "limits": [
+    {
+     "md": "The map remembers every distinct value even though only one of them matters. Voting needs just one candidate and one counter."
+    }
+   ]
+  },
+  {
+   "title": "Boyer–Moore voting",
+   "kind": "best",
+   "time": "O(n)",
+   "space": "O(1)",
+   "idea": [
+    {
+     "md": "Keep `candidate` and `count`, starting at count 0. For each reading:\n\n- count 0 → this reading becomes the candidate with count 1;\n- same as the candidate → count + 1;\n- different → count − 1 (it cancels one vote).\n\n**Why it works:** every decrement pairs one candidate copy with one different reading and\ndiscards both. Discarding two *different* values from a list keeps the majority a majority of\nwhat remains (it loses at most one of its copies, while the list shrinks by two). At the end,\nwhat's left uncancelled can only be the majority."
+    }
+   ],
+   "build": [
+    "`candidate = 0`, `count = 0`.",
+    "For each reading: if `count == 0`, set `candidate` to it.",
+    "Then `count += 1` if it equals the candidate, else `count −= 1`.",
+    "Return `candidate`."
+   ],
+   "code": {
+    "python": "class Solution:\n    def majorityValue(self, readings: List[int]) -> int:\n        candidate, count = 0, 0\n        for r in readings:\n            if count == 0:\n                candidate = r\n            count += 1 if r == candidate else -1\n        return candidate\n",
+    "java": "class Solution {\n    public int majorityValue(int[] readings) {\n        int candidate = 0, count = 0;\n        for (int r : readings) {\n            if (count == 0) candidate = r;\n            count += (r == candidate) ? 1 : -1;\n        }\n        return candidate;\n    }\n}\n",
+    "cpp": "class Solution {\npublic:\n    int majorityValue(vector<int>& readings) {\n        int candidate = 0, count = 0;\n        for (int r : readings) {\n            if (count == 0) candidate = r;\n            count += (r == candidate) ? 1 : -1;\n        }\n        return candidate;\n    }\n};\n",
+    "c": "int majorityValue(int* readings, int readingsSize) {\n    int candidate = 0, count = 0;\n    for (int i = 0; i < readingsSize; i++) {\n        if (count == 0) candidate = readings[i];\n        count += (readings[i] == candidate) ? 1 : -1;\n    }\n    return candidate;\n}\n"
+   },
+   "lines": [
+    {
+     "text": "No candidate yet: a count of 0 means \"the next reading takes over\".",
+     "at": {
+      "python": [
+       [
+        3,
+        3
+       ]
+      ],
+      "java": [
+       [
+        3,
+        3
+       ]
+      ],
+      "cpp": [
+       [
+        4,
+        4
+       ]
+      ],
+      "c": [
+       [
+        2,
+        2
+       ]
+      ]
+     }
+    },
+    {
+     "text": "One pass, left to right.",
+     "at": {
+      "python": [
+       [
+        4,
+        4
+       ]
+      ],
+      "java": [
+       [
+        4,
+        4
+       ]
+      ],
+      "cpp": [
+       [
+        5,
+        5
+       ]
+      ],
+      "c": [
+       [
+        3,
+        3
+       ]
+      ]
+     }
+    },
+    {
+     "text": "All earlier readings have cancelled each other out, so start fresh with this one.",
+     "at": {
+      "python": [
+       [
+        5,
+        6
+       ]
+      ],
+      "java": [
+       [
+        5,
+        5
+       ]
+      ],
+      "cpp": [
+       [
+        6,
+        6
+       ]
+      ],
+      "c": [
+       [
+        4,
+        4
+       ]
+      ]
+     }
+    },
+    {
+     "text": "A match strengthens the candidate; a different value cancels one of its votes (both are discarded as a pair).",
+     "at": {
+      "python": [
+       [
+        7,
+        7
+       ]
+      ],
+      "java": [
+       [
+        6,
+        6
+       ]
+      ],
+      "cpp": [
+       [
+        7,
+        7
+       ]
+      ],
+      "c": [
+       [
+        5,
+        5
+       ]
+      ]
+     }
+    },
+    {
+     "text": "With a guaranteed majority, the survivor is it. (Without the guarantee you'd recount the candidate in a second pass to confirm.)",
+     "at": {
+      "python": [
+       [
+        8,
+        8
+       ]
+      ],
+      "java": [
+       [
+        8,
+        8
+       ]
+      ],
+      "cpp": [
+       [
+        9,
+        9
+       ]
+      ],
+      "c": [
+       [
+        7,
+        7
+       ]
+      ]
+     }
+    }
+   ],
+   "complexity": [
+    {
+     "md": "**Time O(n):** one pass. **Space O(1):** two variables."
+    }
+   ],
+   "walk": {
+    "steps": [
+     {
+      "text": "Reading 2: count is 0, so 2 becomes the candidate (count 1).",
+      "panels": [
+       {
+        "type": "row",
+        "cells": [
+         2,
+         8,
+         8,
+         1,
+         8,
+         8,
+         3,
+         8,
+         2
+        ],
+        "states": {
+         "0": "active"
+        },
+        "slots": true
+       },
+       {
+        "type": "vars",
+        "items": {
+         "candidate": 2,
+         "count": 1
+        }
+       }
+      ]
+     },
+     {
+      "text": "Reading 8: 8 differs: it cancels one vote, count 0.",
+      "panels": [
+       {
+        "type": "row",
+        "cells": [
+         2,
+         8,
+         8,
+         1,
+         8,
+         8,
+         3,
+         8,
+         2
+        ],
+        "states": {
+         "0": "dim",
+         "1": "active"
+        },
+        "slots": true
+       },
+       {
+        "type": "vars",
+        "items": {
+         "candidate": 2,
+         "count": 0
+        }
+       }
+      ]
+     },
+     {
+      "text": "Reading 8: count is 0, so 8 becomes the candidate (count 1).",
+      "panels": [
+       {
+        "type": "row",
+        "cells": [
+         2,
+         8,
+         8,
+         1,
+         8,
+         8,
+         3,
+         8,
+         2
+        ],
+        "states": {
+         "0": "dim",
+         "1": "dim",
+         "2": "active"
+        },
+        "slots": true
+       },
+       {
+        "type": "vars",
+        "items": {
+         "candidate": 8,
+         "count": 1
+        }
+       }
+      ]
+     },
+     {
+      "text": "Reading 1: 1 differs: it cancels one vote, count 0.",
+      "panels": [
+       {
+        "type": "row",
+        "cells": [
+         2,
+         8,
+         8,
+         1,
+         8,
+         8,
+         3,
+         8,
+         2
+        ],
+        "states": {
+         "0": "dim",
+         "1": "dim",
+         "2": "dim",
+         "3": "active"
+        },
+        "slots": true
+       },
+       {
+        "type": "vars",
+        "items": {
+         "candidate": 8,
+         "count": 0
+        }
+       }
+      ]
+     },
+     {
+      "text": "Reading 8: count is 0, so 8 becomes the candidate (count 1).",
+      "panels": [
+       {
+        "type": "row",
+        "cells": [
+         2,
+         8,
+         8,
+         1,
+         8,
+         8,
+         3,
+         8,
+         2
+        ],
+        "states": {
+         "0": "dim",
+         "1": "dim",
+         "2": "dim",
+         "3": "dim",
+         "4": "active"
+        },
+        "slots": true
+       },
+       {
+        "type": "vars",
+        "items": {
+         "candidate": 8,
+         "count": 1
+        }
+       }
+      ]
+     },
+     {
+      "text": "Reading 8: 8 matches the candidate: count 2.",
+      "panels": [
+       {
+        "type": "row",
+        "cells": [
+         2,
+         8,
+         8,
+         1,
+         8,
+         8,
+         3,
+         8,
+         2
+        ],
+        "states": {
+         "0": "dim",
+         "1": "dim",
+         "2": "dim",
+         "3": "dim",
+         "4": "dim",
+         "5": "active"
+        },
+        "slots": true
+       },
+       {
+        "type": "vars",
+        "items": {
+         "candidate": 8,
+         "count": 2
+        }
+       }
+      ]
+     },
+     {
+      "text": "Reading 3: 3 differs: it cancels one vote, count 1.",
+      "panels": [
+       {
+        "type": "row",
+        "cells": [
+         2,
+         8,
+         8,
+         1,
+         8,
+         8,
+         3,
+         8,
+         2
+        ],
+        "states": {
+         "0": "dim",
+         "1": "dim",
+         "2": "dim",
+         "3": "dim",
+         "4": "dim",
+         "5": "dim",
+         "6": "active"
+        },
+        "slots": true
+       },
+       {
+        "type": "vars",
+        "items": {
+         "candidate": 8,
+         "count": 1
+        }
+       }
+      ]
+     },
+     {
+      "text": "Reading 8: 8 matches the candidate: count 2.",
+      "panels": [
+       {
+        "type": "row",
+        "cells": [
+         2,
+         8,
+         8,
+         1,
+         8,
+         8,
+         3,
+         8,
+         2
+        ],
+        "states": {
+         "0": "dim",
+         "1": "dim",
+         "2": "dim",
+         "3": "dim",
+         "4": "dim",
+         "5": "dim",
+         "6": "dim",
+         "7": "active"
+        },
+        "slots": true
+       },
+       {
+        "type": "vars",
+        "items": {
+         "candidate": 8,
+         "count": 2
+        }
+       }
+      ]
+     },
+     {
+      "text": "Reading 2: 2 differs: it cancels one vote, count 1.",
+      "panels": [
+       {
+        "type": "row",
+        "cells": [
+         2,
+         8,
+         8,
+         1,
+         8,
+         8,
+         3,
+         8,
+         2
+        ],
+        "states": {
+         "0": "dim",
+         "1": "dim",
+         "2": "dim",
+         "3": "dim",
+         "4": "dim",
+         "5": "dim",
+         "6": "dim",
+         "7": "dim",
+         "8": "active"
+        },
+        "slots": true
+       },
+       {
+        "type": "vars",
+        "items": {
+         "candidate": 8,
+         "count": 1
+        }
+       }
+      ]
+     },
+     {
+      "text": "The survivor is 8.",
+      "panels": [
+       {
+        "type": "row",
+        "cells": [
+         2,
+         8,
+         8,
+         1,
+         8,
+         8,
+         3,
+         8,
+         2
+        ],
+        "states": {
+         "1": "answer",
+         "2": "answer",
+         "4": "answer",
+         "5": "answer",
+         "7": "answer"
+        },
+        "slots": true
+       }
+      ],
+      "result": "8"
+     }
+    ],
+    "title": "Boyer–Moore voting: different values cancel in pairs; the majority can't be cancelled out."
+   }
+  }
+ ],
+ "takeaways": [
+  {
+   "md": "- A strict majority can't be cancelled out: pairing it against everything else leaves copies over.\n  That's **Boyer–Moore voting**, O(1) space.\n- The guarantee matters. If a majority might not exist, verify the candidate with a second count.\n- The sorting trick (majority covers the middle index) is a handy one-liner when O(n log n) is fine.\n- The idea generalises: at most two values can exceed n/3 (see **Strong Candidates**), with two\n  candidate slots."
+  }
+ ]
+}

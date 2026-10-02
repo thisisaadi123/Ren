@@ -1,0 +1,1137 @@
+{
+ "version": 1,
+ "summary": "Count plays per genre (ids are small, −10⁴ … 10⁴, so an array works). Then pick the k best by (count\nhigh, id low). Sorting all genres works; a size-k heap avoids sorting everything; and because counts\nare integers up to n, bucketing by count makes the whole thing linear.",
+ "question": [
+  {
+   "md": "Return the `k` most-played genres, best first. Ties in play count go to the **smaller genre id**.\n\n- **The order of the answer matters:** by count descending, then id ascending.\n- **Ids can be negative** (−10⁴ … 10⁴), so shift them by 10⁴ to use them as array indices.\n- **k is valid:** at least k different genres exist.\n- **Size:** up to 10⁵ plays, up to 20,001 distinct genres."
+  }
+ ],
+ "think": [
+  {
+   "md": "Take `plays = [3, 1, 3, 2, 1, 3, 4, 2, 1, 5]` with k = 3. Counts: 1→3, 3→3, 2→2, 4→1, 5→1.\nOrder by count, ties by id: 1 (3 plays), 3 (3 plays), 2, 4, 5. The top 3 are `[1, 3, 2]`."
+  },
+  {
+   "panels": [
+    {
+     "type": "row",
+     "cells": [
+      "1:3",
+      "3:3",
+      "2:2",
+      "4:1",
+      "5:1"
+     ],
+     "states": {
+      "0": "answer",
+      "1": "answer",
+      "2": "answer"
+     },
+     "label": "genre:plays, best first"
+    }
+   ],
+   "caption": "Genres 1 and 3 tie; 1 wins on id."
+  },
+  {
+   "md": "So the work is: count (one pass), then **select the k best**. Selection is where the approaches\ndiffer:\n\n- sort all d genres: O(d log d);\n- keep only the best k seen so far in a heap: O(d log k), good when k is small;\n- put genres in buckets by count, since counts are integers between 1 and n: O(n + d), no comparisons\n  at all."
+  }
+ ],
+ "approaches": [
+  {
+   "title": "Find the best remaining genre k times",
+   "kind": "brute",
+   "time": "O(k · d · n)",
+   "space": "O(d)",
+   "idea": [
+    {
+     "md": "List the distinct genres. k times: count every remaining genre with a scan of `plays`, take the best (most plays, then smallest id), and remove it."
+    }
+   ],
+   "build": [
+    "Collect the distinct genres in increasing id order.",
+    "Repeat k times: find the genre with the most plays (scanning to count), keeping the earlier (smaller) id on ties.",
+    "Move it to the answer."
+   ],
+   "code": {
+    "python": "class Solution:\n    def topGenres(self, plays: List[int], k: int) -> List[int]:\n        left = sorted(set(plays))\n        out = []\n        for _ in range(k):\n            best = left[0]\n            for g in left:\n                if plays.count(g) > plays.count(best):\n                    best = g\n            out.append(best)\n            left.remove(best)\n        return out\n",
+    "java": "class Solution {\n    public int[] topGenres(int[] plays, int k) {\n        boolean[] left = new boolean[20001];\n        for (int g : plays) left[g + 10000] = true;\n        int[] out = new int[k];\n        for (int r = 0; r < k; r++) {\n            int best = -1, bestCount = 0;\n            for (int i = 0; i < 20001; i++) {\n                if (!left[i]) continue;\n                int c = 0;\n                for (int g : plays) if (g == i - 10000) c++;\n                if (c > bestCount) { best = i; bestCount = c; }\n            }\n            out[r] = best - 10000;\n            left[best] = false;\n        }\n        return out;\n    }\n}\n",
+    "cpp": "class Solution {\npublic:\n    vector<int> topGenres(vector<int>& plays, int k) {\n        vector<bool> left(20001, false);\n        for (int g : plays) left[g + 10000] = true;\n        vector<int> out;\n        for (int r = 0; r < k; r++) {\n            int best = -1, bestCount = 0;\n            for (int i = 0; i < 20001; i++) {\n                if (!left[i]) continue;\n                int c = count(plays.begin(), plays.end(), i - 10000);\n                if (c > bestCount) { best = i; bestCount = c; }\n            }\n            out.push_back(best - 10000);\n            left[best] = false;\n        }\n        return out;\n    }\n};\n",
+    "c": "int* topGenres(int* plays, int playsSize, int k, int* returnSize) {\n    bool* left = calloc(20001, sizeof(bool));\n    for (int i = 0; i < playsSize; i++) left[plays[i] + 10000] = true;\n    int* out = malloc(k * sizeof(int));\n    for (int r = 0; r < k; r++) {\n        int best = -1, bestCount = 0;\n        for (int i = 0; i < 20001; i++) {\n            if (!left[i]) continue;\n            int c = 0;\n            for (int j = 0; j < playsSize; j++) if (plays[j] == i - 10000) c++;\n            if (c > bestCount) { best = i; bestCount = c; }\n        }\n        out[r] = best - 10000;\n        left[best] = false;\n    }\n    free(left);\n    *returnSize = k;\n    return out;\n}\n"
+   },
+   "lines": [
+    {
+     "text": "The genres still in the running.",
+     "at": {
+      "python": [
+       [
+        3,
+        3
+       ]
+      ],
+      "java": [
+       [
+        3,
+        4
+       ]
+      ],
+      "cpp": [
+       [
+        4,
+        5
+       ]
+      ],
+      "c": [
+       [
+        2,
+        3
+       ]
+      ]
+     },
+     "notes": {
+      "java": "A flag per possible id, shifted by 10,000 so −10⁴ maps to index 0.",
+      "cpp": "A flag per possible id, shifted by 10,000 so −10⁴ maps to index 0.",
+      "c": "A flag per possible id, shifted by 10,000 so −10⁴ maps to index 0."
+     }
+    },
+    {
+     "text": "Each round adds one genre to the answer.",
+     "at": {
+      "python": [
+       [
+        5,
+        5
+       ]
+      ],
+      "java": [
+       [
+        6,
+        6
+       ]
+      ],
+      "cpp": [
+       [
+        7,
+        7
+       ]
+      ],
+      "c": [
+       [
+        5,
+        5
+       ]
+      ]
+     }
+    },
+    {
+     "text": "Count every remaining genre with a full scan. Genres are visited from the smallest id and only a strictly higher count replaces the best, which implements the tie rule.",
+     "at": {
+      "python": [
+       [
+        6,
+        9
+       ]
+      ],
+      "java": [
+       [
+        7,
+        12
+       ]
+      ],
+      "cpp": [
+       [
+        8,
+        12
+       ]
+      ],
+      "c": [
+       [
+        6,
+        11
+       ]
+      ]
+     }
+    },
+    {
+     "text": "Record the winner (shifting its index back to an id) and remove it from the running.",
+     "at": {
+      "python": [
+       [
+        10,
+        11
+       ]
+      ],
+      "java": [
+       [
+        14,
+        15
+       ]
+      ],
+      "cpp": [
+       [
+        14,
+        15
+       ]
+      ],
+      "c": [
+       [
+        13,
+        14
+       ]
+      ]
+     }
+    },
+    {
+     "text": "The k winners in order.",
+     "at": {
+      "python": [
+       [
+        12,
+        12
+       ]
+      ],
+      "java": [
+       [
+        17,
+        17
+       ]
+      ],
+      "cpp": [
+       [
+        17,
+        17
+       ]
+      ],
+      "c": [
+       [
+        16,
+        18
+       ]
+      ]
+     },
+     "notes": {
+      "c": "Free the flags and report the length."
+     }
+    }
+   ],
+   "complexity": [
+    {
+     "md": "**Time O(k · d · n):** k rounds × d genres × an n-long scan. **Space O(d).**"
+    }
+   ],
+   "walk": {
+    "steps": [
+     {
+      "text": "Round 1: counts 1:3, 2:2, 3:3, 4:1, 5:1. Best: 1.",
+      "panels": [
+       {
+        "type": "row",
+        "cells": [
+         "1:3",
+         "2:2",
+         "3:3",
+         "4:1",
+         "5:1"
+        ],
+        "states": {
+         "0": "answer"
+        },
+        "label": "remaining genre:plays"
+       },
+       {
+        "type": "vars",
+        "items": {
+         "answer": "[1]"
+        }
+       }
+      ]
+     },
+     {
+      "text": "Round 2: counts 2:2, 3:3, 4:1, 5:1. Best: 3.",
+      "panels": [
+       {
+        "type": "row",
+        "cells": [
+         "2:2",
+         "3:3",
+         "4:1",
+         "5:1"
+        ],
+        "states": {
+         "1": "answer"
+        },
+        "label": "remaining genre:plays"
+       },
+       {
+        "type": "vars",
+        "items": {
+         "answer": "[1, 3]"
+        }
+       }
+      ]
+     },
+     {
+      "text": "Round 3: counts 2:2, 4:1, 5:1. Best: 2.",
+      "panels": [
+       {
+        "type": "row",
+        "cells": [
+         "2:2",
+         "4:1",
+         "5:1"
+        ],
+        "states": {
+         "0": "answer"
+        },
+        "label": "remaining genre:plays"
+       },
+       {
+        "type": "vars",
+        "items": {
+         "answer": "[1, 3, 2]"
+        }
+       }
+      ]
+     },
+     {
+      "text": "Answer [1, 3, 2].",
+      "panels": [
+       {
+        "type": "row",
+        "cells": [
+         1,
+         3,
+         2
+        ]
+       }
+      ],
+      "result": "[1, 3, 2]"
+     }
+    ],
+    "title": "k rounds: each round counts every remaining genre with full scans and takes the best."
+   },
+   "limits": [
+    {
+     "md": "Counts are recomputed every round although they never change. Count once, then choose."
+    }
+   ],
+   "slow": true
+  },
+  {
+   "title": "Count, then sort all genres",
+   "kind": "better",
+   "time": "O(n + d log d)",
+   "space": "O(d)",
+   "idea": [
+    {
+     "md": "Count plays into an array indexed by `id + 10000`. Collect the genres that appear and sort them by (count descending, id ascending). The first k are the answer."
+    }
+   ],
+   "build": [
+    "Count plays per genre (shifted index).",
+    "Collect genres with a nonzero count.",
+    "Sort by count descending, then id ascending.",
+    "Return the first k."
+   ],
+   "code": {
+    "python": "class Solution:\n    def topGenres(self, plays: List[int], k: int) -> List[int]:\n        count = [0] * 20001\n        for g in plays:\n            count[g + 10000] += 1\n        genres = [i - 10000 for i in range(20001) if count[i]]\n        genres.sort(key=lambda g: (-count[g + 10000], g))\n        return genres[:k]\n",
+    "java": "class Solution {\n    public int[] topGenres(int[] plays, int k) {\n        int[] count = new int[20001];\n        for (int g : plays) count[g + 10000]++;\n        List<Integer> genres = new ArrayList<>();\n        for (int i = 0; i < 20001; i++) if (count[i] > 0) genres.add(i - 10000);\n        genres.sort((a, b) -> count[a + 10000] != count[b + 10000]\n                ? count[b + 10000] - count[a + 10000] : a - b);\n        int[] out = new int[k];\n        for (int i = 0; i < k; i++) out[i] = genres.get(i);\n        return out;\n    }\n}\n",
+    "cpp": "class Solution {\npublic:\n    vector<int> topGenres(vector<int>& plays, int k) {\n        vector<int> count(20001, 0);\n        for (int g : plays) count[g + 10000]++;\n        vector<int> genres;\n        for (int i = 0; i < 20001; i++) if (count[i]) genres.push_back(i - 10000);\n        sort(genres.begin(), genres.end(), [&](int a, int b) {\n            int ca = count[a + 10000], cb = count[b + 10000];\n            return ca != cb ? ca > cb : a < b;\n        });\n        return vector<int>(genres.begin(), genres.begin() + k);\n    }\n};\n",
+    "c": "static int* gCount;\n\nstatic int byPlays(const void* a, const void* b) {\n    int x = *(const int*) a, y = *(const int*) b;\n    int cx = gCount[x + 10000], cy = gCount[y + 10000];\n    if (cx != cy) return cy - cx;\n    return x - y;\n}\n\nint* topGenres(int* plays, int playsSize, int k, int* returnSize) {\n    int* count = calloc(20001, sizeof(int));\n    for (int i = 0; i < playsSize; i++) count[plays[i] + 10000]++;\n    int* genres = malloc(20001 * sizeof(int));\n    int d = 0;\n    for (int i = 0; i < 20001; i++) if (count[i]) genres[d++] = i - 10000;\n    gCount = count;\n    qsort(genres, d, sizeof(int), byPlays);\n    int* out = malloc(k * sizeof(int));\n    memcpy(out, genres, k * sizeof(int));\n    free(count);\n    free(genres);\n    *returnSize = k;\n    return out;\n}\n"
+   },
+   "lines": [
+    {
+     "text": "The comparator reads the counts through a file-level pointer (`qsort` can't pass extra data). Higher count first; ties by smaller id. Counts and ids are small, so subtraction is safe.",
+     "at": {
+      "c": [
+       [
+        1,
+        1
+       ],
+       [
+        3,
+        8
+       ]
+      ]
+     }
+    },
+    {
+     "text": "Ids −10⁴ … 10⁴ shifted by 10⁴ become indices 0 … 20,000.",
+     "at": {
+      "python": [
+       [
+        3,
+        5
+       ]
+      ],
+      "java": [
+       [
+        3,
+        4
+       ]
+      ],
+      "cpp": [
+       [
+        4,
+        5
+       ]
+      ],
+      "c": [
+       [
+        11,
+        12
+       ]
+      ]
+     }
+    },
+    {
+     "text": "The genres that were actually played (d of them).",
+     "at": {
+      "python": [
+       [
+        6,
+        6
+       ]
+      ],
+      "java": [
+       [
+        5,
+        6
+       ]
+      ],
+      "cpp": [
+       [
+        6,
+        7
+       ]
+      ],
+      "c": [
+       [
+        13,
+        15
+       ]
+      ]
+     }
+    },
+    {
+     "text": "Best first: more plays, then smaller id.",
+     "at": {
+      "python": [
+       [
+        7,
+        7
+       ]
+      ],
+      "java": [
+       [
+        7,
+        8
+       ]
+      ],
+      "cpp": [
+       [
+        8,
+        11
+       ]
+      ],
+      "c": [
+       [
+        16,
+        17
+       ]
+      ]
+     }
+    },
+    {
+     "text": "The first k.",
+     "at": {
+      "python": [
+       [
+        8,
+        8
+       ]
+      ],
+      "java": [
+       [
+        9,
+        11
+       ]
+      ],
+      "cpp": [
+       [
+        12,
+        12
+       ]
+      ],
+      "c": [
+       [
+        18,
+        23
+       ]
+      ]
+     },
+     "notes": {
+      "c": "Copy them out, free the scratch arrays, report the length."
+     }
+    }
+   ],
+   "complexity": [
+    {
+     "md": "**Time O(n + R + d log d)** with R = 20,001 possible ids (a constant). **Space O(R).**"
+    }
+   ],
+   "walk": {
+    "steps": [
+     {
+      "text": "Plays per genre.",
+      "panels": [
+       {
+        "type": "row",
+        "cells": [
+         3,
+         1,
+         3,
+         2,
+         1,
+         3,
+         4,
+         2,
+         1,
+         5
+        ],
+        "slots": true
+       },
+       {
+        "type": "row",
+        "cells": [
+         "1:3",
+         "2:2",
+         "3:3",
+         "4:1",
+         "5:1"
+        ],
+        "label": "genre:plays"
+       }
+      ]
+     },
+     {
+      "text": "Sorted: 1:3, 3:3, 2:2, 4:1, 5:1. Genres 1 and 3 tie at 3; 1 has the smaller id.",
+      "panels": [
+       {
+        "type": "row",
+        "cells": [
+         "1:3",
+         "3:3",
+         "2:2",
+         "4:1",
+         "5:1"
+        ],
+        "states": {
+         "0": "answer",
+         "1": "answer",
+         "2": "answer"
+        },
+        "label": "sorted"
+       }
+      ],
+      "result": "[1, 3, 2]"
+     }
+    ],
+    "title": "Count once, then sort genres by (plays high → low, id low → high) and take k."
+   },
+   "limits": [
+    {
+     "md": "It sorts all d genres just to keep k of them. When k is much smaller than d, keeping only the best k is cheaper."
+    }
+   ]
+  },
+  {
+   "title": "Keep the best k in a min-heap",
+   "kind": "better",
+   "time": "O(n + d log k)",
+   "space": "O(k)",
+   "idea": [
+    {
+     "md": "Visit the genres with their counts. Keep a heap of at most k entries whose **top is the weakest**\none kept (fewest plays; on a tie, the larger id). For each genre: if the heap has fewer than k,\npush it; otherwise, if it beats the top, replace the top. At the end the heap holds the k best;\npop them weakest first and reverse."
+    }
+   ],
+   "build": [
+    "Count plays per genre.",
+    "Define \"weaker\": fewer plays, or equal plays and a larger id.",
+    "For each played genre: push if the heap has < k entries; else if it's stronger than the top, replace the top.",
+    "Pop everything (weakest first) and fill the answer from the back."
+   ],
+   "code": {
+    "python": "import heapq\n\nclass Solution:\n    def topGenres(self, plays: List[int], k: int) -> List[int]:\n        count = [0] * 20001\n        for g in plays:\n            count[g + 10000] += 1\n        heap = []\n        for i in range(20001):\n            if not count[i]:\n                continue\n            item = (count[i], -(i - 10000))\n            if len(heap) < k:\n                heapq.heappush(heap, item)\n            elif item > heap[0]:\n                heapq.heapreplace(heap, item)\n        best = sorted(heap, reverse=True)\n        return [-g for _, g in best]\n",
+    "java": "class Solution {\n    public int[] topGenres(int[] plays, int k) {\n        int[] count = new int[20001];\n        for (int g : plays) count[g + 10000]++;\n        PriorityQueue<int[]> heap = new PriorityQueue<>(\n            (a, b) -> a[1] != b[1] ? Integer.compare(a[1], b[1]) : Integer.compare(b[0], a[0]));\n        for (int i = 0; i < 20001; i++) {\n            if (count[i] == 0) continue;\n            heap.offer(new int[] {i - 10000, count[i]});\n            if (heap.size() > k) heap.poll();\n        }\n        int[] out = new int[k];\n        for (int i = k - 1; i >= 0; i--) out[i] = heap.poll()[0];\n        return out;\n    }\n}\n",
+    "cpp": "class Solution {\npublic:\n    vector<int> topGenres(vector<int>& plays, int k) {\n        vector<int> count(20001, 0);\n        for (int g : plays) count[g + 10000]++;\n        priority_queue<pair<int, int>, vector<pair<int, int>>, greater<>> heap;\n        for (int i = 0; i < 20001; i++) {\n            if (!count[i]) continue;\n            heap.push({count[i], -(i - 10000)});\n            if ((int) heap.size() > k) heap.pop();\n        }\n        vector<int> out(k);\n        for (int i = k - 1; i >= 0; i--) {\n            out[i] = -heap.top().second;\n            heap.pop();\n        }\n        return out;\n    }\n};\n",
+    "c": "typedef struct { int plays, id; } Entry;\n\n// a is weaker than b: fewer plays, or as many plays and a larger id.\nstatic bool weaker(Entry a, Entry b) {\n    return a.plays != b.plays ? a.plays < b.plays : a.id > b.id;\n}\n\nstatic void siftDown(Entry* h, int size, int i) {\n    while (true) {\n        int l = 2 * i + 1, r = l + 1, w = i;\n        if (l < size && weaker(h[l], h[w])) w = l;\n        if (r < size && weaker(h[r], h[w])) w = r;\n        if (w == i) return;\n        Entry t = h[i]; h[i] = h[w]; h[w] = t;\n        i = w;\n    }\n}\n\nstatic void siftUp(Entry* h, int i) {\n    while (i > 0 && weaker(h[i], h[(i - 1) / 2])) {\n        Entry t = h[i]; h[i] = h[(i - 1) / 2]; h[(i - 1) / 2] = t;\n        i = (i - 1) / 2;\n    }\n}\n\nint* topGenres(int* plays, int playsSize, int k, int* returnSize) {\n    int* count = calloc(20001, sizeof(int));\n    for (int i = 0; i < playsSize; i++) count[plays[i] + 10000]++;\n    Entry* heap = malloc(k * sizeof(Entry));\n    int size = 0;\n    for (int i = 0; i < 20001; i++) {\n        if (!count[i]) continue;\n        Entry e = {count[i], i - 10000};\n        if (size < k) {\n            heap[size] = e;\n            siftUp(heap, size++);\n        } else if (weaker(heap[0], e)) {\n            heap[0] = e;\n            siftDown(heap, size, 0);\n        }\n    }\n    int* out = malloc(k * sizeof(int));\n    for (int i = k - 1; i >= 0; i--) {\n        out[i] = heap[0].id;\n        heap[0] = heap[--size];\n        siftDown(heap, size, 0);\n    }\n    free(count);\n    free(heap);\n    *returnSize = k;\n    return out;\n}\n"
+   },
+   "lines": [
+    {
+     "text": "A heap entry and the ordering that matters: which of two genres is **weaker**. The weakest kept genre sits on top so it's the one we compare against and evict.",
+     "at": {
+      "c": [
+       [
+        1,
+        1
+       ],
+       [
+        4,
+        6
+       ]
+      ]
+     }
+    },
+    {
+     "text": "A hand-written binary min-heap (C has none). `siftUp` moves a new entry up while it's weaker than its parent; `siftDown` moves the top down, swapping with its weaker child, until the heap order holds again. Both are O(log k).",
+     "at": {
+      "c": [
+       [
+        8,
+        17
+       ],
+       [
+        19,
+        24
+       ]
+      ]
+     }
+    },
+    {
+     "text": "Plays per genre, ids shifted by 10⁴ into array indices.",
+     "at": {
+      "python": [
+       [
+        5,
+        7
+       ]
+      ],
+      "java": [
+       [
+        3,
+        4
+       ]
+      ],
+      "cpp": [
+       [
+        4,
+        5
+       ]
+      ],
+      "c": [
+       [
+        27,
+        28
+       ]
+      ]
+     }
+    },
+    {
+     "text": "The k strongest genres seen so far, weakest on top.",
+     "at": {
+      "python": [
+       [
+        8,
+        8
+       ]
+      ],
+      "java": [
+       [
+        5,
+        6
+       ]
+      ],
+      "cpp": [
+       [
+        6,
+        6
+       ]
+      ],
+      "c": [
+       [
+        29,
+        30
+       ]
+      ]
+     },
+     "notes": {
+      "java": "The comparator puts fewer plays first, and on ties the larger id first: that's \"weakest first\".",
+      "cpp": "`greater<>` makes a min-heap of `(plays, −id)`: the smallest pair is fewest plays, and on a tie the most negative `−id`, i.e. the largest id: the weakest."
+     }
+    },
+    {
+     "text": "Visit each genre that was played.",
+     "at": {
+      "python": [
+       [
+        9,
+        11
+       ]
+      ],
+      "java": [
+       [
+        7,
+        8
+       ]
+      ],
+      "cpp": [
+       [
+        7,
+        8
+       ]
+      ],
+      "c": [
+       [
+        31,
+        32
+       ]
+      ]
+     }
+    },
+    {
+     "text": "Represent the genre so that \"bigger means stronger\".",
+     "at": {
+      "python": [
+       [
+        12,
+        12
+       ]
+      ],
+      "c": [
+       [
+        33,
+        33
+       ]
+      ]
+     },
+     "notes": {
+      "python": "Tuples `(plays, −id)`: more plays is bigger, and on a tie a smaller id gives a bigger `−id`."
+     }
+    },
+    {
+     "text": "Fill the heap up to k; after that, a genre only gets in by beating the weakest kept one, which it replaces.",
+     "at": {
+      "python": [
+       [
+        13,
+        16
+       ]
+      ],
+      "java": [
+       [
+        9,
+        10
+       ]
+      ],
+      "cpp": [
+       [
+        9,
+        10
+       ]
+      ],
+      "c": [
+       [
+        34,
+        39
+       ]
+      ]
+     },
+     "notes": {
+      "java": "Simpler variant: always add, then drop the weakest if there are k + 1. Same result.",
+      "cpp": "Always push, then pop the weakest if there are k + 1."
+     }
+    },
+    {
+     "text": "The heap pops weakest first, so fill the answer from the back to get best first.",
+     "at": {
+      "python": [
+       [
+        17,
+        18
+       ]
+      ],
+      "java": [
+       [
+        12,
+        14
+       ]
+      ],
+      "cpp": [
+       [
+        12,
+        15
+       ],
+       [
+        17,
+        17
+       ]
+      ],
+      "c": [
+       [
+        42,
+        46
+       ],
+       [
+        48,
+        51
+       ]
+      ]
+     },
+     "notes": {
+      "python": "Sorting the k kept tuples in reverse puts the strongest first.",
+      "c": "Pop by moving the last entry to the top and sifting it down; free the scratch memory."
+     }
+    }
+   ],
+   "complexity": [
+    {
+     "md": "**Time O(n + R + d log k):** counting, then each of d genres costs at most one O(log k) heap operation. **Space O(k)** for the heap (plus the fixed count array)."
+    }
+   ],
+   "walk": {
+    "steps": [
+     {
+      "text": "Genre 1 with 3 plays: heap not full: push.",
+      "panels": [
+       {
+        "type": "row",
+        "cells": [
+         "1:3"
+        ],
+        "states": {
+         "0": "mark"
+        },
+        "label": "kept (weakest first)"
+       }
+      ]
+     },
+     {
+      "text": "Genre 2 with 2 plays: heap not full: push.",
+      "panels": [
+       {
+        "type": "row",
+        "cells": [
+         "2:2",
+         "1:3"
+        ],
+        "states": {
+         "0": "mark"
+        },
+        "label": "kept (weakest first)"
+       }
+      ]
+     },
+     {
+      "text": "Genre 3 with 3 plays: heap not full: push.",
+      "panels": [
+       {
+        "type": "row",
+        "cells": [
+         "2:2",
+         "3:3",
+         "1:3"
+        ],
+        "states": {
+         "0": "mark"
+        },
+        "label": "kept (weakest first)"
+       }
+      ]
+     },
+     {
+      "text": "Genre 4 with 1 plays: not better than the weakest (2:2): skip.",
+      "panels": [
+       {
+        "type": "row",
+        "cells": [
+         "2:2",
+         "3:3",
+         "1:3"
+        ],
+        "states": {
+         "0": "mark"
+        },
+        "label": "kept (weakest first)"
+       }
+      ]
+     },
+     {
+      "text": "Genre 5 with 1 plays: not better than the weakest (2:2): skip.",
+      "panels": [
+       {
+        "type": "row",
+        "cells": [
+         "2:2",
+         "3:3",
+         "1:3"
+        ],
+        "states": {
+         "0": "mark"
+        },
+        "label": "kept (weakest first)"
+       }
+      ]
+     },
+     {
+      "text": "Pop and reverse: [1, 3, 2].",
+      "panels": [
+       {
+        "type": "row",
+        "cells": [
+         "1:3",
+         "3:3",
+         "2:2"
+        ],
+        "label": "best first"
+       }
+      ],
+      "result": "[1, 3, 2]"
+     }
+    ],
+    "title": "Keep a min-heap of the best 3 so far; its top is the weakest, and gets replaced by anything better."
+   },
+   "limits": [
+    {
+     "md": "Still pays a log factor per genre. Since play counts are integers between 1 and n, buckets can order genres by count with no comparisons at all."
+    }
+   ]
+  },
+  {
+   "title": "Buckets by play count",
+   "kind": "best",
+   "time": "O(n + R)",
+   "space": "O(n + R)",
+   "idea": [
+    {
+     "md": "After counting, put each genre into `bucket[count]`, visiting genres in increasing id order so\nevery bucket is sorted by id. Then read buckets from the highest count (n) down, taking genres\nuntil there are k. Ties are handled by the bucket's order; no sorting anywhere."
+    }
+   ],
+   "build": [
+    "Count plays per genre (shifted index).",
+    "Create buckets `0 … n`; for ids in increasing order, append each played genre to `bucket[count]`.",
+    "Walk `c` from n down to 1, appending genres from `bucket[c]` until k are taken."
+   ],
+   "code": {
+    "python": "class Solution:\n    def topGenres(self, plays: List[int], k: int) -> List[int]:\n        count = [0] * 20001\n        for g in plays:\n            count[g + 10000] += 1\n        bucket = [[] for _ in range(len(plays) + 1)]\n        for i in range(20001):\n            if count[i]:\n                bucket[count[i]].append(i - 10000)\n        out = []\n        for c in range(len(plays), 0, -1):\n            for g in bucket[c]:\n                if len(out) == k:\n                    return out\n                out.append(g)\n        return out\n",
+    "java": "class Solution {\n    public int[] topGenres(int[] plays, int k) {\n        int n = plays.length;\n        int[] count = new int[20001];\n        for (int g : plays) count[g + 10000]++;\n        List<List<Integer>> bucket = new ArrayList<>();\n        for (int c = 0; c <= n; c++) bucket.add(new ArrayList<>());\n        for (int i = 0; i < 20001; i++) if (count[i] > 0) bucket.get(count[i]).add(i - 10000);\n        int[] out = new int[k];\n        int taken = 0;\n        for (int c = n; c >= 1 && taken < k; c--)\n            for (int g : bucket.get(c))\n                if (taken < k) out[taken++] = g;\n        return out;\n    }\n}\n",
+    "cpp": "class Solution {\npublic:\n    vector<int> topGenres(vector<int>& plays, int k) {\n        int n = plays.size();\n        vector<int> count(20001, 0);\n        for (int g : plays) count[g + 10000]++;\n        vector<vector<int>> bucket(n + 1);\n        for (int i = 0; i < 20001; i++) if (count[i]) bucket[count[i]].push_back(i - 10000);\n        vector<int> out;\n        for (int c = n; c >= 1 && (int) out.size() < k; c--)\n            for (int g : bucket[c])\n                if ((int) out.size() < k) out.push_back(g);\n        return out;\n    }\n};\n",
+    "c": "int* topGenres(int* plays, int playsSize, int k, int* returnSize) {\n    int n = playsSize;\n    int* count = calloc(20001, sizeof(int));\n    for (int i = 0; i < n; i++) count[plays[i] + 10000]++;\n    int* head = malloc((n + 1) * sizeof(int));\n    int* next = malloc(20001 * sizeof(int));\n    for (int c = 0; c <= n; c++) head[c] = -1;\n    for (int i = 20000; i >= 0; i--) {\n        if (!count[i]) continue;\n        next[i] = head[count[i]];\n        head[count[i]] = i;\n    }\n    int* out = malloc(k * sizeof(int));\n    int taken = 0;\n    for (int c = n; c >= 1 && taken < k; c--)\n        for (int i = head[c]; i != -1 && taken < k; i = next[i])\n            out[taken++] = i - 10000;\n    free(count);\n    free(head);\n    free(next);\n    *returnSize = k;\n    return out;\n}\n"
+   },
+   "lines": [
+    {
+     "text": "Plays per genre, ids shifted by 10⁴ into indices.",
+     "at": {
+      "python": [
+       [
+        3,
+        5
+       ]
+      ],
+      "java": [
+       [
+        4,
+        5
+       ]
+      ],
+      "cpp": [
+       [
+        5,
+        6
+       ]
+      ],
+      "c": [
+       [
+        3,
+        4
+       ]
+      ]
+     }
+    },
+    {
+     "text": "Each played genre goes into the bucket for its count. Ids are visited smallest first, so each bucket is already ordered by id: exactly the tie rule.",
+     "at": {
+      "python": [
+       [
+        6,
+        9
+       ]
+      ],
+      "java": [
+       [
+        6,
+        8
+       ]
+      ],
+      "cpp": [
+       [
+        7,
+        8
+       ]
+      ],
+      "c": [
+       [
+        5,
+        11
+       ]
+      ]
+     },
+     "notes": {
+      "c": "Buckets as linked lists in two arrays: `head[c]` is the first genre with count c and `next[i]` the one after `i`. Walking ids from largest to smallest and pushing to the front leaves each list in increasing id order."
+     }
+    },
+    {
+     "text": "From the highest possible count (n) downwards, take genres in bucket order until k are taken.",
+     "at": {
+      "python": [
+       [
+        10,
+        15
+       ]
+      ],
+      "java": [
+       [
+        9,
+        13
+       ]
+      ],
+      "cpp": [
+       [
+        9,
+        12
+       ]
+      ],
+      "c": [
+       [
+        13,
+        17
+       ]
+      ]
+     }
+    },
+    {
+     "text": "The k most-played genres, best first.",
+     "at": {
+      "python": [
+       [
+        16,
+        16
+       ]
+      ],
+      "java": [
+       [
+        14,
+        14
+       ]
+      ],
+      "cpp": [
+       [
+        13,
+        13
+       ]
+      ],
+      "c": [
+       [
+        18,
+        22
+       ]
+      ]
+     },
+     "notes": {
+      "c": "Free the scratch arrays and report the length."
+     }
+    }
+   ],
+   "complexity": [
+    {
+     "md": "**Time O(n + R):** counting, one pass over the R = 20,001 possible ids, and at most n buckets to read. **Space O(n + R).**"
+    }
+   ],
+   "walk": {
+    "steps": [
+     {
+      "text": "Bucket[c] lists genres played c times, smallest id first.",
+      "panels": [
+       {
+        "type": "row",
+        "cells": [
+         "4,5",
+         "2",
+         "1,3",
+         null
+        ],
+        "label": "buckets 1 … 4"
+       }
+      ]
+     },
+     {
+      "text": "Bucket 3: [1, 3] → answer [1, 3].",
+      "panels": [
+       {
+        "type": "row",
+        "cells": [
+         "4,5",
+         "2",
+         "1,3",
+         null
+        ],
+        "states": {
+         "2": "active"
+        },
+        "label": "buckets 1 … 4"
+       },
+       {
+        "type": "vars",
+        "items": {
+         "answer": "[1, 3]"
+        }
+       }
+      ]
+     },
+     {
+      "text": "Bucket 2: [2] → answer [1, 3, 2].",
+      "panels": [
+       {
+        "type": "row",
+        "cells": [
+         "4,5",
+         "2",
+         "1,3",
+         null
+        ],
+        "states": {
+         "1": "active"
+        },
+        "label": "buckets 1 … 4"
+       },
+       {
+        "type": "vars",
+        "items": {
+         "answer": "[1, 3, 2]"
+        }
+       }
+      ]
+     },
+     {
+      "text": "Answer [1, 3, 2].",
+      "panels": [
+       {
+        "type": "row",
+        "cells": [
+         1,
+         3,
+         2
+        ]
+       }
+      ],
+      "result": "[1, 3, 2]"
+     }
+    ],
+    "title": "Drop genres into buckets by play count (in id order), then read buckets from the top."
+   }
+  }
+ ],
+ "takeaways": [
+  {
+   "md": "- **Top-k by frequency** = count, then select. Selection options: sort (d log d), size-k heap\n  (d log k), buckets by count (linear).\n- For a heap of the \"best k\", keep the **weakest on top** so it's the one you compare against and\n  evict.\n- Small, known id ranges (here −10⁴ … 10⁴) make an offset array a drop-in replacement for a hash map.\n- Ties are part of the order: encode them in the comparator, or get them for free by filling\n  buckets in id order."
+  }
+ ]
+}
