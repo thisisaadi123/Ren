@@ -1,0 +1,1531 @@
+{
+ "version": 1,
+ "summary": "Two words are anagrams exactly when they have the same letters in the same amounts. Turn every word\ninto a **key** that captures just that (its letters sorted, or its 26 letter counts), and group words\nby key with a hash map. Then sort for the required output order.",
+ "question": [
+  {
+   "md": "Put words that are anagrams of each other (same letters, rearranged) in the same group.\n\n- **\"Same letters\" means same counts.** `\"aab\"` and `\"abb\"` both use a and b, but they aren't\n  anagrams.\n- **The output order is fixed**, so there's one right answer: words sorted inside each group, groups\n  ordered by their first word.\n- **Duplicates stay:** `[\"ab\", \"ba\", \"ab\"]` gives `[[\"ab\", \"ab\", \"ba\"]]`.\n- **The empty word** is a valid word and forms a group with other empty words.\n- **Size:** up to 10⁴ words of at most 30 lowercase letters."
+  }
+ ],
+ "think": [
+  {
+   "md": "Take `[\"pots\", \"tea\", \"stop\", \"eat\", \"opts\", \"tan\", \"ate\"]`. By hand you'd notice that tea, eat and\nate all \"spell\" a-e-t if you rearrange the letters. That's the trick: give each word a **fingerprint**\nthat doesn't depend on letter order."
+  },
+  {
+   "panels": [
+    {
+     "type": "row",
+     "cells": [
+      "pots",
+      "tea",
+      "stop",
+      "eat",
+      "opts",
+      "tan",
+      "ate"
+     ],
+     "label": "word"
+    },
+    {
+     "type": "row",
+     "cells": [
+      "opst",
+      "aet",
+      "opst",
+      "aet",
+      "opst",
+      "ant",
+      "aet"
+     ],
+     "label": "letters sorted"
+    }
+   ],
+   "caption": "Anagrams get the same fingerprint: aet, opst, ant."
+  },
+  {
+   "md": "Two good fingerprints:\n\n- **The letters in sorted order:** `\"tea\"` → `\"aet\"`. Costs a small sort per word.\n- **The 26 letter counts:** `\"tea\"` → a:1, e:1, t:1, zeros elsewhere. Costs one pass per word.\n\nOnce every word has a fingerprint, \"group anagrams\" becomes \"group equal keys\", which a hash map\ndoes in one pass (or a sort, which puts equal keys next to each other)."
+  }
+ ],
+ "approaches": [
+  {
+   "title": "Compare each word with every group",
+   "kind": "brute",
+   "time": "O(n · g · L)",
+   "space": "O(n · L)",
+   "idea": [
+    {
+     "md": "Keep a list of groups, each with its letter counts. For each word, count its letters and compare against every group until one matches; if none does, start a new group. Finally sort for the output order."
+    }
+   ],
+   "build": [
+    "For each word, count its 26 letters.",
+    "Scan the existing groups; join the first group with identical counts.",
+    "If none matches, start a new group with these counts.",
+    "Sort words in each group, then order groups by first word."
+   ],
+   "code": {
+    "python": "class Solution:\n    def groupAnagrams(self, words: List[str]) -> List[List[str]]:\n        counts, groups = [], []\n        for w in words:\n            c = [0] * 26\n            for ch in w:\n                c[ord(ch) - 97] += 1\n            for k in range(len(groups)):\n                if counts[k] == c:\n                    groups[k].append(w)\n                    break\n            else:\n                counts.append(c)\n                groups.append([w])\n        result = [sorted(g) for g in groups]\n        result.sort(key=lambda g: g[0])\n        return result\n",
+    "java": "class Solution {\n    public String[][] groupAnagrams(String[] words) {\n        List<int[]> counts = new ArrayList<>();\n        List<List<String>> groups = new ArrayList<>();\n        for (String w : words) {\n            int[] c = new int[26];\n            for (char ch : w.toCharArray()) c[ch - 'a']++;\n            int k = 0;\n            while (k < groups.size() && !Arrays.equals(counts.get(k), c)) k++;\n            if (k == groups.size()) {\n                counts.add(c);\n                groups.add(new ArrayList<>());\n            }\n            groups.get(k).add(w);\n        }\n        for (List<String> g : groups) Collections.sort(g);\n        groups.sort(Comparator.comparing(g -> g.get(0)));\n        String[][] out = new String[groups.size()][];\n        for (int i = 0; i < out.length; i++) out[i] = groups.get(i).toArray(new String[0]);\n        return out;\n    }\n}\n",
+    "cpp": "class Solution {\npublic:\n    vector<vector<string>> groupAnagrams(vector<string>& words) {\n        vector<array<int, 26>> counts;\n        vector<vector<string>> groups;\n        for (const string& w : words) {\n            array<int, 26> c{};\n            for (char ch : w) c[ch - 'a']++;\n            size_t k = 0;\n            while (k < groups.size() && counts[k] != c) k++;\n            if (k == groups.size()) {\n                counts.push_back(c);\n                groups.push_back({});\n            }\n            groups[k].push_back(w);\n        }\n        for (auto& g : groups) sort(g.begin(), g.end());\n        sort(groups.begin(), groups.end(), [](auto& a, auto& b) { return a[0] < b[0]; });\n        return groups;\n    }\n};\n",
+    "c": "typedef struct { char** words; int size; } Group;\n\nstatic int cmpStr(const void* a, const void* b) {\n    return strcmp(*(char* const*) a, *(char* const*) b);\n}\n\nstatic int byFirstWord(const void* a, const void* b) {\n    return strcmp(((const Group*) a)->words[0], ((const Group*) b)->words[0]);\n}\n\n// Sort each group's words, order the groups by their first word, and return them.\nstatic char*** finish(Group* groups, int g, int* returnSize, int** returnColumnSizes) {\n    for (int k = 0; k < g; k++) qsort(groups[k].words, groups[k].size, sizeof(char*), cmpStr);\n    qsort(groups, g, sizeof(Group), byFirstWord);\n    char*** out = malloc(g * sizeof(char**));\n    *returnColumnSizes = malloc(g * sizeof(int));\n    for (int k = 0; k < g; k++) {\n        out[k] = groups[k].words;\n        (*returnColumnSizes)[k] = groups[k].size;\n    }\n    *returnSize = g;\n    free(groups);\n    return out;\n}\n\n                    char*** groupAnagrams(char** words, int wordsSize, int* returnSize, int** returnColumnSizes) {\n                        int (*counts)[26] = malloc(wordsSize * sizeof *counts);\n                        int* gid = malloc(wordsSize * sizeof(int));\n                        int* size = calloc(wordsSize, sizeof(int));\n                        int g = 0;\n                        for (int i = 0; i < wordsSize; i++) {\n                            int c[26] = {0};\n                            for (char* p = words[i]; *p; p++) c[*p - 'a']++;\n                            int k = 0;\n                            while (k < g && memcmp(counts[k], c, sizeof c) != 0) k++;\n                            if (k == g) memcpy(counts[g++], c, sizeof c);\n                            gid[i] = k;\n                            size[k]++;\n                        }\n                        Group* groups = malloc(g * sizeof(Group));\n                        for (int k = 0; k < g; k++) {\n                            groups[k].words = malloc(size[k] * sizeof(char*));\n                            groups[k].size = 0;\n                        }\n                        for (int i = 0; i < wordsSize; i++) {\n                            Group* t = &groups[gid[i]];\n                            t->words[t->size++] = words[i];\n                        }\n                        free(counts);\n                        free(gid);\n                        free(size);\n                        return finish(groups, g, returnSize, returnColumnSizes);\n                    }\n"
+   },
+   "lines": [
+    {
+     "text": "The required output order: words sorted inside each group, groups ordered by their first word. Different groups can never share a first word (equal words are anagrams), so that order is unambiguous.",
+     "at": {
+      "python": [
+       [
+        15,
+        17
+       ]
+      ],
+      "java": [
+       [
+        16,
+        20
+       ]
+      ],
+      "cpp": [
+       [
+        17,
+        19
+       ]
+      ],
+      "c": [
+       [
+        1,
+        1
+       ],
+       [
+        3,
+        5
+       ],
+       [
+        7,
+        9
+       ],
+       [
+        12,
+        24
+       ],
+       [
+        52,
+        52
+       ]
+      ]
+     },
+     "notes": {
+      "c": "A group is an array of word pointers and its size. `finish` sorts each group with `strcmp`, sorts the groups by first word, and returns them with each group's length in `returnColumnSizes`. The words themselves are the input's strings; only the arrays are new."
+     }
+    },
+    {
+     "text": "Each group's letter counts, kept side by side with the group's words.",
+     "at": {
+      "python": [
+       [
+        3,
+        3
+       ]
+      ],
+      "java": [
+       [
+        3,
+        4
+       ]
+      ],
+      "cpp": [
+       [
+        4,
+        5
+       ]
+      ],
+      "c": [
+       [
+        27,
+        30
+       ]
+      ]
+     },
+     "notes": {
+      "c": "One row of 26 counts per group (at most n groups), plus each word's group id and each group's size, so the groups can be built at exactly the right size afterwards."
+     }
+    },
+    {
+     "text": "One word at a time.",
+     "at": {
+      "python": [
+       [
+        4,
+        4
+       ]
+      ],
+      "java": [
+       [
+        5,
+        5
+       ]
+      ],
+      "cpp": [
+       [
+        6,
+        6
+       ]
+      ],
+      "c": [
+       [
+        31,
+        31
+       ]
+      ]
+     }
+    },
+    {
+     "text": "The word's fingerprint: how many of each letter.",
+     "at": {
+      "python": [
+       [
+        5,
+        7
+       ]
+      ],
+      "java": [
+       [
+        6,
+        7
+       ]
+      ],
+      "cpp": [
+       [
+        7,
+        8
+       ]
+      ],
+      "c": [
+       [
+        32,
+        33
+       ]
+      ]
+     }
+    },
+    {
+     "text": "Compare with every group's counts until one matches; the word joins that group.",
+     "at": {
+      "python": [
+       [
+        8,
+        11
+       ]
+      ],
+      "java": [
+       [
+        8,
+        9
+       ],
+       [
+        14,
+        14
+       ]
+      ],
+      "cpp": [
+       [
+        9,
+        10
+       ],
+       [
+        15,
+        15
+       ]
+      ],
+      "c": [
+       [
+        34,
+        35
+       ],
+       [
+        37,
+        38
+       ]
+      ]
+     },
+     "notes": {
+      "c": "`memcmp` compares the 26 counts as raw memory: equal bytes means equal counts. Record the group id and grow its size."
+     }
+    },
+    {
+     "text": "No group matched: this word starts a new one, and its counts become the group's fingerprint.",
+     "at": {
+      "python": [
+       [
+        12,
+        14
+       ]
+      ],
+      "java": [
+       [
+        10,
+        12
+       ]
+      ],
+      "cpp": [
+       [
+        11,
+        13
+       ]
+      ],
+      "c": [
+       [
+        36,
+        36
+       ]
+      ]
+     }
+    },
+    {
+     "text": "Second pass: allocate each group at its final size and drop the words in.",
+     "at": {
+      "c": [
+       [
+        40,
+        51
+       ]
+      ]
+     }
+    }
+   ],
+   "complexity": [
+    {
+     "md": "**Time O(n · g · L)** in the spirit of the problem (each of n words is compared with up to g groups;\nwith 26 counts per comparison and L ≤ 30, each comparison is O(26)). With 10⁴ distinct groups that's\n~10⁸ comparisons, plus the output sort.\n\n**Space O(n · L)** for the groups."
+    }
+   ],
+   "walk": {
+    "steps": [
+     {
+      "text": "'pots' matches none of the 0 groups: new group.",
+      "panels": [
+       {
+        "type": "row",
+        "cells": [
+         "pots",
+         "tea",
+         "stop",
+         "eat",
+         "opts",
+         "tan",
+         "ate"
+        ],
+        "states": {
+         "0": "active"
+        }
+       },
+       {
+        "type": "row",
+        "cells": [
+         "pots"
+        ],
+        "states": {
+         "0": "new"
+        },
+        "label": "group 1"
+       }
+      ]
+     },
+     {
+      "text": "'tea' matches none of the 1 group: new group.",
+      "panels": [
+       {
+        "type": "row",
+        "cells": [
+         "pots",
+         "tea",
+         "stop",
+         "eat",
+         "opts",
+         "tan",
+         "ate"
+        ],
+        "states": {
+         "0": "dim",
+         "1": "active"
+        }
+       },
+       {
+        "type": "row",
+        "cells": [
+         "pots"
+        ],
+        "label": "group 1"
+       },
+       {
+        "type": "row",
+        "cells": [
+         "tea"
+        ],
+        "states": {
+         "0": "new"
+        },
+        "label": "group 2"
+       }
+      ]
+     },
+     {
+      "text": "'stop' has the same letter counts as 'pots' (checked 1 group): join it.",
+      "panels": [
+       {
+        "type": "row",
+        "cells": [
+         "pots",
+         "tea",
+         "stop",
+         "eat",
+         "opts",
+         "tan",
+         "ate"
+        ],
+        "states": {
+         "0": "dim",
+         "1": "dim",
+         "2": "active"
+        }
+       },
+       {
+        "type": "row",
+        "cells": [
+         "pots",
+         "stop"
+        ],
+        "states": {
+         "1": "new"
+        },
+        "label": "group 1"
+       },
+       {
+        "type": "row",
+        "cells": [
+         "tea"
+        ],
+        "label": "group 2"
+       }
+      ]
+     },
+     {
+      "text": "'eat' has the same letter counts as 'tea' (checked 2 groups): join it.",
+      "panels": [
+       {
+        "type": "row",
+        "cells": [
+         "pots",
+         "tea",
+         "stop",
+         "eat",
+         "opts",
+         "tan",
+         "ate"
+        ],
+        "states": {
+         "0": "dim",
+         "1": "dim",
+         "2": "dim",
+         "3": "active"
+        }
+       },
+       {
+        "type": "row",
+        "cells": [
+         "pots",
+         "stop"
+        ],
+        "label": "group 1"
+       },
+       {
+        "type": "row",
+        "cells": [
+         "tea",
+         "eat"
+        ],
+        "states": {
+         "1": "new"
+        },
+        "label": "group 2"
+       }
+      ]
+     },
+     {
+      "text": "'opts' has the same letter counts as 'pots' (checked 1 group): join it.",
+      "panels": [
+       {
+        "type": "row",
+        "cells": [
+         "pots",
+         "tea",
+         "stop",
+         "eat",
+         "opts",
+         "tan",
+         "ate"
+        ],
+        "states": {
+         "0": "dim",
+         "1": "dim",
+         "2": "dim",
+         "3": "dim",
+         "4": "active"
+        }
+       },
+       {
+        "type": "row",
+        "cells": [
+         "pots",
+         "stop",
+         "opts"
+        ],
+        "states": {
+         "2": "new"
+        },
+        "label": "group 1"
+       },
+       {
+        "type": "row",
+        "cells": [
+         "tea",
+         "eat"
+        ],
+        "label": "group 2"
+       }
+      ]
+     },
+     {
+      "text": "'tan' matches none of the 2 groups: new group.",
+      "panels": [
+       {
+        "type": "row",
+        "cells": [
+         "pots",
+         "tea",
+         "stop",
+         "eat",
+         "opts",
+         "tan",
+         "ate"
+        ],
+        "states": {
+         "0": "dim",
+         "1": "dim",
+         "2": "dim",
+         "3": "dim",
+         "4": "dim",
+         "5": "active"
+        }
+       },
+       {
+        "type": "row",
+        "cells": [
+         "pots",
+         "stop",
+         "opts"
+        ],
+        "label": "group 1"
+       },
+       {
+        "type": "row",
+        "cells": [
+         "tea",
+         "eat"
+        ],
+        "label": "group 2"
+       },
+       {
+        "type": "row",
+        "cells": [
+         "tan"
+        ],
+        "states": {
+         "0": "new"
+        },
+        "label": "group 3"
+       }
+      ]
+     },
+     {
+      "text": "'ate' has the same letter counts as 'tea' (checked 2 groups): join it.",
+      "panels": [
+       {
+        "type": "row",
+        "cells": [
+         "pots",
+         "tea",
+         "stop",
+         "eat",
+         "opts",
+         "tan",
+         "ate"
+        ],
+        "states": {
+         "0": "dim",
+         "1": "dim",
+         "2": "dim",
+         "3": "dim",
+         "4": "dim",
+         "5": "dim",
+         "6": "active"
+        }
+       },
+       {
+        "type": "row",
+        "cells": [
+         "pots",
+         "stop",
+         "opts"
+        ],
+        "label": "group 1"
+       },
+       {
+        "type": "row",
+        "cells": [
+         "tea",
+         "eat",
+         "ate"
+        ],
+        "states": {
+         "2": "new"
+        },
+        "label": "group 2"
+       },
+       {
+        "type": "row",
+        "cells": [
+         "tan"
+        ],
+        "label": "group 3"
+       }
+      ]
+     },
+     {
+      "text": "Sort inside groups, then order groups by first word.",
+      "panels": [
+       {
+        "type": "row",
+        "cells": [
+         "ate",
+         "eat",
+         "tea"
+        ],
+        "label": "group 1"
+       },
+       {
+        "type": "row",
+        "cells": [
+         "opts",
+         "pots",
+         "stop"
+        ],
+        "label": "group 2"
+       },
+       {
+        "type": "row",
+        "cells": [
+         "tan"
+        ],
+        "label": "group 3"
+       }
+      ],
+      "result": "[[\"ate\", \"eat\", \"tea\"], [\"opts\", \"pots\", \"stop\"], [\"tan\"]]"
+     }
+    ],
+    "title": "Compare each word's letter counts with each existing group's; join the first match or start a group."
+   },
+   "limits": [
+    {
+     "md": "Finding a word's group is a linear search through all groups. A key that can be **looked up** (hash map) or **sorted** removes that search."
+    }
+   ],
+   "slow": true
+  },
+  {
+   "title": "Sort by sorted-letter key, then cut into runs",
+   "kind": "better",
+   "time": "O(n · L · log n)",
+   "space": "O(n · L)",
+   "idea": [
+    {
+     "md": "Give every word the key \"its letters sorted\" (`\"tea\"` → `\"aet\"`). Sort the (key, word) pairs.\nAnagrams now sit next to each other, and since ties are broken by the word, each run is already\nsorted inside. Cut the list wherever the key changes, then order the groups by first word."
+    }
+   ],
+   "build": [
+    "For each word, build its key by sorting its letters.",
+    "Sort (key, word) pairs by key, then word.",
+    "Walk the sorted pairs; start a new group whenever the key changes.",
+    "Order the groups by their first word."
+   ],
+   "code": {
+    "python": "class Solution:\n    def groupAnagrams(self, words: List[str]) -> List[List[str]]:\n        pairs = sorted((\"\".join(sorted(w)), w) for w in words)\n        result = []\n        for i, (key, w) in enumerate(pairs):\n            if i == 0 or key != pairs[i - 1][0]:\n                result.append([])\n            result[-1].append(w)\n        result.sort(key=lambda g: g[0])\n        return result\n",
+    "java": "class Solution {\n    public String[][] groupAnagrams(String[] words) {\n        int n = words.length;\n        String[] key = new String[n];\n        Integer[] idx = new Integer[n];\n        for (int i = 0; i < n; i++) {\n            char[] c = words[i].toCharArray();\n            Arrays.sort(c);\n            key[i] = new String(c);\n            idx[i] = i;\n        }\n        Arrays.sort(idx, (a, b) -> {\n            int c = key[a].compareTo(key[b]);\n            return c != 0 ? c : words[a].compareTo(words[b]);\n        });\n        List<List<String>> groups = new ArrayList<>();\n        for (int i = 0; i < n; i++) {\n            if (i == 0 || !key[idx[i]].equals(key[idx[i - 1]])) groups.add(new ArrayList<>());\n            groups.get(groups.size() - 1).add(words[idx[i]]);\n        }\n        groups.sort(Comparator.comparing(g -> g.get(0)));\n        String[][] out = new String[groups.size()][];\n        for (int i = 0; i < out.length; i++) out[i] = groups.get(i).toArray(new String[0]);\n        return out;\n    }\n}\n",
+    "cpp": "class Solution {\npublic:\n    vector<vector<string>> groupAnagrams(vector<string>& words) {\n        vector<pair<string, string>> pairs;\n        for (const string& w : words) {\n            string key = w;\n            sort(key.begin(), key.end());\n            pairs.push_back({key, w});\n        }\n        sort(pairs.begin(), pairs.end());\n        vector<vector<string>> groups;\n        for (size_t i = 0; i < pairs.size(); i++) {\n            if (i == 0 || pairs[i].first != pairs[i - 1].first) groups.push_back({});\n            groups.back().push_back(pairs[i].second);\n        }\n        sort(groups.begin(), groups.end(), [](auto& a, auto& b) { return a[0] < b[0]; });\n        return groups;\n    }\n};\n",
+    "c": "typedef struct { char** words; int size; } Group;\n\nstatic int cmpStr(const void* a, const void* b) {\n    return strcmp(*(char* const*) a, *(char* const*) b);\n}\n\nstatic int byFirstWord(const void* a, const void* b) {\n    return strcmp(((const Group*) a)->words[0], ((const Group*) b)->words[0]);\n}\n\n// Sort each group's words, order the groups by their first word, and return them.\nstatic char*** finish(Group* groups, int g, int* returnSize, int** returnColumnSizes) {\n    for (int k = 0; k < g; k++) qsort(groups[k].words, groups[k].size, sizeof(char*), cmpStr);\n    qsort(groups, g, sizeof(Group), byFirstWord);\n    char*** out = malloc(g * sizeof(char**));\n    *returnColumnSizes = malloc(g * sizeof(int));\n    for (int k = 0; k < g; k++) {\n        out[k] = groups[k].words;\n        (*returnColumnSizes)[k] = groups[k].size;\n    }\n    *returnSize = g;\n    free(groups);\n    return out;\n}\n\n                    typedef struct { char* key; char* word; } Pair;\n\n                    static int cmpChar(const void* a, const void* b) {\n                        return *(const char*) a - *(const char*) b;\n                    }\n\n                    static int byKeyThenWord(const void* a, const void* b) {\n                        const Pair* x = a;\n                        const Pair* y = b;\n                        int c = strcmp(x->key, y->key);\n                        return c ? c : strcmp(x->word, y->word);\n                    }\n\n                    char*** groupAnagrams(char** words, int wordsSize, int* returnSize, int** returnColumnSizes) {\n                        int n = wordsSize;\n                        Pair* pairs = malloc(n * sizeof(Pair));\n                        for (int i = 0; i < n; i++) {\n                            size_t len = strlen(words[i]);\n                            pairs[i].key = malloc(len + 1);\n                            memcpy(pairs[i].key, words[i], len + 1);\n                            qsort(pairs[i].key, len, 1, cmpChar);\n                            pairs[i].word = words[i];\n                        }\n                        qsort(pairs, n, sizeof(Pair), byKeyThenWord);\n                        Group* groups = malloc(n * sizeof(Group));\n                        int g = 0;\n                        for (int i = 0; i < n;) {\n                            int j = i;\n                            while (j < n && strcmp(pairs[j].key, pairs[i].key) == 0) j++;\n                            groups[g].words = malloc((j - i) * sizeof(char*));\n                            groups[g].size = j - i;\n                            for (int k = i; k < j; k++) groups[g].words[k - i] = pairs[k].word;\n                            g++;\n                            i = j;\n                        }\n                        for (int i = 0; i < n; i++) free(pairs[i].key);\n                        free(pairs);\n                        return finish(groups, g, returnSize, returnColumnSizes);\n                    }\n"
+   },
+   "lines": [
+    {
+     "text": "The required output order: words sorted inside each group, groups ordered by their first word. Different groups can never share a first word (equal words are anagrams), so that order is unambiguous.",
+     "at": {
+      "python": [
+       [
+        9,
+        10
+       ]
+      ],
+      "java": [
+       [
+        21,
+        24
+       ]
+      ],
+      "cpp": [
+       [
+        16,
+        17
+       ]
+      ],
+      "c": [
+       [
+        1,
+        1
+       ],
+       [
+        3,
+        5
+       ],
+       [
+        7,
+        9
+       ],
+       [
+        12,
+        24
+       ],
+       [
+        63,
+        63
+       ]
+      ]
+     },
+     "notes": {
+      "c": "A group is an array of word pointers and its size. `finish` sorts each group with `strcmp`, sorts the groups by first word, and returns them with each group's length in `returnColumnSizes`. The words themselves are the input's strings; only the arrays are new."
+     }
+    },
+    {
+     "text": "A word together with its key, and a comparator that orders by key, then by the word itself.",
+     "at": {
+      "c": [
+       [
+        26,
+        26
+       ],
+       [
+        28,
+        30
+       ],
+       [
+        32,
+        37
+       ]
+      ]
+     }
+    },
+    {
+     "text": "Every word gets its sorted-letter key, and the (key, word) pairs are sorted. Equal keys become adjacent, and within a key the words come out in order.",
+     "at": {
+      "python": [
+       [
+        3,
+        3
+       ]
+      ],
+      "java": [
+       [
+        4,
+        15
+       ]
+      ],
+      "cpp": [
+       [
+        4,
+        10
+       ]
+      ],
+      "c": [
+       [
+        41,
+        49
+       ]
+      ]
+     },
+     "notes": {
+      "java": "Sorting an index array lets the keys and words stay in their own arrays.",
+      "c": "Each key is a sorted copy of the word; the pairs are sorted with `qsort`."
+     }
+    },
+    {
+     "text": "A new group starts wherever the key differs from the previous pair's key.",
+     "at": {
+      "python": [
+       [
+        4,
+        8
+       ]
+      ],
+      "java": [
+       [
+        16,
+        19
+       ]
+      ],
+      "cpp": [
+       [
+        11,
+        14
+       ]
+      ],
+      "c": [
+       [
+        50,
+        62
+       ]
+      ]
+     },
+     "notes": {
+      "c": "Find where each run of equal keys ends, copy its words into a group, then free the keys."
+     }
+    }
+   ],
+   "complexity": [
+    {
+     "md": "**Time O(n · L · log n):** building keys costs O(L log L) per word, and sorting n pairs costs\nO(n log n) comparisons of up to L characters each. **Space O(n · L)** for the keys."
+    }
+   ],
+   "walk": {
+    "steps": [
+     {
+      "text": "Each word's key is its letters in alphabetical order. Anagrams get the same key.",
+      "panels": [
+       {
+        "type": "row",
+        "cells": [
+         "pots",
+         "tea",
+         "stop",
+         "eat",
+         "opts",
+         "tan",
+         "ate"
+        ],
+        "label": "word"
+       },
+       {
+        "type": "row",
+        "cells": [
+         "opst",
+         "aet",
+         "opst",
+         "aet",
+         "opst",
+         "ant",
+         "aet"
+        ],
+        "label": "key"
+       }
+      ]
+     },
+     {
+      "text": "Sort by (key, word).",
+      "panels": [
+       {
+        "type": "row",
+        "cells": [
+         "aet",
+         "aet",
+         "aet",
+         "ant",
+         "opst",
+         "opst",
+         "opst"
+        ],
+        "label": "key"
+       },
+       {
+        "type": "row",
+        "cells": [
+         "ate",
+         "eat",
+         "tea",
+         "tan",
+         "opts",
+         "pots",
+         "stop"
+        ],
+        "label": "word"
+       }
+      ]
+     },
+     {
+      "text": "Key 'aet' runs from 0 to 2: one group, ['ate', 'eat', 'tea'].",
+      "panels": [
+       {
+        "type": "row",
+        "cells": [
+         "aet",
+         "aet",
+         "aet",
+         "ant",
+         "opst",
+         "opst",
+         "opst"
+        ],
+        "states": {
+         "0": "answer",
+         "1": "answer",
+         "2": "answer"
+        },
+        "label": "key"
+       },
+       {
+        "type": "row",
+        "cells": [
+         "ate",
+         "eat",
+         "tea",
+         "tan",
+         "opts",
+         "pots",
+         "stop"
+        ],
+        "states": {
+         "0": "answer",
+         "1": "answer",
+         "2": "answer"
+        },
+        "label": "word"
+       }
+      ]
+     },
+     {
+      "text": "Key 'ant' runs from 3 to 3: one group, ['tan'].",
+      "panels": [
+       {
+        "type": "row",
+        "cells": [
+         "aet",
+         "aet",
+         "aet",
+         "ant",
+         "opst",
+         "opst",
+         "opst"
+        ],
+        "states": {
+         "3": "answer"
+        },
+        "label": "key"
+       },
+       {
+        "type": "row",
+        "cells": [
+         "ate",
+         "eat",
+         "tea",
+         "tan",
+         "opts",
+         "pots",
+         "stop"
+        ],
+        "states": {
+         "3": "answer"
+        },
+        "label": "word"
+       }
+      ]
+     },
+     {
+      "text": "Key 'opst' runs from 4 to 6: one group, ['opts', 'pots', 'stop'].",
+      "panels": [
+       {
+        "type": "row",
+        "cells": [
+         "aet",
+         "aet",
+         "aet",
+         "ant",
+         "opst",
+         "opst",
+         "opst"
+        ],
+        "states": {
+         "4": "answer",
+         "5": "answer",
+         "6": "answer"
+        },
+        "label": "key"
+       },
+       {
+        "type": "row",
+        "cells": [
+         "ate",
+         "eat",
+         "tea",
+         "tan",
+         "opts",
+         "pots",
+         "stop"
+        ],
+        "states": {
+         "4": "answer",
+         "5": "answer",
+         "6": "answer"
+        },
+        "label": "word"
+       }
+      ]
+     },
+     {
+      "text": "Order the groups by first word.",
+      "panels": [
+       {
+        "type": "row",
+        "cells": [
+         "ate",
+         "eat",
+         "tea"
+        ]
+       },
+       {
+        "type": "row",
+        "cells": [
+         "opts",
+         "pots",
+         "stop"
+        ]
+       },
+       {
+        "type": "row",
+        "cells": [
+         "tan"
+        ]
+       }
+      ],
+      "result": "[[\"ate\", \"eat\", \"tea\"], [\"opts\", \"pots\", \"stop\"], [\"tan\"]]"
+     }
+    ],
+    "title": "Pair each word with its letters sorted. Sorting the pairs puts anagrams side by side."
+   },
+   "limits": [
+    {
+     "md": "The big sort does the grouping by comparing strings, about n log n times. A hash map groups\nequal keys in one pass instead; only the (required) output ordering still needs a sort."
+    }
+   ]
+  },
+  {
+   "title": "Hash map keyed by letter counts",
+   "kind": "best",
+   "time": "O(n · L · log n)",
+   "space": "O(n · L)",
+   "idea": [
+    {
+     "md": "Use the 26 letter counts as the key of a hash map from key to the list of words. Each word costs\none O(L) pass to count and one map lookup; the map's lists are the groups. Then sort each group\nand order the groups, because the output format requires it.\n\nThe grouping itself is O(n · L), linear in the input size. The final O(n log n) ordering is only\nthere because the problem asks for a canonical order."
+    }
+   ],
+   "build": [
+    "For each word, count its 26 letters.",
+    "Turn the counts into a hashable key and append the word to `groups[key]`.",
+    "Sort each group's words, then order the groups by first word."
+   ],
+   "code": {
+    "python": "from collections import defaultdict\n\nclass Solution:\n    def groupAnagrams(self, words: List[str]) -> List[List[str]]:\n        groups = defaultdict(list)\n        for w in words:\n            count = [0] * 26\n            for ch in w:\n                count[ord(ch) - 97] += 1\n            groups[tuple(count)].append(w)\n        result = [sorted(g) for g in groups.values()]\n        result.sort(key=lambda g: g[0])\n        return result\n",
+    "java": "class Solution {\n    public String[][] groupAnagrams(String[] words) {\n        Map<String, List<String>> groups = new HashMap<>();\n        for (String w : words) {\n            char[] count = new char[26];\n            for (char ch : w.toCharArray()) count[ch - 'a']++;\n            groups.computeIfAbsent(new String(count), k -> new ArrayList<>()).add(w);\n        }\n        List<List<String>> list = new ArrayList<>(groups.values());\n        for (List<String> g : list) Collections.sort(g);\n        list.sort(Comparator.comparing(g -> g.get(0)));\n        String[][] out = new String[list.size()][];\n        for (int i = 0; i < out.length; i++) out[i] = list.get(i).toArray(new String[0]);\n        return out;\n    }\n}\n",
+    "cpp": "class Solution {\npublic:\n    vector<vector<string>> groupAnagrams(vector<string>& words) {\n        unordered_map<string, vector<string>> groups;\n        for (const string& w : words) {\n            string count(26, '\\0');\n            for (char ch : w) count[ch - 'a']++;\n            groups[count].push_back(w);\n        }\n        vector<vector<string>> result;\n        for (auto& [key, g] : groups) {\n            sort(g.begin(), g.end());\n            result.push_back(move(g));\n        }\n        sort(result.begin(), result.end(), [](auto& a, auto& b) { return a[0] < b[0]; });\n        return result;\n    }\n};\n",
+    "c": "typedef struct { char** words; int size; } Group;\n\nstatic int cmpStr(const void* a, const void* b) {\n    return strcmp(*(char* const*) a, *(char* const*) b);\n}\n\nstatic int byFirstWord(const void* a, const void* b) {\n    return strcmp(((const Group*) a)->words[0], ((const Group*) b)->words[0]);\n}\n\n// Sort each group's words, order the groups by their first word, and return them.\nstatic char*** finish(Group* groups, int g, int* returnSize, int** returnColumnSizes) {\n    for (int k = 0; k < g; k++) qsort(groups[k].words, groups[k].size, sizeof(char*), cmpStr);\n    qsort(groups, g, sizeof(Group), byFirstWord);\n    char*** out = malloc(g * sizeof(char**));\n    *returnColumnSizes = malloc(g * sizeof(int));\n    for (int k = 0; k < g; k++) {\n        out[k] = groups[k].words;\n        (*returnColumnSizes)[k] = groups[k].size;\n    }\n    *returnSize = g;\n    free(groups);\n    return out;\n}\n\n                    static unsigned long long hashCounts(const int* c) {\n                        unsigned long long h = 1469598103934665603ULL;\n                        for (int i = 0; i < 26; i++) h = (h ^ (unsigned) c[i]) * 1099511628211ULL;\n                        return h;\n                    }\n\n                    char*** groupAnagrams(char** words, int wordsSize, int* returnSize, int** returnColumnSizes) {\n                        int n = wordsSize;\n                        unsigned cap = 1;\n                        while (cap < 2u * n) cap <<= 1;\n                        int* slot = malloc(cap * sizeof(int));\n                        for (unsigned s = 0; s < cap; s++) slot[s] = -1;\n                        int (*counts)[26] = malloc(n * sizeof *counts);\n                        int* gid = malloc(n * sizeof(int));\n                        int* size = calloc(n, sizeof(int));\n                        int g = 0;\n                        for (int i = 0; i < n; i++) {\n                            int c[26] = {0};\n                            for (char* p = words[i]; *p; p++) c[*p - 'a']++;\n                            unsigned s = (unsigned) (hashCounts(c) >> 32) & (cap - 1);\n                            while (slot[s] != -1 && memcmp(counts[slot[s]], c, sizeof c) != 0) s = (s + 1) & (cap - 1);\n                            if (slot[s] == -1) {\n                                memcpy(counts[g], c, sizeof c);\n                                slot[s] = g++;\n                            }\n                            gid[i] = slot[s];\n                            size[slot[s]]++;\n                        }\n                        Group* groups = malloc(g * sizeof(Group));\n                        for (int k = 0; k < g; k++) {\n                            groups[k].words = malloc(size[k] * sizeof(char*));\n                            groups[k].size = 0;\n                        }\n                        for (int i = 0; i < n; i++) groups[gid[i]].words[groups[gid[i]].size++] = words[i];\n                        free(slot);\n                        free(counts);\n                        free(gid);\n                        free(size);\n                        return finish(groups, g, returnSize, returnColumnSizes);\n                    }\n"
+   },
+   "lines": [
+    {
+     "text": "The required output order: words sorted inside each group, groups ordered by their first word. Different groups can never share a first word (equal words are anagrams), so that order is unambiguous.",
+     "at": {
+      "python": [
+       [
+        11,
+        13
+       ]
+      ],
+      "java": [
+       [
+        9,
+        14
+       ]
+      ],
+      "cpp": [
+       [
+        10,
+        16
+       ]
+      ],
+      "c": [
+       [
+        1,
+        1
+       ],
+       [
+        3,
+        5
+       ],
+       [
+        7,
+        9
+       ],
+       [
+        12,
+        24
+       ],
+       [
+        64,
+        64
+       ]
+      ]
+     },
+     "notes": {
+      "c": "A group is an array of word pointers and its size. `finish` sorts each group with `strcmp`, sorts the groups by first word, and returns them with each group's length in `returnColumnSizes`. The words themselves are the input's strings; only the arrays are new."
+     }
+    },
+    {
+     "text": "C has no hash map, so this turns 26 counts into a 64-bit hash (FNV-1a: mix in each value with XOR, then multiply by a large prime).",
+     "at": {
+      "c": [
+       [
+        26,
+        30
+       ]
+      ]
+     }
+    },
+    {
+     "text": "A hash map from a word's letter counts to its group.",
+     "at": {
+      "python": [
+       [
+        5,
+        5
+       ]
+      ],
+      "java": [
+       [
+        3,
+        3
+       ]
+      ],
+      "cpp": [
+       [
+        4,
+        4
+       ]
+      ],
+      "c": [
+       [
+        34,
+        41
+       ]
+      ]
+     },
+     "notes": {
+      "python": "`defaultdict(list)` creates an empty list the first time a key is used.",
+      "c": "The table stores group ids (−1 = empty); each group's counts live in `counts[id]`, so a probe compares the actual counts and hash collisions can't merge different groups."
+     }
+    },
+    {
+     "text": "One pass over the words.",
+     "at": {
+      "python": [
+       [
+        6,
+        6
+       ]
+      ],
+      "java": [
+       [
+        4,
+        4
+       ]
+      ],
+      "cpp": [
+       [
+        5,
+        5
+       ]
+      ],
+      "c": [
+       [
+        42,
+        42
+       ]
+      ]
+     }
+    },
+    {
+     "text": "The fingerprint: 26 letter counts, one O(L) pass.",
+     "at": {
+      "python": [
+       [
+        7,
+        9
+       ]
+      ],
+      "java": [
+       [
+        5,
+        6
+       ]
+      ],
+      "cpp": [
+       [
+        6,
+        7
+       ]
+      ],
+      "c": [
+       [
+        43,
+        44
+       ]
+      ]
+     },
+     "notes": {
+      "java": "A `char` per letter is enough (counts ≤ 30), and 26 chars make a compact `String` key.",
+      "cpp": "26 chars as a `string`: compact and already hashable."
+     }
+    },
+    {
+     "text": "Append the word to its key's list, creating the list the first time.",
+     "at": {
+      "python": [
+       [
+        10,
+        10
+       ]
+      ],
+      "java": [
+       [
+        7,
+        7
+       ]
+      ],
+      "cpp": [
+       [
+        8,
+        8
+       ]
+      ],
+      "c": [
+       [
+        45,
+        52
+       ]
+      ]
+     },
+     "notes": {
+      "python": "Lists can't be dictionary keys, so the counts become a tuple.",
+      "java": "`computeIfAbsent` makes the list on first use.",
+      "cpp": "`groups[count]` creates an empty vector for a new key.",
+      "c": "Probe from the hash's slot until we find the group with identical counts or an empty slot, which becomes a new group."
+     }
+    },
+    {
+     "text": "Allocate each group at its final size and fill in the words.",
+     "at": {
+      "c": [
+       [
+        54,
+        63
+       ]
+      ]
+     }
+    }
+   ],
+   "complexity": [
+    {
+     "md": "**Time:** grouping is **O(n · L)** (one counting pass and one O(1) map operation per word). The\nrequired output order adds a sort, **O(n · L · log n)** in total. Without the fixed output order the\nwhole solution would be linear.\n\n**Space O(n · L)** for the groups and keys."
+    }
+   ],
+   "walk": {
+    "steps": [
+     {
+      "text": "'pots' → counts o1p1s1t1: a new key.",
+      "panels": [
+       {
+        "type": "row",
+        "cells": [
+         "pots",
+         "tea",
+         "stop",
+         "eat",
+         "opts",
+         "tan",
+         "ate"
+        ],
+        "states": {
+         "0": "active"
+        }
+       },
+       {
+        "type": "row",
+        "cells": [
+         "o1p1s1t1: pots"
+        ],
+        "states": {
+         "0": "new"
+        },
+        "label": "counts → words"
+       }
+      ]
+     },
+     {
+      "text": "'tea' → counts a1e1t1: a new key.",
+      "panels": [
+       {
+        "type": "row",
+        "cells": [
+         "pots",
+         "tea",
+         "stop",
+         "eat",
+         "opts",
+         "tan",
+         "ate"
+        ],
+        "states": {
+         "0": "dim",
+         "1": "active"
+        }
+       },
+       {
+        "type": "row",
+        "cells": [
+         "o1p1s1t1: pots",
+         "a1e1t1: tea"
+        ],
+        "states": {
+         "1": "new"
+        },
+        "label": "counts → words"
+       }
+      ]
+     },
+     {
+      "text": "'stop' → counts o1p1s1t1: key already there, append.",
+      "panels": [
+       {
+        "type": "row",
+        "cells": [
+         "pots",
+         "tea",
+         "stop",
+         "eat",
+         "opts",
+         "tan",
+         "ate"
+        ],
+        "states": {
+         "0": "dim",
+         "1": "dim",
+         "2": "active"
+        }
+       },
+       {
+        "type": "row",
+        "cells": [
+         "o1p1s1t1: pots,stop",
+         "a1e1t1: tea"
+        ],
+        "states": {
+         "0": "new"
+        },
+        "label": "counts → words"
+       }
+      ]
+     },
+     {
+      "text": "'eat' → counts a1e1t1: key already there, append.",
+      "panels": [
+       {
+        "type": "row",
+        "cells": [
+         "pots",
+         "tea",
+         "stop",
+         "eat",
+         "opts",
+         "tan",
+         "ate"
+        ],
+        "states": {
+         "0": "dim",
+         "1": "dim",
+         "2": "dim",
+         "3": "active"
+        }
+       },
+       {
+        "type": "row",
+        "cells": [
+         "o1p1s1t1: pots,stop",
+         "a1e1t1: tea,eat"
+        ],
+        "states": {
+         "1": "new"
+        },
+        "label": "counts → words"
+       }
+      ]
+     },
+     {
+      "text": "'opts' → counts o1p1s1t1: key already there, append.",
+      "panels": [
+       {
+        "type": "row",
+        "cells": [
+         "pots",
+         "tea",
+         "stop",
+         "eat",
+         "opts",
+         "tan",
+         "ate"
+        ],
+        "states": {
+         "0": "dim",
+         "1": "dim",
+         "2": "dim",
+         "3": "dim",
+         "4": "active"
+        }
+       },
+       {
+        "type": "row",
+        "cells": [
+         "o1p1s1t1: pots,stop,opts",
+         "a1e1t1: tea,eat"
+        ],
+        "states": {
+         "0": "new"
+        },
+        "label": "counts → words"
+       }
+      ]
+     },
+     {
+      "text": "'tan' → counts a1n1t1: a new key.",
+      "panels": [
+       {
+        "type": "row",
+        "cells": [
+         "pots",
+         "tea",
+         "stop",
+         "eat",
+         "opts",
+         "tan",
+         "ate"
+        ],
+        "states": {
+         "0": "dim",
+         "1": "dim",
+         "2": "dim",
+         "3": "dim",
+         "4": "dim",
+         "5": "active"
+        }
+       },
+       {
+        "type": "row",
+        "cells": [
+         "o1p1s1t1: pots,stop,opts",
+         "a1e1t1: tea,eat",
+         "a1n1t1: tan"
+        ],
+        "states": {
+         "2": "new"
+        },
+        "label": "counts → words"
+       }
+      ]
+     },
+     {
+      "text": "'ate' → counts a1e1t1: key already there, append.",
+      "panels": [
+       {
+        "type": "row",
+        "cells": [
+         "pots",
+         "tea",
+         "stop",
+         "eat",
+         "opts",
+         "tan",
+         "ate"
+        ],
+        "states": {
+         "0": "dim",
+         "1": "dim",
+         "2": "dim",
+         "3": "dim",
+         "4": "dim",
+         "5": "dim",
+         "6": "active"
+        }
+       },
+       {
+        "type": "row",
+        "cells": [
+         "o1p1s1t1: pots,stop,opts",
+         "a1e1t1: tea,eat,ate",
+         "a1n1t1: tan"
+        ],
+        "states": {
+         "1": "new"
+        },
+        "label": "counts → words"
+       }
+      ]
+     },
+     {
+      "text": "Each map entry is one group. Sort and order them for the output.",
+      "panels": [
+       {
+        "type": "row",
+        "cells": [
+         "ate",
+         "eat",
+         "tea"
+        ]
+       },
+       {
+        "type": "row",
+        "cells": [
+         "opts",
+         "pots",
+         "stop"
+        ]
+       },
+       {
+        "type": "row",
+        "cells": [
+         "tan"
+        ]
+       }
+      ],
+      "result": "[[\"ate\", \"eat\", \"tea\"], [\"opts\", \"pots\", \"stop\"], [\"tan\"]]"
+     }
+    ],
+    "title": "Turn each word into its 26 letter counts and use that as a hash-map key."
+   }
+  }
+ ],
+ "takeaways": [
+  {
+   "md": "- **Group by key:** design a key that is equal exactly for items that belong together, then let a hash\n  map collect them.\n- For anagrams the key can be the sorted letters (O(L log L)) or the letter counts (O(L) with a small\n  alphabet).\n- Sorting by key is the hash-free fallback: equal keys become adjacent runs.\n- Read the required output format carefully; a canonical order can dominate the running time."
+  }
+ ]
+}
