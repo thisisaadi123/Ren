@@ -144,59 +144,69 @@
 
   /* Linked lists ---------------------------------------------------------------- */
 
-  const LW = 40; // node box
-  const LH = 32;
-  const LG = 24; // gap for the arrow
+  // Nodes are circles like tree nodes, joined by thin arrows. A link to the
+  // previous node is a straight arrow pointing back; a loop or a longer jump is
+  // a soft arc (back links below, forward skips above).
+  const LS = 62; // centre-to-centre spacing
+
+  function chevron(x, y, dir) {
+    // An open arrowhead pointing in direction dir (radians) with its tip at (x, y).
+    const a = 0.5;
+    const len = 5.5;
+    const p1 = [x - len * Math.cos(dir - a), y - len * Math.sin(dir - a)];
+    const p2 = [x - len * Math.cos(dir + a), y - len * Math.sin(dir + a)];
+    return `<path class="vz-head" d="M${p1[0].toFixed(1)} ${p1[1].toFixed(1)}L${x.toFixed(1)} ${y.toFixed(1)}L${p2[0].toFixed(1)} ${p2[1].toFixed(1)}"/>`;
+  }
 
   function listSvg(values, opts = {}) {
     const n = values.length;
+    if (!n) {
+      return `<svg class="vz-list" width="40" height="${2 * (R + PAD)}" role="img" aria-label="empty list"><text class="vz-null" x="${PAD}" y="${R + PAD}" dy="0.35em">null</text></svg>`;
+    }
     const states = opts.states || {};
     const pointers = opts.pointers || {};
-    const links = opts.links || values.slice(1).map((_, i) => [i, i + 1]);
-    const hasBelow = Object.keys(pointers).length > 0;
-    const back = links.some(([a, b]) => b !== null && b <= a) || (opts.cycleAt !== undefined && opts.cycleAt !== null);
-    const top = PAD + (links.some(([a, b]) => b !== null && b > a + 1) ? 22 : 0);
-    const x = (i) => PAD + i * (LW + LG);
-    const w = Math.max(LW + 2 * PAD, x(n - 1) + LW + PAD + 18);
-    const h = top + LH + (back ? 24 : 0) + (hasBelow ? 22 : 0) + PAD;
-    if (!n) {
-      return `<svg class="vz-list" width="${LW + 2 * PAD}" height="${LH + 2 * PAD}" role="img" aria-label="empty list"><text class="vz-null" x="${PAD}" y="${PAD + LH / 2}" dy="0.35em">null</text></svg>`;
-    }
-    const arrows = [];
-    const all = links.slice();
-    if (opts.cycleAt !== undefined && opts.cycleAt !== null) all.push([n - 1, opts.cycleAt]);
-    for (const [a, b] of all) {
-      if (b === null || b === undefined) continue;
-      const y = top + LH / 2;
-      if (b === a + 1) {
-        arrows.push(`<path class="vz-link" d="M${x(a) + LW + 2} ${y}H${x(b) - 4}"/><path class="vz-head" d="M${x(b) - 8} ${y - 4}L${x(b) - 3} ${y}L${x(b) - 8} ${y + 4}"/>`);
-      } else if (b > a) {
-        const x1 = x(a) + LW / 2;
-        const x2 = x(b) + LW / 2;
-        arrows.push(`<path class="vz-link" d="M${x1} ${top - 2}C${x1} ${top - 20} ${x2} ${top - 20} ${x2} ${top - 4}"/><path class="vz-head" d="M${x2 - 4} ${top - 9}L${x2} ${top - 3}L${x2 + 4} ${top - 9}"/>`);
-      } else {
-        const x1 = x(a) + LW / 2;
-        const x2 = x(b) + LW / 2;
-        const y0 = top + LH + 2;
-        arrows.push(`<path class="vz-link" d="M${x1} ${y0}C${x1} ${y0 + 20} ${x2} ${y0 + 20} ${x2} ${y0 + 4}"/><path class="vz-head" d="M${x2 - 4} ${y0 + 9}L${x2} ${y0 + 3}L${x2 + 4} ${y0 + 9}"/>`);
-      }
-    }
-    // The last node of a plain chain points at null.
-    const tailsOut = new Set(all.map(([a, b]) => (b === null || b === undefined ? -1 : a)));
-    const ends = opts.links ? [] : [n - 1].filter((i) => !tailsOut.has(i));
-    const nulls = ends.map((i) => `<path class="vz-link" d="M${x(i) + LW + 2} ${top + LH / 2}h10"/><path class="vz-end" d="M${x(i) + LW + 12} ${top + LH / 2 - 6}v12"/>`);
+    const links = (opts.links || values.slice(1).map((_, i) => [i, i + 1])).slice();
+    if (opts.cycleAt !== undefined && opts.cycleAt !== null) links.push([n - 1, opts.cycleAt]);
+    const far = (a, b) => b !== null && b !== undefined && Math.abs(b - a) > 1;
+    const above = links.some(([a, b]) => far(a, b) && b > a);
+    const below = links.some(([a, b]) => far(a, b) && b < a);
     const labels = {};
     for (const [name, i] of Object.entries(pointers)) if (i !== null && i !== undefined && i >= 0 && i < n) (labels[i] = labels[i] || []).push(name);
-    const boxes = values
-      .map(
-        (v, i) => `<g class="${cls("vz-box", states[i])}">
-          <rect x="${x(i)}" y="${top}" width="${LW}" height="${LH}" rx="8"/>
-          <text${small(v)} x="${x(i) + LW / 2}" y="${top + LH / 2}" dy="0.35em">${esc(v)}</text>
-          ${labels[i] ? `<text class="vz-ptr" x="${x(i) + LW / 2}" y="${top + LH + (back ? 24 : 0) + 16}">${esc(labels[i].join(" · "))}</text>` : ""}
-        </g>`
-      )
-      .join("");
-    return `<svg class="vz-list" width="${w}" height="${h}" viewBox="0 0 ${w} ${h}" role="img" aria-label="${esc(opts.label || "linked list")}">${arrows.join("")}${nulls.join("")}${boxes}</svg>`;
+    const rows = Math.max(0, ...Object.values(labels).map((l) => l.length));
+    const cy = PAD + R + (above ? 22 : 0);
+    const cx = (i) => PAD + R + i * LS;
+    const arcDepth = 26;
+    const labelTop = cy + R + (below ? arcDepth + 4 : 0) + 15;
+    const w = cx(n - 1) + R + PAD;
+    const h = (rows ? labelTop + (rows - 1) * 13 + 6 : cy + R + (below ? arcDepth + 6 : 0)) + PAD;
+
+    const parts = [];
+    for (const [a, b] of links) {
+      if (b === null || b === undefined) continue;
+      if (Math.abs(b - a) === 1) {
+        const dir = b > a ? 1 : -1;
+        const x1 = cx(a) + dir * (R + 3);
+        const x2 = cx(b) - dir * (R + 3);
+        parts.push(`<path class="vz-link" d="M${x1} ${cy}H${x2}"/>`, chevron(x2, cy, dir > 0 ? 0 : Math.PI));
+      } else {
+        // An arc from the bottom (or top) of a to the bottom (or top) of b.
+        const up = b > a;
+        const sy = up ? -1 : 1;
+        const x1 = cx(a);
+        const x2 = cx(b);
+        const y0 = cy + sy * (R + 2);
+        const yc = cy + sy * (R + arcDepth);
+        parts.push(`<path class="vz-link" d="M${x1} ${y0}C${x1} ${yc} ${x2} ${yc} ${x2} ${y0 + sy * 2}"/>`, chevron(x2, y0 + sy * 1, up ? Math.PI / 2 : -Math.PI / 2));
+      }
+    }
+    values.forEach((v, i) => {
+      parts.push(`<g class="${cls("vz-node", states[i])}">
+        <circle cx="${cx(i)}" cy="${cy}" r="${R}"/>
+        <text${small(v)} x="${cx(i)}" y="${cy}" dy="0.35em">${esc(v)}</text>
+      </g>`);
+      (labels[i] || []).forEach((name, k) => parts.push(`<text class="vz-tag" x="${cx(i)}" y="${labelTop + k * 13}">${esc(name)}</text>`));
+    });
+    return `<svg class="vz-list" width="${w}" height="${h}" viewBox="0 0 ${w} ${h}" role="img" aria-label="${esc(opts.label || "linked list")}">${parts.join("")}</svg>`;
   }
 
   /* Rows of cells (arrays, stacks, queues, buffers) ------------------------------ */
