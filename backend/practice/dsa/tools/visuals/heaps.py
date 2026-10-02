@@ -83,6 +83,64 @@ def running_middle(pid):
     return W.save()
 
 
+@run
+def hand_built_heap(pid):
+    a, exp = example(pid)
+    h = []
+    W = Walk(pid, "The heap lives in an array: index i's children are 2i + 1 and 2i + 2. Push sifts a value up; pop moves the last value to the root and sifts it down.")
+
+    def down(i):
+        n = len(h)
+        while True:
+            m, l, r = i, 2 * i + 1, 2 * i + 2
+            if l < n and h[l] < h[m]:
+                m = l
+            if r < n and h[r] < h[m]:
+                m = r
+            if m == i:
+                return i
+            h[i], h[m] = h[m], h[i]
+            i = m
+
+    out = []
+    for c in a["calls"]:
+        if c[0] == "TaskHeap":
+            h = list(c[1])
+            for i in range(len(h) // 2 - 1, -1, -1):
+                down(i)
+            out.append(None)
+            W.step(f"Heapify {c[1]}: sift down every parent, last one first. The smallest reaches the root.", HP(h, {0: "found"}) if h else Vars(size=0))
+        elif c[0] == "push":
+            h.append(c[1])
+            i = len(h) - 1
+            while i and h[i] < h[(i - 1) // 2]:
+                h[i], h[(i - 1) // 2] = h[(i - 1) // 2], h[i]
+                i = (i - 1) // 2
+            out.append(None)
+            W.step(f"push({c[1]}): add it at the end and swap it up past bigger parents.", HP(h, {i: "new"}))
+        elif c[0] == "pop":
+            if not h:
+                out.append(-1)
+                W.step("pop() on an empty heap returns -1.", Vars(size=0), result=-1)
+                continue
+            top, last = h[0], h.pop()
+            at = None
+            if h:
+                h[0] = last
+                at = down(0)
+            out.append(top)
+            W.step(f"pop() returns {top}. The last value moves to the root and sinks to its place.", HP(h, {at: "new"}) if h else Vars(size=0), result=top)
+        elif c[0] == "peek":
+            v = h[0] if h else -1
+            out.append(v)
+            W.step(f"peek() reads the root: {v}.", HP(h, {0: "active"}) if h else Vars(size=0), result=v)
+        else:
+            out.append(len(h))
+            W.step(f"size() is {len(h)}.", Vars(size=len(h)), result=len(h))
+    assert out == exp
+    return W.save()
+
+
 if __name__ == "__main__":
     for pid, n in DONE:
         print(f"{pid}: {n} steps")
