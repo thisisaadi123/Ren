@@ -384,6 +384,8 @@ export async function run({ id, lang, code, cases }) {
 
 export async function submit({ id, lang, code }) {
   const { dir, meta, tests, limitMs } = prepare({ id, lang, code });
+  // No tests means the problem was never built; never call that "Accepted".
+  if (!tests.length || !tests.some((t) => !t.visible)) throw new JudgeError(503, "This problem isn't ready to submit yet.");
   const runs = await withSolution(lang, code, (file) => runSolution({ lang, file, meta, tests, limitMs, buildDir: BUILD }));
   const results = await judge(meta, dir, limitMs, tests, runs);
   const passed = results.filter((r) => r.verdict === "passed").length;
