@@ -1,0 +1,162 @@
+"""Builds solution.json: the written-out solution behind the problem page's
+Solution tab. One sol() call per problem, grouped by topic (arrays.py, ...).
+Run a topic file to (re)write its problems' solution.json files, then check the
+code with `npm run check:solutions`.
+
+Text uses the statements' small Markdown: paragraphs, "- " and "1. " lists,
+**bold** and `code`. A section is a list of blocks: a string is text,
+fig(...) is a row of drawings, and table(...) is a small table.
+
+Code comes in all four languages. Lines are tagged for the line-by-line
+breakdown with a marker comment at the end of the line, `#@2` in Python and
+`//@2` elsewhere; the markers are stripped and become line ranges per language.
+A tag that only one language has (C's hand-written hash table, say) makes a
+breakdown row that only that language shows.
+"""
+import json
+import os
+import re
+import sys
+import textwrap
+
+sys.path.insert(0, os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "visuals"))
+from lib import Grid, L, NT, Row, Vars, find, fmt  # noqa: E402,F401
+
+LANGS = ["python", "java", "cpp", "c"]
+KINDS = {"brute": "Brute force", "better": "Better", "best": "Best"}
+MARK = re.compile(r"\s*(?:#|//)@(\w+)\s*$")
+WRITTEN = []
+
+
+def dd(s):
+    return textwrap.dedent(s).strip("\n")
+
+
+def fig(*panels, caption=None):
+    b = {"panels": [p for p in panels if p]}
+    if caption:
+        b["caption"] = caption
+    return b
+
+
+def table(head, *rows):
+    return {"table": {"head": list(head), "rows": [[str(c) for c in r] for r in rows]}}
+
+
+def blocks(items, where):
+    out = []
+    for b in items:
+        if isinstance(b, str):
+            out.append({"md": dd(b)})
+        elif isinstance(b, dict) and ("panels" in b or "table" in b):
+            out.append(b)
+        elif isinstance(b, dict) and "type" in b:
+            out.append({"panels": [b]})
+        else:
+            raise ValueError(f"{where}: can't use block {b!r}")
+    return out
+
+
+class Steps:
+    """A step-by-step player (the problem page's walkthrough), recorded by running the idea."""
+
+    def __init__(self, title=None):
+        self.title, self.steps = title, []
+
+    def step(self, text, *panels, result=None):
+        s = {"text": text, "panels": [p for p in panels if p]}
+        if result is not None:
+            s["result"] = fmt(result)
+        self.steps.append(s)
+
+    def spec(self):
+        assert 2 <= len(self.steps) <= 40, f"a walkthrough needs 2-40 steps, has {len(self.steps)}"
+        out = {"steps": self.steps}
+        if self.title:
+            out["title"] = self.title
+        return out
+
+
+def ranges(nums):
+    out = []
+    for n in sorted(set(nums)):
+        if out and n == out[-1][1] + 1:
+            out[-1][1] = n
+        else:
+            out.append([n, n])
+    return out
+
+
+def parse(src):
+    """Code with marker comments -> (clean code, {tag: [line numbers]})."""
+    lines, tags = [], {}
+    for i, line in enumerate(dd(src).split("\n"), 1):
+        m = MARK.search(line)
+        if m:
+            tags.setdefault(m.group(1), []).append(i)
+            line = line[: m.start()]
+        lines.append(line.rstrip())
+    return "\n".join(lines) + "\n", tags
+
+
+def approach(title, kind, time, space, idea, build, code, lines, complexity, walk=None, limits=None, slow=False):
+    """One way to solve it. kind: brute, better or best. slow: too slow for the big tests (checked on small ones)."""
+    assert kind in KINDS, kind
+    assert set(code) == set(LANGS), f"{title}: code needs {LANGS}, has {sorted(code)}"
+    clean, tags = {}, {}
+    for lang in LANGS:
+        clean[lang], tags[lang] = parse(code[lang])
+    used = {t for lang in LANGS for t in tags[lang]}
+    rows = []
+    for entry in lines:
+        tag, text = str(entry[0]), entry[1]
+        notes = entry[2] if len(entry) > 2 else {}
+        at = {lang: ranges(tags[lang][tag]) for lang in LANGS if tag in tags[lang]}
+        assert at, f"{title}: breakdown row @{tag} matches no code line"
+        assert set(notes) <= set(at), f"{title}: @{tag} has a note for a language without that line"
+        row = {"text": dd(text), "at": at}
+        if notes:
+            row["notes"] = {k: dd(v) for k, v in notes.items()}
+        rows.append(row)
+    missing = used - {str(e[0]) for e in lines}
+    assert not missing, f"{title}: code tags {sorted(missing)} have no breakdown row"
+    a = {
+        "title": title,
+        "kind": kind,
+        "time": time,
+        "space": space,
+        "idea": blocks(idea, title),
+        "build": [dd(s) for s in build],
+        "code": clean,
+        "lines": rows,
+        "complexity": blocks(complexity, title),
+    }
+    if walk is not None:
+        a["walk"] = walk.spec() if isinstance(walk, Steps) else walk
+    if limits:
+        a["limits"] = blocks(limits, title)
+    if slow:
+        a["slow"] = True
+    return a
+
+
+def sol(pid, summary, question, think, approaches, takeaways):
+    """Write problems/.../<pid>/solution.json."""
+    assert approaches, pid
+    assert approaches[-1]["kind"] == "best", f"{pid}: the last approach should be the best one"
+    for a in approaches[:-1]:
+        assert a.get("limits"), f"{pid}: '{a['title']}' needs 'limits' (where it falls short)"
+    data = {
+        "version": 1,
+        "summary": dd(summary),
+        "question": blocks(question, "question"),
+        "think": blocks(think, "think"),
+        "approaches": approaches,
+        "takeaways": blocks(takeaways, "takeaways"),
+    }
+    path = os.path.join(find(pid), "solution.json")
+    with open(path, "w") as f:
+        json.dump(data, f, indent=1, ensure_ascii=False)
+        f.write("\n")
+    WRITTEN.append(pid)
+    return data

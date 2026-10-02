@@ -174,6 +174,8 @@ export async function problemView(id) {
   const visualFile = path.join(dir, "visual.json");
   const visual = existsSync(visualFile) ? JSON.parse(readFileSync(visualFile, "utf8")) : null;
   return {
+    // A written-out solution (solution.json) the page fetches only when asked.
+    solution: existsSync(path.join(dir, "solution.json")),
     id: meta.id,
     title: meta.title,
     difficulty: meta.difficulty,
@@ -190,6 +192,15 @@ export async function problemView(id) {
     cases: visible.map((t) => ({ args: t.args })),
     languages,
   };
+}
+
+// The full solution: every approach explained, with code in each language.
+// Written ahead of time (tools/solutions), so showing it costs nothing.
+export function solutionView(id) {
+  const dir = findDir(id);
+  const file = dir && path.join(dir, "solution.json");
+  if (!file || !existsSync(file)) throw new JudgeError(404, "This problem's solution isn't written yet.");
+  return JSON.parse(readFileSync(file, "utf8"));
 }
 
 /* Checking custom input -------------------------------------------------------------- */
@@ -427,4 +438,16 @@ export async function submit({ id, lang, code }) {
     };
   }
   return safe(out);
+}
+
+// Every test for one solution, judged one by one (tools/check-solutions.mjs).
+// `maxChars` keeps only the tests whose input is at most that long, for
+// approaches that are meant to be too slow for the big ones.
+export async function check({ id, lang, code, maxChars, limitMs: override }) {
+  const { dir, meta, tests, limitMs } = prepare({ id, lang, code });
+  const list = maxChars ? tests.filter((t) => exactJson(t.args).length <= maxChars) : tests;
+  const limit = override ?? limitMs;
+  const runs = await withSolution(lang, code, (file) => runSolution({ lang, file, meta, tests: list, limitMs: limit, buildDir: BUILD }));
+  const results = await judge(meta, dir, limit, list, runs);
+  return { total: list.length, results: results.map((r, i) => ({ ...r, args: list[i].args, expected: list[i].expected })) };
 }
