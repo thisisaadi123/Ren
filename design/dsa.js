@@ -32,17 +32,19 @@
   const state = Object.fromEntries(KEYS.map((k) => [k, params.get(k) || ""]));
   const filtering = () => Boolean(state.q.trim() || state.difficulty || state.type || state.status);
 
-  // Which topics are open, kept for this viewer. Filtering opens every match
-  // for the moment without touching this.
+  // Which topics are open. The sheet opens folded; within the tab it keeps
+  // what you opened, so coming back from a problem lands where you were.
+  // Filtering opens every match for the moment without touching this.
   const OPEN_KEY = "ren:dsa:open";
-  let open = null;
+  let open = new Set();
   try {
-    const saved = JSON.parse(localStorage.getItem(OPEN_KEY));
+    localStorage.removeItem(OPEN_KEY); // was kept across visits before
+    const saved = JSON.parse(sessionStorage.getItem(OPEN_KEY));
     if (Array.isArray(saved)) open = new Set(saved);
   } catch {}
   const saveOpen = () => {
     try {
-      localStorage.setItem(OPEN_KEY, JSON.stringify([...open]));
+      sessionStorage.setItem(OPEN_KEY, JSON.stringify([...open]));
     } catch {}
   };
 
@@ -435,11 +437,6 @@
     if (res.ok) {
       data = res.data;
       data.topics.forEach((t, i) => order.set(t.id, i + 1));
-      // First visit: the first topic with problems starts open.
-      if (!open) {
-        const first = data.topics.find((t) => t.patterns.some(ready));
-        open = new Set(first ? [first.id] : []);
-      }
       const types = new Set(data.topics.flatMap((t) => t.patterns.flatMap((p) => p.problems.map((x) => x.type))));
       const typeSelect = selects.find((s) => s.dataset.filter === "type");
       TYPES.filter((t) => types.has(t)).forEach((t) => typeSelect.add(new Option(t, t)));
