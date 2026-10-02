@@ -1,0 +1,1087 @@
+{
+ "version": 1,
+ "summary": "A straight of n cards is exactly the values `min, min + 1, …, min + n − 1`. So the hand is a\nstraight when the largest card is `min + n − 1` **and** no card repeats. Checking both takes one\npass and a small table, no sorting.",
+ "question": [
+  {
+   "md": "You get a hand of numbers. Decide whether you could lay them out as a run where each card is\nexactly one more than the card before it.\n\n- **Order doesn't matter.** `[7, 5, 6]` is a straight: rearranged it's 5, 6, 7.\n- **Every card must be used**, so a gap anywhere breaks it: `[2, 4, 3, 6]` is missing a 5.\n- **Repeats break it** too: a straight goes up by exactly one at each step, so no two cards can\n  be equal. `[1, 2, 2]` is not a straight.\n- **One card** is always a straight (there's nothing to compare).\n- **Negative cards** are allowed: `[−1, 0, 1]` is a straight.\n- **Size and range:** up to 10⁵ cards between −10⁹ and 10⁹. The gap between the largest and\n  smallest card can be 2 × 10⁹, past the 32-bit `int` limit, so compute it with 64-bit integers in\n  Java, C++ and C."
+  }
+ ],
+ "think": [
+  {
+   "md": "Take the hand `[9, 6, 8, 5, 7]`. If you lay it out by hand you'd pick the smallest card, 5, and\nthen look for 6, then 7, 8, 9. Once you know the smallest card and how many cards there are, the\nwhole straight is **forced**: it must be 5, 6, 7, 8, 9."
+  },
+  {
+   "panels": [
+    {
+     "type": "row",
+     "cells": [
+      9,
+      6,
+      8,
+      5,
+      7
+     ],
+     "label": "hand"
+    },
+    {
+     "type": "row",
+     "cells": [
+      5,
+      6,
+      7,
+      8,
+      9
+     ],
+     "label": "the only possible straight"
+    }
+   ],
+   "caption": "With 5 cards and a smallest card of 5, the only straight is 5 … 9."
+  },
+  {
+   "md": "That gives two simple conditions, and together they're exactly right:\n\n1. **The span fits:** `max − min == n − 1`. Five cards from 5 to 9 have span 4.\n2. **No repeats.** If the span is n − 1, there are exactly n possible values, and n cards with\n   no repeats must use each of them once. With a repeat, something is missing: `[4, 7, 5, 4]` has\n   span 3 = n − 1, but the 4 is doubled, so the 6 is missing.\n\nCondition 1 alone isn't enough (`[4, 7, 5, 4]` passes it), and condition 2 alone isn't either\n(`[1, 5]` has no repeats). Both are needed. The approaches below check them with less and less\nwork."
+  }
+ ],
+ "approaches": [
+  {
+   "title": "Look for every card the straight needs",
+   "kind": "brute",
+   "time": "O(n²)",
+   "space": "O(1)",
+   "idea": [
+    {
+     "md": "Find the smallest card `lo`. The straight must contain `lo + 1, lo + 2, …, lo + n − 1`.\nFor each of those values, scan the hand; if any is missing, it's not a straight.\n\nWhy does this catch repeats? If all n values `lo … lo + n − 1` are found among n cards,\neach card is one of those values and each value is used, so no value can be used twice\n(a repeat would leave too few cards to cover all n values)."
+    }
+   ],
+   "build": [
+    "Find the minimum card `lo`.",
+    "For `t` from 1 to n − 1, scan the hand for `lo + t`.",
+    "If some value is never found, return false.",
+    "If every value was found, return true."
+   ],
+   "code": {
+    "python": "class Solution:\n    def isStraight(self, cards: List[int]) -> bool:\n        lo = min(cards)\n        for t in range(1, len(cards)):\n            if lo + t not in cards:\n                return False\n        return True\n",
+    "java": "class Solution {\n    public boolean isStraight(int[] cards) {\n        int lo = Integer.MAX_VALUE;\n        for (int c : cards) lo = Math.min(lo, c);\n        for (int t = 1; t < cards.length; t++) {\n            boolean found = false;\n            for (int c : cards) if (c == lo + t) { found = true; break; }\n            if (!found) return false;\n        }\n        return true;\n    }\n}\n",
+    "cpp": "class Solution {\npublic:\n    bool isStraight(vector<int>& cards) {\n        int lo = *min_element(cards.begin(), cards.end());\n        for (int t = 1; t < (int) cards.size(); t++) {\n            if (find(cards.begin(), cards.end(), lo + t) == cards.end()) {\n                return false;\n            }\n        }\n        return true;\n    }\n};\n",
+    "c": "bool isStraight(int* cards, int cardsSize) {\n    int lo = cards[0];\n    for (int i = 1; i < cardsSize; i++) if (cards[i] < lo) lo = cards[i];\n    for (int t = 1; t < cardsSize; t++) {\n        bool found = false;\n        for (int i = 0; i < cardsSize && !found; i++) found = cards[i] == lo + t;\n        if (!found) return false;\n    }\n    return true;\n}\n"
+   },
+   "lines": [
+    {
+     "text": "The smallest card fixes where the straight starts.",
+     "at": {
+      "python": [
+       [
+        3,
+        3
+       ]
+      ],
+      "java": [
+       [
+        3,
+        4
+       ]
+      ],
+      "cpp": [
+       [
+        4,
+        4
+       ]
+      ],
+      "c": [
+       [
+        2,
+        3
+       ]
+      ]
+     }
+    },
+    {
+     "text": "Each value the straight needs after the first: `lo + 1` up to `lo + n − 1`. `lo + t` stays within `int` because `t` is under 10⁵.",
+     "at": {
+      "python": [
+       [
+        4,
+        4
+       ]
+      ],
+      "java": [
+       [
+        5,
+        5
+       ]
+      ],
+      "cpp": [
+       [
+        5,
+        5
+       ]
+      ],
+      "c": [
+       [
+        4,
+        4
+       ]
+      ]
+     }
+    },
+    {
+     "text": "Scan the whole hand for that value. Missing means there's a gap (or a repeat that pushed a value out).",
+     "at": {
+      "python": [
+       [
+        5,
+        6
+       ]
+      ],
+      "java": [
+       [
+        6,
+        8
+       ]
+      ],
+      "cpp": [
+       [
+        6,
+        7
+       ]
+      ],
+      "c": [
+       [
+        5,
+        7
+       ]
+      ]
+     },
+     "notes": {
+      "python": "`in` on a list is a linear scan.",
+      "cpp": "`find` is a linear scan; it returns `end()` when the value isn't there."
+     }
+    },
+    {
+     "text": "All n values are present among n cards, so each appears exactly once: a straight.",
+     "at": {
+      "python": [
+       [
+        7,
+        7
+       ]
+      ],
+      "java": [
+       [
+        10,
+        10
+       ]
+      ],
+      "cpp": [
+       [
+        10,
+        10
+       ]
+      ],
+      "c": [
+       [
+        9,
+        9
+       ]
+      ]
+     }
+    }
+   ],
+   "complexity": [
+    {
+     "md": "**Time O(n²):** up to n − 1 scans of n cards. **Space O(1).**"
+    }
+   ],
+   "walk": {
+    "steps": [
+     {
+      "text": "The smallest card is 5. A straight of 5 cards must be exactly 5 … 9.",
+      "panels": [
+       {
+        "type": "row",
+        "cells": [
+         9,
+         6,
+         8,
+         5,
+         7
+        ],
+        "states": {
+         "3": "active"
+        },
+        "slots": true
+       },
+       {
+        "type": "vars",
+        "items": {
+         "smallest": 5
+        }
+       }
+      ]
+     },
+     {
+      "text": "Need 6: scan the hand… found at index 1.",
+      "panels": [
+       {
+        "type": "row",
+        "cells": [
+         9,
+         6,
+         8,
+         5,
+         7
+        ],
+        "states": {
+         "3": "found",
+         "1": "answer"
+        },
+        "slots": true
+       },
+       {
+        "type": "vars",
+        "items": {
+         "looking for": 6
+        }
+       }
+      ]
+     },
+     {
+      "text": "Need 7: scan the hand… found at index 4.",
+      "panels": [
+       {
+        "type": "row",
+        "cells": [
+         9,
+         6,
+         8,
+         5,
+         7
+        ],
+        "states": {
+         "3": "found",
+         "1": "found",
+         "4": "answer"
+        },
+        "slots": true
+       },
+       {
+        "type": "vars",
+        "items": {
+         "looking for": 7
+        }
+       }
+      ]
+     },
+     {
+      "text": "Need 8: scan the hand… found at index 2.",
+      "panels": [
+       {
+        "type": "row",
+        "cells": [
+         9,
+         6,
+         8,
+         5,
+         7
+        ],
+        "states": {
+         "3": "found",
+         "1": "found",
+         "4": "found",
+         "2": "answer"
+        },
+        "slots": true
+       },
+       {
+        "type": "vars",
+        "items": {
+         "looking for": 8
+        }
+       }
+      ]
+     },
+     {
+      "text": "Need 9: scan the hand… found at index 0.",
+      "panels": [
+       {
+        "type": "row",
+        "cells": [
+         9,
+         6,
+         8,
+         5,
+         7
+        ],
+        "states": {
+         "3": "found",
+         "1": "found",
+         "4": "found",
+         "2": "found",
+         "0": "answer"
+        },
+        "slots": true
+       },
+       {
+        "type": "vars",
+        "items": {
+         "looking for": 9
+        }
+       }
+      ]
+     },
+     {
+      "text": "Every value from 5 to 9 is there, and there are exactly 5 cards: a straight.",
+      "panels": [
+       {
+        "type": "row",
+        "cells": [
+         9,
+         6,
+         8,
+         5,
+         7
+        ],
+        "states": {
+         "0": "found",
+         "1": "found",
+         "2": "found",
+         "3": "found",
+         "4": "found"
+        },
+        "slots": true
+       }
+      ],
+      "result": "true"
+     }
+    ],
+    "title": "Find the smallest card, then look for each card the run needs."
+   },
+   "limits": [
+    {
+     "md": "Every \"is this value in the hand?\" question is answered by a full scan, about 10¹⁰ steps\nfor 10⁵ cards. Sorting answers all of them at once."
+    }
+   ],
+   "slow": true
+  },
+  {
+   "title": "Sort, then check each neighbour",
+   "kind": "better",
+   "time": "O(n log n)",
+   "space": "O(n)",
+   "idea": [
+    {
+     "md": "Sort a copy of the hand. A straight sorted is `lo, lo + 1, lo + 2, …`, so every adjacent\npair must differ by exactly 1. A difference of 0 is a repeat; a difference of 2 or more is\na gap. Either fails."
+    }
+   ],
+   "build": [
+    "Sort a copy of the cards.",
+    "For each adjacent pair, if `s[i + 1] − s[i]` isn't 1, return false.",
+    "Otherwise return true."
+   ],
+   "code": {
+    "python": "class Solution:\n    def isStraight(self, cards: List[int]) -> bool:\n        s = sorted(cards)\n        for i in range(len(s) - 1):\n            if s[i + 1] - s[i] != 1:\n                return False\n        return True\n",
+    "java": "class Solution {\n    public boolean isStraight(int[] cards) {\n        int[] s = cards.clone();\n        Arrays.sort(s);\n        for (int i = 0; i + 1 < s.length; i++) {\n            if ((long) s[i + 1] - s[i] != 1) return false;\n        }\n        return true;\n    }\n}\n",
+    "cpp": "class Solution {\npublic:\n    bool isStraight(vector<int>& cards) {\n        vector<int> s = cards;\n        sort(s.begin(), s.end());\n        for (size_t i = 0; i + 1 < s.size(); i++) {\n            if ((long long) s[i + 1] - s[i] != 1) return false;\n        }\n        return true;\n    }\n};\n",
+    "c": "static int cmpInt(const void* x, const void* y) {\n    int p = *(const int*) x, q = *(const int*) y;\n    return (p > q) - (p < q);\n}\n\nbool isStraight(int* cards, int cardsSize) {\n    int* s = malloc(cardsSize * sizeof(int));\n    memcpy(s, cards, cardsSize * sizeof(int));\n    qsort(s, cardsSize, sizeof(int), cmpInt);\n    bool ok = true;\n    for (int i = 0; i + 1 < cardsSize && ok; i++) {\n        ok = (long long) s[i + 1] - s[i] == 1;\n    }\n    free(s);\n    return ok;\n}\n"
+   },
+   "lines": [
+    {
+     "text": "`qsort` needs a comparator. `(p > q) − (p < q)` gives −1, 0 or 1 and can't overflow like `p − q` could with values near ±10⁹.",
+     "at": {
+      "c": [
+       [
+        1,
+        4
+       ]
+      ]
+     }
+    },
+    {
+     "text": "Sort a copy so the caller's hand isn't rearranged.",
+     "at": {
+      "python": [
+       [
+        3,
+        3
+       ]
+      ],
+      "java": [
+       [
+        3,
+        4
+       ]
+      ],
+      "cpp": [
+       [
+        4,
+        5
+       ]
+      ],
+      "c": [
+       [
+        7,
+        9
+       ]
+      ]
+     }
+    },
+    {
+     "text": "Each neighbour must be exactly one more. 0 means a repeat, more than 1 means a gap.",
+     "at": {
+      "python": [
+       [
+        4,
+        6
+       ]
+      ],
+      "java": [
+       [
+        5,
+        6
+       ]
+      ],
+      "cpp": [
+       [
+        6,
+        7
+       ]
+      ],
+      "c": [
+       [
+        10,
+        12
+       ]
+      ]
+     },
+     "notes": {
+      "java": "The difference is taken as `long`: two cards at ±10⁹ differ by 2 × 10⁹, which overflows `int` and could wrap around to a wrong value.",
+      "cpp": "The difference is taken as `long long` so it can't overflow.",
+      "c": "The difference is taken as `long long` so it can't overflow; `ok` lets the loop stop early and still free the copy."
+     }
+    },
+    {
+     "text": "No bad step: the sorted hand climbs by one each time.",
+     "at": {
+      "python": [
+       [
+        7,
+        7
+       ]
+      ],
+      "java": [
+       [
+        8,
+        8
+       ]
+      ],
+      "cpp": [
+       [
+        9,
+        9
+       ]
+      ],
+      "c": [
+       [
+        14,
+        15
+       ]
+      ]
+     },
+     "notes": {
+      "c": "Free the copy, then return."
+     }
+    }
+   ],
+   "complexity": [
+    {
+     "md": "**Time O(n log n)** for the sort; the scan is O(n). **Space O(n)** for the sorted copy."
+    }
+   ],
+   "walk": {
+    "steps": [
+     {
+      "text": "Sorted: [5, 6, 7, 8, 9].",
+      "panels": [
+       {
+        "type": "row",
+        "cells": [
+         9,
+         6,
+         8,
+         5,
+         7
+        ],
+        "label": "hand"
+       },
+       {
+        "type": "row",
+        "cells": [
+         5,
+         6,
+         7,
+         8,
+         9
+        ],
+        "label": "sorted",
+        "slots": true
+       }
+      ]
+     },
+     {
+      "text": "5 → 6: a step of exactly 1.",
+      "panels": [
+       {
+        "type": "row",
+        "cells": [
+         5,
+         6,
+         7,
+         8,
+         9
+        ],
+        "states": {
+         "0": "active",
+         "1": "active"
+        },
+        "slots": true
+       }
+      ]
+     },
+     {
+      "text": "6 → 7: a step of exactly 1.",
+      "panels": [
+       {
+        "type": "row",
+        "cells": [
+         5,
+         6,
+         7,
+         8,
+         9
+        ],
+        "states": {
+         "1": "active",
+         "2": "active",
+         "0": "found"
+        },
+        "slots": true
+       }
+      ]
+     },
+     {
+      "text": "7 → 8: a step of exactly 1.",
+      "panels": [
+       {
+        "type": "row",
+        "cells": [
+         5,
+         6,
+         7,
+         8,
+         9
+        ],
+        "states": {
+         "2": "active",
+         "3": "active",
+         "0": "found",
+         "1": "found"
+        },
+        "slots": true
+       }
+      ]
+     },
+     {
+      "text": "8 → 9: a step of exactly 1.",
+      "panels": [
+       {
+        "type": "row",
+        "cells": [
+         5,
+         6,
+         7,
+         8,
+         9
+        ],
+        "states": {
+         "3": "active",
+         "4": "active",
+         "0": "found",
+         "1": "found",
+         "2": "found"
+        },
+        "slots": true
+       }
+      ]
+     },
+     {
+      "text": "All four steps are +1: a straight.",
+      "panels": [
+       {
+        "type": "row",
+        "cells": [
+         5,
+         6,
+         7,
+         8,
+         9
+        ],
+        "states": {
+         "0": "found",
+         "1": "found",
+         "2": "found",
+         "3": "found",
+         "4": "found"
+        },
+        "slots": true
+       }
+      ],
+      "result": "true"
+     },
+     {
+      "text": "A failing hand, [4, 7, 5, 4], sorted is [4, 4, 5, 7]: 4 → 4 repeats, so it fails at once.",
+      "panels": [
+       {
+        "type": "row",
+        "cells": [
+         4,
+         4,
+         5,
+         7
+        ],
+        "states": {
+         "0": "mark",
+         "1": "mark"
+        },
+        "slots": true
+       }
+      ],
+      "result": "false"
+     }
+    ],
+    "title": "Sort, then every neighbour must be exactly one more."
+   },
+   "limits": [
+    {
+     "md": "Sorting puts every card in order, but the question only needs two facts: the span, and\nwhether anything repeats. Both can be found without ordering anything."
+    }
+   ]
+  },
+  {
+   "title": "Check the span, then mark each card's slot",
+   "kind": "best",
+   "time": "O(n)",
+   "space": "O(n)",
+   "idea": [
+    {
+     "md": "1. One pass finds `min` and `max`. If `max − min != n − 1`, the hand can't be a straight\n   (too wide means a gap; too narrow means repeats).\n2. Now every card lies in `min … min + n − 1`, so card `c` has a natural slot\n   `c − min` between 0 and n − 1. Mark slots in a boolean array; a slot marked twice is a\n   repeat.\n\nThe span check is what makes the array small: without it, slots could reach 2 × 10⁹. And\nno hash set is needed, because the slots are plain array indices."
+    }
+   ],
+   "build": [
+    "Find `lo = min(cards)` and `hi = max(cards)`.",
+    "If `hi − lo != n − 1` (in 64 bits), return false.",
+    "Make a boolean array `seen` of size n.",
+    "For each card: if `seen[c − lo]` is already true, return false; otherwise set it.",
+    "Return true."
+   ],
+   "code": {
+    "python": "class Solution:\n    def isStraight(self, cards: List[int]) -> bool:\n        n = len(cards)\n        lo, hi = min(cards), max(cards)\n        if hi - lo != n - 1:\n            return False\n        seen = [False] * n\n        for c in cards:\n            if seen[c - lo]:\n                return False\n            seen[c - lo] = True\n        return True\n",
+    "java": "class Solution {\n    public boolean isStraight(int[] cards) {\n        int n = cards.length;\n        int lo = Integer.MAX_VALUE, hi = Integer.MIN_VALUE;\n        for (int c : cards) { lo = Math.min(lo, c); hi = Math.max(hi, c); }\n        if ((long) hi - lo != n - 1) return false;\n        boolean[] seen = new boolean[n];\n        for (int c : cards) {\n            if (seen[c - lo]) return false;\n            seen[c - lo] = true;\n        }\n        return true;\n    }\n}\n",
+    "cpp": "class Solution {\npublic:\n    bool isStraight(vector<int>& cards) {\n        int n = cards.size();\n        auto [mn, mx] = minmax_element(cards.begin(), cards.end());\n        int lo = *mn, hi = *mx;\n        if ((long long) hi - lo != n - 1) return false;\n        vector<bool> seen(n, false);\n        for (int c : cards) {\n            if (seen[c - lo]) return false;\n            seen[c - lo] = true;\n        }\n        return true;\n    }\n};\n",
+    "c": "bool isStraight(int* cards, int cardsSize) {\n    int lo = cards[0], hi = cards[0];\n    for (int i = 1; i < cardsSize; i++) {\n        if (cards[i] < lo) lo = cards[i];\n        if (cards[i] > hi) hi = cards[i];\n    }\n    if ((long long) hi - lo != cardsSize - 1) return false;\n    bool* seen = calloc(cardsSize, sizeof(bool));\n    bool ok = true;\n    for (int i = 0; i < cardsSize && ok; i++) {\n        if (seen[cards[i] - lo]) ok = false;\n        seen[cards[i] - lo] = true;\n    }\n    free(seen);\n    return ok;\n}\n"
+   },
+   "lines": [
+    {
+     "text": "One pass for the smallest and largest card. A straight of n cards spans exactly n − 1. Anything else fails immediately.",
+     "at": {
+      "python": [
+       [
+        4,
+        6
+       ]
+      ],
+      "java": [
+       [
+        4,
+        6
+       ]
+      ],
+      "cpp": [
+       [
+        5,
+        7
+       ]
+      ],
+      "c": [
+       [
+        2,
+        7
+       ]
+      ]
+     },
+     "notes": {
+      "java": "`(long) hi − lo`: the span can be 2 × 10⁹, which doesn't fit in `int`.",
+      "cpp": "`minmax_element` finds both in one pass. The span is computed as `long long` because it can be 2 × 10⁹.",
+      "c": "The span is computed as `long long` because it can be 2 × 10⁹."
+     }
+    },
+    {
+     "text": "One flag per possible value. After the span check there are exactly n possible values, `lo … lo + n − 1`, so n flags are enough.",
+     "at": {
+      "python": [
+       [
+        7,
+        7
+       ]
+      ],
+      "java": [
+       [
+        7,
+        7
+       ]
+      ],
+      "cpp": [
+       [
+        8,
+        8
+       ]
+      ],
+      "c": [
+       [
+        8,
+        8
+       ]
+      ]
+     },
+     "notes": {
+      "c": "`calloc` gives n flags, all false."
+     }
+    },
+    {
+     "text": "Card `c` belongs in slot `c − lo`, which is between 0 and n − 1 (and fits in `int`, because the span check passed). A slot already taken means this value repeats.",
+     "at": {
+      "python": [
+       [
+        8,
+        11
+       ]
+      ],
+      "java": [
+       [
+        8,
+        10
+       ]
+      ],
+      "cpp": [
+       [
+        9,
+        11
+       ]
+      ],
+      "c": [
+       [
+        9,
+        12
+       ]
+      ]
+     },
+     "notes": {
+      "c": "`ok` stops the loop early but still lets us free the array afterwards."
+     }
+    },
+    {
+     "text": "n cards in n different slots: every value from `lo` to `hi` appears exactly once.",
+     "at": {
+      "python": [
+       [
+        12,
+        12
+       ]
+      ],
+      "java": [
+       [
+        12,
+        12
+       ]
+      ],
+      "cpp": [
+       [
+        13,
+        13
+       ]
+      ],
+      "c": [
+       [
+        14,
+        15
+       ]
+      ]
+     }
+    }
+   ],
+   "complexity": [
+    {
+     "md": "**Time O(n):** two passes over the cards, O(1) work each.\n\n**Space O(n)** for the flags. (A hash set would also work, but array slots are simpler and\nhave no hashing cost.)"
+    }
+   ],
+   "walk": {
+    "steps": [
+     {
+      "text": "Smallest 5, largest 9: span 9 − 5 = 4, and n − 1 = 4. The span fits.",
+      "panels": [
+       {
+        "type": "row",
+        "cells": [
+         9,
+         6,
+         8,
+         5,
+         7
+        ],
+        "states": {
+         "3": "mark",
+         "0": "mark"
+        },
+        "slots": true
+       },
+       {
+        "type": "vars",
+        "items": {
+         "min": 5,
+         "max": 9,
+         "span": 4
+        }
+       }
+      ]
+     },
+     {
+      "text": "Card 9 goes to slot 9 − 5 = 4. The slot was empty.",
+      "panels": [
+       {
+        "type": "row",
+        "cells": [
+         9,
+         6,
+         8,
+         5,
+         7
+        ],
+        "states": {
+         "0": "active"
+        },
+        "slots": true
+       },
+       {
+        "type": "row",
+        "cells": [
+         null,
+         null,
+         null,
+         null,
+         "✓"
+        ],
+        "states": {
+         "4": "new"
+        },
+        "label": "seen[card − min]",
+        "slots": true
+       }
+      ]
+     },
+     {
+      "text": "Card 6 goes to slot 6 − 5 = 1. The slot was empty.",
+      "panels": [
+       {
+        "type": "row",
+        "cells": [
+         9,
+         6,
+         8,
+         5,
+         7
+        ],
+        "states": {
+         "1": "active"
+        },
+        "slots": true
+       },
+       {
+        "type": "row",
+        "cells": [
+         null,
+         "✓",
+         null,
+         null,
+         "✓"
+        ],
+        "states": {
+         "1": "new"
+        },
+        "label": "seen[card − min]",
+        "slots": true
+       }
+      ]
+     },
+     {
+      "text": "Card 8 goes to slot 8 − 5 = 3. The slot was empty.",
+      "panels": [
+       {
+        "type": "row",
+        "cells": [
+         9,
+         6,
+         8,
+         5,
+         7
+        ],
+        "states": {
+         "2": "active"
+        },
+        "slots": true
+       },
+       {
+        "type": "row",
+        "cells": [
+         null,
+         "✓",
+         null,
+         "✓",
+         "✓"
+        ],
+        "states": {
+         "3": "new"
+        },
+        "label": "seen[card − min]",
+        "slots": true
+       }
+      ]
+     },
+     {
+      "text": "Card 5 goes to slot 5 − 5 = 0. The slot was empty.",
+      "panels": [
+       {
+        "type": "row",
+        "cells": [
+         9,
+         6,
+         8,
+         5,
+         7
+        ],
+        "states": {
+         "3": "active"
+        },
+        "slots": true
+       },
+       {
+        "type": "row",
+        "cells": [
+         "✓",
+         "✓",
+         null,
+         "✓",
+         "✓"
+        ],
+        "states": {
+         "0": "new"
+        },
+        "label": "seen[card − min]",
+        "slots": true
+       }
+      ]
+     },
+     {
+      "text": "Card 7 goes to slot 7 − 5 = 2. The slot was empty.",
+      "panels": [
+       {
+        "type": "row",
+        "cells": [
+         9,
+         6,
+         8,
+         5,
+         7
+        ],
+        "states": {
+         "4": "active"
+        },
+        "slots": true
+       },
+       {
+        "type": "row",
+        "cells": [
+         "✓",
+         "✓",
+         "✓",
+         "✓",
+         "✓"
+        ],
+        "states": {
+         "2": "new"
+        },
+        "label": "seen[card − min]",
+        "slots": true
+       }
+      ]
+     },
+     {
+      "text": "Five cards, five different slots: no repeats, so it's a straight.",
+      "panels": [
+       {
+        "type": "row",
+        "cells": [
+         "✓",
+         "✓",
+         "✓",
+         "✓",
+         "✓"
+        ],
+        "label": "seen[card − min]",
+        "slots": true
+       }
+      ],
+      "result": "true"
+     },
+     {
+      "text": "For [4, 7, 5, 4]: span 7 − 4 = 3 = n − 1, so check repeats. 4 → slot 0, 7 → slot 3, 5 → slot 1, then 4 → slot 0 again: taken. Not a straight.",
+      "panels": [
+       {
+        "type": "row",
+        "cells": [
+         4,
+         7,
+         5,
+         4
+        ],
+        "states": {
+         "0": "mark",
+         "3": "mark"
+        },
+        "slots": true
+       },
+       {
+        "type": "row",
+        "cells": [
+         "✓",
+         "✓",
+         null,
+         "✓"
+        ],
+        "states": {
+         "0": "mark"
+        },
+        "label": "seen[card − min]",
+        "slots": true
+       }
+      ],
+      "result": "false"
+     }
+    ],
+    "title": "The span must be exactly n − 1, and no card may repeat."
+   }
+  }
+ ],
+ "takeaways": [
+  {
+   "md": "- A run of consecutive values is pinned down by its **minimum and its length**. Check the span\n  (`max − min == n − 1`) plus \"no repeats\", rather than sorting.\n- When values are known to lie in a small range `[lo, lo + n)`, a plain array indexed by\n  `value − lo` replaces a hash set.\n- Spans and differences of 32-bit values can overflow: compute them in 64 bits."
+  }
+ ]
+}

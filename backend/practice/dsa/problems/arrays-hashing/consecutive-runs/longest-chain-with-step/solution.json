@@ -1,0 +1,1933 @@
+{
+ "version": 1,
+ "summary": "Put the values in a hash set, and only start counting at a value whose predecessor\n`value − step` is **not** in the set: that value is the head of a chain. Walking forward from\nheads only means every value is visited about twice in total, so the whole thing is O(n).",
+ "question": [
+  {
+   "md": "A chain is `v, v + step, v + 2·step, …`. From the numbers you're given (each used at most once,\nin any order), build the longest chain and return its length.\n\n- **Order in the input doesn't matter.** You pick the numbers; you don't need them to be next to\n  each other in the list.\n- **Each number is used at most once**, and repeats don't help: `[2, 2, 2]` with step 5 gives\n  chains of length 1, because 2 + 5 = 7 isn't there. Only *distinct* values matter.\n- **Steps can be large and values negative.** `step` goes up to 10⁹ and values to ±10⁹, so\n  `value + step` can reach 2 × 10⁹, beyond the 32-bit `int`. Use 64-bit arithmetic for it in\n  Java, C++ and C.\n- **Any single number is a chain of length 1**, so the answer is at least 1.\n- **Size:** up to 10⁵ values."
+  }
+ ],
+ "think": [
+  {
+   "md": "Take `values = [10, 4, 1, 7, 5, 13, 8, 2, 20, 23]` with `step = 3`.\n\nBy hand, you'd notice runs like 1, 4, 7, 10, 13. Every value belongs to exactly one maximal\nchain (its next link is forced: `v + 3`; its previous link is forced: `v − 3`). Here the values\nsplit into these chains:"
+  },
+  {
+   "panels": [
+    {
+     "type": "row",
+     "cells": [
+      1,
+      4,
+      7,
+      10,
+      13
+     ],
+     "states": {
+      "0": "answer"
+     },
+     "label": "length 5"
+    },
+    {
+     "type": "row",
+     "cells": [
+      2,
+      5,
+      8
+     ],
+     "states": {
+      "0": "answer"
+     },
+     "label": "length 3"
+    },
+    {
+     "type": "row",
+     "cells": [
+      20,
+      23
+     ],
+     "states": {
+      "0": "answer"
+     },
+     "label": "length 2"
+    }
+   ],
+   "caption": "Shaded: each chain's head, the one value whose predecessor (value − 3) is missing."
+  },
+  {
+   "md": "The key question is **where to start counting**. If you start at 7 you get 7, 10, 13 (length\n3), which undercounts and wastes time. If you start only at values whose predecessor is\nmissing (1, 2 and 20 here), every chain is measured once and from its true start.\n\nAnd \"is the predecessor missing?\" and \"is the next link present?\" are both membership\nquestions, which a hash set answers in O(1)."
+  }
+ ],
+ "approaches": [
+  {
+   "title": "Extend a chain from every value",
+   "kind": "brute",
+   "time": "O(n³)",
+   "space": "O(1)",
+   "idea": [
+    {
+     "md": "Treat every value as a possible first link. From `v`, look for `v + step` by scanning the\nlist; if it's there, look for `v + 2·step`, and so on. Keep the longest length found.\n\nIt's correct because the longest chain has some first value, and when the loop reaches\nthat value it walks the whole chain."
+    }
+   ],
+   "build": [
+    "For each value `v`, set `length = 1` and `next = v + step`.",
+    "While `next` appears in the list (found by scanning), add 1 to `length` and move `next` up by `step`.",
+    "Keep the maximum `length` over all starting values."
+   ],
+   "code": {
+    "python": "class Solution:\n    def longestChain(self, values: List[int], step: int) -> int:\n        best = 0\n        for v in values:\n            length, nxt = 1, v + step\n            while nxt in values:\n                length += 1\n                nxt += step\n            best = max(best, length)\n        return best\n",
+    "java": "class Solution {\n    public int longestChain(int[] values, int step) {\n        int best = 0;\n        for (int v : values) {\n            int length = 1;\n            long next = (long) v + step;\n            while (contains(values, next)) {\n                length++;\n                next += step;\n            }\n            best = Math.max(best, length);\n        }\n        return best;\n    }\n\n    private boolean contains(int[] values, long x) {\n        for (int v : values) if (v == x) return true;\n        return false;\n    }\n}\n",
+    "cpp": "class Solution {\npublic:\n    int longestChain(vector<int>& values, int step) {\n        auto contains = [&](long long x) {\n            for (int v : values) if (v == x) return true;\n            return false;\n        };\n        int best = 0;\n        for (int v : values) {\n            int length = 1;\n            long long next = (long long) v + step;\n            while (contains(next)) {\n                length++;\n                next += step;\n            }\n            best = max(best, length);\n        }\n        return best;\n    }\n};\n",
+    "c": "static bool contains(const int* values, int n, long long x) {\n    for (int i = 0; i < n; i++) if (values[i] == x) return true;\n    return false;\n}\n\nint longestChain(int* values, int valuesSize, int step) {\n    int best = 0;\n    for (int i = 0; i < valuesSize; i++) {\n        int length = 1;\n        long long next = (long long) values[i] + step;\n        while (contains(values, valuesSize, next)) {\n            length++;\n            next += step;\n        }\n        best = length > best ? length : best;\n    }\n    return best;\n}\n"
+   },
+   "lines": [
+    {
+     "text": "A plain linear search: is `x` anywhere in the list? It takes a 64-bit `x` because chain links can go past `int` range (a value of 10⁹ plus a step of 10⁹).",
+     "at": {
+      "java": [
+       [
+        16,
+        19
+       ]
+      ],
+      "cpp": [
+       [
+        4,
+        7
+       ]
+      ],
+      "c": [
+       [
+        1,
+        4
+       ]
+      ]
+     }
+    },
+    {
+     "text": "Every value gets a turn as the first link. The chain so far has length 1, and the link we want next is `v + step`.",
+     "at": {
+      "python": [
+       [
+        4,
+        5
+       ]
+      ],
+      "java": [
+       [
+        4,
+        6
+       ]
+      ],
+      "cpp": [
+       [
+        9,
+        11
+       ]
+      ],
+      "c": [
+       [
+        8,
+        10
+       ]
+      ]
+     },
+     "notes": {
+      "java": "`(long) v + step` so the sum can't overflow.",
+      "cpp": "`(long long) v + step` so the sum can't overflow.",
+      "c": "`(long long)` so the sum can't overflow."
+     }
+    },
+    {
+     "text": "While the next link exists, the chain grows by one and we look for the link after it.",
+     "at": {
+      "python": [
+       [
+        6,
+        8
+       ]
+      ],
+      "java": [
+       [
+        7,
+        9
+       ]
+      ],
+      "cpp": [
+       [
+        12,
+        14
+       ]
+      ],
+      "c": [
+       [
+        11,
+        13
+       ]
+      ]
+     },
+     "notes": {
+      "python": "`in` on a list scans it from the start each time."
+     }
+    },
+    {
+     "text": "Keep the longest chain seen from any start.",
+     "at": {
+      "python": [
+       [
+        9,
+        10
+       ]
+      ],
+      "java": [
+       [
+        11,
+        11
+       ],
+       [
+        13,
+        13
+       ]
+      ],
+      "cpp": [
+       [
+        16,
+        16
+       ],
+       [
+        18,
+        18
+       ]
+      ],
+      "c": [
+       [
+        15,
+        15
+       ],
+       [
+        17,
+        17
+       ]
+      ]
+     }
+    }
+   ],
+   "complexity": [
+    {
+     "md": "**Time O(n³) in the worst case:** a chain of length n can be re-walked from each of its n\nvalues, and each step of the walk scans n numbers.\n\n**Space O(1).**"
+    }
+   ],
+   "walk": {
+    "steps": [
+     {
+      "text": "Step 3. Try every value as the first link.",
+      "panels": [
+       {
+        "type": "row",
+        "cells": [
+         10,
+         4,
+         1,
+         7,
+         5,
+         13,
+         8,
+         2,
+         20,
+         23
+        ],
+        "slots": true
+       },
+       {
+        "type": "vars",
+        "items": {
+         "best": 0
+        }
+       }
+      ]
+     },
+     {
+      "text": "From 10: 10 → 13 (then 16 is missing). Length 2.",
+      "panels": [
+       {
+        "type": "row",
+        "cells": [
+         10,
+         4,
+         1,
+         7,
+         5,
+         13,
+         8,
+         2,
+         20,
+         23
+        ],
+        "states": {
+         "0": "answer",
+         "5": "found"
+        },
+        "slots": true
+       },
+       {
+        "type": "vars",
+        "items": {
+         "best": 2
+        }
+       }
+      ]
+     },
+     {
+      "text": "From 4: 4 → 7 → 10 → 13 (then 16 is missing). Length 4.",
+      "panels": [
+       {
+        "type": "row",
+        "cells": [
+         10,
+         4,
+         1,
+         7,
+         5,
+         13,
+         8,
+         2,
+         20,
+         23
+        ],
+        "states": {
+         "1": "answer",
+         "3": "found",
+         "0": "found",
+         "5": "found"
+        },
+        "slots": true
+       },
+       {
+        "type": "vars",
+        "items": {
+         "best": 4
+        }
+       }
+      ]
+     },
+     {
+      "text": "From 1: 1 → 4 → 7 → 10 → 13 (then 16 is missing). Length 5.",
+      "panels": [
+       {
+        "type": "row",
+        "cells": [
+         10,
+         4,
+         1,
+         7,
+         5,
+         13,
+         8,
+         2,
+         20,
+         23
+        ],
+        "states": {
+         "2": "answer",
+         "1": "found",
+         "3": "found",
+         "0": "found",
+         "5": "found"
+        },
+        "slots": true
+       },
+       {
+        "type": "vars",
+        "items": {
+         "best": 5
+        }
+       }
+      ]
+     },
+     {
+      "text": "From 7: 7 → 10 → 13 (then 16 is missing). Length 3.",
+      "panels": [
+       {
+        "type": "row",
+        "cells": [
+         10,
+         4,
+         1,
+         7,
+         5,
+         13,
+         8,
+         2,
+         20,
+         23
+        ],
+        "states": {
+         "3": "answer",
+         "0": "found",
+         "5": "found"
+        },
+        "slots": true
+       },
+       {
+        "type": "vars",
+        "items": {
+         "best": 5
+        }
+       }
+      ]
+     },
+     {
+      "text": "From 5: 5 → 8 (then 11 is missing). Length 2.",
+      "panels": [
+       {
+        "type": "row",
+        "cells": [
+         10,
+         4,
+         1,
+         7,
+         5,
+         13,
+         8,
+         2,
+         20,
+         23
+        ],
+        "states": {
+         "4": "answer",
+         "6": "found"
+        },
+        "slots": true
+       },
+       {
+        "type": "vars",
+        "items": {
+         "best": 5
+        }
+       }
+      ]
+     },
+     {
+      "text": "From 13: 13 (then 16 is missing). Length 1.",
+      "panels": [
+       {
+        "type": "row",
+        "cells": [
+         10,
+         4,
+         1,
+         7,
+         5,
+         13,
+         8,
+         2,
+         20,
+         23
+        ],
+        "states": {
+         "5": "answer"
+        },
+        "slots": true
+       },
+       {
+        "type": "vars",
+        "items": {
+         "best": 5
+        }
+       }
+      ]
+     },
+     {
+      "text": "From 8: 8 (then 11 is missing). Length 1.",
+      "panels": [
+       {
+        "type": "row",
+        "cells": [
+         10,
+         4,
+         1,
+         7,
+         5,
+         13,
+         8,
+         2,
+         20,
+         23
+        ],
+        "states": {
+         "6": "answer"
+        },
+        "slots": true
+       },
+       {
+        "type": "vars",
+        "items": {
+         "best": 5
+        }
+       }
+      ]
+     },
+     {
+      "text": "From 2: 2 → 5 → 8 (then 11 is missing). Length 3.",
+      "panels": [
+       {
+        "type": "row",
+        "cells": [
+         10,
+         4,
+         1,
+         7,
+         5,
+         13,
+         8,
+         2,
+         20,
+         23
+        ],
+        "states": {
+         "7": "answer",
+         "4": "found",
+         "6": "found"
+        },
+        "slots": true
+       },
+       {
+        "type": "vars",
+        "items": {
+         "best": 5
+        }
+       }
+      ]
+     },
+     {
+      "text": "From 20: 20 → 23 (then 26 is missing). Length 2.",
+      "panels": [
+       {
+        "type": "row",
+        "cells": [
+         10,
+         4,
+         1,
+         7,
+         5,
+         13,
+         8,
+         2,
+         20,
+         23
+        ],
+        "states": {
+         "8": "answer",
+         "9": "found"
+        },
+        "slots": true
+       },
+       {
+        "type": "vars",
+        "items": {
+         "best": 5
+        }
+       }
+      ]
+     },
+     {
+      "text": "From 23: 23 (then 26 is missing). Length 1.",
+      "panels": [
+       {
+        "type": "row",
+        "cells": [
+         10,
+         4,
+         1,
+         7,
+         5,
+         13,
+         8,
+         2,
+         20,
+         23
+        ],
+        "states": {
+         "9": "answer"
+        },
+        "slots": true
+       },
+       {
+        "type": "vars",
+        "items": {
+         "best": 5
+        }
+       }
+      ]
+     },
+     {
+      "text": "The longest chain has 5 links. Note how 4, 7, 10 and 13 each re-walked part of the chain that 1 already walked.",
+      "panels": [
+       {
+        "type": "row",
+        "cells": [
+         10,
+         4,
+         1,
+         7,
+         5,
+         13,
+         8,
+         2,
+         20,
+         23
+        ],
+        "slots": true
+       }
+      ],
+      "result": "5"
+     }
+    ],
+    "title": "Start a chain at every value and extend it as far as it goes."
+   },
+   "limits": [
+    {
+     "md": "Two kinds of waste. Each membership check scans the list (fixable with sorting or a set),\nand each chain is walked again from every value inside it (fixable by starting only at\nchain heads). The next approach removes the first waste, the best approach removes both."
+    }
+   ],
+   "slow": 900
+  },
+  {
+   "title": "Sort, then build chain lengths left to right",
+   "kind": "better",
+   "time": "O(n log n)",
+   "space": "O(n)",
+   "idea": [
+    {
+     "md": "Sort the distinct values in increasing order. A chain that ends at `v` is a chain that ends\nat `v − step`, plus `v`. Since `v − step < v`, that chain was already measured when we got\nhere. So:\n\n`len(v) = len(v − step) + 1` if `v − step` is among the values, else `1`.\n\nFinding `v − step` in the sorted list is a binary search, and the answer is the largest\n`len` seen. No hashing is needed."
+    }
+   ],
+   "build": [
+    "Sort the values and drop repeats.",
+    "Keep `len[i]`, the length of the chain ending at sorted position `i`.",
+    "For each `i`, binary-search `s[i] − step` among positions `0 … i − 1`. Found at `j`: `len[i] = len[j] + 1`. Not found: `len[i] = 1`.",
+    "Return the largest `len[i]`."
+   ],
+   "code": {
+    "python": "from bisect import bisect_left\n\nclass Solution:\n    def longestChain(self, values: List[int], step: int) -> int:\n        s = sorted(set(values))\n        length = [1] * len(s)\n        for i, v in enumerate(s):\n            j = bisect_left(s, v - step, 0, i)\n            if j < i and s[j] == v - step:\n                length[i] = length[j] + 1\n        return max(length)\n",
+    "java": "class Solution {\n    public int longestChain(int[] values, int step) {\n        long[] s = Arrays.stream(values).asLongStream().sorted().distinct().toArray();\n        int[] length = new int[s.length];\n        int best = 0;\n        for (int i = 0; i < s.length; i++) {\n            int j = Arrays.binarySearch(s, 0, i, s[i] - step);\n            length[i] = j >= 0 ? length[j] + 1 : 1;\n            best = Math.max(best, length[i]);\n        }\n        return best;\n    }\n}\n",
+    "cpp": "class Solution {\npublic:\n    int longestChain(vector<int>& values, int step) {\n        vector<long long> s(values.begin(), values.end());\n        sort(s.begin(), s.end());\n        s.erase(unique(s.begin(), s.end()), s.end());\n        vector<int> length(s.size(), 1);\n        int best = 0;\n        for (int i = 0; i < (int) s.size(); i++) {\n            auto it = lower_bound(s.begin(), s.begin() + i, s[i] - step);\n            if (it != s.begin() + i && *it == s[i] - step) {\n                length[i] = length[it - s.begin()] + 1;\n            }\n            best = max(best, length[i]);\n        }\n        return best;\n    }\n};\n",
+    "c": "static int cmpLong(const void* x, const void* y) {\n    long long p = *(const long long*) x, q = *(const long long*) y;\n    return (p > q) - (p < q);\n}\n\nint longestChain(int* values, int valuesSize, int step) {\n    long long* s = malloc(valuesSize * sizeof(long long));\n    for (int i = 0; i < valuesSize; i++) s[i] = values[i];\n    qsort(s, valuesSize, sizeof(long long), cmpLong);\n    int m = 0;\n    for (int i = 0; i < valuesSize; i++) if (m == 0 || s[i] != s[m - 1]) s[m++] = s[i];\n    int* length = malloc(m * sizeof(int));\n    int best = 0;\n    for (int i = 0; i < m; i++) {\n        long long want = s[i] - step;\n        int lo = 0, hi = i;\n        while (lo < hi) {\n            int mid = (lo + hi) / 2;\n            if (s[mid] < want) lo = mid + 1; else hi = mid;\n        }\n        length[i] = (lo < i && s[lo] == want) ? length[lo] + 1 : 1;\n        if (length[i] > best) best = length[i];\n    }\n    free(s);\n    free(length);\n    return best;\n}\n"
+   },
+   "lines": [
+    {
+     "text": "Comparator for `qsort` over 64-bit values, returning −1, 0 or 1.",
+     "at": {
+      "c": [
+       [
+        1,
+        4
+       ]
+      ]
+     }
+    },
+    {
+     "text": "Sorted distinct values, stored as 64-bit so `value − step` can be computed without overflow (it can go down to −2 × 10⁹).",
+     "at": {
+      "python": [
+       [
+        5,
+        5
+       ]
+      ],
+      "java": [
+       [
+        3,
+        3
+       ]
+      ],
+      "cpp": [
+       [
+        4,
+        6
+       ]
+      ],
+      "c": [
+       [
+        7,
+        11
+       ]
+      ]
+     },
+     "notes": {
+      "python": "`set` drops repeats, `sorted` orders them. Python integers never overflow.",
+      "java": "The stream widens to `long`, sorts and removes repeats in one line.",
+      "cpp": "Copy into `long long`, sort, then `unique` + `erase` removes adjacent repeats.",
+      "c": "Copy into `long long`, sort, then compact the array in place keeping only the first of each run of equal values; `m` is the new length."
+     }
+    },
+    {
+     "text": "`length[i]` will be the longest chain ending at `s[i]`. Every value alone is a chain of 1.",
+     "at": {
+      "python": [
+       [
+        6,
+        6
+       ]
+      ],
+      "java": [
+       [
+        4,
+        4
+       ]
+      ],
+      "cpp": [
+       [
+        7,
+        7
+       ]
+      ],
+      "c": [
+       [
+        12,
+        12
+       ]
+      ]
+     }
+    },
+    {
+     "text": "Left to right, so every smaller value is finished before it's needed.",
+     "at": {
+      "python": [
+       [
+        7,
+        7
+       ]
+      ],
+      "java": [
+       [
+        6,
+        6
+       ]
+      ],
+      "cpp": [
+       [
+        9,
+        9
+       ]
+      ],
+      "c": [
+       [
+        14,
+        14
+       ]
+      ]
+     }
+    },
+    {
+     "text": "Binary-search the predecessor link `s[i] − step` among the values to the left.",
+     "at": {
+      "python": [
+       [
+        8,
+        8
+       ]
+      ],
+      "java": [
+       [
+        7,
+        7
+       ]
+      ],
+      "cpp": [
+       [
+        10,
+        10
+       ]
+      ],
+      "c": [
+       [
+        15,
+        20
+       ]
+      ]
+     },
+     "notes": {
+      "java": "`Arrays.binarySearch(s, 0, i, key)` returns the index when found and a negative number when not.",
+      "cpp": "`lower_bound` finds the first position not less than the key in `[0, i)`.",
+      "c": "A hand-written lower bound over `[0, i)`."
+     }
+    },
+    {
+     "text": "If the predecessor exists, this value extends its chain by one; otherwise it starts a new chain (length stays 1).",
+     "at": {
+      "python": [
+       [
+        9,
+        10
+       ]
+      ],
+      "java": [
+       [
+        8,
+        8
+       ]
+      ],
+      "cpp": [
+       [
+        11,
+        12
+       ]
+      ],
+      "c": [
+       [
+        21,
+        21
+       ]
+      ]
+     }
+    },
+    {
+     "text": "The answer is the longest chain ending anywhere.",
+     "at": {
+      "python": [
+       [
+        11,
+        11
+       ]
+      ],
+      "java": [
+       [
+        9,
+        9
+       ],
+       [
+        11,
+        11
+       ]
+      ],
+      "cpp": [
+       [
+        14,
+        14
+       ],
+       [
+        16,
+        16
+       ]
+      ],
+      "c": [
+       [
+        22,
+        22
+       ],
+       [
+        24,
+        26
+       ]
+      ]
+     },
+     "notes": {
+      "c": "Free both arrays before returning."
+     }
+    }
+   ],
+   "complexity": [
+    {
+     "md": "**Time O(n log n):** the sort, plus one O(log n) binary search per value.\n\n**Space O(n):** the sorted copy and the lengths."
+    }
+   ],
+   "walk": {
+    "steps": [
+     {
+      "text": "Sorted, without repeats: [1, 2, 4, 5, 7, 8, 10, 13, 20, 23]. Process from left to right.",
+      "panels": [
+       {
+        "type": "row",
+        "cells": [
+         1,
+         2,
+         4,
+         5,
+         7,
+         8,
+         10,
+         13,
+         20,
+         23
+        ],
+        "slots": true
+       }
+      ]
+     },
+     {
+      "text": "1: is -2 to the left? No, so 1 starts a chain of 1.",
+      "panels": [
+       {
+        "type": "row",
+        "cells": [
+         1,
+         2,
+         4,
+         5,
+         7,
+         8,
+         10,
+         13,
+         20,
+         23
+        ],
+        "states": {
+         "0": "active"
+        },
+        "slots": true
+       },
+       {
+        "type": "row",
+        "cells": [
+         1,
+         null,
+         null,
+         null,
+         null,
+         null,
+         null,
+         null,
+         null,
+         null
+        ],
+        "states": {
+         "0": "new"
+        },
+        "label": "chain length ending here",
+        "slots": true
+       }
+      ]
+     },
+     {
+      "text": "2: is -1 to the left? No, so 2 starts a chain of 1.",
+      "panels": [
+       {
+        "type": "row",
+        "cells": [
+         1,
+         2,
+         4,
+         5,
+         7,
+         8,
+         10,
+         13,
+         20,
+         23
+        ],
+        "states": {
+         "1": "active"
+        },
+        "slots": true
+       },
+       {
+        "type": "row",
+        "cells": [
+         1,
+         1,
+         null,
+         null,
+         null,
+         null,
+         null,
+         null,
+         null,
+         null
+        ],
+        "states": {
+         "1": "new"
+        },
+        "label": "chain length ending here",
+        "slots": true
+       }
+      ]
+     },
+     {
+      "text": "4: is 1 to the left? Yes, ending a chain of 1, so 4 ends a chain of 2.",
+      "panels": [
+       {
+        "type": "row",
+        "cells": [
+         1,
+         2,
+         4,
+         5,
+         7,
+         8,
+         10,
+         13,
+         20,
+         23
+        ],
+        "states": {
+         "2": "active",
+         "0": "found"
+        },
+        "slots": true
+       },
+       {
+        "type": "row",
+        "cells": [
+         1,
+         1,
+         2,
+         null,
+         null,
+         null,
+         null,
+         null,
+         null,
+         null
+        ],
+        "states": {
+         "2": "new"
+        },
+        "label": "chain length ending here",
+        "slots": true
+       }
+      ]
+     },
+     {
+      "text": "5: is 2 to the left? Yes, ending a chain of 1, so 5 ends a chain of 2.",
+      "panels": [
+       {
+        "type": "row",
+        "cells": [
+         1,
+         2,
+         4,
+         5,
+         7,
+         8,
+         10,
+         13,
+         20,
+         23
+        ],
+        "states": {
+         "3": "active",
+         "1": "found"
+        },
+        "slots": true
+       },
+       {
+        "type": "row",
+        "cells": [
+         1,
+         1,
+         2,
+         2,
+         null,
+         null,
+         null,
+         null,
+         null,
+         null
+        ],
+        "states": {
+         "3": "new"
+        },
+        "label": "chain length ending here",
+        "slots": true
+       }
+      ]
+     },
+     {
+      "text": "7: is 4 to the left? Yes, ending a chain of 2, so 7 ends a chain of 3.",
+      "panels": [
+       {
+        "type": "row",
+        "cells": [
+         1,
+         2,
+         4,
+         5,
+         7,
+         8,
+         10,
+         13,
+         20,
+         23
+        ],
+        "states": {
+         "4": "active",
+         "2": "found"
+        },
+        "slots": true
+       },
+       {
+        "type": "row",
+        "cells": [
+         1,
+         1,
+         2,
+         2,
+         3,
+         null,
+         null,
+         null,
+         null,
+         null
+        ],
+        "states": {
+         "4": "new"
+        },
+        "label": "chain length ending here",
+        "slots": true
+       }
+      ]
+     },
+     {
+      "text": "8: is 5 to the left? Yes, ending a chain of 2, so 8 ends a chain of 3.",
+      "panels": [
+       {
+        "type": "row",
+        "cells": [
+         1,
+         2,
+         4,
+         5,
+         7,
+         8,
+         10,
+         13,
+         20,
+         23
+        ],
+        "states": {
+         "5": "active",
+         "3": "found"
+        },
+        "slots": true
+       },
+       {
+        "type": "row",
+        "cells": [
+         1,
+         1,
+         2,
+         2,
+         3,
+         3,
+         null,
+         null,
+         null,
+         null
+        ],
+        "states": {
+         "5": "new"
+        },
+        "label": "chain length ending here",
+        "slots": true
+       }
+      ]
+     },
+     {
+      "text": "10: is 7 to the left? Yes, ending a chain of 3, so 10 ends a chain of 4.",
+      "panels": [
+       {
+        "type": "row",
+        "cells": [
+         1,
+         2,
+         4,
+         5,
+         7,
+         8,
+         10,
+         13,
+         20,
+         23
+        ],
+        "states": {
+         "6": "active",
+         "4": "found"
+        },
+        "slots": true
+       },
+       {
+        "type": "row",
+        "cells": [
+         1,
+         1,
+         2,
+         2,
+         3,
+         3,
+         4,
+         null,
+         null,
+         null
+        ],
+        "states": {
+         "6": "new"
+        },
+        "label": "chain length ending here",
+        "slots": true
+       }
+      ]
+     },
+     {
+      "text": "13: is 10 to the left? Yes, ending a chain of 4, so 13 ends a chain of 5.",
+      "panels": [
+       {
+        "type": "row",
+        "cells": [
+         1,
+         2,
+         4,
+         5,
+         7,
+         8,
+         10,
+         13,
+         20,
+         23
+        ],
+        "states": {
+         "7": "active",
+         "6": "found"
+        },
+        "slots": true
+       },
+       {
+        "type": "row",
+        "cells": [
+         1,
+         1,
+         2,
+         2,
+         3,
+         3,
+         4,
+         5,
+         null,
+         null
+        ],
+        "states": {
+         "7": "new"
+        },
+        "label": "chain length ending here",
+        "slots": true
+       }
+      ]
+     },
+     {
+      "text": "20: is 17 to the left? No, so 20 starts a chain of 1.",
+      "panels": [
+       {
+        "type": "row",
+        "cells": [
+         1,
+         2,
+         4,
+         5,
+         7,
+         8,
+         10,
+         13,
+         20,
+         23
+        ],
+        "states": {
+         "8": "active"
+        },
+        "slots": true
+       },
+       {
+        "type": "row",
+        "cells": [
+         1,
+         1,
+         2,
+         2,
+         3,
+         3,
+         4,
+         5,
+         1,
+         null
+        ],
+        "states": {
+         "8": "new"
+        },
+        "label": "chain length ending here",
+        "slots": true
+       }
+      ]
+     },
+     {
+      "text": "23: is 20 to the left? Yes, ending a chain of 1, so 23 ends a chain of 2.",
+      "panels": [
+       {
+        "type": "row",
+        "cells": [
+         1,
+         2,
+         4,
+         5,
+         7,
+         8,
+         10,
+         13,
+         20,
+         23
+        ],
+        "states": {
+         "9": "active",
+         "8": "found"
+        },
+        "slots": true
+       },
+       {
+        "type": "row",
+        "cells": [
+         1,
+         1,
+         2,
+         2,
+         3,
+         3,
+         4,
+         5,
+         1,
+         2
+        ],
+        "states": {
+         "9": "new"
+        },
+        "label": "chain length ending here",
+        "slots": true
+       }
+      ]
+     },
+     {
+      "text": "The largest length is 5.",
+      "panels": [
+       {
+        "type": "row",
+        "cells": [
+         1,
+         1,
+         2,
+         2,
+         3,
+         3,
+         4,
+         5,
+         1,
+         2
+        ],
+        "states": {
+         "7": "answer"
+        },
+        "label": "chain length ending here",
+        "slots": true
+       }
+      ],
+      "result": "5"
+     }
+    ],
+    "title": "Sort; each value's chain is one longer than the chain ending at value − step."
+   },
+   "limits": [
+    {
+     "md": "Fast and dependable, but the sort does more than needed: we only ever ask \"is `v − step`\npresent?\" and \"is `v + step` present?\", which a hash set answers in O(1) without ordering\nanything."
+    }
+   ]
+  },
+  {
+   "title": "Hash set, walking only from chain heads",
+   "kind": "best",
+   "time": "O(n)",
+   "space": "O(n)",
+   "idea": [
+    {
+     "md": "Put all values in a hash set. For each distinct value `v`:\n\n- If `v − step` is in the set, `v` is not a head: some chain reaches it from below. Skip it.\n- Otherwise `v` is a head. Walk `v + step`, `v + 2·step`, … while they're in the set, and\n  count the links.\n\nEach value is the head of exactly one chain and is walked over only by that chain's walk,\nso all the walks together take O(n) steps, even though there's a loop inside a loop."
+    }
+   ],
+   "build": [
+    "Build a hash set of the values (64-bit keys in Java and C).",
+    "For each distinct value `v`: if `v − step` is in the set, skip it.",
+    "Otherwise walk forward from `v` while `x + step` is in the set, counting the links.",
+    "Keep the longest walk."
+   ],
+   "code": {
+    "python": "class Solution:\n    def longestChain(self, values: List[int], step: int) -> int:\n        have = set(values)\n        best = 0\n        for v in have:\n            if v - step in have:\n                continue\n            length, x = 1, v\n            while x + step in have:\n                x += step\n                length += 1\n            best = max(best, length)\n        return best\n",
+    "java": "class Solution {\n    public int longestChain(int[] values, int step) {\n        Set<Long> have = new HashSet<>();\n        for (int v : values) have.add((long) v);\n        int best = 0;\n        for (long v : have) {\n            if (have.contains(v - step)) continue;\n            int length = 1;\n            long x = v;\n            while (have.contains(x + step)) {\n                x += step;\n                length++;\n            }\n            best = Math.max(best, length);\n        }\n        return best;\n    }\n}\n",
+    "cpp": "class Solution {\npublic:\n    int longestChain(vector<int>& values, int step) {\n        unordered_set<long long> have(values.begin(), values.end());\n        int best = 0;\n        for (long long v : have) {\n            if (have.count(v - step)) continue;\n            int length = 1;\n            long long x = v;\n            while (have.count(x + step)) {\n                x += step;\n                length++;\n            }\n            best = max(best, length);\n        }\n        return best;\n    }\n};\n",
+    "c": "// C has no built-in hash set, so here is a small one: open addressing with\n// linear probing over a power-of-two table. Keys are 64-bit.\ntypedef struct { long long key; bool used; } Slot;\n\nstatic unsigned slotOf(long long key, unsigned mask) {\n    unsigned long long h = (unsigned long long) key * 0x9E3779B97F4A7C15ULL;\n    return (unsigned) (h >> 32) & mask;\n}\n\nstatic bool has(const Slot* t, unsigned mask, long long key) {\n    for (unsigned s = slotOf(key, mask); t[s].used; s = (s + 1) & mask)\n        if (t[s].key == key) return true;\n    return false;\n}\n\nstatic void add(Slot* t, unsigned mask, long long key) {\n    unsigned s = slotOf(key, mask);\n    while (t[s].used && t[s].key != key) s = (s + 1) & mask;\n    t[s].key = key;\n    t[s].used = true;\n}\n\n                    int longestChain(int* values, int valuesSize, int step) {\n                        unsigned cap = 1;\n                        while (cap < 2u * valuesSize) cap <<= 1;\n                        Slot* have = calloc(cap, sizeof(Slot));\n                        for (int i = 0; i < valuesSize; i++) add(have, cap - 1, values[i]);\n                        int best = 0;\n                        for (unsigned s = 0; s < cap; s++) {\n                            if (!have[s].used) continue;\n                            long long v = have[s].key;\n                            if (has(have, cap - 1, v - step)) continue;\n                            int length = 1;\n                            long long x = v;\n                            while (has(have, cap - 1, x + step)) {\n                                x += step;\n                                length++;\n                            }\n                            if (length > best) best = length;\n                        }\n                        free(have);\n                        return best;\n                    }\n"
+   },
+   "lines": [
+    {
+     "text": "C has no hash set, so these few lines build one. `slotOf` scrambles a key into a starting slot (multiply by a large odd constant, keep the well-mixed high bits). `has` walks forward from there until it finds the key or an empty slot; `add` walks the same way and claims the slot. With the table at most half full, each call is O(1) on average.",
+     "at": {
+      "c": [
+       [
+        3,
+        3
+       ],
+       [
+        5,
+        8
+       ],
+       [
+        10,
+        14
+       ],
+       [
+        16,
+        21
+       ]
+      ]
+     }
+    },
+    {
+     "text": "Every value goes into a hash set, so membership checks are O(1). Repeats collapse into one entry.",
+     "at": {
+      "python": [
+       [
+        3,
+        3
+       ]
+      ],
+      "java": [
+       [
+        3,
+        4
+       ]
+      ],
+      "cpp": [
+       [
+        4,
+        4
+       ]
+      ],
+      "c": [
+       [
+        24,
+        27
+       ]
+      ]
+     },
+     "notes": {
+      "java": "`Long` keys, because we'll look up `v ± step`, which can leave `int` range.",
+      "cpp": "`long long` keys, because we'll look up `v ± step`, which can leave `int` range.",
+      "c": "A table at least twice the number of values, zeroed by `calloc`, then every value added."
+     }
+    },
+    {
+     "text": "Consider each **distinct** value as a possible chain head. Looping over the set (not the input) matters: with many copies of a head, looping over the input would walk its chain once per copy.",
+     "at": {
+      "python": [
+       [
+        5,
+        5
+       ]
+      ],
+      "java": [
+       [
+        6,
+        6
+       ]
+      ],
+      "cpp": [
+       [
+        6,
+        6
+       ]
+      ],
+      "c": [
+       [
+        29,
+        31
+       ]
+      ]
+     },
+     "notes": {
+      "c": "Walk the table's slots and skip the empty ones: the used slots are exactly the distinct values."
+     }
+    },
+    {
+     "text": "If the value one step below is present, this value sits inside a longer chain. Its chain will be measured from the head, so skip it.",
+     "at": {
+      "python": [
+       [
+        6,
+        7
+       ]
+      ],
+      "java": [
+       [
+        7,
+        7
+       ]
+      ],
+      "cpp": [
+       [
+        7,
+        7
+       ]
+      ],
+      "c": [
+       [
+        32,
+        32
+       ]
+      ]
+     }
+    },
+    {
+     "text": "A head: count links upward until one is missing.",
+     "at": {
+      "python": [
+       [
+        8,
+        11
+       ]
+      ],
+      "java": [
+       [
+        8,
+        12
+       ]
+      ],
+      "cpp": [
+       [
+        8,
+        12
+       ]
+      ],
+      "c": [
+       [
+        33,
+        37
+       ]
+      ]
+     }
+    },
+    {
+     "text": "Keep the longest chain.",
+     "at": {
+      "python": [
+       [
+        12,
+        13
+       ]
+      ],
+      "java": [
+       [
+        14,
+        14
+       ],
+       [
+        16,
+        16
+       ]
+      ],
+      "cpp": [
+       [
+        14,
+        14
+       ],
+       [
+        16,
+        16
+       ]
+      ],
+      "c": [
+       [
+        39,
+        39
+       ],
+       [
+        41,
+        42
+       ]
+      ]
+     },
+     "notes": {
+      "c": "Free the table before returning."
+     }
+    }
+   ],
+   "complexity": [
+    {
+     "md": "**Time O(n) on average.** The skip test costs O(1) per value. A walk only starts at a\nhead and only steps through that head's own chain, and the chains don't overlap, so all\nwalks together take at most n steps.\n\n**Space O(n)** for the set."
+    }
+   ],
+   "walk": {
+    "steps": [
+     {
+      "text": "All values go in a hash set.",
+      "panels": [
+       {
+        "type": "row",
+        "cells": [
+         10,
+         4,
+         1,
+         7,
+         5,
+         13,
+         8,
+         2,
+         20,
+         23
+        ],
+        "slots": true
+       },
+       {
+        "type": "vars",
+        "items": {
+         "best": 0
+        }
+       }
+      ]
+     },
+     {
+      "text": "10: 7 is in the set, so 10 is in the middle of a chain. Skip it; the chain's head will count it.",
+      "panels": [
+       {
+        "type": "row",
+        "cells": [
+         10,
+         4,
+         1,
+         7,
+         5,
+         13,
+         8,
+         2,
+         20,
+         23
+        ],
+        "states": {
+         "0": "dim",
+         "3": "mark"
+        },
+        "slots": true
+       },
+       {
+        "type": "vars",
+        "items": {
+         "best": 0
+        }
+       }
+      ]
+     },
+     {
+      "text": "4: 1 is in the set, so 4 is in the middle of a chain. Skip it; the chain's head will count it.",
+      "panels": [
+       {
+        "type": "row",
+        "cells": [
+         10,
+         4,
+         1,
+         7,
+         5,
+         13,
+         8,
+         2,
+         20,
+         23
+        ],
+        "states": {
+         "1": "dim",
+         "2": "mark"
+        },
+        "slots": true
+       },
+       {
+        "type": "vars",
+        "items": {
+         "best": 0
+        }
+       }
+      ]
+     },
+     {
+      "text": "1: -2 isn't in the set, so a chain starts here: 1 → 4 → 7 → 10 → 13, length 5.",
+      "panels": [
+       {
+        "type": "row",
+        "cells": [
+         10,
+         4,
+         1,
+         7,
+         5,
+         13,
+         8,
+         2,
+         20,
+         23
+        ],
+        "states": {
+         "2": "answer",
+         "1": "found",
+         "3": "found",
+         "0": "found",
+         "5": "found"
+        },
+        "slots": true
+       },
+       {
+        "type": "vars",
+        "items": {
+         "best": 5
+        }
+       }
+      ]
+     },
+     {
+      "text": "7: 4 is in the set, so 7 is in the middle of a chain. Skip it; the chain's head will count it.",
+      "panels": [
+       {
+        "type": "row",
+        "cells": [
+         10,
+         4,
+         1,
+         7,
+         5,
+         13,
+         8,
+         2,
+         20,
+         23
+        ],
+        "states": {
+         "3": "dim",
+         "1": "mark"
+        },
+        "slots": true
+       },
+       {
+        "type": "vars",
+        "items": {
+         "best": 5
+        }
+       }
+      ]
+     },
+     {
+      "text": "5: 2 is in the set, so 5 is in the middle of a chain. Skip it; the chain's head will count it.",
+      "panels": [
+       {
+        "type": "row",
+        "cells": [
+         10,
+         4,
+         1,
+         7,
+         5,
+         13,
+         8,
+         2,
+         20,
+         23
+        ],
+        "states": {
+         "4": "dim",
+         "7": "mark"
+        },
+        "slots": true
+       },
+       {
+        "type": "vars",
+        "items": {
+         "best": 5
+        }
+       }
+      ]
+     },
+     {
+      "text": "13: 10 is in the set, so 13 is in the middle of a chain. Skip it; the chain's head will count it.",
+      "panels": [
+       {
+        "type": "row",
+        "cells": [
+         10,
+         4,
+         1,
+         7,
+         5,
+         13,
+         8,
+         2,
+         20,
+         23
+        ],
+        "states": {
+         "5": "dim",
+         "0": "mark"
+        },
+        "slots": true
+       },
+       {
+        "type": "vars",
+        "items": {
+         "best": 5
+        }
+       }
+      ]
+     },
+     {
+      "text": "8: 5 is in the set, so 8 is in the middle of a chain. Skip it; the chain's head will count it.",
+      "panels": [
+       {
+        "type": "row",
+        "cells": [
+         10,
+         4,
+         1,
+         7,
+         5,
+         13,
+         8,
+         2,
+         20,
+         23
+        ],
+        "states": {
+         "6": "dim",
+         "4": "mark"
+        },
+        "slots": true
+       },
+       {
+        "type": "vars",
+        "items": {
+         "best": 5
+        }
+       }
+      ]
+     },
+     {
+      "text": "2: -1 isn't in the set, so a chain starts here: 2 → 5 → 8, length 3.",
+      "panels": [
+       {
+        "type": "row",
+        "cells": [
+         10,
+         4,
+         1,
+         7,
+         5,
+         13,
+         8,
+         2,
+         20,
+         23
+        ],
+        "states": {
+         "7": "answer",
+         "4": "found",
+         "6": "found"
+        },
+        "slots": true
+       },
+       {
+        "type": "vars",
+        "items": {
+         "best": 5
+        }
+       }
+      ]
+     },
+     {
+      "text": "20: 17 isn't in the set, so a chain starts here: 20 → 23, length 2.",
+      "panels": [
+       {
+        "type": "row",
+        "cells": [
+         10,
+         4,
+         1,
+         7,
+         5,
+         13,
+         8,
+         2,
+         20,
+         23
+        ],
+        "states": {
+         "8": "answer",
+         "9": "found"
+        },
+        "slots": true
+       },
+       {
+        "type": "vars",
+        "items": {
+         "best": 5
+        }
+       }
+      ]
+     },
+     {
+      "text": "23: 20 is in the set, so 23 is in the middle of a chain. Skip it; the chain's head will count it.",
+      "panels": [
+       {
+        "type": "row",
+        "cells": [
+         10,
+         4,
+         1,
+         7,
+         5,
+         13,
+         8,
+         2,
+         20,
+         23
+        ],
+        "states": {
+         "9": "dim",
+         "8": "mark"
+        },
+        "slots": true
+       },
+       {
+        "type": "vars",
+        "items": {
+         "best": 5
+        }
+       }
+      ]
+     },
+     {
+      "text": "Each value was walked over at most once as part of a chain: best 5.",
+      "panels": [
+       {
+        "type": "row",
+        "cells": [
+         10,
+         4,
+         1,
+         7,
+         5,
+         13,
+         8,
+         2,
+         20,
+         23
+        ],
+        "slots": true
+       }
+      ],
+      "result": "5"
+     }
+    ],
+    "title": "Put every value in a set. Only walk from values that start a chain (value − step is missing)."
+   }
+  }
+ ],
+ "takeaways": [
+  {
+   "md": "- For \"longest run of linked values\" problems, **only start at the beginning of a run**: a value\n  whose predecessor is missing. It turns a quadratic re-walk into a linear one.\n- A loop inside a loop can still be O(n) when the inner loop's total work across all iterations is\n  bounded. Count total work, not nesting depth.\n- Sorting + binary search is a solid hash-free fallback: it costs a log factor."
+  }
+ ]
+}
