@@ -6,6 +6,7 @@ DONE = []
 
 
 CUSTOM = {
+    "copy-with-shortcuts": [{"head": [[7, None], [13, 0], [11, 4], [10, 2], [1, 0]]}],
     "flip-in-batches": [{"head": [1, 2, 3, 4, 5, 6, 7, 8], "k": 2}],
     "flip-a-stretch": [{"head": [1, 2, 3, 4, 5, 6, 7], "left": 2, "right": 6}],
     "closest-to-zero-first": [{"head": [3, -1, -4, 2, 4, -2, 0, 1]}],
@@ -515,6 +516,80 @@ def repeated_ticket_number(pid):
         W.step(f"slow → {slow}, fast → {fast}." + (" They meet at the loop's entrance." if slow == fast else ""), Row(v, ptr={"slow": slow, "fast": fast}))
     W.step(f"The repeated number is {slow}.", Row(v, st={i: "answer" for i, x in enumerate(v) if x == slow}), result=slow)
     assert slow == exp
+    return W.save()
+
+
+@run
+def where_two_lines_meet(pid):
+    a, exp = example(pid)
+    A = a["headA"]
+    hb = a["headB"]
+    own = hb["values"] if isinstance(hb, dict) else hb
+    j = hb.get("join_at") if isinstance(hb, dict) else None
+    B = own + (A[j:] if j is not None else [])
+    shared_a = {i: "found" for i in range(j, len(A))} if j is not None else {}
+    shared_b = {i: "found" for i in range(len(own), len(B))}
+    W = Walk(pid, "Two walkers: a starts on line A, b on line B. When one falls off the end, it restarts on the OTHER line. Both then cover lenA + lenB stops, so they arrive at the first shared stop together.")
+    # Positions are (line, index); index == len(line) means "fell off the end".
+    pa, pb = ("A", 0), ("B", 0)
+
+    def node(p):
+        line, i = p
+        seq = A if line == "A" else B
+        if i >= len(seq):
+            return None
+        if line == "B" and i >= len(own):
+            return ("A", j + i - len(own))  # a shared stop is really line A's node
+        return p
+
+    def panels(note=None):
+        ptr_a = {"a": pa[1]} if pa[0] == "A" and pa[1] < len(A) else {}
+        ptr_b = {"b": pb[1]} if pb[0] == "B" and pb[1] < len(B) else {}
+        if pa[0] == "B" and pa[1] < len(B):
+            ptr_b["a"] = pa[1]
+        if pb[0] == "A" and pb[1] < len(A):
+            ptr_a["b"] = pb[1]
+        return [L(A, st=shared_a, ptr=ptr_a, label="line A"), L(B, st=shared_b, ptr=ptr_b, label="line B (shaded = shared)")]
+
+    W.step("Both walkers start at their line's first stop.", *panels())
+    for _ in range(2 * (len(A) + len(B)) + 2):
+        if node(pa) == node(pb):
+            break
+        pa = (pa[0], pa[1] + 1) if node(pa) is not None else ("B" if pa[0] == "A" else "A", 0)
+        pb = (pb[0], pb[1] + 1) if node(pb) is not None else ("A" if pb[0] == "B" else "B", 0)
+        W.step("Both step forward" + (" (a walker that ran off the end restarts on the other line)." if pa[1] == 0 or pb[1] == 0 else "."), *panels())
+    meet = node(pa)
+    res = A[meet[1]:] if meet else []
+    W.step(f"They stand on the same stop: {A[meet[1]]}." if meet else "Both ran off the end together: the lines never meet.", *panels(), result=res)
+    assert res == exp
+    return W.save()
+
+
+@run
+def copy_with_shortcuts(pid):
+    a, exp = example(pid)
+    pairs = a["head"]
+    vals = [v for v, _ in pairs]
+    rnd = [r for _, r in pairs]
+    W = Walk(pid, "Pass 1 makes a new node for every clue and remembers original → copy. Pass 2 wires each copy's next and random through that map.")
+    if not pairs:
+        W.step("An empty trail copies to an empty trail.", L([], label="trail"), result=[])
+        assert exp == []
+        return W.save()
+    W.step("The original trail; dashed arcs are the shortcuts.", RL(vals, rnd, label="original"))
+    copies = []
+    for i, v in enumerate(vals):
+        copies.append(v)
+        W.step(f"Pass 1: copy clue {i} ({v}) and map it.", RL(vals, rnd, st={i: "active"}, label="original"), L(copies, st={i: "new"}, links=[], label="copies (not linked yet)"))
+    wired_next, wired_rand = [], [None] * len(vals)
+    for i in range(len(vals)):
+        if i + 1 < len(vals):
+            wired_next.append([i, i + 1])
+        wired_rand[i] = rnd[i]
+        W.step(f"Pass 2: copy {i}'s next → copy {i + 1 if i + 1 < len(vals) else 'null'}, random → " + (f"copy {rnd[i]}." if rnd[i] is not None else "null."),
+               RL(vals, rnd, st={i: "active"}, label="original"), {**RL(copies, [r if k <= i else None for k, r in enumerate(wired_rand)], st={i: "new"}, label="copy"), "links": [list(x) for x in wired_next]})
+    out = [[v, r] for v, r in zip(vals, rnd)]
+    assert out == exp
     return W.save()
 
 

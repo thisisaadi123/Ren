@@ -336,3 +336,10 @@ def Grid(cells, st=None, label=None):
     if label:
         p["label"] = label
     return p
+
+
+def RL(values, randoms, st=None, ptr=None, label=None):
+    """A list whose nodes also have random pointers (drawn as dashed arcs)."""
+    p = L(values, st=st, ptr=ptr, label=label)
+    p["randoms"] = [[i, r] for i, r in enumerate(randoms)]
+    return p

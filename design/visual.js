@@ -168,9 +168,10 @@
     const pointers = opts.pointers || {};
     const links = (opts.links || values.slice(1).map((_, i) => [i, i + 1])).slice();
     if (opts.cycleAt !== undefined && opts.cycleAt !== null) links.push([n - 1, opts.cycleAt]);
+    const randoms = (opts.randoms || []).filter(([, b]) => b !== null && b !== undefined);
     const far = (a, b) => b !== null && b !== undefined && Math.abs(b - a) > 1;
-    const above = links.some(([a, b]) => far(a, b) && b > a);
-    const below = links.some(([a, b]) => far(a, b) && b < a);
+    const above = links.some(([a, b]) => far(a, b) && b > a) || randoms.some(([a, b]) => b >= a);
+    const below = links.some(([a, b]) => far(a, b) && b < a) || randoms.some(([a, b]) => b < a);
     const labels = {};
     for (const [name, i] of Object.entries(pointers)) if (i !== null && i !== undefined && i >= 0 && i < n) (labels[i] = labels[i] || []).push(name);
     const rows = Math.max(0, ...Object.values(labels).map((l) => l.length));
@@ -199,6 +200,21 @@
         const yc = cy + sy * (R + arcDepth);
         parts.push(`<path class="vz-link" d="M${x1} ${y0}C${x1} ${yc} ${x2} ${yc} ${x2} ${y0 + sy * 2}"/>`, chevron(x2, y0 + sy * 1, up ? Math.PI / 2 : -Math.PI / 2));
       }
+    }
+    // Random pointers: dashed arcs, forward (and self) above, backward below.
+    for (const [a, b] of randoms) {
+      if (a === b) {
+        const x = cx(a);
+        parts.push(`<path class="vz-rand" d="M${x - 6} ${cy - R}C${x - 14} ${cy - R - 20} ${x + 14} ${cy - R - 20} ${x + 6} ${cy - R - 1}"/>`, chevron(x + 6, cy - R - 1, Math.PI / 2.4).replace("vz-head", "vz-rand-head"));
+        continue;
+      }
+      const up = b > a;
+      const sy = up ? -1 : 1;
+      const x1 = cx(a);
+      const x2 = cx(b);
+      const y0 = cy + sy * (R + 2);
+      const yc = cy + sy * (R + arcDepth + (Math.abs(b - a) > 2 ? 4 : 0));
+      parts.push(`<path class="vz-rand" d="M${x1} ${y0}C${x1} ${yc} ${x2} ${yc} ${x2} ${y0 + sy * 2}"/>`, chevron(x2, y0 + sy * 1, up ? Math.PI / 2 : -Math.PI / 2).replace("vz-head", "vz-rand-head"));
     }
     values.forEach((v, i) => {
       parts.push(`<g class="${cls("vz-node", states[i])}">
@@ -311,8 +327,31 @@
     }
 
     const parts = [];
+    // A list written {"values", "join_at": i} continues into node i of the list before it.
+    const listParams = problem.params.filter((p) => p.type === "ListNode");
+    const joins = {};
+    listParams.forEach((p, k) => {
+      const v = ex.args[p.name];
+      if (k && v && !Array.isArray(v) && v.join_at != null) joins[listParams[k - 1].name] = v.join_at;
+    });
+    let prevList = null;
     for (const p of problem.params) {
       const v = ex.args[p.name];
+      if (p.type === "ListNode" && v && !Array.isArray(v) && v.join_at != null && prevList) {
+        const own = v.values || [];
+        const all = own.concat(prevList.slice(v.join_at));
+        if (all.length > 14) return "";
+        const st = {};
+        for (let i = own.length; i < all.length; i++) st[i] = "found";
+        parts.push(figure(listSvg(all, { states: st, label: p.name }), `${p.name} (shaded stops are shared)`));
+        prevList = all;
+        continue;
+      }
+      if (p.type === "RandomNode") {
+        if (!Array.isArray(v) || v.length > 10) return "";
+        parts.push(figure(listSvg(v.map((x) => x[0]), { randoms: v.map((x, i) => [i, x[1]]), label: p.name }), v.length ? `${p.name} (dashed = random)` : `${p.name} (empty)`));
+        continue;
+      }
       if (p.type === "TreeNode") {
         const t = layout(v);
         if (!drawable(t)) return "";
@@ -321,7 +360,10 @@
       } else if (p.type === "ListNode") {
         const l = listValues(v);
         if (!l || l.values.length > 12) return "";
-        parts.push(figure(listSvg(l.values, { cycleAt: l.cycleAt, label: p.name }), l.values.length ? p.name : `${p.name} (empty)`));
+        const st = {};
+        if (joins[p.name] != null) for (let i = joins[p.name]; i < l.values.length; i++) st[i] = "found";
+        parts.push(figure(listSvg(l.values, { cycleAt: l.cycleAt, states: st, label: p.name }), l.values.length ? p.name : `${p.name} (empty)`));
+        prevList = l.values;
       } else if (p.type === "ListNode[]" && Array.isArray(v)) {
         if (v.length > 6 || v.some((l) => (l || []).length > 12)) return "";
         v.forEach((l, i) => parts.push(figure(listSvg(l || [], { label: `${p.name}[${i}]` }), `${p.name}[${i}]`)));
@@ -332,6 +374,9 @@
       const t = layout(out);
       if (!drawable(t)) return "";
       parts.push(...(parts.length ? [ARROW] : []), figure(treeSvg(t, {}, {}, "the output tree"), t.nodes.length ? "output" : "output (empty)"));
+    } else if (problem.returns === "RandomNode") {
+      if (!Array.isArray(out) || out.length > 10) return parts.length ? `<div class="ex-figure">${parts.join("")}</div>` : "";
+      parts.push(...(parts.length ? [ARROW] : []), figure(listSvg(out.map((x) => x[0]), { randoms: out.map((x, i) => [i, x[1]]), label: "output" }), out.length ? "copy" : "output (empty)"));
     } else if (problem.returns === "ListNode") {
       const l = listValues(out);
       if (!l || l.values.length > 12) return parts.length ? `<div class="ex-figure">${parts.join("")}</div>` : "";

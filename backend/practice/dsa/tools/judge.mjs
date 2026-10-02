@@ -65,9 +65,9 @@ function load(id) {
 /* Starter code ---------------------------------------------------------------- */
 
 const TYPES = {
-  python: { int: "int", long: "int", double: "float", bool: "bool", string: "str", char: "str", ListNode: "Optional[ListNode]", TreeNode: "Optional[TreeNode]", list: (t) => `List[${t}]` },
-  java: { int: "int", long: "long", double: "double", bool: "boolean", string: "String", char: "char", ListNode: "ListNode", TreeNode: "TreeNode", list: (t) => `${t}[]` },
-  cpp: { int: "int", long: "long long", double: "double", bool: "bool", string: "string", char: "char", ListNode: "ListNode*", TreeNode: "TreeNode*", list: (t) => `vector<${t}>` },
+  python: { int: "int", long: "int", double: "float", bool: "bool", string: "str", char: "str", ListNode: "Optional[ListNode]", TreeNode: "Optional[TreeNode]", RandomNode: "Optional[RandomNode]", list: (t) => `List[${t}]` },
+  java: { int: "int", long: "long", double: "double", bool: "boolean", string: "String", char: "char", ListNode: "ListNode", TreeNode: "TreeNode", RandomNode: "RandomNode", list: (t) => `${t}[]` },
+  cpp: { int: "int", long: "long long", double: "double", bool: "bool", string: "string", char: "char", ListNode: "ListNode*", TreeNode: "TreeNode*", RandomNode: "RandomNode*", list: (t) => `vector<${t}>` },
 };
 
 function typeIn(lang, type) {
@@ -78,14 +78,14 @@ function typeIn(lang, type) {
 
 // What ListNode and TreeNode look like, as a comment above the starter (as on LeetCode).
 const NODES = {
-  python: { ListNode: ["class ListNode:", "    def __init__(self, val=0, next=None):", "        self.val = val", "        self.next = next"], TreeNode: ["class TreeNode:", "    def __init__(self, val=0, left=None, right=None):", "        self.val = val", "        self.left = left", "        self.right = right"] },
-  java: { ListNode: ["class ListNode {", "    int val;", "    ListNode next;", "}"], TreeNode: ["class TreeNode {", "    int val;", "    TreeNode left;", "    TreeNode right;", "}"] },
-  cpp: { ListNode: ["struct ListNode {", "    int val;", "    ListNode *next;", "};"], TreeNode: ["struct TreeNode {", "    int val;", "    TreeNode *left;", "    TreeNode *right;", "};"] },
-  c: { ListNode: ["struct ListNode {", "    int val;", "    struct ListNode *next;", "};"], TreeNode: ["struct TreeNode {", "    int val;", "    struct TreeNode *left;", "    struct TreeNode *right;", "};"] },
+  python: { ListNode: ["class ListNode:", "    def __init__(self, val=0, next=None):", "        self.val = val", "        self.next = next"], TreeNode: ["class TreeNode:", "    def __init__(self, val=0, left=None, right=None):", "        self.val = val", "        self.left = left", "        self.right = right"], RandomNode: ["class RandomNode:", "    def __init__(self, val=0, next=None, random=None):", "        self.val = val", "        self.next = next", "        self.random = random"] },
+  java: { ListNode: ["class ListNode {", "    int val;", "    ListNode next;", "}"], TreeNode: ["class TreeNode {", "    int val;", "    TreeNode left;", "    TreeNode right;", "}"], RandomNode: ["class RandomNode {", "    int val;", "    RandomNode next;", "    RandomNode random;", "}"] },
+  cpp: { ListNode: ["struct ListNode {", "    int val;", "    ListNode *next;", "};"], TreeNode: ["struct TreeNode {", "    int val;", "    TreeNode *left;", "    TreeNode *right;", "};"], RandomNode: ["struct RandomNode {", "    int val;", "    RandomNode *next;", "    RandomNode *random;", "};"] },
+  c: { ListNode: ["struct ListNode {", "    int val;", "    struct ListNode *next;", "};"], TreeNode: ["struct TreeNode {", "    int val;", "    struct TreeNode *left;", "    struct TreeNode *right;", "};"], RandomNode: ["struct RandomNode {", "    int val;", "    struct RandomNode *next;", "    struct RandomNode *random;", "};"] },
 };
 
 function nodeComment(lang, sig) {
-  const used = ["ListNode", "TreeNode"].filter((n) => [sig.returns, ...sig.params.map((p) => p.type)].some((t) => t.replace(/(\[\])+$/, "") === n));
+  const used = ["ListNode", "TreeNode", "RandomNode"].filter((n) => [sig.returns, ...sig.params.map((p) => p.type)].some((t) => t.replace(/(\[\])+$/, "") === n));
   if (!used.length) return "";
   const lines = used.flatMap((n, i) => [...(i ? [""] : []), ...NODES[lang][n]]);
   if (lang === "python") return `# Given:\n${lines.map((l) => `# ${l}`).join("\n")}\n\n`;
@@ -235,13 +235,17 @@ function fits(value, type) {
     case "char":
       return typeof value === "string" && value.length === 1;
     case "ListNode":
-      // A list with a cycle is {"values": [...], "cycle_at": index}.
+      // A list with a cycle is {"values": [...], "cycle_at": index}; one that joins the
+      // list before it is {"values": [...], "join_at": index}.
       if (value && !Array.isArray(value) && typeof value === "object") {
-        return fits(value.values, "int[]") && Number.isInteger(value.cycle_at ?? -1);
+        return fits(value.values, "int[]") && Number.isInteger(value.cycle_at ?? -1) && Number.isInteger(value.join_at ?? 0);
       }
       return Array.isArray(value) && value.every((v) => Number.isInteger(v));
     case "TreeNode":
       return Array.isArray(value) && value.every((v) => v === null || Number.isInteger(v));
+    case "RandomNode":
+      // [[value, index of the random target or null], ...]
+      return Array.isArray(value) && value.every((p) => Array.isArray(p) && p.length === 2 && Number.isInteger(p[0]) && (p[1] === null || (Number.isInteger(p[1]) && p[1] >= 0 && p[1] < value.length)));
     default:
       return false;
   }
