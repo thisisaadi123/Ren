@@ -9,6 +9,7 @@
 //   { type: "tree",  label, tree, states: { index: state }, notes: { index: text } }
 //   { type: "list",  label, values, states, pointers: { name: index }, links: [[from, to]], cycleAt }
 //   { type: "row",   label, cells, states, pointers, slots }
+//   { type: "grid",  label, cells: [[...]], states: { "r,c": state } }
 //   { type: "ntree", label, nodes: [{ id, label, parent }], states: { id: state }, notes }
 //   { type: "vars",  items: { name: value } }
 // Tree states are keyed by the node's position in level order, counting real nodes only.
@@ -242,6 +243,28 @@
     return `<svg class="vz-cells" width="${w}" height="${h}" viewBox="0 0 ${w} ${h}" role="img" aria-label="${esc(opts.label || "cells")}">${out.join("")}</svg>`;
   }
 
+  /* Grids (matrices, boards) ------------------------------------------------------ */
+
+  function gridSvg(rows, opts = {}) {
+    const states = opts.states || {};
+    const m = rows.length;
+    const n = m ? Math.max(...rows.map((r) => r.length)) : 0;
+    const w = n * CW + 2 * PAD;
+    const h = m * CH + 2 * PAD;
+    const out = [];
+    rows.forEach((row, r) =>
+      row.forEach((v, c) => {
+        const x = PAD + c * CW;
+        const y = PAD + r * CH;
+        out.push(`<g class="${cls("vz-cell", states[`${r},${c}`])}">
+          <rect x="${x + 2}" y="${y + 2}" width="${CW - 4}" height="${CH - 4}" rx="6"/>
+          <text${small(v)} x="${x + CW / 2}" y="${y + CH / 2}" dy="0.35em">${esc(v)}</text>
+        </g>`);
+      })
+    );
+    return `<svg class="vz-cells" width="${w}" height="${h}" viewBox="0 0 ${w} ${h}" role="img" aria-label="${esc(opts.label || "grid")}">${out.join("")}</svg>`;
+  }
+
   /* Panels ------------------------------------------------------------------------ */
 
   const figure = (svg, caption) =>
@@ -257,6 +280,8 @@
         return figure(listSvg(p.values || [], p), p.label);
       case "row":
         return figure(rowSvg(p.cells || [], p), p.label);
+      case "grid":
+        return figure(gridSvg(p.cells || [], p), p.label);
       case "vars":
         return `<dl class="vz-vars">${Object.entries(p.items || {})
           .map(([k, v]) => `<div><dt>${esc(k)}</dt><dd>${esc(typeof v === "string" ? v : JSON.stringify(v))}</dd></div>`)

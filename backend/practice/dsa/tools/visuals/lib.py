@@ -222,6 +222,10 @@ class Walk:
             s["result"] = fmt(result)
         self.steps.append(s)
 
+    def intro(self, text, *panels):
+        """Put a setup step before everything recorded so far."""
+        self.steps.insert(0, {"text": text, "panels": [p for p in panels if p]})
+
     def save(self, **hints):
         assert self.steps, self.pid
         if len(self.steps) > MAX_STEPS:
@@ -239,3 +243,13 @@ class Walk:
             json.dump(data, f, indent=1, ensure_ascii=False)
             f.write("\n")
         return len(self.steps)
+
+
+def Grid(cells, st=None, label=None):
+    """A matrix panel. st maps (r, c) -> state."""
+    p = {"type": "grid", "cells": [list(r) for r in cells]}
+    if st:
+        p["states"] = {f"{r},{c}": v for (r, c), v in st.items() if v}
+    if label:
+        p["label"] = label
+    return p
