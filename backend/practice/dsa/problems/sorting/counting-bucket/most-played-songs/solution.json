@@ -4,41 +4,56 @@
  "question": [
   {
    "md": "`plays` lists song ids, one per play. Return the `k` most-played songs, most played first; ties go to the\nsmaller id.\n\n- **Ids reach 10⁹**, so they can't index an array directly.\n- **Up to 10⁵ plays**; the number of different songs `d` can be anything up to that."
+  },
+  {
+   "md": "**Edge cases to keep in mind**\n\n- Song ids up to 10⁹: count with a hash map, not an array.\n- Ties in play count: smaller id first.\n- `k` can equal the number of different songs."
   }
  ],
  "think": [
   {
-   "md": "Plays `[7, 3, 7, 9, 3, 7, 12, 9, 3, 1]`, `k = 3`. Song 7 and song 3 were each played 3 times (3 has the smaller id, so it comes first),\nand song 9 twice. Answer: `[3, 7, 9]`.\n\nTwo steps: **count** (a hash map from song to plays) and **rank** (sort the songs by the rule). Only the\ndifferent songs need sorting, not every play."
+   "md": "**Beating O(n log n) by not comparing.** Comparison sorts need about `n log n` comparisons in the worst case. When the\nvalues are small integers, or we only need partial order information, we can skip comparisons entirely:\n\n- **Counting sort:** count how many times each possible value appears, then write the values out in order. O(n + R)\n  for a value range of size `R`.\n- **Bucket sort / bucketing:** drop values into ranges (\"buckets\") whose order is known; often only a little\n  information per bucket is needed."
+  },
+  {
+   "md": "**Count, then rank only the distinct songs.** There may be many plays but far fewer songs; sorting the songs by\n`(−plays, id)` puts them in the required order. For `[7, 3, 7, 9, 3, 7, 12, 9, 3, 1]`, `k = 3`:"
   },
   {
    "table": {
     "head": [
      "song",
-     "plays"
+     "plays",
+     "rank"
     ],
     "rows": [
      [
       "3",
-      "3"
+      "3",
+      "1"
      ],
      [
       "7",
-      "3"
-     ],
-     [
-      "9",
+      "3",
       "2"
      ],
      [
+      "9",
+      "2",
+      "3"
+     ],
+     [
       "1",
-      "1"
+      "1",
+      "4"
      ],
      [
       "12",
-      "1"
+      "1",
+      "5"
      ]
     ]
    }
+  },
+  {
+   "md": "Top 3: **[3, 7, 9]**."
   }
  ],
  "approaches": [
@@ -49,13 +64,13 @@
    "space": "O(d)",
    "idea": [
     {
-     "md": "Collect the different song ids, count each one by scanning the whole log, then sort the songs by (count descending, id) and take k."
+     "md": "For each distinct song, count its plays by rescanning the log, then sort the songs by `(−count, id)`."
     }
    ],
    "build": [
-    "Distinct ids (a set).",
-    "For each, count its occurrences with a full scan.",
-    "Sort and slice."
+    "Distinct songs.",
+    "Count each by scanning.",
+    "Sort and take `k`."
    ],
    "code": {
     "python": "class Solution:\n    def mostPlayed(self, plays: List[int], k: int) -> List[int]:\n        songs = set(plays)\n        counts = {s: sum(1 for p in plays if p == s) for s in songs}\n        ranked = sorted(songs, key=lambda s: (-counts[s], s))\n        return ranked[:k]\n",
@@ -190,7 +205,7 @@
    ],
    "complexity": [
     {
-     "md": "**Time O(n·d):** one full scan per different song, up to 10¹⁰ steps. **Space O(d).**"
+     "md": "**Time O(d · n + d log d)** for `d` distinct songs. **Space O(d).**"
     }
    ],
    "walk": {
@@ -325,7 +340,7 @@
    },
    "limits": [
     {
-     "md": "Rescanning the log for every song is wasteful: a single pass can count every song at once if a hash map holds the running counts."
+     "md": "Each song rescans the whole log. One pass with a hash map counts everything."
     }
    ],
    "slow": true
@@ -337,13 +352,13 @@
    "space": "O(d)",
    "idea": [
     {
-     "md": "One pass: `count[song] += 1`. Then sort the distinct songs by `(-count, id)` and return the first k."
+     "md": "Count plays in a hash map, sort the distinct songs by `(−count, id)`, and return the first `k`."
     }
    ],
    "build": [
-    "Count with a hash map.",
-    "Sort the keys by the ranking rule.",
-    "Take k."
+    "Hash-map counts.",
+    "Sort distinct songs.",
+    "Take `k`."
    ],
    "code": {
     "python": "from collections import Counter\n\nclass Solution:\n    def mostPlayed(self, plays: List[int], k: int) -> List[int]:\n        count = Counter(plays)\n        ranked = sorted(count, key=lambda s: (-count[s], s))\n        return ranked[:k]\n",
@@ -460,7 +475,7 @@
    ],
    "complexity": [
     {
-     "md": "**Time O(n + d log d).** **Space O(d)** for the counts."
+     "md": "**Time O(n + d log d).** **Space O(d).**"
     }
    ],
    "walk": {
@@ -530,7 +545,7 @@
  ],
  "takeaways": [
   {
-   "md": "- **Top-k by frequency = count (hash map) + rank.** Sort the distinct keys, or keep a size-k heap for\n  O(d log k).\n- Bucket by count (an array indexed by frequency) is another linear-ish way to rank, since counts are at most n.\n- Make tie-breaking explicit: here, smaller id first."
+   "md": "- **Top-k by frequency:** count with a map, then sort (or bucket by count) only the distinct items.\n- Encode tie rules in the key tuple.\n- **Pitfall:** sorting all `n` plays instead of the `d` distinct songs."
   }
  ]
 }
