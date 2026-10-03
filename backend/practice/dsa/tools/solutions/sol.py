@@ -165,8 +165,22 @@ def approach(title, kind, time, space, idea, build, code, lines, complexity, wal
     return a
 
 
+EXTRA = {}  # pid -> fuller text that replaces sections of that problem's sol() call
+
+
 def sol(pid, summary, question, think, approaches, takeaways):
     """Write problems/.../<pid>/solution.json."""
+    x = EXTRA.get(pid, {})
+    question = list(question) + list(x.get("question_more", []))
+    think = x.get("think", think)
+    takeaways = x.get("takeaways", takeaways)
+    for i, more in x.get("approaches", {}).items():
+        a = approaches[i]
+        for key in ("idea", "complexity", "limits"):
+            if key in more:
+                a[key] = blocks(more[key], a["title"])
+        if "build" in more:
+            a["build"] = [dd(b) for b in more["build"]]
     assert approaches, pid
     assert approaches[-1]["kind"] == "best", f"{pid}: the last approach should be the best one"
     for a in approaches[:-1]:

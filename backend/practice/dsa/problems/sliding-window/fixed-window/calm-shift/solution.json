@@ -4,57 +4,77 @@
  "question": [
   {
    "md": "Customers served in a minute with `moody[i] = 1` leave unhappy, unless that minute is inside the owner's single\ncalm stretch of `minutes` consecutive minutes. Return the most customers that can leave happy.\n\n- **n up to 10⁵.**"
+  },
+  {
+   "md": "**Edge cases to keep in mind**\n\n- `minutes = n`: the owner is calm all day, so every customer is happy.\n- The owner is never moody: the calm stretch changes nothing; the answer is the total of all customers.\n- Several placements tie: any of them gives the same count, so ties don't matter."
   }
  ],
  "think": [
   {
-   "md": "`customers = [2, 0, 4, 1, 3, 5, 1, 2]`, `moody = [0, 1, 1, 0, 1, 1, 0, 1]`, `minutes = 2` → **12**.\n\nWhatever we choose, the 4 customers of non-moody minutes stay happy. The choice only affects the moody\nminutes, and it rescues exactly those inside the stretch. So the question becomes: which window of length\n`2` holds the most customers from moody minutes? That's a fixed-size window over\n`[0, 0, 4, 0, 3, 5, 0, 2]`."
+   "md": "**Restating it.** Each minute is either \"happy anyway\" (owner not moody) or \"lost unless covered\" (owner moody).\nWe place one block of `minutes` consecutive minutes; inside it, lost customers are rescued. Maximise happy\ncustomers.\n\n**Separate what you control from what you don't.** Customers in non-moody minutes are happy whatever we do:\nthat's `4` here. The only thing our choice changes is how many moody-minute customers fall inside the block.\nSo:\n\n`answer = (customers in non-moody minutes) + (most rescued customers by one block)`\n\n**Turn the condition into a number.** A customer at minute `i` can be rescued only if `moody[i] = 1`, so the\nnumber rescued at that minute is `customers[i] · moody[i]`:"
   },
   {
-   "panels": [
-    {
-     "type": "row",
-     "cells": [
-      2,
-      0,
-      4,
-      1,
-      3,
-      5,
-      1,
-      2
+   "table": {
+    "head": [
+     "minute",
+     "customers",
+     "moody",
+     "rescuable"
+    ],
+    "rows": [
+     [
+      "0",
+      "2",
+      "0",
+      "0"
      ],
-     "label": "customers"
-    },
-    {
-     "type": "row",
-     "cells": [
-      0,
-      1,
-      1,
-      0,
-      1,
-      1,
-      0,
-      1
+     [
+      "1",
+      "0",
+      "1",
+      "0"
      ],
-     "label": "moody"
-    },
-    {
-     "type": "row",
-     "cells": [
-      0,
-      0,
-      4,
-      0,
-      3,
-      5,
-      0,
-      2
+     [
+      "2",
+      "4",
+      "1",
+      "4"
      ],
-     "label": "rescuable"
-    }
-   ]
+     [
+      "3",
+      "1",
+      "0",
+      "0"
+     ],
+     [
+      "4",
+      "3",
+      "1",
+      "3"
+     ],
+     [
+      "5",
+      "5",
+      "1",
+      "5"
+     ],
+     [
+      "6",
+      "1",
+      "0",
+      "0"
+     ],
+     [
+      "7",
+      "2",
+      "1",
+      "2"
+     ]
+    ]
+   }
+  },
+  {
+   "md": "Now the second part is an ordinary fixed-size window: the block of `2` minutes with the largest sum of\n`rescuable`. The block sums are `[0, 4, 4, 3, 8, 5, 2]`; the best starts at minute 4 and rescues 8. Answer\n4 + 8 = **12**.\n\n**Why the split is valid.** The two parts don't interact: a non-moody minute counts the same inside or outside\nthe block, so including it in the window sum would double-count it. Multiplying by `moody[i]` makes such minutes\ncontribute 0 to the window."
   }
  ],
  "approaches": [
@@ -65,7 +85,7 @@
    "space": "O(1)",
    "idea": [
     {
-     "md": "For each start `i`, count happy customers across all minutes: non-moody, or inside `[i, i + minutes)`."
+     "md": "Try every placement of the calm block, `start = 0 .. n − minutes`. For each placement, walk the whole day\nand count a minute's customers as happy if the owner isn't moody **or** the minute falls in\n`[start, start + minutes)`. Keep the best count.\n\nIt's correct by definition, but each placement recounts the entire day, including the \"happy anyway\" part\nthat never changes."
     }
    ],
    "build": [
@@ -199,7 +219,7 @@
    ],
    "complexity": [
     {
-     "md": "**Time O(n²):** 10¹⁰ steps at the limit. **Space O(1).**"
+     "md": "**Time O(n²):** `n − minutes + 1` placements × `n` minutes each, up to 10¹⁰. **Space O(1).**"
     }
    ],
    "walk": {
@@ -485,13 +505,14 @@
    "space": "O(1)",
    "idea": [
     {
-     "md": "`base` = customers in non-moody minutes. Slide a window of length `minutes` over `customers[i] · moody[i]`, tracking the largest sum `gain`. Return `base + gain`."
+     "md": "Compute `base` (customers in non-moody minutes) once. Then slide a window of length `minutes` over the\nrescuable counts `customers[i] · moody[i]`, keeping the window total `gain` and the best `gain` seen.\n\n**Invariant.** After processing minute `i ≥ minutes − 1`, `gain` is the number rescued by the block that\nends at `i`.\n\n**Why it's right.** Every placement of the block ends at some `i` and is evaluated exactly once, and\n`base + gain` is exactly the number of happy customers for that placement, because `base` and `gain`\ncount disjoint sets of minutes."
     }
    ],
    "build": [
-    "Always-happy total.",
-    "First window of rescues.",
-    "Slide and track the max."
+    "`base` = total customers over minutes with `moody[i] = 0`.",
+    "`gain` = rescuable customers in minutes `0 .. minutes − 1`; `best = gain`.",
+    "For each later minute `i`: add `customers[i] · moody[i]`, subtract `customers[i − minutes] · moody[i − minutes]`, update `best`.",
+    "Return `base + best`."
    ],
    "code": {
     "python": "class Solution:\n    def mostServed(self, customers: List[int], moody: List[int], minutes: int) -> int:\n        base = sum(c for c, m in zip(customers, moody) if m == 0)\n        gain = sum(customers[i] * moody[i] for i in range(minutes))\n        best = gain\n        for i in range(minutes, len(customers)):\n            gain += customers[i] * moody[i] - customers[i - minutes] * moody[i - minutes]\n            best = max(best, gain)\n        return base + best\n",
@@ -619,7 +640,7 @@
    ],
    "complexity": [
     {
-     "md": "**Time O(n).** **Space O(1).**"
+     "md": "**Time O(n):** one pass for `base`, one for the window. **Space O(1).**\n\nThe largest possible answer is `10⁵ · 1000 = 10⁸`, which fits in a 32-bit int."
     }
    ],
    "walk": {
@@ -880,7 +901,7 @@
  ],
  "takeaways": [
   {
-   "md": "- **Split the answer** into a part the choice can't change and a part a window controls.\n- Turn conditions into weights (`customers · moody`) so the window is a plain sum.\n- Then it's an ordinary fixed-size window maximum."
+   "md": "- **Split the objective** into a fixed part and a part your choice controls; optimise only the second.\n- **Weights instead of conditions:** `value · flag` turns \"count only when …\" into a plain sum.\n- Then it's the fixed-window maximum: first window, then `+ entering − leaving`.\n- **Pitfall:** adding non-moody customers into the window as well, which double-counts them."
   }
  ]
 }

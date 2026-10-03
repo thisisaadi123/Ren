@@ -4,29 +4,72 @@
  "question": [
   {
    "md": "Count the windows of exactly `k` consecutive values in `noise` whose average is at most `limit`.\n\n- **n up to 10⁵.**\n- Sums reach 10⁹, so `limit · k` fits in 32 bits, but only just."
+  },
+  {
+   "md": "**Edge cases to keep in mind**\n\n- Averages are fractions: `7/3` is not `2`. Integer division would round and give wrong answers.\n- \"At most\" includes equality: an average exactly equal to `limit` counts as calm.\n- `limit · k` can reach 10⁹; still fits in 32 bits, but 64-bit arithmetic is the safe habit."
   }
  ],
  "think": [
   {
-   "md": "`noise = [4, 6, 2, 3, 8, 1, 2, 5]`, `k = 3`, `limit = 4` → **5**.\n\nEvery window has the same length, so \"average ≤ limit\" is \"sum ≤ limit · k = 12\". Integers only, no\nfloating point. Then it's a fixed-size window with a running sum."
+   "md": "**Restating it.** Count the windows of exactly `k` readings whose average is at most `limit`.\n\n**Remove the division.** All windows have the same length `k`, so\n\n`sum / k ≤ limit  ⇔  sum ≤ limit · k`\n\n(multiplying both sides by the positive `k` keeps the direction). Here `limit · k = 4 · 3 = 12`. This\navoids floating point and rounding entirely.\n\n**By hand** with `noise = [4, 6, 2, 3, 8, 1, 2, 5]`:"
   },
   {
-   "panels": [
-    {
-     "type": "row",
-     "cells": [
-      4,
-      6,
-      2,
-      3,
-      8,
-      1,
-      2,
-      5
+   "table": {
+    "head": [
+     "start",
+     "window",
+     "sum",
+     "average",
+     "verdict"
+    ],
+    "rows": [
+     [
+      "0",
+      "[4, 6, 2]",
+      "12",
+      "4.00",
+      "calm"
      ],
-     "label": "noise"
-    }
-   ]
+     [
+      "1",
+      "[6, 2, 3]",
+      "11",
+      "3.67",
+      "calm"
+     ],
+     [
+      "2",
+      "[2, 3, 8]",
+      "13",
+      "4.33",
+      "loud"
+     ],
+     [
+      "3",
+      "[3, 8, 1]",
+      "12",
+      "4.00",
+      "calm"
+     ],
+     [
+      "4",
+      "[8, 1, 2]",
+      "11",
+      "3.67",
+      "calm"
+     ],
+     [
+      "5",
+      "[1, 2, 5]",
+      "8",
+      "2.67",
+      "calm"
+     ]
+    ]
+   }
+  },
+  {
+   "md": "**5** windows are calm.\n\nEach row's sum differs from the previous one by one value entering and one leaving, so the running-sum window\napplies directly: instead of a maximum, we keep a counter."
   }
  ],
  "approaches": [
@@ -37,7 +80,7 @@
    "space": "O(1)",
    "idea": [
     {
-     "md": "For each start, sum the window and test `sum ≤ limit · k`."
+     "md": "For each start, add the `k` readings and test the sum against `limit · k`. This is a direct check of the\ndefinition, useful as a reference, but it repeats `k − 1` additions per window."
     }
    ],
    "build": [
@@ -335,13 +378,14 @@
    "space": "O(1)",
    "idea": [
     {
-     "md": "`cap = limit · k`. Sum the first window; then `total += noise[i] − noise[i−k]`. Count windows with `total ≤ cap`."
+     "md": "Precompute `cap = limit · k`. Sum the first window; it's calm if `sum ≤ cap`. Then, for each next window,\nupdate the sum with `+ entering − leaving` and test it again.\n\n**Invariant.** Right after the update at index `i`, `total` is the sum of the window ending at `i`. So each\nof the `n − k + 1` windows is tested exactly once, with its exact sum."
     }
    ],
    "build": [
-    "Cap in integer form.",
-    "First window.",
-    "Slide and count."
+    "`cap = limit · k` (64-bit).",
+    "Sum the first `k` readings; count 1 if the sum is at most `cap`.",
+    "For `i = k..n−1`: `total += noise[i] − noise[i − k]`; count it if `total ≤ cap`.",
+    "Return the count."
    ],
    "code": {
     "python": "class Solution:\n    def countCalm(self, noise: List[int], k: int, limit: int) -> int:\n        cap = limit * k\n        total = sum(noise[:k])\n        count = 1 if total <= cap else 0\n        for i in range(k, len(noise)):\n            total += noise[i] - noise[i - k]\n            if total <= cap:\n                count += 1\n        return count\n",
@@ -666,7 +710,7 @@
  ],
  "takeaways": [
   {
-   "md": "- **Average ≤ x over a fixed length ⇔ sum ≤ x · k:** stay in integers.\n- The running-sum window counts as easily as it maximises.\n- Watch for overflow in `x · k`; use 64-bit when in doubt."
+   "md": "- **Average over a fixed length → compare sums with `limit · k`**; it's exact and avoids floats.\n- Running windows can count, not just maximise.\n- **Pitfalls:** integer division of the average; `<` instead of `≤`."
   }
  ]
 }

@@ -4,11 +4,89 @@
  "question": [
   {
    "md": "Seats form a circle; `1` is a team member, `0` a guest. Any two people can swap seats. Return the fewest swaps to\nmake all members sit together.\n\n- **n up to 10⁵.**\n- The first and last seats are neighbours."
+  },
+  {
+   "md": "**Edge cases to keep in mind**\n\n- No team members, or everyone is a team member: 0 swaps.\n- The best group may wrap around the end of the list (the table is round).\n- A swap can move any two people, not just neighbours."
   }
  ],
  "think": [
   {
-   "md": "`seats = [1, 0, 0, 1, 1, 0, 1, 0, 0, 1]` → **2** swap(s).\n\nThe team has 5 members, so the target is a block of 5 consecutive seats (around the circle). Inside that\nblock, every guest has to leave and a member from outside has to come in: one swap fixes exactly one such\npair, and nothing does better. So the cost of a block is its number of guests, and we want the block with the\nfewest guests, i.e. the most members.\n\nGoing around the circle is handled by indexing `i % n`, so the window can wrap past the end."
+   "md": "**What does the final seating look like?** There are `t = 5` team members. When they sit together, they fill\nsome arc of exactly `5` consecutive seats, going around the table. So the question becomes: which arc should\nthey end up in, and how many swaps does that arc cost?\n\n**Cost of one arc.** Inside the chosen arc, every guest has to leave, and outside it, every member has to come\nin. The two numbers are equal (the arc has `t` seats and there are `t` members). One swap of a guest inside with a\nmember outside fixes one guest and one member, so the cost is exactly **the number of guests in the arc**; it\ncan't be done with fewer, because each swap moves at most one member into the arc.\n\n**All arcs, by hand** (`seats = [1, 0, 0, 1, 1, 0, 1, 0, 0, 1]`):"
+  },
+  {
+   "table": {
+    "head": [
+     "start",
+     "arc",
+     "members",
+     "guests = swaps"
+    ],
+    "rows": [
+     [
+      "0",
+      "[1, 0, 0, 1, 1]",
+      "3",
+      "2"
+     ],
+     [
+      "1",
+      "[0, 0, 1, 1, 0]",
+      "2",
+      "3"
+     ],
+     [
+      "2",
+      "[0, 1, 1, 0, 1]",
+      "3",
+      "2"
+     ],
+     [
+      "3",
+      "[1, 1, 0, 1, 0]",
+      "3",
+      "2"
+     ],
+     [
+      "4",
+      "[1, 0, 1, 0, 0]",
+      "2",
+      "3"
+     ],
+     [
+      "5",
+      "[0, 1, 0, 0, 1]",
+      "2",
+      "3"
+     ],
+     [
+      "6",
+      "[1, 0, 0, 1, 1]",
+      "3",
+      "2"
+     ],
+     [
+      "7",
+      "[0, 0, 1, 1, 0]",
+      "2",
+      "3"
+     ],
+     [
+      "8",
+      "[0, 1, 1, 0, 0]",
+      "2",
+      "3"
+     ],
+     [
+      "9",
+      "[1, 1, 0, 0, 1]",
+      "3",
+      "2"
+     ]
+    ]
+   }
+  },
+  {
+   "md": "The arc starting at seat 0 already has 3 members, so **2** swap(s) are enough.\n\n**Why a window works.** Arcs are windows of fixed length `t` over a circular array. Moving the arc one seat\nclockwise adds one seat and removes one, so the member count updates in O(1). The circle is handled by letting the\nindex run past `n − 1` and taking `i % n`."
   },
   {
    "panels": [
@@ -26,7 +104,14 @@
       0,
       1
      ],
-     "label": "seats"
+     "states": {
+      "0": "found",
+      "1": "mark",
+      "2": "mark",
+      "3": "found",
+      "4": "found"
+     },
+     "label": "best arc (guests in red)"
     }
    ]
   }
@@ -39,7 +124,7 @@
    "space": "O(1)",
    "idea": [
     {
-     "md": "For each start `i`, count members in seats `i, i+1, …, i+t−1` (mod n). Answer: `t − max`."
+     "md": "For every starting seat `i`, count the members in seats `i, i+1, …, i+t−1` (mod `n`). The best arc has the\nmost members, and the answer is `t − most`.\n\nThe reasoning about swaps is the important part; this approach then just evaluates every arc separately."
     }
    ],
    "build": [
@@ -173,7 +258,7 @@
    ],
    "complexity": [
     {
-     "md": "**Time O(n · t).** **Space O(1).**"
+     "md": "**Time O(n · t)**, up to O(n²) when about half the seats are members. **Space O(1).**"
     }
    ],
    "walk": {
@@ -470,13 +555,14 @@
    "space": "O(1)",
    "idea": [
     {
-     "md": "Count members in seats `0..t−1`. For `i = t .. n+t−2`: add `seats[i % n]`, drop `seats[(i − t) % n]`; keep the max. Answer `t − max`."
+     "md": "Count members in seats `0..t−1`. Then rotate the arc one seat at a time: seat `i % n` enters and seat\n`(i − t) % n` leaves, for `i = t .. n + t − 2`. Track the largest member count.\n\n**Coverage.** Starting seats `0, 1, …, n − 1` are each visited exactly once (the loop produces `n − 1`\nfurther arcs after the first), including arcs that wrap past the end.\n\n**Answer.** `t − (most members in an arc)` = fewest guests to swap out."
     }
    ],
    "build": [
-    "Team size and first window.",
-    "Slide around the circle with `% n`.",
-    "Answer from the fullest arc."
+    "Count `t`; if it's 0, return 0.",
+    "Members in seats `0..t−1` → `inside`, `best`.",
+    "For `i = t .. n + t − 2`: `inside += seats[i % n] − seats[(i − t) % n]`; update `best`.",
+    "Return `t − best`."
    ],
    "code": {
     "python": "class Solution:\n    def fewestSwaps(self, seats: List[int]) -> int:\n        n, t = len(seats), sum(seats)\n        if t == 0:\n            return 0\n        inside = sum(seats[:t])\n        best = inside\n        for i in range(t, n + t - 1):\n            inside += seats[i % n] - seats[(i - t) % n]\n            best = max(best, inside)\n        return t - best\n",
@@ -604,7 +690,7 @@
    ],
    "complexity": [
     {
-     "md": "**Time O(n).** **Space O(1).**"
+     "md": "**Time O(n):** `t` for the first arc plus `n − 1` O(1) rotations. **Space O(1).**"
     }
    ],
    "walk": {
@@ -791,7 +877,7 @@
  ],
  "takeaways": [
   {
-   "md": "- **Grouping k items** = choose a window of size k; its cost is what doesn't belong inside it.\n- **Circular arrays:** let the index run past `n` and use `i % n` (or append the array to itself).\n- A swap fixes one misplaced pair, so the cost is the number of outsiders in the window."
+   "md": "- **\"Group k items together\" → pick the window they end up in**; its cost is what doesn't belong there.\n- **Arbitrary swaps:** each swap fixes one misplaced pair, so cost = number of outsiders inside the window.\n- **Circular arrays:** run the index to `n + k − 1` and use `% n` (or concatenate the array with itself).\n- **Pitfall:** forgetting arcs that wrap around the end."
   }
  ]
 }
