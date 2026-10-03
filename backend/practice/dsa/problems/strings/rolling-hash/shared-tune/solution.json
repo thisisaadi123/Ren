@@ -4,44 +4,145 @@
  "question": [
   {
    "md": "Return the length of the longest substring that appears in both `a` and `b` (0 if none).\n\n- **Both up to 2 × 10⁴ letters**: the classic table is 4 × 10⁸ cells."
+  },
+  {
+   "md": "**Edge cases to keep in mind**\n\n- No letter in common: 0.\n- One song inside the other: the shorter song's length.\n- Several equally long shared runs: only the length is needed."
   }
  ],
  "think": [
   {
-   "md": "`a = \"abcdxyz\"`, `b = \"xyzabcq\"` → **3** (`abc` and `xyz` are both shared).\n\nFor a fixed length `L`, the question \"is there a common window of length `L`?\" is a set-intersection between\nthe windows of `a` and of `b`, which hashing answers in linear time. Since the answer to that question is yes\nfor every length up to the true answer and no beyond it, binary search finds the answer with about 15 tests."
+   "md": "**Restating it.** The longest common substring of `a` and `b` (contiguous, unlike a subsequence).\n\n**The table view.** Let `run[i][j]` be the length of the common run that **ends** at `a[i−1]` and `b[j−1]`. If\nthose letters match, it extends the run ending one step earlier in both strings; otherwise it's 0. For\n`a = \"abcdxyz\"` (rows) and `b = \"xyzabcq\"` (columns):"
   },
   {
-   "md": "With prefix hashes `pre[i]` (the hash of the first `i` letters) and powers `pw[L] = B^L`, the hash of any\nsubstring is O(1): `hash(s[i..i+L)) = pre[i+L] − pre[i] · pw[L]` (mod M)."
-  },
-  {
-   "panels": [
-    {
-     "type": "row",
-     "cells": [
+   "table": {
+    "head": [
+     "a \\ b",
+     "x",
+     "y",
+     "z",
+     "a",
+     "b",
+     "c",
+     "q"
+    ],
+    "rows": [
+     [
       "a",
+      "·",
+      "·",
+      "·",
+      "1",
+      "·",
+      "·",
+      "·"
+     ],
+     [
       "b",
+      "·",
+      "·",
+      "·",
+      "·",
+      "2",
+      "·",
+      "·"
+     ],
+     [
       "c",
+      "·",
+      "·",
+      "·",
+      "·",
+      "·",
+      "3",
+      "·"
+     ],
+     [
       "d",
-      "x",
-      "y",
-      "z"
+      "·",
+      "·",
+      "·",
+      "·",
+      "·",
+      "·",
+      "·"
      ],
-     "label": "a"
-    },
-    {
-     "type": "row",
-     "cells": [
+     [
       "x",
+      "1",
+      "·",
+      "·",
+      "·",
+      "·",
+      "·",
+      "·"
+     ],
+     [
       "y",
+      "·",
+      "2",
+      "·",
+      "·",
+      "·",
+      "·",
+      "·"
+     ],
+     [
       "z",
-      "a",
-      "b",
-      "c",
-      "q"
+      "·",
+      "·",
+      "3",
+      "·",
+      "·",
+      "·",
+      "·"
+     ]
+    ]
+   }
+  },
+  {
+   "md": "The largest cell is **3** (both `abc` and `xyz`). The table is exact but has `|a| · |b|` cells: 4 × 10⁸ at\nthe limits."
+  },
+  {
+   "md": "**Why binary search on the length is allowed.** If some substring of length `L` works, then dropping its last letter\ngives a substring of length `L − 1` that also works (the shared run stays shared without its last letter). So the lengths that work are\nexactly `0, 1, …, answer`, and the question \"does length `L` work?\" is **true up to the answer and false after it**.\nThat monotone shape is what binary search needs: about `log₂ n ≈ 15` tests instead of `n`."
+  },
+  {
+   "md": "**Binary search here:**"
+  },
+  {
+   "table": {
+    "head": [
+     "range",
+     "try L",
+     "shared?",
+     "conclusion"
+    ],
+    "rows": [
+     [
+      "0..7",
+      "4",
+      "no",
+      "answer < 4"
      ],
-     "label": "b"
-    }
-   ]
+     [
+      "0..3",
+      "2",
+      "yes: 'xy'",
+      "answer ≥ 2"
+     ],
+     [
+      "2..3",
+      "3",
+      "yes: 'xyz'",
+      "answer ≥ 3"
+     ]
+    ]
+   }
+  },
+  {
+   "md": "**Any substring's hash in O(1).** Store prefix hashes `pre[i]` (the hash of the first `i` letters) and powers\n`pw[L] = B^L`. Then `hash(s[i .. i+L)) = pre[i+L] − pre[i] · pw[L]` (mod `M`): the prefix up to `i + L`, minus the\npart before `i` shifted up by `L` places, exactly like removing the leading digits of a number."
+  },
+  {
+   "md": "**Testing one length.** Put the keys of all length-`L` windows of `a` into a set, then look up every length-`L`\nwindow of `b`. Any hit means a shared run of length `L`."
   }
  ],
  "approaches": [
@@ -52,13 +153,13 @@
    "space": "O(m)",
    "idea": [
     {
-     "md": "`run[i][j] = run[i−1][j−1] + 1` if `a[i−1] == b[j−1]`, else 0. The answer is the largest cell. Only the previous row is needed."
+     "md": "Fill the `run` table row by row, keeping only the previous row, and track the largest value. Each cell is\nO(1), so it's simple and exact, but the number of cells is the problem."
     }
    ],
    "build": [
-    "Two rows.",
-    "Fill from the diagonal.",
-    "Track the maximum."
+    "Two rows of length `|b| + 1`.",
+    "`cur[j] = prev[j−1] + 1` on a match, else 0.",
+    "Track the maximum; swap rows."
    ],
    "code": {
     "python": "class Solution:\n    def sharedTune(self, a: str, b: str) -> int:\n        m, best = len(b), 0\n        prev = [0] * (m + 1)\n        for x in a:\n            cur = [0] * (m + 1)\n            for j in range(1, m + 1):\n                if x == b[j - 1]:\n                    cur[j] = prev[j - 1] + 1\n                    best = max(best, cur[j])\n            prev = cur\n        return best\n",
@@ -68,7 +169,7 @@
    },
    "lines": [
     {
-     "text": "The previous row of the table (all zeros before the first letter of `a`).",
+     "text": "The previous row of the table, all zeros (no letters of `a` used yet).",
      "at": {
       "python": [
        [
@@ -97,7 +198,7 @@
      }
     },
     {
-     "text": "One row per letter of `a`; swap rows when done.",
+     "text": "One row per letter of `a`; when a row is finished it becomes the previous row.",
      "at": {
       "python": [
        [
@@ -142,7 +243,7 @@
      }
     },
     {
-     "text": "A matching pair extends the run that ended one step earlier in both strings; a mismatch breaks it.",
+     "text": "Matching letters extend the run ending one step earlier in both strings; a mismatch breaks it to 0. Track the largest cell.",
      "at": {
       "python": [
        [
@@ -171,7 +272,7 @@
      }
     },
     {
-     "text": "The longest run anywhere.",
+     "text": "The longest shared run.",
      "at": {
       "python": [
        [
@@ -202,7 +303,7 @@
    ],
    "complexity": [
     {
-     "md": "**Time O(n · m):** 4 × 10⁸ cells at the limit. **Space O(m).**"
+     "md": "**Time O(|a| · |b|):** 4 × 10⁸ cells at the limits. **Space O(|b|).**"
     }
    ],
    "walk": {
@@ -476,7 +577,7 @@
    },
    "limits": [
     {
-     "md": "Quadratic. Binary search on the length with hashing needs only ~15 linear passes."
+     "md": "Quadratic in the input size. Binary search on the length needs about 15 linear hash passes."
     }
    ],
    "slow": true
@@ -488,13 +589,13 @@
    "space": "O(n + m)",
    "idea": [
     {
-     "md": "Prefix hashes for both strings (two primes). `shared(L)`: all length-`L` keys of `a` in a set; any length-`L` key of `b` in the set means yes. Binary search the largest `L` that passes."
+     "md": "Build prefix hashes (two primes) for both songs and shared powers of `B`. For a length `L`, insert all of\n`a`'s window keys into a set and check `b`'s windows against it. Binary search the largest `L` that is\nshared.\n\n**Why the lookup direction doesn't matter.** We could store `b`'s windows and scan `a` instead; storing the\nshorter song's windows uses less memory."
     }
    ],
    "build": [
-    "Prefix hashes for `a` and `b`.",
-    "Test a length with a set.",
-    "Binary search."
+    "Powers up to the longer song; prefix hashes of both songs for both primes.",
+    "`shared(L)`: set of `a`'s keys, then look up `b`'s keys.",
+    "Binary search `lo = 0`, `hi = min(|a|, |b|)`."
    ],
    "code": {
     "python": "class Solution:\n    def sharedTune(self, a: str, b: str) -> int:\n        M1, M2, B = 1_000_000_007, 1_000_000_009, 131\n        top = max(len(a), len(b))\n        pw1, pw2 = [1] * (top + 1), [1] * (top + 1)\n        for i in range(top):\n            pw1[i + 1], pw2[i + 1] = pw1[i] * B % M1, pw2[i] * B % M2\n\n        def prefix(s, M):\n            pre = [0] * (len(s) + 1)\n            for i, c in enumerate(s):\n                pre[i + 1] = (pre[i] * B + ord(c)) % M\n            return pre\n\n        a1, a2, b1, b2 = prefix(a, M1), prefix(a, M2), prefix(b, M1), prefix(b, M2)\n\n        def keys(p1, p2, n, L):\n            return ((((p1[i + L] - p1[i] * pw1[L]) % M1), (p2[i + L] - p2[i] * pw2[L]) % M2) for i in range(n - L + 1))\n\n        def shared(L):\n            seen = set(keys(a1, a2, len(a), L))\n            return any(k in seen for k in keys(b1, b2, len(b), L))\n\n        lo, hi = 0, min(len(a), len(b))\n        while lo < hi:\n            mid = (lo + hi + 1) // 2\n            if shared(mid):\n                lo = mid\n            else:\n                hi = mid - 1\n        return lo\n",
@@ -504,7 +605,7 @@
    },
    "lines": [
     {
-     "text": "Powers of `B` up to the longer string, and prefix hashes of both strings for both primes.",
+     "text": "Powers of `B` up to the longer song, and prefix hashes of both songs for both primes.",
      "at": {
       "python": [
        [
@@ -565,7 +666,7 @@
      }
     },
     {
-     "text": "For length `L`: collect every window key of `a`, then check `b`'s windows against them.",
+     "text": "For length `L`, collect every window key of `a`, then check whether any window of `b` has a key in that collection. C sorts `a`'s keys and binary-searches each of `b`'s.",
      "at": {
       "python": [
        [
@@ -617,7 +718,7 @@
      }
     },
     {
-     "text": "Find the largest `L` that is shared; `mid` rounds up so `lo = mid` makes progress.",
+     "text": "Shared lengths are `0 … answer`; find the last one. `mid` rounds up so `lo = mid` makes progress.",
      "at": {
       "python": [
        [
@@ -689,7 +790,7 @@
    ],
    "complexity": [
     {
-     "md": "**Time O((n + m) log min(n, m))** expected (an extra log factor with C's sorting). **Space O(n + m).**"
+     "md": "**Time O((|a| + |b|) · log min(|a|, |b|))** expected (an extra log factor in C, which sorts and binary-searches). **Space O(|a| + |b|).**"
     }
    ],
    "walk": {
@@ -745,7 +846,7 @@
  ],
  "takeaways": [
   {
-   "md": "- **Longest common substring:** binary search on the length + hashing beats the O(n · m) table.\n- The same template as \"longest repeated substring\", with two strings instead of one.\n- Hash comparison is probabilistic; double hashing makes a false match negligible."
+   "md": "- **Longest common substring:** binary search on the length + hashing beats the O(n·m) table.\n- It's the same template as \"longest repeated substring\", with two strings instead of one.\n- **Pitfalls:** confusing substring (contiguous) with subsequence; comparing hashes from different moduli."
   }
  ]
 }

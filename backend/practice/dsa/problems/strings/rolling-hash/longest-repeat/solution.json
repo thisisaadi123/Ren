@@ -4,35 +4,126 @@
  "question": [
   {
    "md": "Return the length of the longest substring that occurs at least twice in `s` (the copies may overlap), or 0.\n\n- **n up to 3 × 10⁴**: comparing all pairs of positions is ~4.5 × 10⁸ steps."
+  },
+  {
+   "md": "**Edge cases to keep in mind**\n\n- All letters different: no repeat, answer 0.\n- The two copies may overlap: in `\"aaaa\"` the answer is 3 (`aaa` at 0 and 1).\n- The answer is at most `n − 1`, since two copies need two different starts."
   }
  ],
  "think": [
   {
-   "md": "`\"mississippi\"` → **4** (`issi` appears at 1 and 4, overlapping).\n\nTwo observations. First, the answer is monotone: a repeated substring's prefixes also repeat, so \"does some\nlength-`L` substring repeat?\" is true up to the answer and false after it, which suits binary search. Second,\nfor a fixed `L`, all `n − L + 1` windows can be fingerprinted in O(n) total, and a duplicate fingerprint means\na repeat."
+   "md": "**Restating it.** Find the largest `L` such that two different starting positions have the same length-`L`\nsubstring.\n\n**A first view: compare the string with its shifts.** If a substring occurs at `i` and at `i + d`, then `s` and\n`s` shifted by `d` agree on a run of `L` positions. So the answer is the longest run of agreement over all\nshifts `d`:"
   },
   {
-   "md": "With prefix hashes `pre[i]` (the hash of the first `i` letters) and powers `pw[L] = B^L`, the hash of any\nsubstring is O(1): `hash(s[i..i+L)) = pre[i+L] − pre[i] · pw[L]` (mod M)."
-  },
-  {
-   "panels": [
-    {
-     "type": "row",
-     "cells": [
-      "m",
-      "i",
-      "s",
-      "s",
-      "i",
-      "s",
-      "s",
-      "i",
-      "p",
-      "p",
+   "table": {
+    "head": [
+     "shift d",
+     "longest agreeing run",
+     "substring"
+    ],
+    "rows": [
+     [
+      "1",
+      "1",
+      "s"
+     ],
+     [
+      "2",
+      "1",
+      "s"
+     ],
+     [
+      "3",
+      "4",
+      "issi"
+     ],
+     [
+      "4",
+      "1",
+      "s"
+     ],
+     [
+      "5",
+      "0",
+      "—"
+     ],
+     [
+      "6",
+      "1",
       "i"
      ],
-     "label": "s"
-    }
-   ]
+     [
+      "7",
+      "0",
+      "—"
+     ],
+     [
+      "8",
+      "0",
+      "—"
+     ],
+     [
+      "9",
+      "1",
+      "i"
+     ],
+     [
+      "10",
+      "0",
+      "—"
+     ]
+    ]
+   }
+  },
+  {
+   "md": "The best is 4 (`issi`). That view is exact but costs O(n²)."
+  },
+  {
+   "md": "**Why binary search on the length is allowed.** If some substring of length `L` works, then dropping its last letter\ngives a substring of length `L − 1` that also works (both copies lose the same letter). So the lengths that work are\nexactly `0, 1, …, answer`, and the question \"does length `L` work?\" is **true up to the answer and false after it**.\nThat monotone shape is what binary search needs: about `log₂ n ≈ 15` tests instead of `n`."
+  },
+  {
+   "md": "**Binary search on `\"mississippi\"`:**"
+  },
+  {
+   "table": {
+    "head": [
+     "range",
+     "try L",
+     "repeated?",
+     "conclusion"
+    ],
+    "rows": [
+     [
+      "0..10",
+      "5",
+      "no",
+      "answer < 5"
+     ],
+     [
+      "0..4",
+      "2",
+      "yes: 'is' at 1 and 4",
+      "answer ≥ 2"
+     ],
+     [
+      "2..4",
+      "3",
+      "yes: 'iss' at 1 and 4",
+      "answer ≥ 3"
+     ],
+     [
+      "3..4",
+      "4",
+      "yes: 'issi' at 1 and 4",
+      "answer ≥ 4"
+     ]
+    ]
+   }
+  },
+  {
+   "md": "Answer **4**."
+  },
+  {
+   "md": "**Any substring's hash in O(1).** Store prefix hashes `pre[i]` (the hash of the first `i` letters) and powers\n`pw[L] = B^L`. Then `hash(s[i .. i+L)) = pre[i+L] − pre[i] · pw[L]` (mod `M`): the prefix up to `i + L`, minus the\npart before `i` shifted up by `L` places, exactly like removing the leading digits of a number."
   }
  ],
  "approaches": [
@@ -43,12 +134,13 @@
    "space": "O(1)",
    "idea": [
     {
-     "md": "For each shift `d ≥ 1`, scan `i` and track the run of positions with `s[i] == s[i + d]`. The longest run over all shifts is the answer."
+     "md": "For every shift `d ≥ 1`, walk `i` from 0 and track the current run of positions where\n`s[i] = s[i + d]`. Each run is a substring that appears at `i − run + 1` and `d` places later. The longest\nrun over all shifts is the answer."
     }
    ],
    "build": [
-    "Loop over shifts.",
-    "Longest run of agreements."
+    "Loop over shifts `d = 1 … n − 1`.",
+    "Track the run of agreements.",
+    "Keep the longest run."
    ],
    "code": {
     "python": "class Solution:\n    def longestRepeat(self, s: str) -> int:\n        n, best = len(s), 0\n        for d in range(1, n):\n            run = 0\n            for i in range(n - d):\n                run = run + 1 if s[i] == s[i + d] else 0\n                best = max(best, run)\n        return best\n",
@@ -58,7 +150,7 @@
    },
    "lines": [
     {
-     "text": "No repeat yet.",
+     "text": "No repeat found yet.",
      "at": {
       "python": [
        [
@@ -87,7 +179,7 @@
      }
     },
     {
-     "text": "Two copies of a repeated substring start `d` apart, for some `d ≥ 1`.",
+     "text": "Two copies of a repeated substring are `d` apart for some `d ≥ 1`; reset the run for each shift.",
      "at": {
       "python": [
        [
@@ -116,7 +208,7 @@
      }
     },
     {
-     "text": "Consecutive positions where `s` agrees with itself shifted by `d` form a substring that occurs at `i` and `i + d`.",
+     "text": "Extend the run when `s` agrees with its shift, reset it on a mismatch. A run of length `r` ending at `i` means `s[i−r+1..i]` equals `s[i−r+1+d..i+d]`.",
      "at": {
       "python": [
        [
@@ -145,7 +237,7 @@
      }
     },
     {
-     "text": "The longest such run over all shifts.",
+     "text": "The longest agreement over all shifts.",
      "at": {
       "python": [
        [
@@ -176,7 +268,7 @@
    ],
    "complexity": [
     {
-     "md": "**Time O(n²):** ~4.5 × 10⁸ comparisons at the limit. **Space O(1).**"
+     "md": "**Time O(n²):** `n − d` comparisons for each shift, about 4.5 × 10⁸ for `n = 3 × 10⁴`. **Space O(1).**"
     }
    ],
    "walk": {
@@ -258,7 +350,7 @@
    },
    "limits": [
     {
-     "md": "Quadratic. Binary search on the length plus O(n) hashing per length gives O(n log n)."
+     "md": "Every shift is scanned in full. Binary search needs only about 15 length tests, each linear with hashing."
     }
    ],
    "slow": true
@@ -270,13 +362,13 @@
    "space": "O(n)",
    "idea": [
     {
-     "md": "Precompute prefix hashes and powers for two primes. `repeats(L)`: insert each window's packed key into a set; a duplicate means yes. Binary search the largest `L` with `repeats(L)`."
+     "md": "Precompute prefix hashes and powers for two primes. `repeats(L)` hashes all `n − L + 1` windows of length\n`L` in O(1) each and reports whether any key appears twice. Binary search finds the largest `L` with\n`repeats(L)` true.\n\n**Search details.** Keep `lo` = a length known to work (0 always does) and `hi` = the largest length still\npossible. Test `mid = (lo + hi + 1) / 2`, rounding up so `lo = mid` always makes progress."
     }
    ],
    "build": [
-    "Prefix hashes and powers.",
-    "Test one length with a set.",
-    "Binary search the largest passing length."
+    "Prefix hashes and powers for both primes.",
+    "`repeats(L)`: compute each window key; a duplicate means yes.",
+    "Binary search `lo = 0`, `hi = n − 1` for the last `true`."
    ],
    "code": {
     "python": "class Solution:\n    def longestRepeat(self, s: str) -> int:\n        M1, M2, B, n = 1_000_000_007, 1_000_000_009, 131, len(s)\n        pre1, pre2, pw1, pw2 = [0] * (n + 1), [0] * (n + 1), [1] * (n + 1), [1] * (n + 1)\n        for i, c in enumerate(s):\n            pre1[i + 1], pre2[i + 1] = (pre1[i] * B + ord(c)) % M1, (pre2[i] * B + ord(c)) % M2\n            pw1[i + 1], pw2[i + 1] = pw1[i] * B % M1, pw2[i] * B % M2\n\n        def repeats(L):\n            seen = set()\n            for i in range(n - L + 1):\n                key = ((pre1[i + L] - pre1[i] * pw1[L]) % M1, (pre2[i + L] - pre2[i] * pw2[L]) % M2)\n                if key in seen:\n                    return True\n                seen.add(key)\n            return False\n\n        lo, hi = 0, n - 1\n        while lo < hi:\n            mid = (lo + hi + 1) // 2\n            if repeats(mid):\n                lo = mid\n            else:\n                hi = mid - 1\n        return lo\n",
@@ -286,7 +378,7 @@
    },
    "lines": [
     {
-     "text": "Prefix hashes and powers for both primes, so any substring's hash is O(1).",
+     "text": "Prefix hashes for both primes and the matching powers of `B`, so any substring's key costs O(1).",
      "at": {
       "python": [
        [
@@ -323,7 +415,7 @@
      }
     },
     {
-     "text": "Does some length-`L` substring occur twice? Hash every window; a key seen before means yes.",
+     "text": "For length `L`, compute each window's key from the prefixes. A key seen before means a repeated substring of that length. C sorts the keys and looks for equal neighbours.",
      "at": {
       "python": [
        [
@@ -371,7 +463,7 @@
      }
     },
     {
-     "text": "Lengths that repeat are 0..answer, so find the last `true`. `mid` rounds up so `lo = mid` always makes progress. The answer is at most `n − 1` (two copies need two different starts).",
+     "text": "The lengths that repeat are `0 … answer`, so binary search the last one that does. `mid` rounds up so the loop always shrinks the range.",
      "at": {
       "python": [
        [
@@ -431,7 +523,7 @@
    ],
    "complexity": [
     {
-     "md": "**Time O(n log n)** expected (C: O(n log² n) with sorting). **Space O(n).**"
+     "md": "**Time O(n log n)** expected: about 15 tests of O(n) each (C sorts the keys: O(n log² n)). **Space O(n).**"
     }
    ],
    "walk": {
@@ -500,7 +592,7 @@
  ],
  "takeaways": [
   {
-   "md": "- **\"Longest X that appears twice\"** is monotone in the length → binary search on the answer.\n- **Prefix hashes** give any substring's fingerprint in O(1).\n- Suffix arrays solve it exactly in O(n log n) as well; hashing is the shortest to write."
+   "md": "- **\"Longest X that appears twice / in both\" → binary search on the length + a linear test.**\n- Prefix hashes give every substring's fingerprint in O(1).\n- **Pitfalls:** rounding `mid` down (infinite loop with `lo = mid`); collisions with one small modulus.\n- **Related:** suffix arrays with LCP answer it exactly in O(n log n)."
   }
  ]
 }
