@@ -1,0 +1,542 @@
+{
+ "version": 1,
+ "summary": "Pigeonhole: n numbers between `min` and `max` have an average neighbour gap of `(max − min) / (n − 1)`, so the\nwidest gap is at least that. Use buckets narrower than that: no two values in one bucket can form the widest\ngap, so only compare each non-empty bucket's minimum with the previous bucket's maximum. O(n).",
+ "question": [
+  {
+   "md": "Return the largest difference between neighbours in the sorted version of `nums`, or 0 with fewer than two\nnumbers, in **O(n) time**.\n\n- **Values reach 10⁹**, so counting sort over the value range is out.\n- **Duplicates** are allowed (a gap of 0)."
+  }
+ ],
+ "think": [
+  {
+   "md": "`[13, 2, 27, 8, 31, 20]` sorted is `[2, 8, 13, 20, 27, 31]`; the gaps are `[6, 5, 7, 7, 4]`, so the answer is **7**.\n\nSorting costs O(n log n). To avoid it, ask what the widest gap must be at least: the n − 1 gaps add up to\n`max − min = 29`, so the widest is at least their average, 5.8. If every bucket is\nnarrower than that average, two values in the same bucket are closer than the widest gap, so the widest gap\nalways jumps between buckets: from one non-empty bucket's max to the next one's min."
+  },
+  {
+   "panels": [
+    {
+     "type": "row",
+     "cells": [
+      2,
+      8,
+      13,
+      20,
+      27,
+      31
+     ],
+     "label": "sorted"
+    },
+    {
+     "type": "row",
+     "cells": [
+      6,
+      5,
+      7,
+      7,
+      4
+     ],
+     "label": "gaps"
+    }
+   ]
+  }
+ ],
+ "approaches": [
+  {
+   "title": "Sort and scan",
+   "kind": "brute",
+   "time": "O(n log n)",
+   "space": "O(n)",
+   "idea": [
+    {
+     "md": "Sort, then take the maximum difference between consecutive values."
+    }
+   ],
+   "build": [
+    "Fewer than 2 values → 0.",
+    "Sort a copy.",
+    "Max of `a[i] − a[i−1]`."
+   ],
+   "code": {
+    "python": "class Solution:\n    def widestGap(self, nums: List[int]) -> int:\n        a = sorted(nums)\n        return max((a[i] - a[i - 1] for i in range(1, len(a))), default=0)\n",
+    "java": "class Solution {\n    public int widestGap(int[] nums) {\n        int[] a = nums.clone();\n        Arrays.sort(a);\n        int best = 0;\n        for (int i = 1; i < a.length; i++) best = Math.max(best, a[i] - a[i - 1]);\n        return best;\n    }\n}\n",
+    "cpp": "class Solution {\npublic:\n    int widestGap(vector<int>& nums) {\n        vector<int> a = nums;\n        sort(a.begin(), a.end());\n        int best = 0;\n        for (size_t i = 1; i < a.size(); i++) best = max(best, a[i] - a[i - 1]);\n        return best;\n    }\n};\n",
+    "c": "static int cmp_int(const void* x, const void* y) {\n    int a = *(const int*) x, b = *(const int*) y;\n    return (a > b) - (a < b);\n}\n\nint widestGap(int* nums, int numsSize) {\n    int* a = malloc(numsSize * sizeof(int));\n    memcpy(a, nums, numsSize * sizeof(int));\n    qsort(a, numsSize, sizeof(int), cmp_int);\n    int best = 0;\n    for (int i = 1; i < numsSize; i++) if (a[i] - a[i - 1] > best) best = a[i] - a[i - 1];\n    free(a);\n    return best;\n}\n"
+   },
+   "lines": [
+    {
+     "text": "Sort a copy.",
+     "at": {
+      "python": [
+       [
+        3,
+        3
+       ]
+      ],
+      "java": [
+       [
+        3,
+        4
+       ]
+      ],
+      "cpp": [
+       [
+        4,
+        5
+       ]
+      ],
+      "c": [
+       [
+        1,
+        4
+       ],
+       [
+        7,
+        9
+       ]
+      ]
+     }
+    },
+    {
+     "text": "The widest neighbour difference (0 for a single value).",
+     "at": {
+      "python": [
+       [
+        4,
+        4
+       ]
+      ],
+      "java": [
+       [
+        5,
+        7
+       ]
+      ],
+      "cpp": [
+       [
+        6,
+        8
+       ]
+      ],
+      "c": [
+       [
+        10,
+        13
+       ]
+      ]
+     }
+    }
+   ],
+   "complexity": [
+    {
+     "md": "**Time O(n log n).** **Space O(n).**"
+    }
+   ],
+   "walk": {
+    "steps": [
+     {
+      "text": "Sorted: [2, 8, 13, 20, 27, 31].",
+      "panels": [
+       {
+        "type": "row",
+        "cells": [
+         2,
+         8,
+         13,
+         20,
+         27,
+         31
+        ]
+       }
+      ]
+     },
+     {
+      "text": "Neighbour gaps: [6, 5, 7, 7, 4]. The widest is 7.",
+      "panels": [
+       {
+        "type": "row",
+        "cells": [
+         2,
+         8,
+         13,
+         20,
+         27,
+         31
+        ]
+       },
+       {
+        "type": "row",
+        "cells": [
+         6,
+         5,
+         7,
+         7,
+         4
+        ],
+        "label": "gaps"
+       }
+      ],
+      "result": "7"
+     }
+    ],
+    "title": "Sort, then check every pair of neighbours."
+   },
+   "limits": [
+    {
+     "md": "Misses the O(n) requirement. We never need the full order, only the gaps between buckets of values."
+    }
+   ]
+  },
+  {
+   "title": "Buckets narrower than the average gap",
+   "kind": "best",
+   "time": "O(n)",
+   "space": "O(n)",
+   "idea": [
+    {
+     "md": "With `lo`, `hi` and `n`: bucket width `size = max(1, (hi − lo) / (n − 1))` (whole-number division), `(hi − lo) / size + 1` buckets. Put each value in bucket `(x − lo) / size`, tracking only each bucket's min and max. Walk the buckets in order: the answer is the largest `bucket min − previous bucket max`."
+    }
+   ],
+   "build": [
+    "Handle n < 2 or all-equal → 0.",
+    "Compute the bucket width and count.",
+    "Track min/max per bucket.",
+    "Scan non-empty buckets, comparing with the previous max."
+   ],
+   "code": {
+    "python": "class Solution:\n    def widestGap(self, nums: List[int]) -> int:\n        n, lo, hi = len(nums), min(nums), max(nums)\n        if n < 2 or lo == hi:\n            return 0\n        size = max(1, (hi - lo) // (n - 1))\n        count = (hi - lo) // size + 1\n        bmin, bmax = [None] * count, [None] * count\n        for x in nums:\n            b = (x - lo) // size\n            bmin[b] = x if bmin[b] is None else min(bmin[b], x)\n            bmax[b] = x if bmax[b] is None else max(bmax[b], x)\n        best, prev = 0, lo\n        for b in range(count):\n            if bmin[b] is not None:\n                best = max(best, bmin[b] - prev)\n                prev = bmax[b]\n        return best\n",
+    "java": "class Solution {\n    public int widestGap(int[] nums) {\n        int n = nums.length, lo = Integer.MAX_VALUE, hi = Integer.MIN_VALUE;\n        for (int x : nums) { lo = Math.min(lo, x); hi = Math.max(hi, x); }\n        if (n < 2 || lo == hi) return 0;\n        int size = Math.max(1, (hi - lo) / (n - 1));\n        int count = (hi - lo) / size + 1;\n        int[] bmin = new int[count], bmax = new int[count];\n        boolean[] used = new boolean[count];\n        for (int x : nums) {\n            int b = (x - lo) / size;\n            if (!used[b]) { used[b] = true; bmin[b] = x; bmax[b] = x; }\n            else { bmin[b] = Math.min(bmin[b], x); bmax[b] = Math.max(bmax[b], x); }\n        }\n        int best = 0, prev = lo;\n        for (int b = 0; b < count; b++) if (used[b]) { best = Math.max(best, bmin[b] - prev); prev = bmax[b]; }\n        return best;\n    }\n}\n",
+    "cpp": "class Solution {\npublic:\n    int widestGap(vector<int>& nums) {\n        int n = nums.size();\n        int lo = *min_element(nums.begin(), nums.end()), hi = *max_element(nums.begin(), nums.end());\n        if (n < 2 || lo == hi) return 0;\n        int size = max(1, (hi - lo) / (n - 1));\n        int count = (hi - lo) / size + 1;\n        vector<int> bmin(count, INT_MAX), bmax(count, INT_MIN);\n        for (int x : nums) {\n            int b = (x - lo) / size;\n            bmin[b] = min(bmin[b], x);\n            bmax[b] = max(bmax[b], x);\n        }\n        int best = 0, prev = lo;\n        for (int b = 0; b < count; b++) if (bmin[b] != INT_MAX) { best = max(best, bmin[b] - prev); prev = bmax[b]; }\n        return best;\n    }\n};\n",
+    "c": "int widestGap(int* nums, int numsSize) {\n    int n = numsSize, lo = nums[0], hi = nums[0];\n    for (int i = 1; i < n; i++) { if (nums[i] < lo) lo = nums[i]; if (nums[i] > hi) hi = nums[i]; }\n    if (n < 2 || lo == hi) return 0;\n    int size = (hi - lo) / (n - 1);\n    if (size < 1) size = 1;\n    int count = (hi - lo) / size + 1;\n    int* bmin = malloc(count * sizeof(int));\n    int* bmax = malloc(count * sizeof(int));\n    for (int b = 0; b < count; b++) { bmin[b] = INT_MAX; bmax[b] = INT_MIN; }\n    for (int i = 0; i < n; i++) {\n        int b = (nums[i] - lo) / size;\n        if (nums[i] < bmin[b]) bmin[b] = nums[i];\n        if (nums[i] > bmax[b]) bmax[b] = nums[i];\n    }\n    int best = 0, prev = lo;\n    for (int b = 0; b < count; b++) if (bmin[b] != INT_MAX) { if (bmin[b] - prev > best) best = bmin[b] - prev; prev = bmax[b]; }\n    free(bmin); free(bmax);\n    return best;\n}\n"
+   },
+   "lines": [
+    {
+     "text": "The smallest and largest value; no gap exists if there's one value or they're all equal.",
+     "at": {
+      "python": [
+       [
+        3,
+        5
+       ]
+      ],
+      "java": [
+       [
+        3,
+        5
+       ]
+      ],
+      "cpp": [
+       [
+        4,
+        6
+       ]
+      ],
+      "c": [
+       [
+        2,
+        4
+       ]
+      ]
+     }
+    },
+    {
+     "text": "Bucket width at most the average gap (at least 1), and enough buckets to cover `lo..hi`. There are at most about n buckets.",
+     "at": {
+      "python": [
+       [
+        6,
+        7
+       ]
+      ],
+      "java": [
+       [
+        6,
+        7
+       ]
+      ],
+      "cpp": [
+       [
+        7,
+        8
+       ]
+      ],
+      "c": [
+       [
+        5,
+        7
+       ]
+      ]
+     }
+    },
+    {
+     "text": "Each value goes to its bucket; only the bucket's min and max matter.",
+     "at": {
+      "python": [
+       [
+        8,
+        12
+       ]
+      ],
+      "java": [
+       [
+        8,
+        13
+       ]
+      ],
+      "cpp": [
+       [
+        9,
+        13
+       ]
+      ],
+      "c": [
+       [
+        8,
+        14
+       ]
+      ]
+     }
+    },
+    {
+     "text": "Within a bucket, values are closer than the average gap, so the widest gap is between a bucket's min and the previous non-empty bucket's max.",
+     "at": {
+      "python": [
+       [
+        13,
+        17
+       ]
+      ],
+      "java": [
+       [
+        15,
+        16
+       ]
+      ],
+      "cpp": [
+       [
+        15,
+        16
+       ]
+      ],
+      "c": [
+       [
+        16,
+        17
+       ]
+      ]
+     }
+    },
+    {
+     "text": "The widest gap.",
+     "at": {
+      "python": [
+       [
+        18,
+        18
+       ]
+      ],
+      "java": [
+       [
+        17,
+        17
+       ]
+      ],
+      "cpp": [
+       [
+        17,
+        17
+       ]
+      ],
+      "c": [
+       [
+        18,
+        19
+       ]
+      ]
+     }
+    }
+   ],
+   "complexity": [
+    {
+     "md": "**Time O(n):** a pass to fill buckets and a pass over at most ~n buckets. **Space O(n)** for the buckets."
+    }
+   ],
+   "walk": {
+    "steps": [
+     {
+      "text": "Average gap ≥ (31 − 2) / 5 = 5.8, so buckets of width 5 are enough.",
+      "panels": [
+       {
+        "type": "row",
+        "cells": [
+         13,
+         2,
+         27,
+         8,
+         31,
+         20
+        ],
+        "label": "nums"
+       }
+      ]
+     },
+     {
+      "text": "Drop each value into its bucket, keeping only each bucket's min and max.",
+      "panels": [
+       {
+        "type": "row",
+        "cells": [
+         "2–2",
+         "8–8",
+         "13–13",
+         "20–20",
+         "·",
+         "27–31"
+        ],
+        "label": "buckets (min–max)"
+       }
+      ]
+     },
+     {
+      "text": "Bucket 0: its min 2 minus the previous max 2 = 0. Best so far 0.",
+      "panels": [
+       {
+        "type": "row",
+        "cells": [
+         "2–2",
+         "8–8",
+         "13–13",
+         "20–20",
+         "·",
+         "27–31"
+        ],
+        "states": {
+         "0": "active"
+        },
+        "label": "buckets"
+       },
+       {
+        "type": "vars",
+        "items": {
+         "best": 0
+        }
+       }
+      ]
+     },
+     {
+      "text": "Bucket 1: its min 8 minus the previous max 2 = 6. Best so far 6.",
+      "panels": [
+       {
+        "type": "row",
+        "cells": [
+         "2–2",
+         "8–8",
+         "13–13",
+         "20–20",
+         "·",
+         "27–31"
+        ],
+        "states": {
+         "1": "active"
+        },
+        "label": "buckets"
+       },
+       {
+        "type": "vars",
+        "items": {
+         "best": 6
+        }
+       }
+      ]
+     },
+     {
+      "text": "Bucket 2: its min 13 minus the previous max 8 = 5. Best so far 6.",
+      "panels": [
+       {
+        "type": "row",
+        "cells": [
+         "2–2",
+         "8–8",
+         "13–13",
+         "20–20",
+         "·",
+         "27–31"
+        ],
+        "states": {
+         "2": "active"
+        },
+        "label": "buckets"
+       },
+       {
+        "type": "vars",
+        "items": {
+         "best": 6
+        }
+       }
+      ]
+     },
+     {
+      "text": "Bucket 3: its min 20 minus the previous max 13 = 7. Best so far 7.",
+      "panels": [
+       {
+        "type": "row",
+        "cells": [
+         "2–2",
+         "8–8",
+         "13–13",
+         "20–20",
+         "·",
+         "27–31"
+        ],
+        "states": {
+         "3": "active"
+        },
+        "label": "buckets"
+       },
+       {
+        "type": "vars",
+        "items": {
+         "best": 7
+        }
+       }
+      ]
+     },
+     {
+      "text": "Bucket 5: its min 27 minus the previous max 20 = 7. Best so far 7.",
+      "panels": [
+       {
+        "type": "row",
+        "cells": [
+         "2–2",
+         "8–8",
+         "13–13",
+         "20–20",
+         "·",
+         "27–31"
+        ],
+        "states": {
+         "5": "active"
+        },
+        "label": "buckets"
+       },
+       {
+        "type": "vars",
+        "items": {
+         "best": 7
+        }
+       }
+      ]
+     },
+     {
+      "text": "Widest gap: 7.",
+      "panels": [],
+      "result": "7"
+     }
+    ],
+    "title": "Buckets of width 5 between min 2 and max 31. With n values over that range, the widest gap is at least the average gap, so it never falls inside a bucket: only between one bucket's max and the next non-empty bucket's min."
+   }
+  }
+ ],
+ "takeaways": [
+  {
+   "md": "- **Pigeonhole bucketing:** if the answer is at least the average, buckets smaller than the average can't hide\n  it.\n- Keep only what you need per bucket (here min and max).\n- When a problem demands O(n) on large values, think buckets or radix rather than comparisons."
+  }
+ ]
+}
