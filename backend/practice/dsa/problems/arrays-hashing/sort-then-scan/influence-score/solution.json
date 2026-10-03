@@ -4,38 +4,102 @@
  "question": [
   {
    "md": "Return the largest h such that **at least h** papers have **at least h** citations each.\n\n- **Both conditions use the same h.** With `[3, 0, 6, 1, 5]`, three papers have ≥ 3 citations, so h ≥ 3;\n  only two have ≥ 4, so h = 3.\n- **h ≤ n:** you can't have more than n papers. A huge citation count doesn't raise h past the number of\n  papers.\n- **h can be 0** (no paper has any citation, or `[0]`).\n- **Size:** up to 10⁵ papers; citations up to 10⁹."
+  },
+  {
+   "md": "**Edge cases to keep in mind**\n\n- All papers with 0 citations: the score is 0.\n- The score can never exceed the number of papers `n`.\n- Very large citation counts (up to 10⁹) behave like `n` for this question."
   }
  ],
  "think": [
   {
-   "md": "Take `[3, 0, 6, 1, 5, 4, 8]`. Sort them, most cited first: `[8, 6, 5, 4, 3, 1, 0]`. Read along: the 1st paper has 8 ≥ 1,\nthe 2nd has 6 ≥ 2, the 3rd has 5 ≥ 3, the 4th has 4 ≥ 4, the 5th has 3 < 5. So 4 papers have at least 4\ncitations, and 5 papers don't have 5 each: h = 4."
+   "md": "**Why sort first?** Sorting puts related values next to each other: the closest pair becomes a pair of neighbours,\nequal values form blocks, consecutive numbers form runs. A question about *all pairs* (O(n²)) becomes a question about\n*neighbours* (O(n)) after an O(n log n) sort. And when the values are bounded, counting into buckets can replace the\nsort entirely."
   },
   {
-   "panels": [
-    {
-     "type": "row",
-     "cells": [
-      8,
-      6,
-      5,
-      4,
-      3,
-      1,
-      0
+   "md": "**Reading the score from a sorted list.** Sort citations from most to least. The `k`-th paper (1-based) has at\nleast as many citations as every paper after it, so \"at least `k` papers with at least `k` citations\" holds\nexactly when the `k`-th paper has `≥ k` citations. The score is the largest such `k`. For `[3, 0, 6, 1, 5, 4, 8]` sorted\ndescending `[8, 6, 5, 4, 3, 1, 0]`:"
+  },
+  {
+   "table": {
+    "head": [
+     "k (papers)",
+     "k-th paper's citations",
+     "≥ k?"
+    ],
+    "rows": [
+     [
+      "1",
+      "8",
+      "yes"
      ],
-     "states": {
-      "0": "answer",
-      "1": "answer",
-      "2": "answer",
-      "3": "answer"
-     },
-     "slots": true
-    }
-   ],
-   "caption": "The first 4 papers (most cited) each have at least 4 citations."
+     [
+      "2",
+      "6",
+      "yes"
+     ],
+     [
+      "3",
+      "5",
+      "yes"
+     ],
+     [
+      "4",
+      "4",
+      "yes"
+     ],
+     [
+      "5",
+      "3",
+      "no"
+     ],
+     [
+      "6",
+      "1",
+      "no"
+     ],
+     [
+      "7",
+      "0",
+      "no"
+     ]
+    ]
+   }
   },
   {
-   "md": "Counting view: \"how many papers have ≥ h citations?\" only goes **down** as h goes up, while the requirement\nh goes up. The answer is where they cross. Since h ≤ n, any citation count above n can be treated as n,\nwhich lets us count papers per level in an array of size n + 1 instead of sorting."
+   "md": "The last \"yes\" is at `k = 4`, so the score is **4**.\n\n**Counting instead of sorting.** The score is at most `n`, so a paper with more than `n` citations counts the\nsame as one with exactly `n`. Count papers into buckets `0 … n` (capping at `n`), then walk `h` down from `n`,\naccumulating \"papers with at least `h` citations\"; the first `h` where that count reaches `h` is the score:"
+  },
+  {
+   "table": {
+    "head": [
+     "h",
+     "papers with exactly h (capped)",
+     "papers with ≥ h",
+     "≥ h papers?"
+    ],
+    "rows": [
+     [
+      "7",
+      "1",
+      "1",
+      "no"
+     ],
+     [
+      "6",
+      "1",
+      "2",
+      "no"
+     ],
+     [
+      "5",
+      "1",
+      "3",
+      "no"
+     ],
+     [
+      "4",
+      "1",
+      "4",
+      "yes → answer"
+     ]
+    ]
+   }
   }
  ],
  "approaches": [
@@ -46,12 +110,12 @@
    "space": "O(1)",
    "idea": [
     {
-     "md": "For h = n, n − 1, …, 0: count the papers with at least h citations. The first h whose count is ≥ h is the answer."
+     "md": "Try each `h` from `n` down to 0 and count the papers with at least `h` citations; return the first `h` that works."
     }
    ],
    "build": [
-    "For h from n down to 0: count papers with `citations ≥ h`.",
-    "Return the first h with `count ≥ h`."
+    "For each `h` from high to low, count qualifying papers.",
+    "Return the first `h` that works."
    ],
    "code": {
     "python": "class Solution:\n    def influenceScore(self, citations: List[int]) -> int:\n        for h in range(len(citations), -1, -1):\n            if sum(1 for c in citations if c >= h) >= h:\n                return h\n        return 0\n",
@@ -269,7 +333,7 @@
    },
    "limits": [
     {
-     "md": "Each h recounts all papers. Sorting once answers every \"how many have ≥ h?\" by position."
+     "md": "Each candidate recounts all papers. Sorting or bucketing answers every `h` together."
     }
    ],
    "slow": true
@@ -281,13 +345,12 @@
    "space": "O(n)",
    "idea": [
     {
-     "md": "Sort citations from most to least. The i-th paper (1-based) is the weakest of the top i. While it has at least i citations, the top i papers all have ≥ i, so h is at least i. The first failure ends the scan."
+     "md": "Sort descending; advance `h` while the `(h + 1)`-th paper has at least `h + 1` citations."
     }
    ],
    "build": [
     "Sort descending.",
-    "For i = 1, 2, …: if `s[i − 1] ≥ i`, set `h = i`; otherwise stop.",
-    "Return h."
+    "Increase `h` while the next paper still qualifies."
    ],
    "code": {
     "python": "class Solution:\n    def influenceScore(self, citations: List[int]) -> int:\n        s = sorted(citations, reverse=True)\n        h = 0\n        while h < len(s) and s[h] >= h + 1:\n            h += 1\n        return h\n",
@@ -395,7 +458,7 @@
    ],
    "complexity": [
     {
-     "md": "**Time O(n log n).** **Space O(n)** for the copy."
+     "md": "**Time O(n log n).** **Space O(n)** for the sorted copy."
     }
    ],
    "walk": {
@@ -569,7 +632,7 @@
    },
    "limits": [
     {
-     "md": "We sort values up to 10⁹, but only whether each count is ≥ some h ≤ n matters. Capping at n and counting replaces the sort."
+     "md": "Sorting by exact citation counts is more than needed: only counts up to `n` matter, which buckets handle in O(n)."
     }
    ]
   },
@@ -580,12 +643,13 @@
    "space": "O(n)",
    "idea": [
     {
-     "md": "`bucket[c]` = number of papers with exactly c citations, where any count above n is put in `bucket[n]`. Walk h from n down, accumulating `bucket[h]` into \"papers with ≥ h\". The first h where that total reaches h is the answer."
+     "md": "Bucket papers by `min(citations, n)`. Walk `h` from `n` down to 0, adding `bucket[h]` to a running count of\npapers with at least `h` citations. Return the first `h` with count `≥ h`.\n\n**Why the first such `h` is the answer.** We're scanning from the largest possible score downwards, so the\nfirst `h` that works is the largest."
     }
    ],
    "build": [
-    "`bucket` of size n + 1; add each paper to `bucket[min(c, n)]`.",
-    "`atLeast = 0`; for h from n down to 0: `atLeast += bucket[h]`; if `atLeast ≥ h`, return h."
+    "Buckets `0 … n`, capping citations at `n`.",
+    "Walk `h` downward with a running count.",
+    "Return the first `h` reached."
    ],
    "code": {
     "python": "class Solution:\n    def influenceScore(self, citations: List[int]) -> int:\n        n = len(citations)\n        bucket = [0] * (n + 1)\n        for c in citations:\n            bucket[min(c, n)] += 1\n        at_least = 0\n        for h in range(n, -1, -1):\n            at_least += bucket[h]\n            if at_least >= h:\n                return h\n        return 0\n",
@@ -855,7 +919,7 @@
  ],
  "takeaways": [
   {
-   "md": "- \"Largest h such that at least h items are ≥ h\" is answered by sorting descending and scanning, or by\n  **counting sort with values capped at n**.\n- When the answer is bounded by n, values larger than n can be clamped, which makes counting feasible."
+   "md": "- **h-index style questions:** sort descending and compare position with value, or bucket counts capped at `n`.\n- Cap values at the largest answer that matters to enable counting.\n- **Pitfall:** off-by-one between 0-based positions and the 1-based paper count."
   }
  ]
 }

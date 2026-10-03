@@ -4,64 +4,76 @@
  "question": [
   {
    "md": "Return the length of the longest run of **consecutive day numbers** that all appear in `days`.\n\n- **Order in the input doesn't matter:** `[100, 4, 200, 1, 3, 2]` contains 1, 2, 3, 4: length 4.\n- **Repeats don't extend a streak:** practising twice on day 5 is still one day.\n- **Empty input** gives 0.\n- **Day numbers are ±10⁹**, so they can't index an array.\n- The same idea as **Longest Chain With a Step** with step 1."
+  },
+  {
+   "md": "**Edge cases to keep in mind**\n\n- No days at all: the answer is 0.\n- Repeated days don't extend a streak.\n- Negative day numbers are fine; only consecutiveness matters."
   }
  ],
  "think": [
   {
-   "md": "Take `[100, 4, 200, 1, 3, 2, 101, 102, 50]`. The streaks are 1-2-3-4 (length 4), 100-101-102 (length 3), and single days 200 and 50."
+   "md": "**Why sort first?** Sorting puts related values next to each other: the closest pair becomes a pair of neighbours,\nequal values form blocks, consecutive numbers form runs. A question about *all pairs* (O(n²)) becomes a question about\n*neighbours* (O(n)) after an O(n log n) sort. And when the values are bounded, counting into buckets can replace the\nsort entirely."
   },
   {
-   "panels": [
-    {
-     "type": "row",
-     "cells": [
-      1,
-      2,
-      3,
-      4
-     ],
-     "states": {
-      "0": "answer"
-     },
-     "label": "length 4"
-    },
-    {
-     "type": "row",
-     "cells": [
-      100,
-      101,
-      102
-     ],
-     "states": {
-      "0": "answer"
-     },
-     "label": "length 3"
-    },
-    {
-     "type": "row",
-     "cells": [
-      50
-     ],
-     "states": {
-      "0": "answer"
-     },
-     "label": "1"
-    },
-    {
-     "type": "row",
-     "cells": [
-      200
-     ],
-     "states": {
-      "0": "answer"
-     },
-     "label": "1"
-    }
-   ],
-   "caption": "Shaded: each streak's first day, the only day whose previous day is missing."
+   "md": "**Two ways to see runs.** After sorting, a streak is a block where each value is the previous plus one\n(duplicates skipped). Without sorting, a hash set answers \"is `d + 1` present?\" in O(1).\n\n**Avoid re-walking.** Walking forward from every day would re-count the same streak from each of its members\n(O(n²) in the worst case). Only walk from a **streak start**: a day `d` whose `d − 1` is absent. Then every day is\nvisited by exactly one walk. For `[100, 4, 200, 1, 3, 2, 101, 102, 50]`:"
   },
   {
-   "md": "Two natural tools: **sorting** puts each streak's days side by side; a **hash set** answers \"is day d + 1\npresent?\" in O(1). With the set, the trick is to start counting only at a streak's first day (where d − 1 is\nabsent). Starting anywhere else would re-walk part of a streak already counted."
+   "table": {
+    "head": [
+     "day (distinct)",
+     "decision",
+     "streak length"
+    ],
+    "rows": [
+     [
+      "1",
+      "start: walk to 4",
+      "4"
+     ],
+     [
+      "2",
+      "1 is present: not a start, skip",
+      "—"
+     ],
+     [
+      "3",
+      "2 is present: not a start, skip",
+      "—"
+     ],
+     [
+      "4",
+      "3 is present: not a start, skip",
+      "—"
+     ],
+     [
+      "50",
+      "start: walk to 50",
+      "1"
+     ],
+     [
+      "100",
+      "start: walk to 102",
+      "3"
+     ],
+     [
+      "101",
+      "100 is present: not a start, skip",
+      "—"
+     ],
+     [
+      "102",
+      "101 is present: not a start, skip",
+      "—"
+     ],
+     [
+      "200",
+      "start: walk to 200",
+      "1"
+     ]
+    ]
+   }
+  },
+  {
+   "md": "Longest streak **4**."
   }
  ],
  "approaches": [
@@ -72,13 +84,12 @@
    "space": "O(1)",
    "idea": [
     {
-     "md": "For each day d, look for d + 1 in the list, then d + 2, and so on, each time with a full scan. Keep the longest streak found."
+     "md": "From every day, count upward while the next day appears in the list (searching the list each time)."
     }
    ],
    "build": [
-    "For each day d: `length = 1`.",
-    "While `d + length` appears in the list (scan), `length += 1`.",
-    "Keep the maximum (0 for an empty list)."
+    "For each day, extend while `d + length` is in the list.",
+    "Track the longest."
    ],
    "code": {
     "python": "class Solution:\n    def longestStreak(self, days: List[int]) -> int:\n        best = 0\n        for d in days:\n            length = 1\n            while d + length in days:\n                length += 1\n            best = max(best, length)\n        return best\n",
@@ -212,7 +223,7 @@
    ],
    "complexity": [
     {
-     "md": "**Time O(n³)** in the worst case (a streak of n days, re-walked from each day, each step scanning n). **Space O(1).**"
+     "md": "**Time O(n³)** worst case: walks of length O(n), each step a linear search. **Space O(1).**"
     }
    ],
    "walk": {
@@ -493,7 +504,7 @@
    },
    "limits": [
     {
-     "md": "Scanning answers membership slowly, and every day re-walks its streak. Sorting fixes both at once."
+     "md": "Linear searches, and every member of a streak walks it again."
     }
    ],
    "slow": 900
@@ -505,13 +516,13 @@
    "space": "O(n)",
    "idea": [
     {
-     "md": "Sort a copy. Walk it: an equal neighbour is a repeat (ignore); a neighbour exactly one larger extends the current streak; anything else starts a new streak of 1."
+     "md": "Sort; walk once, extending the current streak when a value is the previous plus one, skipping duplicates, and restarting otherwise."
     }
    ],
    "build": [
-    "If there are no days, return 0.",
-    "Sort a copy; `current = best = 1`.",
-    "For each i ≥ 1: equal → skip; +1 → `current += 1`; otherwise `current = 1`. Update `best`."
+    "Handle the empty list.",
+    "Sort.",
+    "Extend, skip duplicates, or restart."
    ],
    "code": {
     "python": "class Solution:\n    def longestStreak(self, days: List[int]) -> int:\n        if not days:\n            return 0\n        s = sorted(days)\n        current = best = 1\n        for i in range(1, len(s)):\n            if s[i] == s[i - 1]:\n                continue\n            current = current + 1 if s[i] == s[i - 1] + 1 else 1\n            best = max(best, current)\n        return best\n",
@@ -704,7 +715,7 @@
    ],
    "complexity": [
     {
-     "md": "**Time O(n log n).** **Space O(n)** for the copy."
+     "md": "**Time O(n log n).** **Space O(n)** for the sorted copy."
     }
    ],
    "walk": {
@@ -975,7 +986,7 @@
    },
    "limits": [
     {
-     "md": "The sort orders all days, but each streak only needs \"is d + 1 present?\", which a hash set answers in O(1)."
+     "md": "The sort is the only O(n log n) part; a hash set gives O(1) lookups and O(n) overall."
     }
    ]
   },
@@ -986,14 +997,13 @@
    "space": "O(n)",
    "idea": [
     {
-     "md": "Put all days in a hash set. For each distinct day d whose previous day d − 1 is **not** present, walk forward d + 1, d + 2, … while present, and record the length. Each streak is walked once, from its start."
+     "md": "Put all days in a set. For each day `d` that starts a streak (`d − 1` not in the set), walk `d + 1, d + 2, …`\nwhile present, and record the length.\n\n**Why it's O(n).** The walks only start at streak starts, and the streaks are disjoint, so each day is\nvisited by at most one walk."
     }
    ],
    "build": [
-    "Build a hash set of the days.",
-    "For each distinct d: skip if d − 1 is in the set.",
-    "Otherwise walk forward while the next day is present; keep the longest length.",
-    "Return it (0 when empty)."
+    "Hash set of days.",
+    "Skip days that aren't streak starts.",
+    "Walk forward from each start."
    ],
    "code": {
     "python": "class Solution:\n    def longestStreak(self, days: List[int]) -> int:\n        have = set(days)\n        best = 0\n        for d in have:\n            if d - 1 in have:\n                continue\n            end = d\n            while end + 1 in have:\n                end += 1\n            best = max(best, end - d + 1)\n        return best\n",
@@ -1196,7 +1206,7 @@
    ],
    "complexity": [
     {
-     "md": "**Time O(n)** on average: each day is checked as a possible start once and walked over at most once. **Space O(n)** for the set."
+     "md": "**Time O(n)** expected. **Space O(n).**"
     }
    ],
    "walk": {
@@ -1475,7 +1485,7 @@
  ],
  "takeaways": [
   {
-   "md": "- Longest run of consecutive values: hash set + **start only where the previous value is missing**.\n- Sorting and scanning is the hash-free alternative (O(n log n)); remember to skip repeats.\n- Same pattern as **Longest Chain With a Step**: replace +1 with +step."
+   "md": "- **Longest consecutive run:** hash set, and only start counting at a run's first value.\n- Sorting gives the same answer in O(n log n) with simpler logic.\n- **Pitfall:** counting duplicates as part of a streak."
   }
  ]
 }
