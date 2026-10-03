@@ -4,11 +4,14 @@
  "question": [
   {
    "md": "Return the shortest substring of `s` that contains `t` as a subsequence (leftmost on ties), or `\"\"`.\n\n- **s up to 2 × 10⁴**, **t up to 100** letters."
+  },
+  {
+   "md": "**Edge cases to keep in mind**\n\n- `t` doesn't occur as a subsequence at all: return `\"\"`.\n- `t` repeats a letter (like `\"aba\"`): the same position of `s` can't serve two letters of `t`.\n- Ties: return the leftmost shortest window."
   }
  ],
  "think": [
   {
-   "md": "`s = \"cabxbcaxbyc\"`, `t = \"abc\"` → **`abxbc`**.\n\nThe rule here is order-sensitive, so counts don't help, and windows don't shrink cleanly. But for a fixed end\n`i`, we want the latest possible start, and that can be built up letter by letter: the latest start of a\nwindow ending at `i` containing `t[0..j)` is the latest start for `t[0..j−1)` ending before `i`, once `s[i]` is\n`t[j−1]`. Keeping that for every `j` is a small table of `m + 1` numbers updated per character."
+   "md": "**Why counts aren't enough here.** In other shortest-window problems, the window only had to contain certain\nletters. Here the letters of `t` must appear **in order**, so `\"cba\"` doesn't contain `\"abc\"` even though it has\nthe same letters. A count map can't see order.\n\n**Fix the right end and ask for the latest start.** For a window ending at position `i`, we want it to start as\nlate as possible while still containing `t` in order. Build that up letter by letter:\n\n- `start[j]` = the latest position from which `t[0..j)` (the first `j` letters of the route) can be matched in\n  order, finishing at or before the current position.\n- If `s[i] = t[j−1]`, then `t[0..j)` can finish exactly at `i`, starting where `t[0..j−1)` started:\n  `start[j] = start[j−1]` (for `j = 1`, the start is `i` itself).\n\nWhen `start[m]` is set, the window `s[start[m] .. i]` is the shortest one ending at `i`.\n\n**Example.** `s = \"cabxbcaxbyc\"`, `t = \"abc\"`: the answer is `\"abxbc\"`."
   },
   {
    "panels": [
@@ -39,6 +42,9 @@
      "label": "t"
     }
    ]
+  },
+  {
+   "md": "**Update order matters.** Process `j` from `m` down to 1. Otherwise, when `t` has a repeated letter, `start[j]`\ncould read a `start[j − 1]` that was just updated with the *same* position `i`, letting one character of `s`\nmatch two letters of `t`."
   }
  ],
  "approaches": [
@@ -49,7 +55,7 @@
    "space": "O(1)",
    "idea": [
     {
-     "md": "For each `i` with `s[i] == t[0]`, match `t` greedily to the right; if it completes at `k`, the window `s[i..k]` is the shortest from `i`. Keep the shortest (first on ties)."
+     "md": "For every position holding `t[0]`, match `t` greedily to the right; the first place where the whole route\nis matched gives the shortest window starting there. Keep the shortest (first on ties).\n\nGreedy matching is optimal for a fixed start: taking each letter of `t` at its earliest possible position\ncan only make the end earlier."
     }
    ],
    "build": [
@@ -212,7 +218,7 @@
    ],
    "complexity": [
     {
-     "md": "**Time O(n²)** in the worst case (4 × 10⁸ at the limit). **Space O(1).**"
+     "md": "**Time O(n²)** in the worst case (every start scans to the end). **Space O(1).**"
     }
    ],
    "walk": {
@@ -307,13 +313,14 @@
    "space": "O(m)",
    "idea": [
     {
-     "md": "`start[0..m]`, all −1. For each `i`, for `j = m..1`: if `s[i] == t[j−1]`, `start[j] = i` when `j == 1`, else `start[j−1]`. If `start[m] ≥ 0`, the window `start[m]..i` is a candidate."
+     "md": "Keep `start[0..m]` (−1 = not matched yet). For each `i` and each `j` from `m` down to 1 with\n`t[j−1] = s[i]`, set `start[j] = (j == 1 ? i : start[j−1])`. Then, if `start[m] ≥ 0`, compare the window\n`start[m]..i` with the best (strictly shorter only, which keeps the leftmost among equals).\n\n**Why `start[m]` is optimal for end `i`.** By induction on `j`, `start[j]` is the latest start of any\nin-order match of `t[0..j)` ending at or before `i`. A later start would need a later match of the first\n`j − 1` letters, contradicting the definition of `start[j−1]`."
     }
    ],
    "build": [
-    "Table of latest starts.",
-    "Update from high `j` to low.",
-    "Candidate whenever the whole route is matched."
+    "`start` array of `m + 1` entries, all −1.",
+    "For each `i`: for `j = m..1`, if `t[j−1] = s[i]`, set `start[j]`.",
+    "If `start[m] ≥ 0` and `i − start[m] + 1` beats the best, record it.",
+    "Return the best window, or `\"\"`."
    ],
    "code": {
     "python": "class Solution:\n    def trailWindow(self, s: str, t: str) -> str:\n        m = len(t)\n        start = [-1] * (m + 1)\n        spots = {}\n        for j in range(m, 0, -1):\n            spots.setdefault(t[j - 1], []).append(j)\n        best_len, best_start = len(s) + 1, 0\n        for i, c in enumerate(s):\n            for j in spots.get(c, ()):\n                start[j] = i if j == 1 else start[j - 1]\n            if start[m] >= 0 and i - start[m] + 1 < best_len:\n                best_len, best_start = i - start[m] + 1, start[m]\n        return s[best_start:best_start + best_len] if best_len <= len(s) else \"\"\n",
@@ -473,7 +480,7 @@
    ],
    "complexity": [
     {
-     "md": "**Time O(n · m)** (2 × 10⁶). **Space O(m).**"
+     "md": "**Time O(n · m)** = 2 × 10⁶ at the limits (the Python version only touches the positions of `t` that match\n`s[i]`). **Space O(m).**"
     }
    ],
    "walk": {
@@ -750,7 +757,7 @@
  ],
  "takeaways": [
   {
-   "md": "- **Order matters → track progress through the pattern**, not counts.\n- \"Latest start\" per prefix turns many overlapping searches into one pass.\n- Update dependent entries in reverse order so each uses the previous step's values."
+   "md": "- **Order-sensitive windows** need progress through the pattern, not counts.\n- **\"Latest start\" per pattern prefix** shares work across all windows.\n- Update dependent entries from high to low so each position is used once."
   }
  ]
 }

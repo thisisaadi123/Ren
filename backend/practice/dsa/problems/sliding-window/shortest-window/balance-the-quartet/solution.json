@@ -4,29 +4,101 @@
  "question": [
   {
    "md": "Repaint one contiguous piece of `s` (any voices you like) so each of `S A T B` appears exactly `n/4` times.\nReturn the shortest such piece (0 if already balanced).\n\n- **n up to 10⁵**, a multiple of 4."
+  },
+  {
+   "md": "**Edge cases to keep in mind**\n\n- Already balanced: the answer is 0 (an empty piece).\n- The piece may contain singers who don't need to change; they can be \"repainted\" to the same voice.\n- Several voices can be over the quota at once."
   }
  ],
  "think": [
   {
-   "md": "`\"SSATSSBS\"` (n/4 = 2): the surplus is {'S': 3}, so the piece must at least contain those extra singers. Answer:\n**4**.\n\nWhat's outside the piece stays as it is, so no voice may exceed `2` outside. Conversely, if every voice is\nat most `2` outside, the piece has exactly enough singers to top each voice up to `2` (the counts add up to\n`n`). So the condition only depends on the outside counts, and it stays true when the piece grows: a shortest\nwindow problem."
+   "md": "**Think about what stays, not what changes.** Everything outside the chosen piece keeps its voice. If some voice\nalready has more than `n/4 = 2` singers outside the piece, no repainting inside can fix that. So a piece is\nusable only if **every voice appears at most `2` times outside it**.\n\n**That condition is also enough.** Suppose every voice is at most `2` outside. Each voice then needs\n`2 − outside` more singers, and these shortfalls add up to exactly the piece's length (all counts add up to\n`n`). So we can repaint the piece's singers to fill every shortfall.\n\nFor `\"SSATSSBS\"` the surplus is 3 extra S: the piece must include at least that many of each surplus voice. As the\npiece grows, the outside counts only go down, so validity survives growing."
   },
   {
-   "panels": [
-    {
-     "type": "row",
-     "cells": [
+   "md": "**Why one left pointer is enough.** Here the rule gets *easier* as a window grows: if `[L, R]` is valid, every longer\nwindow `[L, R']` with `R' > R` is valid too. For each right end `R`, the best window is the valid one with the\n**latest** start. And that latest start never moves backwards as `R` grows: a start that was too early to be the\ntightest for `R` is still too early for `R + 1`. So `R` grows the window until it's valid, then `L` moves forward as\nlong as the window stays valid, recording each valid window on the way."
+  },
+  {
+   "md": "**Trace** (last column = voice counts outside the tightest window):"
+  },
+  {
+   "table": {
+    "head": [
+     "R",
+     "singer",
+     "tightest window",
+     "length",
+     "best",
+     "outside S A T B"
+    ],
+    "rows": [
+     [
+      "0",
       "S",
-      "S",
-      "A",
-      "T",
-      "S",
-      "S",
-      "B",
-      "S"
+      "— (not valid yet)",
+      "—",
+      "—",
+      "4 1 1 1"
      ],
-     "label": "s"
-    }
-   ]
+     [
+      "1",
+      "S",
+      "— (not valid yet)",
+      "—",
+      "—",
+      "3 1 1 1"
+     ],
+     [
+      "2",
+      "A",
+      "— (not valid yet)",
+      "—",
+      "—",
+      "3 0 1 1"
+     ],
+     [
+      "3",
+      "T",
+      "— (not valid yet)",
+      "—",
+      "—",
+      "3 0 0 1"
+     ],
+     [
+      "4",
+      "S",
+      "SSATS",
+      "5",
+      "5",
+      "2 0 0 1"
+     ],
+     [
+      "5",
+      "S",
+      "SATSS",
+      "5",
+      "5",
+      "2 0 0 1"
+     ],
+     [
+      "6",
+      "B",
+      "— (not valid yet)",
+      "—",
+      "5",
+      "3 0 0 0"
+     ],
+     [
+      "7",
+      "S",
+      "SSBS",
+      "4",
+      "4",
+      "2 1 1 0"
+     ]
+    ]
+   }
+  },
+  {
+   "md": "**Why every candidate is seen.** When the inner loop stops at `R`, `[L − 1, R]` was the last valid window, the tightest\none ending at `R`. The shortest valid window overall ends at some `R`, and is the tightest one for that `R`, so it's\nrecorded at that moment."
   }
  ],
  "approaches": [
@@ -37,7 +109,7 @@
    "space": "O(1)",
    "idea": [
     {
-     "md": "If already balanced, 0. Otherwise, for each start, extend the piece (moving singers from the outside counts) until every outside count is ≤ `n/4`."
+     "md": "Check for 0 first. Then from every start, move singers one by one from the outside counts into the piece until no voice exceeds `n/4` outside; that length is the best piece from this start."
     }
    ],
    "build": [
@@ -436,13 +508,14 @@
    "space": "O(1)",
    "idea": [
     {
-     "md": "`out[c]` = count of voice `c` outside the window (initially all of `s`). For each `r`: `out[s[r]] −= 1`; while every `out[c] ≤ n/4`: record, `out[s[left]] += 1`, `left += 1`."
+     "md": "Start with `out` = the counts of the whole string (the piece is empty). `R` moves a singer into the\npiece: `out[s[R]] −= 1`. While every `out[c] ≤ n/4`, record the piece and give back the leftmost singer\n(`out[s[L]] += 1`, `L += 1`).\n\nThe validity check looks at only four counters, so it's O(1)."
     }
    ],
    "build": [
-    "Counts start as the whole string.",
-    "Window takes singers out of the counts.",
-    "Record and shrink while the outside is fine."
+    "Count each voice; return 0 if all are `n/4`.",
+    "`L = 0`, `best = n`.",
+    "For each `R`: `out[s[R]] −= 1`.",
+    "While all four `out` counts are `≤ n/4`: record `R − L + 1`; `out[s[L]] += 1`; `L += 1`."
    ],
    "code": {
     "python": "class Solution:\n    def shortestFix(self, s: str) -> int:\n        n, q = len(s), len(s) // 4\n        out = {c: s.count(c) for c in \"SATB\"}\n        if all(v == q for v in out.values()):\n            return 0\n        best, left = n, 0\n        for i, c in enumerate(s):\n            out[c] -= 1\n            while all(v <= q for v in out.values()):\n                best = min(best, i - left + 1)\n                out[s[left]] += 1\n                left += 1\n        return best\n",
@@ -862,7 +935,7 @@
  ],
  "takeaways": [
   {
-   "md": "- **Reframe \"what to change\" as \"what stays\":** the outside must already be within limits.\n- Track counts of the complement of the window.\n- Then it's the standard shortest-valid-window template."
+   "md": "- **Reframe \"what to change\" as \"what stays\":** the outside must already satisfy the limits.\n- The window tracks counts of its *complement*.\n- Then it's the standard shortest-valid-window template."
   }
  ]
 }

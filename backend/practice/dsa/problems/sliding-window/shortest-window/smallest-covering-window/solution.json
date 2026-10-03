@@ -4,40 +4,120 @@
  "question": [
   {
    "md": "Return the shortest substring of `s` containing every character of `t` with multiplicity (leftmost on ties), or\n`\"\"`. Case-sensitive.\n\n- **Both up to 10⁵ letters.**"
+  },
+  {
+   "md": "**Edge cases to keep in mind**\n\n- `t` longer than `s`, or a letter of `t` missing from `s`: return `\"\"`.\n- Repeated letters in `t` must be matched with multiplicity (`\"AA\"` needs two `A`s).\n- Upper and lower case are different letters."
   }
  ],
  "think": [
   {
-   "md": "`s = \"XBAYCBAXCA\"`, `t = \"ABC\"` → **`CBA`**.\n\nContaining `t`'s characters is preserved by growing the window, so it's a shortest-valid-window problem. The\nonly question is checking validity in O(1): instead of comparing whole count tables, keep one number,\n`missing`, that changes only when a character crosses its required count."
+   "md": "**Shape of the rule.** A window is valid when it contains every letter of `t` at least as many times as `t`\ndoes. Adding letters never breaks that, so it's a shortest-valid-window problem."
   },
   {
-   "panels": [
-    {
-     "type": "row",
-     "cells": [
+   "md": "**Why one left pointer is enough.** Here the rule gets *easier* as a window grows: if `[L, R]` is valid, every longer\nwindow `[L, R']` with `R' > R` is valid too. For each right end `R`, the best window is the valid one with the\n**latest** start. And that latest start never moves backwards as `R` grows: a start that was too early to be the\ntightest for `R` is still too early for `R + 1`. So `R` grows the window until it's valid, then `L` moves forward as\nlong as the window stays valid, recording each valid window on the way."
+  },
+  {
+   "md": "**Trace** on `s = \"XBAYCBAXCA\"`, `t = \"ABC\"` (last column = letters still missing):"
+  },
+  {
+   "table": {
+    "head": [
+     "R",
+     "char",
+     "tightest window",
+     "length",
+     "best",
+     "missing"
+    ],
+    "rows": [
+     [
+      "0",
       "X",
+      "— (not valid yet)",
+      "—",
+      "—",
+      "3"
+     ],
+     [
+      "1",
       "B",
+      "— (not valid yet)",
+      "—",
+      "—",
+      "2"
+     ],
+     [
+      "2",
       "A",
+      "— (not valid yet)",
+      "—",
+      "—",
+      "1"
+     ],
+     [
+      "3",
       "Y",
+      "— (not valid yet)",
+      "—",
+      "—",
+      "1"
+     ],
+     [
+      "4",
       "C",
+      "BAYC",
+      "4",
+      "4",
+      "0"
+     ],
+     [
+      "5",
       "B",
+      "AYCB",
+      "4",
+      "4",
+      "0"
+     ],
+     [
+      "6",
       "A",
+      "CBA",
+      "3",
+      "3",
+      "0"
+     ],
+     [
+      "7",
       "X",
+      "— (not valid yet)",
+      "—",
+      "3",
+      "1"
+     ],
+     [
+      "8",
       "C",
-      "A"
+      "BAXC",
+      "4",
+      "3",
+      "0"
      ],
-     "label": "s"
-    },
-    {
-     "type": "row",
-     "cells": [
+     [
+      "9",
       "A",
-      "B",
-      "C"
-     ],
-     "label": "t"
-    }
-   ]
+      "— (not valid yet)",
+      "—",
+      "3",
+      "1"
+     ]
+    ]
+   }
+  },
+  {
+   "md": "**Validity in O(1) with one counter.** Keep `need[c]` = how many more `c` the window still needs (it goes negative\nwhen the window has extras) and `missing` = the total still needed.\n\n- Adding `c`: if `need[c] > 0`, this copy was actually needed, so `missing −= 1`. Either way `need[c] −= 1`.\n- Removing `c`: `need[c] += 1`; if it becomes positive, the window now lacks a `c`, so `missing += 1`.\n\nThe window is valid exactly when `missing == 0`. No 52-letter comparison is needed."
+  },
+  {
+   "md": "**Why every candidate is seen.** When the inner loop stops at `R`, `[L − 1, R]` was the last valid window, the tightest\none ending at `R`. The shortest valid window overall ends at some `R`, and is the tightest one for that `R`, so it's\nrecorded at that moment."
   }
  ],
  "approaches": [
@@ -48,7 +128,7 @@
    "space": "O(σ)",
    "idea": [
     {
-     "md": "For each start, copy the requirement counts and extend until nothing is missing; record the shortest."
+     "md": "From every start, copy the requirement counts and extend until nothing is missing (only while shorter than the best). Each start redoes the counting."
     }
    ],
    "build": [
@@ -182,7 +262,7 @@
    ],
    "complexity": [
     {
-     "md": "**Time O(n²)** in the worst case. **Space O(σ).**"
+     "md": "**Time O(n²)** in the worst case. **Space O(σ)**: one count per letter."
     }
    ],
    "walk": {
@@ -460,13 +540,14 @@
    "space": "O(σ)",
    "idea": [
     {
-     "md": "`need` from `t`, `missing = len(t)`. For each `r`: if `need[s[r]] > 0`, `missing −= 1`; `need[s[r]] −= 1`. While `missing == 0`: record, then `need[s[left]] += 1`; if it becomes positive, `missing += 1`; `left += 1`."
+     "md": "Grow with `R` (updating `need` and `missing`). While `missing == 0`, record the window if it's strictly\nshorter (that keeps the leftmost on ties, because `R` only increases), then remove `s[L]` and advance.\n\nStore the best window as (length, start) and cut the substring once at the end."
     }
    ],
    "build": [
-    "Requirement counts and `missing`.",
-    "Grow, counting useful characters.",
-    "Record and shrink while complete."
+    "`need` from `t`; `missing = len(t)`; `L = 0`; best = (n + 1, 0).",
+    "Add `s[R]`: `missing −= 1` if it was needed; `need[s[R]] −= 1`.",
+    "While `missing == 0`: record if strictly shorter; `need[s[L]] += 1`; if positive, `missing += 1`; `L += 1`.",
+    "Return the best substring or `\"\"`."
    ],
    "code": {
     "python": "class Solution:\n    def coverWindow(self, s: str, t: str) -> str:\n        need = {}\n        for c in t:\n            need[c] = need.get(c, 0) + 1\n        missing, left = len(t), 0\n        best_len, best_start = len(s) + 1, 0\n        for i, c in enumerate(s):\n            if need.get(c, 0) > 0:\n                missing -= 1\n            need[c] = need.get(c, 0) - 1\n            while missing == 0:\n                if i - left + 1 < best_len:\n                    best_len, best_start = i - left + 1, left\n                need[s[left]] += 1\n                if need[s[left]] > 0:\n                    missing += 1\n                left += 1\n        return s[best_start:best_start + best_len] if best_len <= len(s) else \"\"\n",
@@ -594,7 +675,7 @@
    ],
    "complexity": [
     {
-     "md": "**Time O(n + m).** **Space O(σ)** (128 counters)."
+     "md": "**Time O(n + m):** each index enters and leaves once. **Space O(σ)**: 128 counters."
     }
    ],
    "walk": {
@@ -969,7 +1050,7 @@
  ],
  "takeaways": [
   {
-   "md": "- **Minimum window substring:** shrinking window + a single `missing` counter.\n- `need` can go negative: extras don't change `missing`.\n- Record inside the shrink loop; use strict `<` for leftmost ties."
+   "md": "- **Minimum window containing a multiset:** shrinking window + one `missing` counter.\n- Let `need` go negative for extras; only threshold crossings change `missing`.\n- Strict `<` when recording keeps the leftmost of equal-length answers."
   }
  ]
 }

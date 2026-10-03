@@ -4,32 +4,128 @@
  "question": [
   {
    "md": "Return the length of the shortest stretch of consecutive jars that includes every flavour appearing on the\nshelf.\n\n- **n up to 10⁵**, flavours up to 10⁹."
+  },
+  {
+   "md": "**Edge cases to keep in mind**\n\n- One flavour only: the answer is 1.\n- Every jar different: the answer is `n`.\n- Flavours are up to 10⁹, so they can't index an array directly."
   }
  ],
  "think": [
   {
-   "md": "`jars = [7, 3, 7, 7, 9, 3, 3, 9, 7, 1, 3]` has 4 flavours; the shortest stretch with all of them has length **4**.\n\nAdding jars never removes a flavour, so \"contains everything\" stays true when the window grows: for each right\nend there's a latest left edge that still works, and it only moves right. That's the shrinking-window\npattern, with a counter of how many flavours are currently present."
+   "md": "**Two phases.** First count how many flavours exist: `d = 4` for `jars = [7, 3, 7, 7, 9, 3, 3, 9, 7, 1, 3]`. Then a window is valid when\nit contains all `d` flavours. Adding jars never removes a flavour, so validity survives growing."
   },
   {
-   "panels": [
-    {
-     "type": "row",
-     "cells": [
-      7,
-      3,
-      7,
-      7,
-      9,
-      3,
-      3,
-      9,
-      7,
-      1,
-      3
+   "md": "**Why one left pointer is enough.** Here the rule gets *easier* as a window grows: if `[L, R]` is valid, every longer\nwindow `[L, R']` with `R' > R` is valid too. For each right end `R`, the best window is the valid one with the\n**latest** start. And that latest start never moves backwards as `R` grows: a start that was too early to be the\ntightest for `R` is still too early for `R + 1`. So `R` grows the window until it's valid, then `L` moves forward as\nlong as the window stays valid, recording each valid window on the way."
+  },
+  {
+   "md": "**Trace** (last column = flavours present in the window):"
+  },
+  {
+   "table": {
+    "head": [
+     "R",
+     "jar",
+     "tightest window",
+     "length",
+     "best",
+     "flavours"
+    ],
+    "rows": [
+     [
+      "0",
+      "7",
+      "— (not valid yet)",
+      "—",
+      "—",
+      "1"
      ],
-     "label": "jars"
-    }
-   ]
+     [
+      "1",
+      "3",
+      "— (not valid yet)",
+      "—",
+      "—",
+      "2"
+     ],
+     [
+      "2",
+      "7",
+      "— (not valid yet)",
+      "—",
+      "—",
+      "2"
+     ],
+     [
+      "3",
+      "7",
+      "— (not valid yet)",
+      "—",
+      "—",
+      "2"
+     ],
+     [
+      "4",
+      "9",
+      "— (not valid yet)",
+      "—",
+      "—",
+      "3"
+     ],
+     [
+      "5",
+      "3",
+      "— (not valid yet)",
+      "—",
+      "—",
+      "3"
+     ],
+     [
+      "6",
+      "3",
+      "— (not valid yet)",
+      "—",
+      "—",
+      "3"
+     ],
+     [
+      "7",
+      "9",
+      "— (not valid yet)",
+      "—",
+      "—",
+      "3"
+     ],
+     [
+      "8",
+      "7",
+      "— (not valid yet)",
+      "—",
+      "—",
+      "3"
+     ],
+     [
+      "9",
+      "1",
+      "3 9 7 1",
+      "4",
+      "4",
+      "4"
+     ],
+     [
+      "10",
+      "3",
+      "9 7 1 3",
+      "4",
+      "4",
+      "4"
+     ]
+    ]
+   }
+  },
+  {
+   "md": "**Checking \"all flavours present\" in O(1).** Keep `count[f]` for the window and `have` = flavours with a positive\ncount. A count rising from 0 to 1 adds to `have`; one dropping from 1 to 0 subtracts. The window is valid exactly\nwhen `have == d`."
+  },
+  {
+   "md": "**Why every candidate is seen.** When the inner loop stops at `R`, `[L − 1, R]` was the last valid window, the tightest\none ending at `R`. The shortest valid window overall ends at some `R`, and is the tightest one for that `R`, so it's\nrecorded at that moment."
   }
  ],
  "approaches": [
@@ -40,7 +136,7 @@
    "space": "O(n)",
    "idea": [
     {
-     "md": "For each start, add jars to a set until it has all `d` flavours."
+     "md": "From every jar, extend until all `d` flavours have been seen; only extensions shorter than the best so far are worth trying. Each start rebuilds its set."
     }
    ],
    "build": [
@@ -502,13 +598,14 @@
    "space": "O(n)",
    "idea": [
     {
-     "md": "`count[f]` for the window, `have` = flavours with a positive count. Add `jars[r]`; while `have == d`, record and remove `jars[left]`."
+     "md": "Grow with `R` (updating `count` and `have`). While `have == d`, record `R − L + 1`, then remove `jars[L]`;\nif its count falls to 0, `have` drops and the loop stops.\n\n**Large values.** Use a hash map for the counts, or compress the flavours once (sort the distinct values,\nand replace each jar by its rank), which lets C use a plain array."
     }
    ],
    "build": [
-    "Number of flavours.",
-    "Counts and `have`.",
-    "Record and shrink while complete."
+    "`d` = number of distinct flavours.",
+    "Counts, `have = 0`, `L = 0`, `best = n`.",
+    "Add `jars[R]`: a 0 → 1 count means `have += 1`.",
+    "While `have == d`: record; remove `jars[L]` (1 → 0 means `have −= 1`); `L += 1`."
    ],
    "code": {
     "python": "class Solution:\n    def shortestSampler(self, jars: List[int]) -> int:\n        d = len(set(jars))\n        count, have, left, best = {}, 0, 0, len(jars)\n        for i, f in enumerate(jars):\n            count[f] = count.get(f, 0) + 1\n            if count[f] == 1:\n                have += 1\n            while have == d:\n                best = min(best, i - left + 1)\n                g = jars[left]\n                count[g] -= 1\n                if count[g] == 0:\n                    have -= 1\n                left += 1\n        return best\n",
@@ -654,7 +751,7 @@
    ],
    "complexity": [
     {
-     "md": "**Time O(n)** expected (O(n log n) for C's compression). **Space O(n).**"
+     "md": "**Time O(n)** expected with hashing (O(n log n) with sorting-based compression). **Space O(n).**"
     }
    ],
    "walk": {
@@ -1097,7 +1194,7 @@
  ],
  "takeaways": [
   {
-   "md": "- **Shortest window containing all kinds:** counts + a \"kinds present\" counter.\n- Large keys: hash map, or compress to `0..d−1` once.\n- Record inside the shrink loop: each recorded window is minimal for its right end."
+   "md": "- **Shortest window containing every kind:** counts + \"kinds present\" counter, grow then shrink.\n- Decide the target (`d`) before sliding.\n- Large keys → hash map or one-time compression."
   }
  ]
 }

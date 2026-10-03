@@ -4,29 +4,101 @@
  "question": [
   {
    "md": "Return the fewest consecutive hours whose gains sum to at least `target`, or 0 if none.\n\n- **n up to 10⁵**, gains positive."
+  },
+  {
+   "md": "**Edge cases to keep in mind**\n\n- The total of all hours is below the target: return 0.\n- One hour alone reaches the target: the answer is 1.\n- The answer can be anywhere; the earliest valid window isn't necessarily the shortest."
   }
  ],
  "think": [
   {
-   "md": "`gains = [2, 3, 1, 2, 4, 3, 1, 5]`, `target = 9` → **3** hours.\n\nThe mirror image of \"longest window under a budget\": here valid windows are those with a large enough sum,\nand adding hours keeps a window valid. For each right end, the best window is the one with the left edge as\nfar right as possible, and that left edge never moves back as the right end advances."
+   "md": "**This is the mirror image of \"longest window under a budget\".** Gains are positive, so adding an hour raises\nthe total and dropping one lowers it. A window is *valid* when its total is at least the target, and validity is\nkept when the window grows."
   },
   {
-   "panels": [
-    {
-     "type": "row",
-     "cells": [
-      2,
-      3,
-      1,
-      2,
-      4,
-      3,
-      1,
-      5
+   "md": "**Why one left pointer is enough.** Here the rule gets *easier* as a window grows: if `[L, R]` is valid, every longer\nwindow `[L, R']` with `R' > R` is valid too. For each right end `R`, the best window is the valid one with the\n**latest** start. And that latest start never moves backwards as `R` grows: a start that was too early to be the\ntightest for `R` is still too early for `R + 1`. So `R` grows the window until it's valid, then `L` moves forward as\nlong as the window stays valid, recording each valid window on the way."
+  },
+  {
+   "md": "**Trace with `target = 9`** (the tightest valid window ending at each `R`):"
+  },
+  {
+   "table": {
+    "head": [
+     "R",
+     "gain",
+     "tightest window",
+     "length",
+     "best",
+     "its sum"
+    ],
+    "rows": [
+     [
+      "0",
+      "2",
+      "— (not valid yet)",
+      "—",
+      "—",
+      "2"
      ],
-     "label": "gains"
-    }
-   ]
+     [
+      "1",
+      "3",
+      "— (not valid yet)",
+      "—",
+      "—",
+      "5"
+     ],
+     [
+      "2",
+      "1",
+      "— (not valid yet)",
+      "—",
+      "—",
+      "6"
+     ],
+     [
+      "3",
+      "2",
+      "— (not valid yet)",
+      "—",
+      "—",
+      "8"
+     ],
+     [
+      "4",
+      "4",
+      "3 1 2 4",
+      "4",
+      "4",
+      "10"
+     ],
+     [
+      "5",
+      "3",
+      "2 4 3",
+      "3",
+      "3",
+      "9"
+     ],
+     [
+      "6",
+      "1",
+      "— (not valid yet)",
+      "—",
+      "3",
+      "8"
+     ],
+     [
+      "7",
+      "5",
+      "3 1 5",
+      "3",
+      "3",
+      "9"
+     ]
+    ]
+   }
+  },
+  {
+   "md": "**Why every candidate is seen.** When the inner loop stops at `R`, `[L − 1, R]` was the last valid window, the tightest\none ending at `R`. The shortest valid window overall ends at some `R`, and is the tightest one for that `R`, so it's\nrecorded at that moment."
   }
  ],
  "approaches": [
@@ -37,7 +109,7 @@
    "space": "O(1)",
    "idea": [
     {
-     "md": "For each start, add hours until the total reaches the target; record the length."
+     "md": "From every hour, add hours until the total reaches the target. That first moment gives the shortest push starting at that hour; keep the minimum over all starts."
     }
    ],
    "build": [
@@ -463,13 +535,14 @@
    "space": "O(1)",
    "idea": [
     {
-     "md": "Add `gains[r]`. While `total ≥ target`: record `r − left + 1`, subtract `gains[left]`, advance `left`."
+     "md": "Grow with `R`, adding `gains[R]` to `total`. While `total ≥ target`, the window `[L, R]` is valid: record\nits length, then remove `gains[L]` and advance `L` to try a shorter one.\n\nAfter the loop, `[L, R]` is no longer valid, which means `[L − 1, R]` was the tightest valid window ending\nat `R` (when any exists).\n\nUse `n + 1` as \"not found\" and translate it to 0 at the end."
     }
    ],
    "build": [
-    "Running total.",
-    "Record and shrink while the target is met.",
-    "0 if never met."
+    "`L = 0`, `total = 0`, `best = n + 1`.",
+    "For each `R`: `total += gains[R]`.",
+    "While `total ≥ target`: `best = min(best, R − L + 1)`; `total −= gains[L]`; `L += 1`.",
+    "Return `best` if it's at most `n`, else 0."
    ],
    "code": {
     "python": "class Solution:\n    def shortestPush(self, gains: List[int], target: int) -> int:\n        left = total = 0\n        best = len(gains) + 1\n        for i, g in enumerate(gains):\n            total += g\n            while total >= target:\n                best = min(best, i - left + 1)\n                total -= gains[left]\n                left += 1\n        return best if best <= len(gains) else 0\n",
@@ -597,7 +670,7 @@
    ],
    "complexity": [
     {
-     "md": "**Time O(n):** each hour enters and leaves once. **Space O(1).**"
+     "md": "**Time O(n):** every hour enters once and leaves at most once. **Space O(1).**"
     }
    ],
    "walk": {
@@ -884,7 +957,7 @@
  ],
  "takeaways": [
   {
-   "md": "- **Shortest window with a \"big enough\" rule:** grow until valid, then shrink while valid, recording each time.\n- Needs monotonicity: positive values make sums grow with the window.\n- Use a sentinel (`n + 1`) for \"not found\"."
+   "md": "- **Shortest window with a \"big enough\" rule:** grow until valid, then shrink while valid, recording inside the\n  shrink loop.\n- Needs a rule that survives growing (positive values for sums).\n- Use a sentinel for \"not found\"."
   }
  ]
 }
