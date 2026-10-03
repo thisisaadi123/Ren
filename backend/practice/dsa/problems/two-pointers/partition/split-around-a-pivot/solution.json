@@ -1,0 +1,529 @@
+{
+ "version": 1,
+ "summary": "Count how many values are less than and equal to the pivot; that tells you where each group starts in the\noutput. Then walk the input once, dropping each value into the next free slot of its group. Every group keeps\nits original order (stable), in O(n).",
+ "question": [
+  {
+   "md": "Rearrange so values `< pivot` come first, then `= pivot`, then `> pivot`, **keeping the original order inside\neach group**.\n\n- **Stability is required**, so in-place swapping (the flag partition) won't do: swaps reorder elements.\n- **Up to 10⁵ values.**"
+  }
+ ],
+ "think": [
+  {
+   "md": "`[9, 12, 5, 10, 3, 10, 14]` with pivot 10 → `[9, 5, 3, 10, 10, 12, 14]`. 9, 5, 3 stay in that order; so do 12, 14.\n\nThe in-place three-pointer partition would scramble the order inside groups. Instead, since every group's\nfinal position is known once we count the groups' sizes, each value can go straight to its spot."
+  },
+  {
+   "panels": [
+    {
+     "type": "row",
+     "cells": [
+      9,
+      12,
+      5,
+      10,
+      3,
+      10,
+      14
+     ],
+     "label": "values"
+    },
+    {
+     "type": "row",
+     "cells": [
+      9,
+      5,
+      3,
+      10,
+      10,
+      12,
+      14
+     ],
+     "label": "split"
+    }
+   ]
+  }
+ ],
+ "approaches": [
+  {
+   "title": "Stable sort by group",
+   "kind": "brute",
+   "time": "O(n log n)",
+   "space": "O(n)",
+   "idea": [
+    {
+     "md": "Sort the values by a key: 0 for less, 1 for equal, 2 for greater. A stable sort keeps the original order among equal keys."
+    }
+   ],
+   "build": [
+    "Key function.",
+    "Stable sort."
+   ],
+   "code": {
+    "python": "class Solution:\n    def splitAround(self, values: List[int], pivot: int) -> List[int]:\n        group = lambda x: 0 if x < pivot else (1 if x == pivot else 2)\n        return sorted(values, key=group)\n",
+    "java": "class Solution {\n    public int[] splitAround(int[] values, int pivot) {\n        Integer[] a = Arrays.stream(values).boxed().toArray(Integer[]::new);\n        Arrays.sort(a, Comparator.comparingInt(x -> x < pivot ? 0 : (x == pivot ? 1 : 2)));\n        return Arrays.stream(a).mapToInt(Integer::intValue).toArray();\n    }\n}\n",
+    "cpp": "class Solution {\npublic:\n    vector<int> splitAround(vector<int>& values, int pivot) {\n        auto group = [pivot](int x) { return x < pivot ? 0 : (x == pivot ? 1 : 2); };\n        vector<int> a = values;\n        stable_sort(a.begin(), a.end(), [&](int x, int y) { return group(x) < group(y); });\n        return a;\n    }\n};\n",
+    "c": "typedef struct { int value, group, at; } Item;\n\nstatic int by_group(const void* p, const void* q) {\n    const Item *a = p, *b = q;\n    return a->group != b->group ? a->group - b->group : a->at - b->at;\n}\n\nint* splitAround(int* values, int valuesSize, int pivot, int* returnSize) {\n    Item* items = malloc(valuesSize * sizeof(Item));\n    for (int i = 0; i < valuesSize; i++)\n        items[i] = (Item){values[i], values[i] < pivot ? 0 : (values[i] == pivot ? 1 : 2), i};\n    qsort(items, valuesSize, sizeof(Item), by_group);\n    int* out = malloc(valuesSize * sizeof(int));\n    for (int i = 0; i < valuesSize; i++) out[i] = items[i].value;\n    free(items);\n    *returnSize = valuesSize;\n    return out;\n}\n"
+   },
+   "lines": [
+    {
+     "text": "Each value's group.",
+     "at": {
+      "python": [
+       [
+        3,
+        3
+       ]
+      ],
+      "java": [
+       [
+        3,
+        3
+       ]
+      ],
+      "cpp": [
+       [
+        4,
+        4
+       ]
+      ],
+      "c": [
+       [
+        3,
+        6
+       ]
+      ]
+     },
+     "notes": {
+      "c": "`qsort` isn't stable, so the original position breaks ties."
+     }
+    },
+    {
+     "text": "A stable sort by group keeps each group in original order.",
+     "at": {
+      "python": [
+       [
+        4,
+        4
+       ]
+      ],
+      "java": [
+       [
+        4,
+        5
+       ]
+      ],
+      "cpp": [
+       [
+        5,
+        7
+       ]
+      ],
+      "c": [
+       [
+        9,
+        17
+       ]
+      ]
+     },
+     "notes": {
+      "java": "`Arrays.sort` on objects is stable.",
+      "cpp": "`stable_sort`, not `sort`."
+     }
+    }
+   ],
+   "complexity": [
+    {
+     "md": "**Time O(n log n).** **Space O(n).**"
+    }
+   ],
+   "walk": {
+    "steps": [
+     {
+      "text": "Group of each value.",
+      "panels": [
+       {
+        "type": "row",
+        "cells": [
+         9,
+         12,
+         5,
+         10,
+         3,
+         10,
+         14
+        ]
+       },
+       {
+        "type": "row",
+        "cells": [
+         0,
+         2,
+         0,
+         1,
+         0,
+         1,
+         2
+        ],
+        "label": "group"
+       }
+      ]
+     },
+     {
+      "text": "Stable sort by group: [9, 5, 3, 10, 10, 12, 14].",
+      "panels": [
+       {
+        "type": "row",
+        "cells": [
+         9,
+         5,
+         3,
+         10,
+         10,
+         12,
+         14
+        ]
+       }
+      ],
+      "result": "[9, 5, 3, 10, 10, 12, 14]"
+     }
+    ],
+    "title": "Sort by group (less = 0, equal = 1, greater = 2) with a stable sort, which keeps the original order inside each group."
+   },
+   "limits": [
+    {
+     "md": "Sorting is overkill with only three groups: their sizes fix every value's destination, so one counting pass plus one placing pass suffices."
+    }
+   ]
+  },
+  {
+   "title": "Count the groups, then place",
+   "kind": "best",
+   "time": "O(n)",
+   "space": "O(n)",
+   "idea": [
+    {
+     "md": "Count `less` and `equal`. Write pointers start at `0`, `less` and `less + equal`. Walk the values, writing each at its group's pointer and advancing it."
+    }
+   ],
+   "build": [
+    "Count less and equal.",
+    "Three write pointers.",
+    "Place in one pass."
+   ],
+   "code": {
+    "python": "class Solution:\n    def splitAround(self, values: List[int], pivot: int) -> List[int]:\n        less = sum(1 for x in values if x < pivot)\n        equal = sum(1 for x in values if x == pivot)\n        out = [0] * len(values)\n        a, b, c = 0, less, less + equal\n        for x in values:\n            if x < pivot:\n                out[a] = x; a += 1\n            elif x == pivot:\n                out[b] = x; b += 1\n            else:\n                out[c] = x; c += 1\n        return out\n",
+    "java": "class Solution {\n    public int[] splitAround(int[] values, int pivot) {\n        int less = 0, equal = 0;\n        for (int x : values) { if (x < pivot) less++; else if (x == pivot) equal++; }\n        int[] out = new int[values.length];\n        int a = 0, b = less, c = less + equal;\n        for (int x : values) {\n            if (x < pivot) out[a++] = x;\n            else if (x == pivot) out[b++] = x;\n            else out[c++] = x;\n        }\n        return out;\n    }\n}\n",
+    "cpp": "class Solution {\npublic:\n    vector<int> splitAround(vector<int>& values, int pivot) {\n        int less = 0, equal = 0;\n        for (int x : values) { if (x < pivot) less++; else if (x == pivot) equal++; }\n        vector<int> out(values.size());\n        int a = 0, b = less, c = less + equal;\n        for (int x : values) {\n            if (x < pivot) out[a++] = x;\n            else if (x == pivot) out[b++] = x;\n            else out[c++] = x;\n        }\n        return out;\n    }\n};\n",
+    "c": "int* splitAround(int* values, int valuesSize, int pivot, int* returnSize) {\n    int less = 0, equal = 0;\n    for (int i = 0; i < valuesSize; i++) { if (values[i] < pivot) less++; else if (values[i] == pivot) equal++; }\n    int* out = malloc(valuesSize * sizeof(int));\n    int a = 0, b = less, c = less + equal;\n    for (int i = 0; i < valuesSize; i++) {\n        if (values[i] < pivot) out[a++] = values[i];\n        else if (values[i] == pivot) out[b++] = values[i];\n        else out[c++] = values[i];\n    }\n    *returnSize = valuesSize;\n    return out;\n}\n"
+   },
+   "lines": [
+    {
+     "text": "Sizes of the first two groups.",
+     "at": {
+      "python": [
+       [
+        3,
+        4
+       ]
+      ],
+      "java": [
+       [
+        3,
+        4
+       ]
+      ],
+      "cpp": [
+       [
+        4,
+        5
+       ]
+      ],
+      "c": [
+       [
+        2,
+        3
+       ]
+      ]
+     }
+    },
+    {
+     "text": "Each group's first slot in the output.",
+     "at": {
+      "python": [
+       [
+        5,
+        6
+       ]
+      ],
+      "java": [
+       [
+        5,
+        6
+       ]
+      ],
+      "cpp": [
+       [
+        6,
+        7
+       ]
+      ],
+      "c": [
+       [
+        4,
+        5
+       ]
+      ]
+     }
+    },
+    {
+     "text": "In input order, each value goes to its group's next slot, so order within a group is kept.",
+     "at": {
+      "python": [
+       [
+        7,
+        13
+       ]
+      ],
+      "java": [
+       [
+        7,
+        10
+       ]
+      ],
+      "cpp": [
+       [
+        8,
+        11
+       ]
+      ],
+      "c": [
+       [
+        6,
+        9
+       ]
+      ]
+     }
+    },
+    {
+     "text": "The split list.",
+     "at": {
+      "python": [
+       [
+        14,
+        14
+       ]
+      ],
+      "java": [
+       [
+        12,
+        12
+       ]
+      ],
+      "cpp": [
+       [
+        13,
+        13
+       ]
+      ],
+      "c": [
+       [
+        11,
+        12
+       ]
+      ]
+     }
+    }
+   ],
+   "complexity": [
+    {
+     "md": "**Time O(n):** two passes. **Space O(n)** for the output."
+    }
+   ],
+   "walk": {
+    "steps": [
+     {
+      "text": "3 values are less than 10 and 2 equal: the groups start at 0, 3 and 5.",
+      "panels": [
+       {
+        "type": "row",
+        "cells": [
+         9,
+         12,
+         5,
+         10,
+         3,
+         10,
+         14
+        ]
+       },
+       {
+        "type": "vars",
+        "items": {
+         "less at": 0,
+         "equal at": 3,
+         "greater at": 5
+        }
+       }
+      ]
+     },
+     {
+      "text": "Place 9 at 0.",
+      "panels": [
+       {
+        "type": "row",
+        "cells": [
+         9,
+         "·",
+         "·",
+         "·",
+         "·",
+         "·",
+         "·"
+        ],
+        "states": {
+         "0": "new"
+        },
+        "label": "output"
+       }
+      ]
+     },
+     {
+      "text": "Place 12 at 5.",
+      "panels": [
+       {
+        "type": "row",
+        "cells": [
+         9,
+         "·",
+         "·",
+         "·",
+         "·",
+         12,
+         "·"
+        ],
+        "states": {
+         "5": "new"
+        },
+        "label": "output"
+       }
+      ]
+     },
+     {
+      "text": "Place 5 at 1.",
+      "panels": [
+       {
+        "type": "row",
+        "cells": [
+         9,
+         5,
+         "·",
+         "·",
+         "·",
+         12,
+         "·"
+        ],
+        "states": {
+         "1": "new"
+        },
+        "label": "output"
+       }
+      ]
+     },
+     {
+      "text": "Place 10 at 3.",
+      "panels": [
+       {
+        "type": "row",
+        "cells": [
+         9,
+         5,
+         "·",
+         10,
+         "·",
+         12,
+         "·"
+        ],
+        "states": {
+         "3": "new"
+        },
+        "label": "output"
+       }
+      ]
+     },
+     {
+      "text": "Place 3 at 2.",
+      "panels": [
+       {
+        "type": "row",
+        "cells": [
+         9,
+         5,
+         3,
+         10,
+         "·",
+         12,
+         "·"
+        ],
+        "states": {
+         "2": "new"
+        },
+        "label": "output"
+       }
+      ]
+     },
+     {
+      "text": "Place 10 at 4.",
+      "panels": [
+       {
+        "type": "row",
+        "cells": [
+         9,
+         5,
+         3,
+         10,
+         10,
+         12,
+         "·"
+        ],
+        "states": {
+         "4": "new"
+        },
+        "label": "output"
+       }
+      ]
+     },
+     {
+      "text": "Place 14 at 6.",
+      "panels": [
+       {
+        "type": "row",
+        "cells": [
+         9,
+         5,
+         3,
+         10,
+         10,
+         12,
+         14
+        ],
+        "states": {
+         "6": "new"
+        },
+        "label": "output"
+       }
+      ]
+     },
+     {
+      "text": "Result: [9, 5, 3, 10, 10, 12, 14].",
+      "panels": [],
+      "result": "[9, 5, 3, 10, 10, 12, 14]"
+     }
+    ],
+    "title": "Count the smaller and equal values to know where each group starts, then place every value at its group's next free slot."
+   }
+  }
+ ],
+ "takeaways": [
+  {
+   "md": "- **Stable three-way split:** count group sizes, then place with one write pointer per group.\n- The in-place flag partition is O(1) space but **not stable**.\n- Counting group sizes to find destinations is the core of counting sort."
+  }
+ ]
+}

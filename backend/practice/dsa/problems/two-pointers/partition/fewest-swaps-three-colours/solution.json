@@ -1,0 +1,273 @@
+{
+ "version": 1,
+ "summary": "Compare each position with the sorted row and count misplaced balls by type: \"a 1 sitting where a 0 belongs\",\nand so on. Two balls that are in each other's places are fixed by one swap, so pair those up first. Whatever is\nleft forms 3-cycles (0 → 1 → 2 → 0), and each 3-cycle needs exactly 2 swaps. O(n).",
+ "question": [
+  {
+   "md": "Any two balls may be swapped. Find the fewest swaps to arrange the row as 0s, then 1s, then 2s.\n\n- **Swaps aren't limited to neighbours**, unlike counting inversions.\n- **Up to 10⁵ balls.**"
+  }
+ ],
+ "think": [
+  {
+   "md": "`[2, 0, 1, 0, 2, 1, 0]` must become `[0, 0, 0, 1, 1, 2, 2]`, which takes **3** swaps.\n\nOnly misplaced balls matter. Label each by what it is and what its slot needs: a \"1 in a 0-slot\" and a \"0 in a\n1-slot\" swap with each other and both become correct: the best possible, two fixes per swap. After using all\nsuch pairs, the leftovers can't pair up, so they chase each other in cycles of three (a 0 in a 1-slot, a 1 in\na 2-slot, a 2 in a 0-slot), and any 3-cycle needs 2 swaps for 3 balls."
+  },
+  {
+   "panels": [
+    {
+     "type": "row",
+     "cells": [
+      2,
+      0,
+      1,
+      0,
+      2,
+      1,
+      0
+     ],
+     "label": "now"
+    },
+    {
+     "type": "row",
+     "cells": [
+      0,
+      0,
+      0,
+      1,
+      1,
+      2,
+      2
+     ],
+     "label": "target"
+    }
+   ]
+  }
+ ],
+ "approaches": [
+  {
+   "title": "Count misplacements, pair them, then cycles",
+   "kind": "best",
+   "time": "O(n)",
+   "space": "O(1)",
+   "idea": [
+    {
+     "md": "Count the sorted target with three counters (no full sort needed: the first `n0` slots need 0, the next `n1` need 1). Tally `c[have][need]` for misplaced balls. Swaps = Σ min(c[a][b], c[b][a]) over pairs, plus 2 × (remaining misplaced) / 3."
+    }
+   ],
+   "build": [
+    "Count colours to know each slot's target.",
+    "Tally `c[have][need]`.",
+    "Pair swaps, then 3-cycles."
+   ],
+   "code": {
+    "python": "class Solution:\n    def minSwapsThreeColours(self, balls: List[int]) -> int:\n        n0, n1 = balls.count(0), balls.count(1)\n        c = [[0] * 3 for _ in range(3)]\n        for i, b in enumerate(balls):\n            need = 0 if i < n0 else (1 if i < n0 + n1 else 2)\n            c[b][need] += 1\n        moves = 0\n        for a in range(3):\n            for b in range(a + 1, 3):\n                m = min(c[a][b], c[b][a])\n                moves += m\n                c[a][b] -= m\n                c[b][a] -= m\n        left = c[0][1] + c[0][2] + c[1][0] + c[1][2] + c[2][0] + c[2][1]\n        return moves + 2 * left // 3\n",
+    "java": "class Solution {\n    public int minSwapsThreeColours(int[] balls) {\n        int n0 = 0, n1 = 0;\n        for (int b : balls) { if (b == 0) n0++; else if (b == 1) n1++; }\n        int[][] c = new int[3][3];\n        for (int i = 0; i < balls.length; i++) {\n            int need = i < n0 ? 0 : (i < n0 + n1 ? 1 : 2);\n            c[balls[i]][need]++;\n        }\n        int moves = 0;\n        for (int a = 0; a < 3; a++)\n            for (int b = a + 1; b < 3; b++) {\n                int m = Math.min(c[a][b], c[b][a]);\n                moves += m;\n                c[a][b] -= m;\n                c[b][a] -= m;\n            }\n        int left = c[0][1] + c[0][2] + c[1][0] + c[1][2] + c[2][0] + c[2][1];\n        return moves + 2 * left / 3;\n    }\n}\n",
+    "cpp": "class Solution {\npublic:\n    int minSwapsThreeColours(vector<int>& balls) {\n        int n0 = count(balls.begin(), balls.end(), 0), n1 = count(balls.begin(), balls.end(), 1);\n        int c[3][3] = {};\n        for (int i = 0; i < (int) balls.size(); i++) {\n            int need = i < n0 ? 0 : (i < n0 + n1 ? 1 : 2);\n            c[balls[i]][need]++;\n        }\n        int moves = 0;\n        for (int a = 0; a < 3; a++)\n            for (int b = a + 1; b < 3; b++) {\n                int m = min(c[a][b], c[b][a]);\n                moves += m;\n                c[a][b] -= m;\n                c[b][a] -= m;\n            }\n        int left = c[0][1] + c[0][2] + c[1][0] + c[1][2] + c[2][0] + c[2][1];\n        return moves + 2 * left / 3;\n    }\n};\n",
+    "c": "int minSwapsThreeColours(int* balls, int ballsSize) {\n    int n0 = 0, n1 = 0;\n    for (int i = 0; i < ballsSize; i++) { if (balls[i] == 0) n0++; else if (balls[i] == 1) n1++; }\n    int c[3][3] = {{0}};\n    for (int i = 0; i < ballsSize; i++) {\n        int need = i < n0 ? 0 : (i < n0 + n1 ? 1 : 2);\n        c[balls[i]][need]++;\n    }\n    int moves = 0;\n    for (int a = 0; a < 3; a++)\n        for (int b = a + 1; b < 3; b++) {\n            int m = c[a][b] < c[b][a] ? c[a][b] : c[b][a];\n            moves += m;\n            c[a][b] -= m;\n            c[b][a] -= m;\n        }\n    int left = c[0][1] + c[0][2] + c[1][0] + c[1][2] + c[2][0] + c[2][1];\n    return moves + 2 * left / 3;\n}\n"
+   },
+   "lines": [
+    {
+     "text": "How many 0s and 1s there are: the sorted row has 0s in `[0, n0)`, 1s in `[n0, n0+n1)`, 2s after.",
+     "at": {
+      "python": [
+       [
+        3,
+        3
+       ]
+      ],
+      "java": [
+       [
+        3,
+        4
+       ]
+      ],
+      "cpp": [
+       [
+        4,
+        4
+       ]
+      ],
+      "c": [
+       [
+        2,
+        3
+       ]
+      ]
+     }
+    },
+    {
+     "text": "`c[have][need]` counts balls of colour `have` sitting in a slot that needs `need` (the diagonal is correct balls).",
+     "at": {
+      "python": [
+       [
+        4,
+        7
+       ]
+      ],
+      "java": [
+       [
+        5,
+        8
+       ]
+      ],
+      "cpp": [
+       [
+        5,
+        8
+       ]
+      ],
+      "c": [
+       [
+        4,
+        7
+       ]
+      ]
+     }
+    },
+    {
+     "text": "An `a` in a `b`-slot and a `b` in an `a`-slot swap with each other: one swap, two balls fixed.",
+     "at": {
+      "python": [
+       [
+        8,
+        14
+       ]
+      ],
+      "java": [
+       [
+        10,
+        16
+       ]
+      ],
+      "cpp": [
+       [
+        10,
+        16
+       ]
+      ],
+      "c": [
+       [
+        9,
+        15
+       ]
+      ]
+     }
+    },
+    {
+     "text": "What's left forms 3-cycles in equal numbers, so `left` is a multiple of 3; each cycle of 3 balls takes 2 swaps.",
+     "at": {
+      "python": [
+       [
+        15,
+        16
+       ]
+      ],
+      "java": [
+       [
+        18,
+        19
+       ]
+      ],
+      "cpp": [
+       [
+        18,
+        19
+       ]
+      ],
+      "c": [
+       [
+        17,
+        18
+       ]
+      ]
+     }
+    }
+   ],
+   "complexity": [
+    {
+     "md": "**Time O(n).** **Space O(1).**"
+    }
+   ],
+   "walk": {
+    "steps": [
+     {
+      "text": "Sorted target: [0, 0, 0, 1, 1, 2, 2].",
+      "panels": [
+       {
+        "type": "row",
+        "cells": [
+         2,
+         0,
+         1,
+         0,
+         2,
+         1,
+         0
+        ],
+        "states": {
+         "0": "mark",
+         "2": "mark",
+         "3": "mark",
+         "4": "mark",
+         "5": "mark",
+         "6": "mark"
+        },
+        "label": "now"
+       },
+       {
+        "type": "row",
+        "cells": [
+         0,
+         0,
+         0,
+         1,
+         1,
+         2,
+         2
+        ],
+        "label": "target"
+       }
+      ]
+     },
+     {
+      "text": "Misplaced counts: a 'have a, need b' ball and a 'have b, need a' ball fix each other with one swap.",
+      "panels": [
+       {
+        "type": "vars",
+        "items": {
+         "0→1": 1,
+         "0→2": 1,
+         "1→0": 1,
+         "1→2": 1,
+         "2→0": 1,
+         "2→1": 1
+        }
+       }
+      ]
+     },
+     {
+      "text": "Direct pair swaps: 3. 0 misplaced balls remain; they form 3-cycles (0→1→2→0), each fixed with 2 swaps: 0.",
+      "panels": [
+       {
+        "type": "vars",
+        "items": {
+         "pair swaps": 3,
+         "cycle swaps": 0
+        }
+       }
+      ]
+     },
+     {
+      "text": "Fewest moves: 3.",
+      "panels": [],
+      "result": "3"
+     }
+    ],
+    "title": "Compare the row with its sorted version. Count misplaced balls by (colour it is, colour the slot needs)."
+   }
+  }
+ ],
+ "takeaways": [
+  {
+   "md": "- **Minimum arbitrary swaps to sort = n − (number of cycles)** in the misplacement graph; with few values, count\n  2-cycles and 3-cycles directly.\n- Pair up mutual misplacements first: each swap fixes two items.\n- Neighbour-only swaps are a different problem (count inversions instead)."
+  }
+ ]
+}
