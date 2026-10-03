@@ -253,6 +253,8 @@
     /* Rendering, part by part ------------------------------------------------------- */
 
     let shown = 0;
+    let picked = null; // the part chosen in the nav, until the reader scrolls by hand
+    let markNow = null;
 
     function render(count) {
       const list = parts();
@@ -321,7 +323,11 @@
       store.set(key, shown);
       paintNav();
       paintNext();
-      if (first) scrollTo(first);
+      if (first) {
+        picked = first.dataset.part;
+        scrollTo(first);
+        if (markNow) markNow();
+      }
     }
 
     function scrollTo(sec) {
@@ -345,6 +351,10 @@
           if (sec.getBoundingClientRect().top <= line) current = sec.dataset.part;
         });
         current = current || "question";
+        // A short last part can't scroll up to the line; at the bottom it's the one being read.
+        const parts = el.querySelectorAll(".sol-part");
+        if (parts.length && box.scrollTop + box.clientHeight >= box.scrollHeight - 4) current = parts[parts.length - 1].dataset.part;
+        if (picked) current = picked;
         nav.querySelectorAll("[data-go]").forEach((b) => {
           const on = b.dataset.go === current;
           b.setAttribute("aria-current", on ? "true" : "false");
@@ -354,6 +364,16 @@
         });
       };
       box.addEventListener("scroll", () => (raf = raf || requestAnimationFrame(mark)), { passive: true });
+      // A click on the nav marks that part at once; the next user scroll returns to position-based marking.
+      const release = () => {
+        if (!picked) return;
+        picked = null;
+        mark();
+      };
+      box.addEventListener("wheel", release, { passive: true });
+      box.addEventListener("touchmove", release, { passive: true });
+      box.addEventListener("keydown", release);
+      markNow = mark;
       mark();
     }
 
@@ -368,7 +388,11 @@
       const go = t.closest("[data-go]");
       if (go && !go.disabled) {
         const sec = el.querySelector(`[data-part="${go.dataset.go}"]`);
-        if (sec) scrollTo(sec);
+        if (sec) {
+          picked = go.dataset.go;
+          scrollTo(sec);
+          if (markNow) markNow();
+        }
         return;
       }
       const pick = t.closest("[data-sol-lang]");
