@@ -4,43 +4,68 @@
  "question": [
   {
    "md": "Find every **different** triple of values (from three different positions) summing to 0. Each triple is written\nin increasing order, and the list is sorted.\n\n- **Duplicates in the input** must not create duplicate triples: `[-1, 0, 1]` is reported once.\n- **Up to 2000 values.**"
+  },
+  {
+   "md": "**Edge cases to keep in mind**\n\n- Repeated values can form the same triple in several ways; each different triple is reported once.\n- `[0, 0, 0]` is a valid triple when there are three zeros.\n- No triple: return an empty list."
   }
  ],
  "think": [
   {
-   "md": "`[-1, 0, 1, 2, -1, -4, 2, -2]` gives `[[-4, 2, 2], [-2, 0, 2], [-1, -1, 2], [-1, 0, 1]]`.\n\nThe 3-sum squeeze finds every triple, but with repeated values it would find some more than once. Two skips fix\nthat, both easy because equal values sit together after sorting: skip a first value equal to the previous\nfirst value, and after recording a triple, step `j` past every copy of the value just used."
+   "md": "**Fix one, squeeze two.** Three unknowns are hard, two are easy. Sort the values. Fix the first element `a[i]`; the\nother two must come from positions after `i`, and their sum must relate to `target − a[i]`. That's the sorted\npair-sum problem, solved by two pointers `j = i + 1` and `k = n − 1` moving inward. Doing this for every `i` costs\n`n` squeezes of O(n) each: **O(n²)** instead of O(n³).\n\n**Why sorting is allowed.** The questions are about *sets* of three positions (their values' sum), not their order,\nso rearranging the array doesn't change which value-triples exist. Requiring `i < j < k` in the sorted array picks each\nset of positions exactly once."
   },
   {
-   "panels": [
-    {
-     "type": "row",
-     "cells": [
-      -1,
-      0,
-      1,
-      2,
-      -1,
-      -4,
-      2,
-      -2
+   "md": "**Duplicates.** After sorting, equal values sit next to each other, which makes duplicates easy to avoid:\n\n1. **Skip a fixed value equal to the previous fixed value.** Every triple it could start was already found by the\n   first copy (that copy had at least as many elements after it).\n2. **After a hit, move `j` past equal values.** The same `a[i]` and `a[j]` would force the same `a[k]` again.\n   (`k` just moves one step; the next differing `a[j]` changes the needed `a[k]` anyway.)\n\n**Early stop.** If the fixed value is positive, the two values after it are at least as large, so every sum is\npositive: stop."
+  },
+  {
+   "md": "**Trace on sorted `[-4, -2, -1, -1, 0, 1, 2, 2]`:**"
+  },
+  {
+   "table": {
+    "head": [
+     "i",
+     "fixed",
+     "action",
+     "triples found"
+    ],
+    "rows": [
+     [
+      "0",
+      "-4",
+      "squeeze",
+      "[-4, 2, 2]"
      ],
-     "label": "values"
-    },
-    {
-     "type": "row",
-     "cells": [
-      -4,
-      -2,
-      -1,
-      -1,
-      0,
-      1,
-      2,
-      2
+     [
+      "1",
+      "-2",
+      "squeeze",
+      "[-2, 0, 2]"
      ],
-     "label": "sorted"
-    }
-   ]
+     [
+      "2",
+      "-1",
+      "squeeze",
+      "[-1, -1, 2], [-1, 0, 1]"
+     ],
+     [
+      "3",
+      "-1",
+      "same value as the previous fixed one: skip",
+      "—"
+     ],
+     [
+      "4",
+      "0",
+      "squeeze",
+      "none"
+     ],
+     [
+      "5",
+      "1",
+      "positive: every triple from here sums above 0, stop",
+      "—"
+     ]
+    ]
+   }
   }
  ],
  "approaches": [
@@ -51,12 +76,12 @@
    "space": "O(t)",
    "idea": [
     {
-     "md": "Check every triple; store each zero-sum triple, sorted, in a set; return the set sorted."
+     "md": "Check every triple of positions; when one sums to 0, add its sorted values to a set (which removes duplicates). Sort the set at the end."
     }
    ],
    "build": [
-    "Triple loop.",
-    "Sorted tuple into a set.",
+    "Three nested loops.",
+    "Store sorted value-triples in a set.",
     "Sort the results."
    ],
    "code": {
@@ -67,7 +92,7 @@
    },
    "lines": [
     {
-     "text": "A set of distinct triples.",
+     "text": "A set of value-triples, so the same triple is stored once.",
      "at": {
       "python": [
        [
@@ -99,7 +124,7 @@
      }
     },
     {
-     "text": "Every triple of positions.",
+     "text": "Every set of three positions.",
      "at": {
       "python": [
        [
@@ -128,7 +153,7 @@
      }
     },
     {
-     "text": "Store the triple in increasing order, so equal triples look identical.",
+     "text": "A zero sum: store its values in increasing order.",
      "at": {
       "python": [
        [
@@ -161,7 +186,7 @@
      }
     },
     {
-     "text": "Sorted, distinct triples.",
+     "text": "The distinct triples, sorted.",
      "at": {
       "python": [
        [
@@ -199,12 +224,12 @@
    ],
    "complexity": [
     {
-     "md": "**Time O(n³).** **Space O(t)** for the t triples found."
+     "md": "**Time O(n³):** about 1.3 × 10⁹ triples for `n = 2000`. **Space O(t)** for the `t` triples found."
     }
    ],
    "limits": [
     {
-     "md": "About 1.3 × 10⁹ triples at n = 2000, plus a set to remove repeats. Sorting first lets the squeeze find each distinct triple once and skip duplicates by comparing neighbours."
+     "md": "Cubic, and it relies on a set to undo duplicates afterwards. Sorting first lets the squeeze find each triple once."
     }
    ],
    "slow": true
@@ -216,13 +241,14 @@
    "space": "O(1)",
    "idea": [
     {
-     "md": "Sort. For each `i` (skipping `a[i] == a[i−1]`; stopping once `a[i] > 0`), squeeze `j`, `k`: sum < 0 → `j++`, > 0 → `k−−`, = 0 → record, then advance `j` past equal values and decrease `k`."
+     "md": "Sort. For each `i` (skipping repeated fixed values and stopping at the first positive one), squeeze `j` and\n`k`: below 0 move `j`, above 0 move `k`, on 0 record the triple, then move `j` past its duplicates and `k`\none step.\n\n**Output order for free.** Fixed values increase with `i`, and within one `i` the hits come with increasing\n`a[j]`, so the triples are produced already sorted."
     }
    ],
    "build": [
-    "Sort a copy.",
-    "Skip repeated first values.",
-    "Squeeze; on a hit, skip repeated second values."
+    "Sort.",
+    "Skip repeated fixed values; stop at a positive one.",
+    "Squeeze toward 0.",
+    "On a hit, record and skip duplicates of `a[j]`."
    ],
    "code": {
     "python": "class Solution:\n    def zeroTriples(self, values: List[int]) -> List[List[int]]:\n        a, out = sorted(values), []\n        for i in range(len(a) - 2):\n            if i and a[i] == a[i - 1]:\n                continue\n            if a[i] > 0:\n                break\n            j, k = i + 1, len(a) - 1\n            while j < k:\n                s = a[i] + a[j] + a[k]\n                if s < 0:\n                    j += 1\n                elif s > 0:\n                    k -= 1\n                else:\n                    out.append([a[i], a[j], a[k]])\n                    j += 1\n                    while j < k and a[j] == a[j - 1]:\n                        j += 1\n                    k -= 1\n        return out\n",
@@ -232,7 +258,7 @@
    },
    "lines": [
     {
-     "text": "Sort a copy; triples will come out in increasing order automatically.",
+     "text": "Equal values become neighbours, and the squeeze can tell which way to move.",
      "at": {
       "python": [
        [
@@ -265,7 +291,7 @@
      }
     },
     {
-     "text": "A first value equal to the previous one would find exactly the same triples: skip it.",
+     "text": "Skip a fixed value equal to the previous one: all its triples were already found.",
      "at": {
       "python": [
        [
@@ -294,7 +320,7 @@
      }
     },
     {
-     "text": "If the smallest of the three is positive, no sum can be 0 from here on.",
+     "text": "A positive smallest value makes every remaining sum positive.",
      "at": {
       "python": [
        [
@@ -323,7 +349,7 @@
      }
     },
     {
-     "text": "Look for `a[j] + a[k] = −a[i]`.",
+     "text": "Too small: move `j` right. Too big: move `k` left.",
      "at": {
       "python": [
        [
@@ -352,7 +378,7 @@
      }
     },
     {
-     "text": "Record the triple, then move `j` past every copy of this second value (the third value is then forced, so `k` moves too).",
+     "text": "Record the triple, then move `j` past equal values (and `k` one step) so the same triple isn't recorded again.",
      "at": {
       "python": [
        [
@@ -384,7 +410,7 @@
      }
     },
     {
-     "text": "Distinct triples, already sorted.",
+     "text": "All different triples, already in sorted order.",
      "at": {
       "python": [
        [
@@ -415,7 +441,7 @@
    ],
    "complexity": [
     {
-     "md": "**Time O(n²).** **Space O(1)** besides the sorted copy and the output."
+     "md": "**Time O(n²).** **Space O(1)** besides the sort and the output."
     }
    ],
    "walk": {
@@ -606,7 +632,7 @@
  ],
  "takeaways": [
   {
-   "md": "- **Distinct 3-sum:** sort, skip equal first values, and after each hit skip equal second values.\n- Sorting makes duplicates adjacent, so a neighbour comparison replaces a hash set.\n- Early exit: once the fixed value is positive, a zero sum is impossible."
+   "md": "- **3-sum with distinct answers:** sort, fix, squeeze, and skip equal neighbours.\n- Sorted order makes both duplicate skipping and sorted output automatic.\n- **Pitfall:** skipping duplicates of the fixed value by comparing with the **next** element (that drops valid triples like `[-1, -1, 2]`)."
   }
  ]
 }

@@ -4,39 +4,38 @@
  "question": [
   {
    "md": "Decide whether three weights at different positions add up to exactly `target`.\n\n- **Different positions**, but equal weights are allowed (two 5-gram weights can both be used).\n- **Up to 500 weights**: O(n³) is about 2 × 10⁷ triples, O(n²) is 2.5 × 10⁵ steps."
+  },
+  {
+   "md": "**Edge cases to keep in mind**\n\n- \"Different\" means three different positions; two equal weights at different positions are fine.\n- Exactly three weights: just check their sum.\n- All weights are positive here, but the method works for any sign."
   }
  ],
  "think": [
   {
-   "md": "Weights `[12, 3, 7, 1, 9, 20]`, target 28: 1 + 7 + 20 = 28, so **true**.\n\nThree unknowns are hard; two are easy. Fix the first weight, and the problem becomes \"find two weights with sum\n`target − first`\", which in a sorted list is the two-pointer squeeze. To avoid counting the same weight twice,\nonly search to the right of the fixed one."
+   "md": "**Fix one, squeeze two.** Three unknowns are hard, two are easy. Sort the values. Fix the first element `a[i]`; the\nother two must come from positions after `i`, and their sum must relate to `target − a[i]`. That's the sorted\npair-sum problem, solved by two pointers `j = i + 1` and `k = n − 1` moving inward. Doing this for every `i` costs\n`n` squeezes of O(n) each: **O(n²)** instead of O(n³).\n\n**Why sorting is allowed.** The questions are about *sets* of three positions (their values' sum), not their order,\nso rearranging the array doesn't change which value-triples exist. Requiring `i < j < k` in the sorted array picks each\nset of positions exactly once."
   },
   {
-   "panels": [
-    {
-     "type": "row",
-     "cells": [
-      12,
-      3,
-      7,
-      1,
-      9,
-      20
-     ],
-     "label": "weights"
-    },
-    {
-     "type": "row",
-     "cells": [
-      1,
-      3,
-      7,
-      9,
-      12,
-      20
-     ],
-     "label": "sorted"
-    }
-   ]
+   "md": "**Trace** for target 28 on sorted `[1, 3, 7, 9, 12, 20]` (for each fixed weight, the pair we need and the pairs the squeeze\ntries):"
+  },
+  {
+   "table": {
+    "head": [
+     "fixed",
+     "pair must sum to",
+     "pairs tried",
+     "result"
+    ],
+    "rows": [
+     [
+      "1",
+      "27",
+      "3+20=23, 7+20=27",
+      "found"
+     ]
+    ]
+   }
+  },
+  {
+   "md": "Found 1 + 7 + 20 = 28: **true**."
   }
  ],
  "approaches": [
@@ -47,12 +46,12 @@
    "space": "O(1)",
    "idea": [
     {
-     "md": "Three nested loops over `i < j < k`."
+     "md": "Check every triple of positions `i < j < k`. With `n ≤ 500` that's about 2 × 10⁷ triples: borderline, and it doesn't scale."
     }
    ],
    "build": [
-    "Triple loop.",
-    "Return true on a match."
+    "Three nested loops.",
+    "Return true on an exact sum."
    ],
    "code": {
     "python": "class Solution:\n    def hasTriple(self, weights: List[int], target: int) -> bool:\n        n = len(weights)\n        for i in range(n):\n            for j in range(i + 1, n):\n                for k in range(j + 1, n):\n                    if weights[i] + weights[j] + weights[k] == target:\n                        return True\n        return False\n",
@@ -62,7 +61,7 @@
    },
    "lines": [
     {
-     "text": "Every triple of positions.",
+     "text": "Every set of three different positions, each exactly once.",
      "at": {
       "python": [
        [
@@ -91,7 +90,7 @@
      }
     },
     {
-     "text": "Sums reach 3 × 10⁵, well within 32 bits.",
+     "text": "An exact total.",
      "at": {
       "python": [
        [
@@ -199,7 +198,7 @@
    },
    "limits": [
     {
-     "md": "The innermost loop just searches for one value, `target − w[i] − w[j]`. Sorting lets two pointers find the last two weights together in linear time."
+     "md": "For each pair `(i, j)` it searches the third weight linearly. After sorting, the last two can be found together by a squeeze."
     }
    ],
    "slow": true
@@ -211,13 +210,13 @@
    "space": "O(1)",
    "idea": [
     {
-     "md": "Sort. For each `i`, set `j = i + 1`, `k = n − 1` and squeeze: sum too small → `j++`, too big → `k−−`, equal → true."
+     "md": "Sort. For each `i`, squeeze `j` and `k` over the rest: equal means done, too small moves `j` right, too big\nmoves `k` left (the pair-sum argument: the dropped element has no partner left that works)."
     }
    ],
    "build": [
-    "Sort a copy.",
-    "Outer loop fixes `a[i]`.",
-    "Two-pointer search on `a[i+1..]`."
+    "Sort.",
+    "Fix `a[i]`.",
+    "Squeeze the remaining two toward `target − a[i]`."
    ],
    "code": {
     "python": "class Solution:\n    def hasTriple(self, weights: List[int], target: int) -> bool:\n        a = sorted(weights)\n        for i in range(len(a) - 2):\n            j, k = i + 1, len(a) - 1\n            while j < k:\n                s = a[i] + a[j] + a[k]\n                if s == target:\n                    return True\n                if s < target:\n                    j += 1\n                else:\n                    k -= 1\n        return False\n",
@@ -227,7 +226,7 @@
    },
    "lines": [
     {
-     "text": "Sort a copy.",
+     "text": "Order the weights so the squeeze can tell which way to move.",
      "at": {
       "python": [
        [
@@ -260,7 +259,7 @@
      }
     },
     {
-     "text": "The smallest weight of the triple is `a[i]`; the other two come from positions after `i`.",
+     "text": "The smallest of the three positions; the other two come after it, so no position is used twice.",
      "at": {
       "python": [
        [
@@ -289,7 +288,7 @@
      }
     },
     {
-     "text": "Two-pointer search for the remaining pair: too small → raise the low end, too big → lower the high end.",
+     "text": "Pair-sum with two pointers on the part after `i`: exact means true, too small means the left weight is useless, too big means the right weight is useless.",
      "at": {
       "python": [
        [
@@ -318,7 +317,7 @@
      }
     },
     {
-     "text": "No triple works.",
+     "text": "No fixed weight found a pair.",
      "at": {
       "python": [
        [
@@ -349,7 +348,7 @@
    ],
    "complexity": [
     {
-     "md": "**Time O(n²)** (plus the sort). **Space O(n)** for the sorted copy, O(1) besides."
+     "md": "**Time O(n²):** `n` squeezes of O(n). **Space O(1)** besides the sort."
     }
    ],
    "walk": {
@@ -432,7 +431,7 @@
  ],
  "takeaways": [
   {
-   "md": "- **3-sum = fix one + 2-sum.** Sorting makes the inner 2-sum a linear squeeze.\n- Only search to the right of the fixed element so each triple is considered once.\n- 4-sum: fix two, squeeze two (O(n³))."
+   "md": "- **k-sum:** sort, fix `k − 2` elements, squeeze the last two: O(n^(k−1)).\n- The fixed element is the smallest position, so positions never repeat.\n- **Pitfall:** letting `j` start at 0 instead of `i + 1`."
   }
  ]
 }

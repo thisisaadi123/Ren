@@ -4,39 +4,44 @@
  "question": [
   {
    "md": "Return the sum of three values (different positions) closest to `target`; on a tie, the smaller sum.\n\n- **Up to 1000 values**: O(n³) is about 1.7 × 10⁸ triples, O(n²) is 5 × 10⁵.\n- Small values (|v| ≤ 1000), so no overflow worries."
+  },
+  {
+   "md": "**Edge cases to keep in mind**\n\n- Ties: equally close sums → return the smaller one.\n- An exact match ends the search.\n- Exactly three values: their sum is the answer."
   }
  ],
  "think": [
   {
-   "md": "Values `[4, -2, 9, 1, -6, 7]`, target 6: the closest sums are [6, 5, 7]…, so **6**.\n\nSame skeleton as 3-sum: fix the smallest value and squeeze the other two. The squeeze doesn't stop early; it\nmoves toward the target and records the best sum along the way. The skipped pairs are always farther from the\ntarget than one already seen."
+   "md": "**Fix one, squeeze two.** Three unknowns are hard, two are easy. Sort the values. Fix the first element `a[i]`; the\nother two must come from positions after `i`, and their sum must relate to `target − a[i]`. That's the sorted\npair-sum problem, solved by two pointers `j = i + 1` and `k = n − 1` moving inward. Doing this for every `i` costs\n`n` squeezes of O(n) each: **O(n²)** instead of O(n³).\n\n**Why sorting is allowed.** The questions are about *sets* of three positions (their values' sum), not their order,\nso rearranging the array doesn't change which value-triples exist. Requiring `i < j < k` in the sorted array picks each\nset of positions exactly once."
   },
   {
-   "panels": [
-    {
-     "type": "row",
-     "cells": [
-      4,
-      -2,
-      9,
-      1,
-      -6,
-      7
+   "md": "**Squeezing toward a target instead of hitting it.** With `a[i]` fixed and `s = a[i] + a[j] + a[k]`:\n\n- `s < target`: every other third value for this `j` is at most `a[k]`, giving sums at most `s`: no closer\n  from below. `a[j]` is finished; move `j` right.\n- `s > target`: symmetric; move `k` left.\n- `s = target`: distance 0, stop.\n\nRecord every sum visited; the best one is the answer."
+  },
+  {
+   "md": "**Trace for target 6** on sorted `[-6, -2, 1, 4, 7, 9]` (sums visited for each fixed value):"
+  },
+  {
+   "table": {
+    "head": [
+     "fixed",
+     "sums visited",
+     "best so far"
+    ],
+    "rows": [
+     [
+      "-6",
+      "1, 4, 7, 5",
+      "5"
      ],
-     "label": "values"
-    },
-    {
-     "type": "row",
-     "cells": [
-      -6,
-      -2,
-      1,
-      4,
-      7,
-      9
-     ],
-     "label": "sorted"
-    }
-   ]
+     [
+      "-2",
+      "8, 6",
+      "6"
+     ]
+    ]
+   }
+  },
+  {
+   "md": "Answer **6**."
   }
  ],
  "approaches": [
@@ -47,12 +52,12 @@
    "space": "O(1)",
    "idea": [
     {
-     "md": "Check every triple, keeping the best by (distance, sum)."
+     "md": "Check every triple and keep the sum that's closest, comparing `(distance, sum)` so ties prefer the smaller sum."
     }
    ],
    "build": [
-    "Triple loop.",
-    "Compare by distance, then sum."
+    "Three nested loops.",
+    "Compare by `(distance, sum)`."
    ],
    "code": {
     "python": "class Solution:\n    def closestTriple(self, values: List[int], target: int) -> int:\n        n, best = len(values), None\n        for i in range(n):\n            for j in range(i + 1, n):\n                for k in range(j + 1, n):\n                    s = values[i] + values[j] + values[k]\n                    if best is None or (abs(s - target), s) < (abs(best - target), best):\n                        best = s\n        return best\n",
@@ -62,7 +67,7 @@
    },
    "lines": [
     {
-     "text": "Start from any triple.",
+     "text": "No triple seen yet.",
      "at": {
       "python": [
        [
@@ -91,7 +96,7 @@
      }
     },
     {
-     "text": "Every triple.",
+     "text": "Every set of three positions.",
      "at": {
       "python": [
        [
@@ -120,7 +125,7 @@
      }
     },
     {
-     "text": "Closer wins; equally close, the smaller sum.",
+     "text": "Closer wins; on equal distance the smaller sum wins.",
      "at": {
       "python": [
        [
@@ -149,7 +154,7 @@
      }
     },
     {
-     "text": "The closest sum.",
+     "text": "The best sum.",
      "at": {
       "python": [
        [
@@ -180,12 +185,12 @@
    ],
    "complexity": [
     {
-     "md": "**Time O(n³).** **Space O(1).**"
+     "md": "**Time O(n³):** 1.7 × 10⁸ triples for `n = 1000`. **Space O(1).**"
     }
    ],
    "limits": [
     {
-     "md": "~1.7 × 10⁸ triples at n = 1000. Fixing one value and squeezing the other two visits only O(n²) triples without missing the best one."
+     "md": "Cubic. The squeeze visits only the sums that could still be closest."
     }
    ],
    "slow": true
@@ -197,13 +202,13 @@
    "space": "O(1)",
    "idea": [
     {
-     "md": "Sort. For each `i`, squeeze `j`, `k` over the rest; update the best each time; move `j` up if the sum is below the target, `k` down if above, return immediately on an exact hit."
+     "md": "Sort. Start `best` at any triple (the first three). For each `i`, squeeze `j`, `k`, recording each sum if\nit's better and moving toward the target; return immediately on an exact hit.\n\n**Why the best triple is visited.** Every triple not visited contains an element that was dropped while the\nsum was on the wrong side of the target, so its sum is no closer than one that was recorded."
     }
    ],
    "build": [
-    "Sort a copy.",
-    "Fix `a[i]`.",
-    "Squeeze and update the best."
+    "Sort.",
+    "Initial best from the first three values.",
+    "Fix `a[i]`, squeeze toward the target, record improvements."
    ],
    "code": {
     "python": "class Solution:\n    def closestTriple(self, values: List[int], target: int) -> int:\n        a = sorted(values)\n        best = a[0] + a[1] + a[2]\n        for i in range(len(a) - 2):\n            j, k = i + 1, len(a) - 1\n            while j < k:\n                s = a[i] + a[j] + a[k]\n                if (abs(s - target), s) < (abs(best - target), best):\n                    best = s\n                if s < target:\n                    j += 1\n                elif s > target:\n                    k -= 1\n                else:\n                    return s\n        return best\n",
@@ -213,7 +218,7 @@
    },
    "lines": [
     {
-     "text": "Sort a copy; any triple is a starting answer.",
+     "text": "Sorting lets each comparison with the target rule out a whole range.",
      "at": {
       "python": [
        [
@@ -246,7 +251,7 @@
      }
     },
     {
-     "text": "Fix the smallest of the three.",
+     "text": "The smallest of the three positions.",
      "at": {
       "python": [
        [
@@ -275,7 +280,7 @@
      }
     },
     {
-     "text": "The current triple's sum.",
+     "text": "The other two pointers over the part after `i`.",
      "at": {
       "python": [
        [
@@ -304,7 +309,7 @@
      }
     },
     {
-     "text": "Closer wins; equally close, the smaller sum.",
+     "text": "Keep the sum if it's closer, or equally close and smaller.",
      "at": {
       "python": [
        [
@@ -333,7 +338,7 @@
      }
     },
     {
-     "text": "Move toward the target; an exact hit can't be beaten.",
+     "text": "Below the target, move `j` up; above, move `k` down; exact, return.",
      "at": {
       "python": [
        [
@@ -362,7 +367,7 @@
      }
     },
     {
-     "text": "The closest sum.",
+     "text": "The best sum.",
      "at": {
       "python": [
        [
@@ -393,7 +398,7 @@
    ],
    "complexity": [
     {
-     "md": "**Time O(n²).** **Space O(n)** for the sorted copy."
+     "md": "**Time O(n²).** **Space O(1)** besides the sort."
     }
    ],
    "walk": {
@@ -588,7 +593,7 @@
  ],
  "takeaways": [
   {
-   "md": "- **Closest 3-sum:** the 3-sum skeleton, recording the best instead of stopping at a match.\n- Moving toward the target never skips a closer sum (same argument as 2-sum).\n- Spell out the tie rule in code: `(distance, sum)` comparisons do it neatly."
+   "md": "- **Closest k-sum:** fix, squeeze toward the target, record every visit.\n- Tie rules as a tuple key `(distance, value)`.\n- **Pitfall:** initialising `best` with a huge sentinel in 32 bits; start with a real triple instead."
   }
  ]
 }
