@@ -199,7 +199,16 @@
         (l) => `<button type="button" role="tab" class="case-btn" aria-selected="${l.id === lang}" data-sol-lang="${l.id}">${l.label}</button>`
       ).join("")}</div>`;
 
+    // Class-based (design) problems have no C version.
+    const missing = (a) =>
+      `<p class="sol-missing">${esc(LANGS.find((l) => l.id === lang).label)} isn't available for this problem: it asks you to build a class, and C has no classes. Pick another language above.</p>`;
+
     function codeBlock(a) {
+      if (!a.code[lang]) {
+        return `
+          <div class="sol-code-head">${tabs()}</div>
+          ${missing(a)}`;
+      }
       const src = (a.code[lang] || "").replace(/\n$/, "");
       const lines = src.split("\n");
       return `
@@ -213,6 +222,7 @@
     }
 
     function lineRows(a) {
+      if (!a.code[lang]) return missing(a);
       const src = (a.code[lang] || "").replace(/\n$/, "").split("\n");
       const rows = a.lines.filter((r) => r.at[lang]);
       return rows
