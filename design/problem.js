@@ -10,6 +10,9 @@
   const $ = (sel, root = main) => root.querySelector(sel);
   const id = new URLSearchParams(location.search).get("id") || "";
   const SQL = main.dataset.track === "sql";
+  // A SQL "change" problem is answered with an UPDATE, DELETE or INSERT and
+  // judged on the table it leaves behind.
+  const CHANGE = () => SQL && problem && problem.mode === "change";
   const API = SQL ? "/api/sql" : "/api/dsa";
   const SHEET = SQL ? "sql.html" : "dsa.html";
   const sid = SQL ? `sql:${id}` : id; // what this browser keys the problem's code, cases and timer by
@@ -133,7 +136,7 @@
           <h2 class="prob-label">Example ${i + 1}</h2>
           <div class="sql-example">
             ${datasetHTML(ex.data)}
-            <div class="data-table"><h3>Output</h3>${tableHTML(ex.expected)}</div>
+            <div class="data-table"><h3>${CHANGE() ? `${esc(problem.result_table)} afterwards` : "Output"}</h3>${tableHTML(ex.expected)}</div>
             ${ex.explanation ? `<p class="sql-why">${inline(ex.explanation)}</p>` : ""}
           </div>`
         )
@@ -435,7 +438,7 @@
     panels.cases.innerHTML = `
       <div class="cases-bar" role="tablist" aria-label="Test cases">${bar}</div>
       <div class="sql-cases">${datasetHTML(problem.examples[caseAt].data)}</div>
-      <p class="result-note sql-cases-note">Run checks your query on these tables. Submit also runs it on hidden ones.</p>`;
+      <p class="result-note sql-cases-note">Run checks your ${CHANGE() ? "statement" : "query"} on these tables. Submit also runs it on hidden ones.</p>`;
   }
 
   function renderCases() {
@@ -586,7 +589,7 @@
       const n = problem.examples.length;
       setBusy(true, runBtn);
       showPanel("result");
-      message(`Running your query on ${n} example ${n === 1 ? "dataset" : "datasets"}…`);
+      message(`Running your ${CHANGE() ? "statement" : "query"} on ${n} example ${n === 1 ? "dataset" : "datasets"}…`);
       const data = await send(`${API}/run`, { id, code: input.value });
       setBusy(false);
       if (data.error) return message(data.error);
@@ -624,6 +627,7 @@
   // How answers are checked decides what "Expected" means.
   const SUP = { "-": "⁻", 0: "⁰", 1: "¹", 2: "²", 3: "³", 4: "⁴", 5: "⁵", 6: "⁶", 7: "⁷", 8: "⁸", 9: "⁹" };
   function expectedLabel() {
+    if (CHANGE()) return `Expected ${problem.result_table} (rows in any order)`;
     if (SQL) return problem.ordered ? "Expected (rows in this order)" : "Expected (rows in any order)";
     const c = problem.checker || { type: "exact" };
     if (c.type === "unordered") return "Expected (in any order)";
@@ -639,7 +643,7 @@
   // A query that SQLite rejects is a query error, not a runtime error.
   const titleOf = (verdict) => (SQL && verdict === "error" ? "Query error" : TITLES[verdict]);
   const outputHTML = (c) =>
-    `<div class="out-block"><h3>Output${c.why ? ` <span class="why">· ${esc(c.why)}</span>` : ""}</h3>${tableHTML(c.output, { bad: c.verdict === "wrong" })}</div>`;
+    `<div class="out-block"><h3>${CHANGE() ? `Your ${esc(problem.result_table)} afterwards` : "Output"}${c.why ? ` <span class="why">· ${esc(c.why)}</span>` : ""}</h3>${tableHTML(c.output, { bad: c.verdict === "wrong" })}</div>`;
 
   let runView = { data: null, at: 0 };
 
@@ -990,7 +994,7 @@
         if (!Array.isArray(cases) || !cases.length) cases = defaultCases();
       }
       renderCases();
-      message(SQL ? "Run your query to see its rows here." : "Run your code to see the results here.");
+      message(CHANGE() ? "Run your statement to see the table it leaves behind." : SQL ? "Run your query to see its rows here." : "Run your code to see the results here.");
       renPane.start();
       fitView();
       applyLayout();

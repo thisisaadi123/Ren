@@ -1,5 +1,7 @@
-// Ren SQL engine: builds a test database in memory and runs one read-only
-// query on it with Node's built-in SQLite. Used by the judge (through
+// Ren SQL engine: builds a test database in memory and runs one query on it
+// with Node's built-in SQLite. Most problems ask for a SELECT (read-only);
+// "change" problems ask for one UPDATE, DELETE or INSERT, and are judged on
+// the table it leaves behind. Used by the judge (through
 // query.mjs, in a child process that can be killed on a timeout) and by the
 // checks, so a query is judged exactly the way the checks judge it.
 import { DatabaseSync, constants as C } from "node:sqlite";
@@ -9,11 +11,13 @@ export const MAX_ROWS = 5000;
 // A query may only read: SELECT, the tables it reads, functions and WITH
 // RECURSIVE. Anything else (writes, PRAGMA, ATTACH…) is refused by SQLite.
 const READ_ONLY = new Set([C.SQLITE_SELECT, C.SQLITE_READ, C.SQLITE_FUNCTION, C.SQLITE_RECURSIVE]);
+// A change problem may also write rows, but never touch SQLite's own tables.
+const WRITES = new Set([C.SQLITE_INSERT, C.SQLITE_UPDATE, C.SQLITE_DELETE]);
 
 const quote = (name) => `"${String(name).replace(/"/g, '""')}"`;
 
 // tables: [{ name, columns: [[name, type, key?], …] }]; data: { table: [[…row], …] }
-export function createDb(tables, data) {
+export function createDb(tables, data, { writable = false } = {}) {
   const db = new DatabaseSync(":memory:");
   for (const t of tables) {
     const cols = t.columns.map(([name, type, key]) => `${quote(name)} ${type}${key === "pk" ? " PRIMARY KEY" : ""}`);
@@ -25,7 +29,11 @@ export function createDb(tables, data) {
     for (const row of rows) insert.run(...row);
     db.exec("COMMIT");
   }
-  db.setAuthorizer((code) => (READ_ONLY.has(code) ? C.SQLITE_OK : C.SQLITE_DENY));
+  db.setAuthorizer((code, target) => {
+    if (READ_ONLY.has(code)) return C.SQLITE_OK;
+    if (writable && WRITES.has(code) && !String(target).startsWith("sqlite_")) return C.SQLITE_OK;
+    return C.SQLITE_DENY;
+  });
   return db;
 }
 
@@ -38,20 +46,31 @@ function skeleton(sql) {
 }
 
 // One query, nothing else. Returns the query to run, or why it can't run.
-export function vet(sql) {
+export function vet(sql, mode = "query") {
   const text = String(sql ?? "");
   if (text.length > 20_000) return { error: "Your query is too long." };
   const bare = skeleton(text).trim().replace(/;\s*$/, "");
   if (!bare) return { error: "Write a query first." };
   if (bare.includes(";")) return { error: "Write one query: there's more than one statement here." };
-  if (!/^(select|with|values)\b/i.test(bare)) return { error: "Only SELECT queries run here: start with SELECT or WITH." };
+  if (mode === "change") {
+    if (!/^(update|delete|insert|replace|with)\b/i.test(bare)) {
+      return { error: "This problem changes a table: write one UPDATE, DELETE or INSERT statement." };
+    }
+  } else if (!/^(select|with|values)\b/i.test(bare)) {
+    return { error: "Only SELECT queries run here: start with SELECT or WITH." };
+  }
   return { sql: text };
 }
 
-const tidy = (message) =>
+const tidy = (message, mode = "query") =>
   String(message)
     .replace(/^SqliteError:\s*/, "")
-    .replace(/^not authorized$/, "Only SELECT queries run here: this one tries to change or inspect the database.");
+    .replace(
+      /^not authorized$/,
+      mode === "change"
+        ? "That statement isn't allowed here: change rows with UPDATE, DELETE or INSERT, nothing else."
+        : "Only SELECT queries run here: this one tries to change or inspect the database."
+    );
 
 // Runs a vetted query. Returns { columns, rows } or { error }.
 export function runQuery(db, sql) {
@@ -76,14 +95,25 @@ export function runQuery(db, sql) {
   }
 }
 
-// Runs the query on each dataset, each in a fresh database.
-export function runAll(tables, datasets, sql) {
-  const v = vet(sql);
+// Runs a change statement, then reads back the table it was meant to change.
+export function runChange(db, sql, table) {
+  try {
+    db.prepare(sql).run();
+  } catch (err) {
+    return { error: tidy(err.message, "change") };
+  }
+  return runQuery(db, `SELECT * FROM "${table}"`);
+}
+
+// Runs the query on each dataset, each in a fresh database. A change
+// problem (mode "change") reports the result table's rows afterwards.
+export function runAll(tables, datasets, sql, { mode = "query", table } = {}) {
+  const v = vet(sql, mode);
   if (v.error) return datasets.map(() => ({ error: v.error }));
   return datasets.map((data) => {
-    const db = createDb(tables, data);
+    const db = createDb(tables, data, { writable: mode === "change" });
     const t = performance.now();
-    const out = runQuery(db, v.sql);
+    const out = mode === "change" ? runChange(db, v.sql, table) : runQuery(db, v.sql);
     out.ms = performance.now() - t;
     db.close();
     return out;

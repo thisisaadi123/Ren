@@ -56,7 +56,9 @@ for (const dir of dirs) {
 
   // 2. The reference on every dataset.
   const datasets = tests.map((t) => t.data);
-  const ref = runAll(meta.tables, datasets, meta.reference);
+  const opts = { mode: meta.mode || "query", table: meta.result_table };
+  if (opts.mode === "change" && !meta.tables.some((t) => t.name === meta.result_table)) fail("result_table isn't one of the tables");
+  const ref = runAll(meta.tables, datasets, meta.reference, opts);
   ref.forEach((r, i) => {
     if (r.error) return fail(`reference fails on test ${i + 1}: ${r.error}`);
     const want = { columns: r.columns, rows: r.rows };
@@ -68,14 +70,14 @@ for (const dir of dirs) {
   // 3. A full ORDER BY: the same answer with every table loaded backwards.
   if (meta.ordered && !problems.length) {
     const backwards = datasets.map((d) => Object.fromEntries(Object.entries(d).map(([t, rows]) => [t, [...rows].reverse()])));
-    runAll(meta.tables, backwards, meta.reference).forEach((r, i) => {
+    runAll(meta.tables, backwards, meta.reference, opts).forEach((r, i) => {
       if (!r.error && !compare(r, ref[i], true).ok) fail(`test ${i + 1}: the order isn't fully decided (ties in ORDER BY)`);
     });
   }
 
   // 4. Wrong queries must be caught.
   for (const [w, sql] of (meta.wrong || []).entries()) {
-    const results = runAll(meta.tables, datasets, sql);
+    const results = runAll(meta.tables, datasets, sql, opts);
     const caught = results.some((r, i) => r.error || !compare(r, ref[i], meta.ordered).ok);
     if (!caught) fail(`wrong query ${w + 1} passes every test`);
     if (results.every((r) => r.error)) fail(`wrong query ${w + 1} doesn't even run: ${results[0].error}`);

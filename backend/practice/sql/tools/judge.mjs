@@ -16,6 +16,8 @@ const SQL = path.dirname(TOOLS);
 const PROBLEMS = path.join(SQL, "problems");
 const LIMIT_MS = { run: 4000, submit: 8000 };
 const STARTER = "-- Write your query here. It runs on SQLite.\nSELECT\n  \n";
+const CHANGE_STARTER = "-- Write one UPDATE, DELETE or INSERT statement. It runs on SQLite.\n\n";
+const modeOf = (meta) => ({ mode: meta.mode || "query", table: meta.result_table });
 
 export class JudgeError extends Error {
   constructor(status, message) {
@@ -75,15 +77,17 @@ export function problemView(id) {
     notes: meta.notes || "",
     tables: meta.tables,
     ordered: meta.ordered,
+    mode: meta.mode || "query",
+    result_table: meta.result_table,
     examples: examples.map((t) => ({ data: t.data, expected: t.expected, explanation: t.explanation || "" })),
-    languages: [{ id: "sql", label: "SQLite", file: "query.sql", available: true, starter: STARTER }],
+    languages: [{ id: "sql", label: "SQLite", file: "query.sql", available: true, starter: meta.mode === "change" ? CHANGE_STARTER : STARTER }],
     solution: false,
   };
 }
 
 /* Running a query ------------------------------------------------------------- */
 
-function execute(tables, datasets, sql, limitMs) {
+function execute(tables, datasets, sql, limitMs, { mode, table } = {}) {
   return new Promise((resolve) => {
     const child = spawn(process.execPath, ["--no-warnings", path.join(TOOLS, "query.mjs")], {
       cwd: TOOLS,
@@ -107,7 +111,7 @@ function execute(tables, datasets, sql, limitMs) {
         resolve({ crashed: err.trim().split("\n").pop() || "The query runner stopped unexpectedly." });
       }
     });
-    child.stdin.end(JSON.stringify({ tables, datasets, sql }));
+    child.stdin.end(JSON.stringify({ tables, datasets, sql, mode, table }));
   });
 }
 
@@ -127,7 +131,7 @@ export async function run({ id, code }) {
   checkCode(code);
   const { meta, tests } = load(id);
   const examples = tests.filter((t) => t.example);
-  const res = await execute(meta.tables, examples.map((t) => t.data), code, LIMIT_MS.run);
+  const res = await execute(meta.tables, examples.map((t) => t.data), code, LIMIT_MS.run, modeOf(meta));
   if (res.timedOut) return { cases: examples.map((t) => ({ verdict: "time", expected: t.expected })) };
   if (res.crashed) throw new JudgeError(500, res.crashed);
   return {
@@ -142,7 +146,7 @@ export async function submit({ id, code }) {
   checkCode(code);
   const { meta, tests } = load(id);
   if (!tests.length) throw new JudgeError(503, "This problem isn't ready to submit yet.");
-  const res = await execute(meta.tables, tests.map((t) => t.data), code, LIMIT_MS.submit);
+  const res = await execute(meta.tables, tests.map((t) => t.data), code, LIMIT_MS.submit, modeOf(meta));
   const total = tests.length;
   if (res.timedOut) return { verdict: "time", passed: 0, total };
   if (res.crashed) throw new JudgeError(500, res.crashed);

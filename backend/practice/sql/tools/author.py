@@ -81,7 +81,9 @@ def _check(tables, data, where):
 
 
 def P(id, title, topic, pattern, difficulty, statement, tables, reference, examples, gen,
-      ordered=False, wrong=(), notes="", sizes=None):
+      ordered=False, wrong=(), notes="", sizes=None, change=None):
+    """change="table" makes it a change problem: the answer is one UPDATE/DELETE/INSERT,
+    judged on that table's rows afterwards (in any order)."""
     assert difficulty in SIZES
     rng = random.Random(zlib.crc32(id.encode()))
     tests = []
@@ -102,6 +104,10 @@ def P(id, title, topic, pattern, difficulty, statement, tables, reference, examp
         "statement": dd(statement), "notes": dd(notes), "tables": tables, "ordered": ordered,
         "reference": dd(reference), "wrong": [dd(w) for w in wrong],
     }
+    if change:
+        assert not ordered, "a change problem compares the table's rows in any order"
+        meta["mode"] = "change"
+        meta["result_table"] = change
     with open(os.path.join(dirpath, "problem.json"), "w") as f:
         json.dump(meta, f, indent=2, ensure_ascii=False)
         f.write("\n")
