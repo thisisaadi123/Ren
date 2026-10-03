@@ -1,0 +1,642 @@
+{
+ "version": 1,
+ "summary": "A word can be made by deleting letters exactly when it's a subsequence of `text`. Go through the dictionary\nkeeping the best word so far (longest, then alphabetically first); run the two-pointer subsequence check only\nfor words that would beat it. O(D · T) in the worst case, often much less.",
+ "question": [
+  {
+   "md": "Return the longest dictionary word that is a subsequence of `text`; ties go to the alphabetically first; if none,\n`\"\"`.\n\n- **Up to 1000 words of length ≤ 1000** and text of length ≤ 1000.\n- Deleting letters = keeping some letters in order = subsequence."
+  },
+  {
+   "md": "**Edge cases to keep in mind**\n\n- No word can be made: return the empty string.\n- Ties in length: the alphabetically smaller word wins.\n- A word longer than the text can never be made."
+  }
+ ],
+ "think": [
+  {
+   "md": "**Greedy matching is always safe.** To check whether `word` is hidden in `text`, read `text` left to right and match\nthe next needed letter of `word` the first time it appears. Why never wait for a later copy? Suppose some valid\nmatching uses a later copy of that letter. Swap in the earlier copy: the letters before it are unchanged, and\neverything after it now has *more* text available, not less. So if any matching exists, the greedy one succeeds too."
+  },
+  {
+   "md": "**Two parts.** \"Can I make this word by deleting letters?\" is the subsequence check. \"Which one to return?\" is a\npreference order: longer first, then alphabetical. The two approaches differ only in how they avoid unnecessary\nchecks."
+  },
+  {
+   "md": "**Single pass over the dictionary for `\"brazenpanda\"`:**"
+  },
+  {
+   "table": {
+    "head": [
+     "word",
+     "decision",
+     "hidden?",
+     "best so far"
+    ],
+    "rows": [
+     [
+      "band",
+      "could win: check it",
+      "yes",
+      "band"
+     ],
+     [
+      "zebra",
+      "could win: check it",
+      "no",
+      "band"
+     ],
+     [
+      "bread",
+      "could win: check it",
+      "yes",
+      "bread"
+     ],
+     [
+      "brand",
+      "could win: check it",
+      "yes",
+      "brand"
+     ],
+     [
+      "apple",
+      "could win: check it",
+      "no",
+      "brand"
+     ],
+     [
+      "zap",
+      "can't beat the current best: skip the check",
+      "—",
+      "brand"
+     ]
+    ]
+   }
+  },
+  {
+   "md": "Answer **`\"brand\"`**."
+  }
+ ],
+ "approaches": [
+  {
+   "title": "Sort by preference, take the first hidden word",
+   "kind": "better",
+   "time": "O(D log D · L + D · T)",
+   "space": "O(D)",
+   "idea": [
+    {
+     "md": "Sort the dictionary by (length descending, then alphabetically) and return the first word that's hidden in\nthe text. Every word before the answer in that order is checked, and the answer itself; the rest is never\nlooked at."
+    }
+   ],
+   "build": [
+    "Subsequence helper.",
+    "Sort by preference.",
+    "Return the first hidden word."
+   ],
+   "code": {
+    "python": "class Solution:\n    def longestByDeleting(self, text: str, dictionary: List[str]) -> str:\n        def hidden(w):\n            i = 0\n            for c in text:\n                if i < len(w) and c == w[i]:\n                    i += 1\n            return i == len(w)\n        for w in sorted(dictionary, key=lambda w: (-len(w), w)):\n            if hidden(w):\n                return w\n        return \"\"\n",
+    "java": "class Solution {\n    private boolean hidden(String w, String text) {\n        int i = 0;\n        for (int t = 0; t < text.length() && i < w.length(); t++) if (text.charAt(t) == w.charAt(i)) i++;\n        return i == w.length();\n    }\n\n    public String longestByDeleting(String text, String[] dictionary) {\n        String[] order = dictionary.clone();\n        Arrays.sort(order, (a, b) -> a.length() != b.length() ? b.length() - a.length() : a.compareTo(b));\n        for (String w : order) if (hidden(w, text)) return w;\n        return \"\";\n    }\n}\n",
+    "cpp": "class Solution {\n    static bool hidden(const string& w, const string& text) {\n        size_t i = 0;\n        for (size_t t = 0; t < text.size() && i < w.size(); t++) if (text[t] == w[i]) i++;\n        return i == w.size();\n    }\n\npublic:\n    string longestByDeleting(string& text, vector<string>& dictionary) {\n        vector<string> order = dictionary;\n        sort(order.begin(), order.end(), [](const string& a, const string& b) { return a.size() != b.size() ? a.size() > b.size() : a < b; });\n        for (auto& w : order) if (hidden(w, text)) return w;\n        return \"\";\n    }\n};\n",
+    "c": "static bool hidden(const char* w, const char* text) {\n    for (; *text && *w; text++) if (*text == *w) w++;\n    return *w == '\\0';\n}\n\nstatic int prefer(const void* x, const void* y) {\n    const char *a = *(char* const*) x, *b = *(char* const*) y;\n    size_t la = strlen(a), lb = strlen(b);\n    return la != lb ? (lb > la) - (lb < la) : strcmp(a, b);\n}\n\nchar* longestByDeleting(char* text, char** dictionary, int dictionarySize) {\n    char** order = malloc(dictionarySize * sizeof(char*));\n    memcpy(order, dictionary, dictionarySize * sizeof(char*));\n    qsort(order, dictionarySize, sizeof(char*), prefer);\n    const char* best = \"\";\n    for (int k = 0; k < dictionarySize; k++) if (hidden(order[k], text)) { best = order[k]; break; }\n    free(order);\n    char* out = malloc(strlen(best) + 1);\n    strcpy(out, best);\n    return out;\n}\n"
+   },
+   "lines": [
+    {
+     "text": "Greedy subsequence check of one word against the text.",
+     "at": {
+      "python": [
+       [
+        3,
+        8
+       ]
+      ],
+      "java": [
+       [
+        2,
+        6
+       ]
+      ],
+      "cpp": [
+       [
+        2,
+        6
+       ]
+      ],
+      "c": [
+       [
+        1,
+        4
+       ]
+      ]
+     }
+    },
+    {
+     "text": "Longest first; among equal lengths, alphabetical.",
+     "at": {
+      "python": [
+       [
+        9,
+        9
+       ]
+      ],
+      "java": [
+       [
+        9,
+        10
+       ]
+      ],
+      "cpp": [
+       [
+        10,
+        11
+       ]
+      ],
+      "c": [
+       [
+        6,
+        10
+       ],
+       [
+        13,
+        15
+       ]
+      ]
+     },
+     "notes": {
+      "c": "Sort an array of pointers; the strings stay put."
+     }
+    },
+    {
+     "text": "The first hidden word in preference order is the answer.",
+     "at": {
+      "python": [
+       [
+        10,
+        11
+       ]
+      ],
+      "java": [
+       [
+        11,
+        11
+       ]
+      ],
+      "cpp": [
+       [
+        12,
+        12
+       ]
+      ],
+      "c": [
+       [
+        16,
+        17
+       ]
+      ]
+     }
+    },
+    {
+     "text": "No word can be made.",
+     "at": {
+      "python": [
+       [
+        12,
+        12
+       ]
+      ],
+      "java": [
+       [
+        12,
+        12
+       ]
+      ],
+      "cpp": [
+       [
+        13,
+        13
+       ]
+      ],
+      "c": [
+       [
+        18,
+        21
+       ]
+      ]
+     },
+     "notes": {
+      "c": "Return a fresh copy, as the caller frees it."
+     }
+    }
+   ],
+   "complexity": [
+    {
+     "md": "**Time O(D log D · w + D · T)** for D words of length up to w: sorting compares strings, and each check reads the text. **Space O(D)** for the sorted copy."
+    }
+   ],
+   "walk": {
+    "steps": [
+     {
+      "text": "Candidate order: ['apple', 'brand', 'bread', 'zebra', 'band', 'zap'].",
+      "panels": [
+       {
+        "type": "row",
+        "cells": [
+         "apple",
+         "brand",
+         "bread",
+         "zebra",
+         "band",
+         "zap"
+        ]
+       }
+      ]
+     },
+     {
+      "text": "'apple': not hidden.",
+      "panels": [
+       {
+        "type": "row",
+        "cells": [
+         "apple",
+         "brand",
+         "bread",
+         "zebra",
+         "band",
+         "zap"
+        ],
+        "states": {
+         "0": "mark"
+        }
+       }
+      ]
+     },
+     {
+      "text": "'brand': hidden, so this is the answer.",
+      "panels": [
+       {
+        "type": "row",
+        "cells": [
+         "apple",
+         "brand",
+         "bread",
+         "zebra",
+         "band",
+         "zap"
+        ],
+        "states": {
+         "1": "found"
+        }
+       }
+      ]
+     },
+     {
+      "text": "Answer: 'brand'.",
+      "panels": [],
+      "result": "brand"
+     }
+    ],
+    "title": "Sort the dictionary by length (longest first), then alphabetically, and return the first word hidden in the text."
+   },
+   "limits": [
+    {
+     "md": "The sort costs extra and needs a copy of the dictionary. A single pass that keeps the best word checks only words that could beat it."
+    }
+   ]
+  },
+  {
+   "title": "One pass, check only possible winners",
+   "kind": "best",
+   "time": "O(D · T)",
+   "space": "O(1)",
+   "idea": [
+    {
+     "md": "Keep the best word so far. For each dictionary word, first ask whether it would **win** (longer, or equal\nlength and alphabetically smaller); only then run the subsequence check, and replace the best if it's\nhidden.\n\n**Why it's correct.** The final best is hidden, and every other hidden word was either checked and lost,\nor skipped because it couldn't beat a hidden word."
+    }
+   ],
+   "build": [
+    "Subsequence helper.",
+    "Best = empty.",
+    "For each word: skip if it can't win; otherwise check and update."
+   ],
+   "code": {
+    "python": "class Solution:\n    def longestByDeleting(self, text: str, dictionary: List[str]) -> str:\n        def hidden(w):\n            i = 0\n            for c in text:\n                if i < len(w) and c == w[i]:\n                    i += 1\n            return i == len(w)\n        best = \"\"\n        for w in dictionary:\n            wins = len(w) > len(best) or (len(w) == len(best) and w < best)\n            if wins and hidden(w):\n                best = w\n        return best\n",
+    "java": "class Solution {\n    private boolean hidden(String w, String text) {\n        int i = 0;\n        for (int t = 0; t < text.length() && i < w.length(); t++) if (text.charAt(t) == w.charAt(i)) i++;\n        return i == w.length();\n    }\n\n    public String longestByDeleting(String text, String[] dictionary) {\n        String best = \"\";\n        for (String w : dictionary) {\n            boolean wins = w.length() > best.length() || (w.length() == best.length() && w.compareTo(best) < 0);\n            if (wins && hidden(w, text)) best = w;\n        }\n        return best;\n    }\n}\n",
+    "cpp": "class Solution {\n    static bool hidden(const string& w, const string& text) {\n        size_t i = 0;\n        for (size_t t = 0; t < text.size() && i < w.size(); t++) if (text[t] == w[i]) i++;\n        return i == w.size();\n    }\n\npublic:\n    string longestByDeleting(string& text, vector<string>& dictionary) {\n        string best;\n        for (auto& w : dictionary) {\n            bool wins = w.size() > best.size() || (w.size() == best.size() && w < best);\n            if (wins && hidden(w, text)) best = w;\n        }\n        return best;\n    }\n};\n",
+    "c": "static bool hidden(const char* w, const char* text) {\n    for (; *text && *w; text++) if (*text == *w) w++;\n    return *w == '\\0';\n}\n\nchar* longestByDeleting(char* text, char** dictionary, int dictionarySize) {\n    const char* best = \"\";\n    size_t bestLen = 0;\n    for (int k = 0; k < dictionarySize; k++) {\n        size_t len = strlen(dictionary[k]);\n        int wins = len > bestLen || (len == bestLen && strcmp(dictionary[k], best) < 0);\n        if (wins && hidden(dictionary[k], text)) { best = dictionary[k]; bestLen = len; }\n    }\n    char* out = malloc(bestLen + 1);\n    strcpy(out, best);\n    return out;\n}\n"
+   },
+   "lines": [
+    {
+     "text": "Greedy subsequence check of one word against the text.",
+     "at": {
+      "python": [
+       [
+        3,
+        8
+       ]
+      ],
+      "java": [
+       [
+        2,
+        6
+       ]
+      ],
+      "cpp": [
+       [
+        2,
+        6
+       ]
+      ],
+      "c": [
+       [
+        1,
+        4
+       ]
+      ]
+     }
+    },
+    {
+     "text": "The best word so far (empty means none).",
+     "at": {
+      "python": [
+       [
+        9,
+        9
+       ]
+      ],
+      "java": [
+       [
+        9,
+        9
+       ]
+      ],
+      "cpp": [
+       [
+        10,
+        10
+       ]
+      ],
+      "c": [
+       [
+        7,
+        8
+       ]
+      ]
+     }
+    },
+    {
+     "text": "Every dictionary word, in any order.",
+     "at": {
+      "python": [
+       [
+        10,
+        10
+       ]
+      ],
+      "java": [
+       [
+        10,
+        10
+       ]
+      ],
+      "cpp": [
+       [
+        11,
+        11
+       ]
+      ],
+      "c": [
+       [
+        9,
+        9
+       ]
+      ]
+     }
+    },
+    {
+     "text": "Check only words that would beat the current best; then replace it if the word is hidden.",
+     "at": {
+      "python": [
+       [
+        11,
+        13
+       ]
+      ],
+      "java": [
+       [
+        11,
+        12
+       ]
+      ],
+      "cpp": [
+       [
+        12,
+        13
+       ]
+      ],
+      "c": [
+       [
+        10,
+        12
+       ]
+      ]
+     }
+    },
+    {
+     "text": "The longest (then alphabetically first) word that can be made.",
+     "at": {
+      "python": [
+       [
+        14,
+        14
+       ]
+      ],
+      "java": [
+       [
+        14,
+        14
+       ]
+      ],
+      "cpp": [
+       [
+        15,
+        15
+       ]
+      ],
+      "c": [
+       [
+        14,
+        16
+       ]
+      ]
+     },
+     "notes": {
+      "c": "Return a fresh copy, as the caller frees it."
+     }
+    }
+   ],
+   "complexity": [
+    {
+     "md": "**Time O(D · T)** in the worst case, usually much less because losing words aren't checked. **Space O(1)** besides the input."
+    }
+   ],
+   "walk": {
+    "steps": [
+     {
+      "text": "'band' would win and is hidden: new best.",
+      "panels": [
+       {
+        "type": "row",
+        "cells": [
+         "band",
+         "zebra",
+         "bread",
+         "brand",
+         "apple",
+         "zap"
+        ],
+        "states": {
+         "0": "found"
+        }
+       },
+       {
+        "type": "vars",
+        "items": {
+         "best": "band"
+        }
+       }
+      ]
+     },
+     {
+      "text": "'zebra': would win, but isn't hidden.",
+      "panels": [
+       {
+        "type": "row",
+        "cells": [
+         "band",
+         "zebra",
+         "bread",
+         "brand",
+         "apple",
+         "zap"
+        ],
+        "states": {
+         "1": "mark"
+        }
+       },
+       {
+        "type": "vars",
+        "items": {
+         "best": "band"
+        }
+       }
+      ]
+     },
+     {
+      "text": "'bread' would win and is hidden: new best.",
+      "panels": [
+       {
+        "type": "row",
+        "cells": [
+         "band",
+         "zebra",
+         "bread",
+         "brand",
+         "apple",
+         "zap"
+        ],
+        "states": {
+         "2": "found"
+        }
+       },
+       {
+        "type": "vars",
+        "items": {
+         "best": "bread"
+        }
+       }
+      ]
+     },
+     {
+      "text": "'brand' would win and is hidden: new best.",
+      "panels": [
+       {
+        "type": "row",
+        "cells": [
+         "band",
+         "zebra",
+         "bread",
+         "brand",
+         "apple",
+         "zap"
+        ],
+        "states": {
+         "3": "found"
+        }
+       },
+       {
+        "type": "vars",
+        "items": {
+         "best": "brand"
+        }
+       }
+      ]
+     },
+     {
+      "text": "'apple': would win, but isn't hidden.",
+      "panels": [
+       {
+        "type": "row",
+        "cells": [
+         "band",
+         "zebra",
+         "bread",
+         "brand",
+         "apple",
+         "zap"
+        ],
+        "states": {
+         "4": "mark"
+        }
+       },
+       {
+        "type": "vars",
+        "items": {
+         "best": "brand"
+        }
+       }
+      ]
+     },
+     {
+      "text": "'zap': can't beat the best, so no check needed.",
+      "panels": [
+       {
+        "type": "row",
+        "cells": [
+         "band",
+         "zebra",
+         "bread",
+         "brand",
+         "apple",
+         "zap"
+        ],
+        "states": {
+         "5": "mark"
+        }
+       },
+       {
+        "type": "vars",
+        "items": {
+         "best": "brand"
+        }
+       }
+      ]
+     },
+     {
+      "text": "Answer: 'brand'.",
+      "panels": [],
+      "result": "brand"
+     }
+    ],
+    "title": "One pass over the dictionary, keeping the best word so far. Only run the subsequence check on words that would beat it."
+   }
+  }
+ ],
+ "takeaways": [
+  {
+   "md": "- **Subsequence check + a preference order:** prune candidates that can't win before checking them.\n- Express the preference as a comparison (`(−length, word)`).\n- **Pitfall:** returning the first hidden word in input order instead of the preferred one."
+  }
+ ]
+}

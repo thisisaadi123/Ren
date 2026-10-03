@@ -1,0 +1,1056 @@
+{
+ "version": 1,
+ "summary": "Keep `need[c]` = copies of `c` the window still lacks (negative when it has extras) and `missing` = the total\nstill lacking. Grow the window; a character reduces `missing` only if it was still needed. When `missing` hits\n0, record the window and shrink from the left; removing a character whose `need` turns positive makes the\nwindow incomplete. O(n + m).",
+ "question": [
+  {
+   "md": "Return the shortest substring of `s` containing every character of `t` with multiplicity (leftmost on ties), or\n`\"\"`. Case-sensitive.\n\n- **Both up to 10⁵ letters.**"
+  },
+  {
+   "md": "**Edge cases to keep in mind**\n\n- `t` longer than `s`, or a letter of `t` missing from `s`: return `\"\"`.\n- Repeated letters in `t` must be matched with multiplicity (`\"AA\"` needs two `A`s).\n- Upper and lower case are different letters."
+  }
+ ],
+ "think": [
+  {
+   "md": "**Shape of the rule.** A window is valid when it contains every letter of `t` at least as many times as `t`\ndoes. Adding letters never breaks that, so it's a shortest-valid-window problem."
+  },
+  {
+   "md": "**Why one left pointer is enough.** Here the rule gets *easier* as a window grows: if `[L, R]` is valid, every longer\nwindow `[L, R']` with `R' > R` is valid too. For each right end `R`, the best window is the valid one with the\n**latest** start. And that latest start never moves backwards as `R` grows: a start that was too early to be the\ntightest for `R` is still too early for `R + 1`. So `R` grows the window until it's valid, then `L` moves forward as\nlong as the window stays valid, recording each valid window on the way."
+  },
+  {
+   "md": "**Trace** on `s = \"XBAYCBAXCA\"`, `t = \"ABC\"` (last column = letters still missing):"
+  },
+  {
+   "table": {
+    "head": [
+     "R",
+     "char",
+     "tightest window",
+     "length",
+     "best",
+     "missing"
+    ],
+    "rows": [
+     [
+      "0",
+      "X",
+      "— (not valid yet)",
+      "—",
+      "—",
+      "3"
+     ],
+     [
+      "1",
+      "B",
+      "— (not valid yet)",
+      "—",
+      "—",
+      "2"
+     ],
+     [
+      "2",
+      "A",
+      "— (not valid yet)",
+      "—",
+      "—",
+      "1"
+     ],
+     [
+      "3",
+      "Y",
+      "— (not valid yet)",
+      "—",
+      "—",
+      "1"
+     ],
+     [
+      "4",
+      "C",
+      "BAYC",
+      "4",
+      "4",
+      "0"
+     ],
+     [
+      "5",
+      "B",
+      "AYCB",
+      "4",
+      "4",
+      "0"
+     ],
+     [
+      "6",
+      "A",
+      "CBA",
+      "3",
+      "3",
+      "0"
+     ],
+     [
+      "7",
+      "X",
+      "— (not valid yet)",
+      "—",
+      "3",
+      "1"
+     ],
+     [
+      "8",
+      "C",
+      "BAXC",
+      "4",
+      "3",
+      "0"
+     ],
+     [
+      "9",
+      "A",
+      "— (not valid yet)",
+      "—",
+      "3",
+      "1"
+     ]
+    ]
+   }
+  },
+  {
+   "md": "**Validity in O(1) with one counter.** Keep `need[c]` = how many more `c` the window still needs (it goes negative\nwhen the window has extras) and `missing` = the total still needed.\n\n- Adding `c`: if `need[c] > 0`, this copy was actually needed, so `missing −= 1`. Either way `need[c] −= 1`.\n- Removing `c`: `need[c] += 1`; if it becomes positive, the window now lacks a `c`, so `missing += 1`.\n\nThe window is valid exactly when `missing == 0`. No 52-letter comparison is needed."
+  },
+  {
+   "md": "**Why every candidate is seen.** When the inner loop stops at `R`, `[L − 1, R]` was the last valid window, the tightest\none ending at `R`. The shortest valid window overall ends at some `R`, and is the tightest one for that `R`, so it's\nrecorded at that moment."
+  }
+ ],
+ "approaches": [
+  {
+   "title": "Extend from every start",
+   "kind": "brute",
+   "time": "O(n²)",
+   "space": "O(σ)",
+   "idea": [
+    {
+     "md": "From every start, copy the requirement counts and extend until nothing is missing (only while shorter than the best). Each start redoes the counting."
+    }
+   ],
+   "build": [
+    "Requirement counts.",
+    "Extend from each start.",
+    "Keep the shortest."
+   ],
+   "code": {
+    "python": "class Solution:\n    def coverWindow(self, s: str, t: str) -> str:\n        n = len(s)\n        base = {}\n        for c in t:\n            base[c] = base.get(c, 0) + 1\n        best_len, best_start = n + 1, 0\n        for i in range(n):\n            need, missing = dict(base), len(t)\n            for j in range(i, min(n, i + best_len - 1)):\n                if need.get(s[j], 0) > 0:\n                    missing -= 1\n                need[s[j]] = need.get(s[j], 0) - 1\n                if missing == 0:\n                    best_len, best_start = j - i + 1, i\n                    break\n        return s[best_start:best_start + best_len] if best_len <= n else \"\"\n",
+    "java": "class Solution {\n    public String coverWindow(String s, String t) {\n        int n = s.length(), bestLen = n + 1, bestStart = 0;\n        int[] base = new int[128];\n        for (char c : t.toCharArray()) base[c]++;\n        for (int i = 0; i < n; i++) {\n            int[] need = base.clone();\n            int missing = t.length();\n            for (int j = i; j < n && j - i + 1 < bestLen; j++) {\n                if (need[s.charAt(j)]-- > 0) missing--;\n                if (missing == 0) { bestLen = j - i + 1; bestStart = i; break; }\n            }\n        }\n        return bestLen <= n ? s.substring(bestStart, bestStart + bestLen) : \"\";\n    }\n}\n",
+    "cpp": "class Solution {\npublic:\n    string coverWindow(string& s, string& t) {\n        int n = s.size(), bestLen = n + 1, bestStart = 0;\n        array<int, 128> base{};\n        for (char c : t) base[c]++;\n        for (int i = 0; i < n; i++) {\n            array<int, 128> need = base;\n            int missing = t.size();\n            for (int j = i; j < n && j - i + 1 < bestLen; j++) {\n                if (need[s[j]]-- > 0) missing--;\n                if (missing == 0) { bestLen = j - i + 1; bestStart = i; break; }\n            }\n        }\n        return bestLen <= n ? s.substr(bestStart, bestLen) : \"\";\n    }\n};\n",
+    "c": "char* coverWindow(char* s, char* t) {\n    int n = strlen(s), m = strlen(t), bestLen = n + 1, bestStart = 0, base[128] = {0};\n    for (int i = 0; i < m; i++) base[(int) t[i]]++;\n    for (int i = 0; i < n; i++) {\n        int need[128], missing = m;\n        memcpy(need, base, sizeof(need));\n        for (int j = i; j < n && j - i + 1 < bestLen; j++) {\n            if (need[(int) s[j]]-- > 0) missing--;\n            if (missing == 0) { bestLen = j - i + 1; bestStart = i; break; }\n        }\n    }\n    if (bestLen > n) bestLen = 0;\n    char* out = malloc(bestLen + 1);\n    memcpy(out, s + bestStart, bestLen);\n    out[bestLen] = '\\0';\n    return out;\n}\n"
+   },
+   "lines": [
+    {
+     "text": "How many of each character `t` requires.",
+     "at": {
+      "python": [
+       [
+        3,
+        7
+       ]
+      ],
+      "java": [
+       [
+        3,
+        5
+       ]
+      ],
+      "cpp": [
+       [
+        4,
+        6
+       ]
+      ],
+      "c": [
+       [
+        2,
+        3
+       ]
+      ]
+     }
+    },
+    {
+     "text": "Each position as the start. Every index is tried as the left end of the window. Nothing learned from one start is reused for the next, which is exactly the waste the better approaches remove.",
+     "at": {
+      "python": [
+       [
+        8,
+        8
+       ]
+      ],
+      "java": [
+       [
+        6,
+        6
+       ]
+      ],
+      "cpp": [
+       [
+        7,
+        7
+       ]
+      ],
+      "c": [
+       [
+        4,
+        4
+       ]
+      ]
+     }
+    },
+    {
+     "text": "Extend with a fresh copy of the requirements until nothing is missing, stopping early if the window can't beat the best.",
+     "at": {
+      "python": [
+       [
+        9,
+        16
+       ]
+      ],
+      "java": [
+       [
+        7,
+        11
+       ]
+      ],
+      "cpp": [
+       [
+        8,
+        12
+       ]
+      ],
+      "c": [
+       [
+        5,
+        9
+       ]
+      ]
+     }
+    },
+    {
+     "text": "The window, or an empty string.",
+     "at": {
+      "python": [
+       [
+        17,
+        17
+       ]
+      ],
+      "java": [
+       [
+        14,
+        14
+       ]
+      ],
+      "cpp": [
+       [
+        15,
+        15
+       ]
+      ],
+      "c": [
+       [
+        12,
+        16
+       ]
+      ]
+     }
+    }
+   ],
+   "complexity": [
+    {
+     "md": "**Time O(n²)** in the worst case. **Space O(σ)**: one count per letter."
+    }
+   ],
+   "walk": {
+    "steps": [
+     {
+      "text": "Start 0: extend until the window first becomes valid at 4; length 5.",
+      "panels": [
+       {
+        "type": "row",
+        "cells": [
+         "X",
+         "B",
+         "A",
+         "Y",
+         "C",
+         "B",
+         "A",
+         "X",
+         "C",
+         "A"
+        ],
+        "states": {
+         "0": "found",
+         "1": "found",
+         "2": "found",
+         "3": "found",
+         "4": "found"
+        },
+        "pointers": {
+         "L": 0,
+         "R": 4
+        }
+       },
+       {
+        "type": "vars",
+        "items": {
+         "best": 5
+        }
+       }
+      ]
+     },
+     {
+      "text": "Start 1: extend until the window first becomes valid at 4; length 4.",
+      "panels": [
+       {
+        "type": "row",
+        "cells": [
+         "X",
+         "B",
+         "A",
+         "Y",
+         "C",
+         "B",
+         "A",
+         "X",
+         "C",
+         "A"
+        ],
+        "states": {
+         "1": "found",
+         "2": "found",
+         "3": "found",
+         "4": "found"
+        },
+        "pointers": {
+         "L": 1,
+         "R": 4
+        }
+       },
+       {
+        "type": "vars",
+        "items": {
+         "best": 4
+        }
+       }
+      ]
+     },
+     {
+      "text": "Start 2: extend until the window first becomes valid at 5; length 4.",
+      "panels": [
+       {
+        "type": "row",
+        "cells": [
+         "X",
+         "B",
+         "A",
+         "Y",
+         "C",
+         "B",
+         "A",
+         "X",
+         "C",
+         "A"
+        ],
+        "states": {
+         "2": "found",
+         "3": "found",
+         "4": "found",
+         "5": "found"
+        },
+        "pointers": {
+         "L": 2,
+         "R": 5
+        }
+       },
+       {
+        "type": "vars",
+        "items": {
+         "best": 4
+        }
+       }
+      ]
+     },
+     {
+      "text": "Start 3: extend until the window first becomes valid at 6; length 4.",
+      "panels": [
+       {
+        "type": "row",
+        "cells": [
+         "X",
+         "B",
+         "A",
+         "Y",
+         "C",
+         "B",
+         "A",
+         "X",
+         "C",
+         "A"
+        ],
+        "states": {
+         "3": "found",
+         "4": "found",
+         "5": "found",
+         "6": "found"
+        },
+        "pointers": {
+         "L": 3,
+         "R": 6
+        }
+       },
+       {
+        "type": "vars",
+        "items": {
+         "best": 4
+        }
+       }
+      ]
+     },
+     {
+      "text": "Start 4: extend until the window first becomes valid at 6; length 3.",
+      "panels": [
+       {
+        "type": "row",
+        "cells": [
+         "X",
+         "B",
+         "A",
+         "Y",
+         "C",
+         "B",
+         "A",
+         "X",
+         "C",
+         "A"
+        ],
+        "states": {
+         "4": "found",
+         "5": "found",
+         "6": "found"
+        },
+        "pointers": {
+         "L": 4,
+         "R": 6
+        }
+       },
+       {
+        "type": "vars",
+        "items": {
+         "best": 3
+        }
+       }
+      ]
+     },
+     {
+      "text": "Start 5: extend until the window first becomes valid at 8; length 4.",
+      "panels": [
+       {
+        "type": "row",
+        "cells": [
+         "X",
+         "B",
+         "A",
+         "Y",
+         "C",
+         "B",
+         "A",
+         "X",
+         "C",
+         "A"
+        ],
+        "states": {
+         "5": "found",
+         "6": "found",
+         "7": "found",
+         "8": "found"
+        },
+        "pointers": {
+         "L": 5,
+         "R": 8
+        }
+       },
+       {
+        "type": "vars",
+        "items": {
+         "best": 3
+        }
+       }
+      ]
+     },
+     {
+      "text": "The remaining starts are checked the same way, about 28 cells read in total, which grows like n². Shortest: 4..6.",
+      "panels": [
+       {
+        "type": "row",
+        "cells": [
+         "X",
+         "B",
+         "A",
+         "Y",
+         "C",
+         "B",
+         "A",
+         "X",
+         "C",
+         "A"
+        ],
+        "states": {
+         "4": "found",
+         "5": "found",
+         "6": "found"
+        },
+        "pointers": {
+         "L": 4,
+         "R": 6
+        }
+       },
+       {
+        "type": "vars",
+        "items": {
+         "best": 3
+        }
+       }
+      ]
+     },
+     {
+      "text": "Shortest: 'CBA'.",
+      "panels": [],
+      "result": "CBA"
+     }
+    ],
+    "title": "From each start, extend until the window holds every character of t (with repeats)."
+   },
+   "limits": [
+    {
+     "md": "Each start rebuilds its requirement counts and may scan far: O(n²)."
+    }
+   ],
+   "slow": true
+  },
+  {
+   "title": "Shrinking window with a missing counter",
+   "kind": "best",
+   "time": "O(n + m)",
+   "space": "O(σ)",
+   "idea": [
+    {
+     "md": "Grow with `R` (updating `need` and `missing`). While `missing == 0`, record the window if it's strictly\nshorter (that keeps the leftmost on ties, because `R` only increases), then remove `s[L]` and advance.\n\nStore the best window as (length, start) and cut the substring once at the end."
+    }
+   ],
+   "build": [
+    "`need` from `t`; `missing = len(t)`; `L = 0`; best = (n + 1, 0).",
+    "Add `s[R]`: `missing −= 1` if it was needed; `need[s[R]] −= 1`.",
+    "While `missing == 0`: record if strictly shorter; `need[s[L]] += 1`; if positive, `missing += 1`; `L += 1`.",
+    "Return the best substring or `\"\"`."
+   ],
+   "code": {
+    "python": "class Solution:\n    def coverWindow(self, s: str, t: str) -> str:\n        need = {}\n        for c in t:\n            need[c] = need.get(c, 0) + 1\n        missing, left = len(t), 0\n        best_len, best_start = len(s) + 1, 0\n        for i, c in enumerate(s):\n            if need.get(c, 0) > 0:\n                missing -= 1\n            need[c] = need.get(c, 0) - 1\n            while missing == 0:\n                if i - left + 1 < best_len:\n                    best_len, best_start = i - left + 1, left\n                need[s[left]] += 1\n                if need[s[left]] > 0:\n                    missing += 1\n                left += 1\n        return s[best_start:best_start + best_len] if best_len <= len(s) else \"\"\n",
+    "java": "class Solution {\n    public String coverWindow(String s, String t) {\n        int[] need = new int[128];\n        for (char c : t.toCharArray()) need[c]++;\n        int n = s.length(), missing = t.length(), left = 0, bestLen = n + 1, bestStart = 0;\n        for (int i = 0; i < n; i++) {\n            if (need[s.charAt(i)]-- > 0) missing--;\n            while (missing == 0) {\n                if (i - left + 1 < bestLen) { bestLen = i - left + 1; bestStart = left; }\n                if (++need[s.charAt(left++)] > 0) missing++;\n            }\n        }\n        return bestLen <= n ? s.substring(bestStart, bestStart + bestLen) : \"\";\n    }\n}\n",
+    "cpp": "class Solution {\npublic:\n    string coverWindow(string& s, string& t) {\n        array<int, 128> need{};\n        for (char c : t) need[c]++;\n        int n = s.size(), missing = t.size(), left = 0, bestLen = n + 1, bestStart = 0;\n        for (int i = 0; i < n; i++) {\n            if (need[s[i]]-- > 0) missing--;\n            while (missing == 0) {\n                if (i - left + 1 < bestLen) { bestLen = i - left + 1; bestStart = left; }\n                if (++need[s[left++]] > 0) missing++;\n            }\n        }\n        return bestLen <= n ? s.substr(bestStart, bestLen) : \"\";\n    }\n};\n",
+    "c": "char* coverWindow(char* s, char* t) {\n    int need[128] = {0}, n = strlen(s), m = strlen(t);\n    for (int i = 0; i < m; i++) need[(int) t[i]]++;\n    int missing = m, left = 0, bestLen = n + 1, bestStart = 0;\n    for (int i = 0; i < n; i++) {\n        if (need[(int) s[i]]-- > 0) missing--;\n        while (missing == 0) {\n            if (i - left + 1 < bestLen) { bestLen = i - left + 1; bestStart = left; }\n            if (++need[(int) s[left++]] > 0) missing++;\n        }\n    }\n    if (bestLen > n) bestLen = 0;\n    char* out = malloc(bestLen + 1);\n    memcpy(out, s + bestStart, bestLen);\n    out[bestLen] = '\\0';\n    return out;\n}\n"
+   },
+   "lines": [
+    {
+     "text": "`need[c]` = copies of `c` still required (negative = extras in the window); `missing` = total copies still required.",
+     "at": {
+      "python": [
+       [
+        3,
+        7
+       ]
+      ],
+      "java": [
+       [
+        3,
+        5
+       ]
+      ],
+      "cpp": [
+       [
+        4,
+        6
+       ]
+      ],
+      "c": [
+       [
+        2,
+        4
+       ]
+      ]
+     }
+    },
+    {
+     "text": "Add `s[R]`. Only a copy that was still needed (`need > 0`) reduces `missing`; extras just push `need` below zero.",
+     "at": {
+      "python": [
+       [
+        8,
+        11
+       ]
+      ],
+      "java": [
+       [
+        6,
+        7
+       ]
+      ],
+      "cpp": [
+       [
+        7,
+        8
+       ]
+      ],
+      "c": [
+       [
+        5,
+        6
+       ]
+      ]
+     }
+    },
+    {
+     "text": "While the window is valid, it's a candidate: record its length, then drop the leftmost element to try a shorter one. The loop stops at the first invalid window, so the last recorded one is the tightest valid window ending at `R`. Removing a character whose `need` turns positive makes the window lack it again, so `missing` rises and the loop ends.",
+     "at": {
+      "python": [
+       [
+        12,
+        18
+       ]
+      ],
+      "java": [
+       [
+        8,
+        10
+       ]
+      ],
+      "cpp": [
+       [
+        9,
+        11
+       ]
+      ],
+      "c": [
+       [
+        7,
+        9
+       ]
+      ]
+     }
+    },
+    {
+     "text": "The best window, cut out once at the end.",
+     "at": {
+      "python": [
+       [
+        19,
+        19
+       ]
+      ],
+      "java": [
+       [
+        13,
+        13
+       ]
+      ],
+      "cpp": [
+       [
+        14,
+        14
+       ]
+      ],
+      "c": [
+       [
+        12,
+        16
+       ]
+      ]
+     }
+    }
+   ],
+   "complexity": [
+    {
+     "md": "**Time O(n + m):** each index enters and leaves once. **Space O(σ)**: 128 counters."
+    }
+   ],
+   "walk": {
+    "steps": [
+     {
+      "text": "R adds X at 0: window 0..0 isn't valid yet (missing 3), so keep growing.",
+      "panels": [
+       {
+        "type": "row",
+        "cells": [
+         "X",
+         "B",
+         "A",
+         "Y",
+         "C",
+         "B",
+         "A",
+         "X",
+         "C",
+         "A"
+        ],
+        "states": {
+         "0": "active"
+        },
+        "pointers": {
+         "L": 0,
+         "R": 0
+        }
+       },
+       {
+        "type": "vars",
+        "items": {
+         "best": "—"
+        }
+       }
+      ]
+     },
+     {
+      "text": "R adds B at 1: window 0..1 isn't valid yet (missing 2), so keep growing.",
+      "panels": [
+       {
+        "type": "row",
+        "cells": [
+         "X",
+         "B",
+         "A",
+         "Y",
+         "C",
+         "B",
+         "A",
+         "X",
+         "C",
+         "A"
+        ],
+        "states": {
+         "0": "active",
+         "1": "active"
+        },
+        "pointers": {
+         "L": 0,
+         "R": 1
+        }
+       },
+       {
+        "type": "vars",
+        "items": {
+         "best": "—"
+        }
+       }
+      ]
+     },
+     {
+      "text": "R adds A at 2: window 0..2 isn't valid yet (missing 1), so keep growing.",
+      "panels": [
+       {
+        "type": "row",
+        "cells": [
+         "X",
+         "B",
+         "A",
+         "Y",
+         "C",
+         "B",
+         "A",
+         "X",
+         "C",
+         "A"
+        ],
+        "states": {
+         "0": "active",
+         "1": "active",
+         "2": "active"
+        },
+        "pointers": {
+         "L": 0,
+         "R": 2
+        }
+       },
+       {
+        "type": "vars",
+        "items": {
+         "best": "—"
+        }
+       }
+      ]
+     },
+     {
+      "text": "R adds Y at 3: window 0..3 isn't valid yet (missing 1), so keep growing.",
+      "panels": [
+       {
+        "type": "row",
+        "cells": [
+         "X",
+         "B",
+         "A",
+         "Y",
+         "C",
+         "B",
+         "A",
+         "X",
+         "C",
+         "A"
+        ],
+        "states": {
+         "0": "active",
+         "1": "active",
+         "2": "active",
+         "3": "active"
+        },
+        "pointers": {
+         "L": 0,
+         "R": 3
+        }
+       },
+       {
+        "type": "vars",
+        "items": {
+         "best": "—"
+        }
+       }
+      ]
+     },
+     {
+      "text": "R adds C at 4: the window 0..4 is valid (missing 0). L moves right while it stays valid; the tightest is 1..4 (length 4). One more step would break it, so L stops at 2.",
+      "panels": [
+       {
+        "type": "row",
+        "cells": [
+         "X",
+         "B",
+         "A",
+         "Y",
+         "C",
+         "B",
+         "A",
+         "X",
+         "C",
+         "A"
+        ],
+        "states": {
+         "1": "found",
+         "2": "found",
+         "3": "found",
+         "4": "found",
+         "0": "dim"
+        },
+        "pointers": {
+         "L": 1,
+         "R": 4
+        }
+       },
+       {
+        "type": "vars",
+        "items": {
+         "best": 4
+        }
+       }
+      ]
+     },
+     {
+      "text": "R adds B at 5: the window 2..5 is valid (missing 0). L moves right while it stays valid; the tightest is 2..5 (length 4). One more step would break it, so L stops at 3.",
+      "panels": [
+       {
+        "type": "row",
+        "cells": [
+         "X",
+         "B",
+         "A",
+         "Y",
+         "C",
+         "B",
+         "A",
+         "X",
+         "C",
+         "A"
+        ],
+        "states": {
+         "2": "found",
+         "3": "found",
+         "4": "found",
+         "5": "found"
+        },
+        "pointers": {
+         "L": 2,
+         "R": 5
+        }
+       },
+       {
+        "type": "vars",
+        "items": {
+         "best": 4
+        }
+       }
+      ]
+     },
+     {
+      "text": "R adds A at 6: the window 3..6 is valid (missing 0). L moves right while it stays valid; the tightest is 4..6 (length 3). One more step would break it, so L stops at 5.",
+      "panels": [
+       {
+        "type": "row",
+        "cells": [
+         "X",
+         "B",
+         "A",
+         "Y",
+         "C",
+         "B",
+         "A",
+         "X",
+         "C",
+         "A"
+        ],
+        "states": {
+         "4": "found",
+         "5": "found",
+         "6": "found",
+         "3": "dim"
+        },
+        "pointers": {
+         "L": 4,
+         "R": 6
+        }
+       },
+       {
+        "type": "vars",
+        "items": {
+         "best": 3
+        }
+       }
+      ]
+     },
+     {
+      "text": "R adds X at 7: window 5..7 isn't valid yet (missing 1), so keep growing.",
+      "panels": [
+       {
+        "type": "row",
+        "cells": [
+         "X",
+         "B",
+         "A",
+         "Y",
+         "C",
+         "B",
+         "A",
+         "X",
+         "C",
+         "A"
+        ],
+        "states": {
+         "5": "active",
+         "6": "active",
+         "7": "active"
+        },
+        "pointers": {
+         "L": 5,
+         "R": 7
+        }
+       },
+       {
+        "type": "vars",
+        "items": {
+         "best": 3
+        }
+       }
+      ]
+     },
+     {
+      "text": "R adds C at 8: the window 5..8 is valid (missing 0). L moves right while it stays valid; the tightest is 5..8 (length 4). One more step would break it, so L stops at 6.",
+      "panels": [
+       {
+        "type": "row",
+        "cells": [
+         "X",
+         "B",
+         "A",
+         "Y",
+         "C",
+         "B",
+         "A",
+         "X",
+         "C",
+         "A"
+        ],
+        "states": {
+         "5": "found",
+         "6": "found",
+         "7": "found",
+         "8": "found"
+        },
+        "pointers": {
+         "L": 5,
+         "R": 8
+        }
+       },
+       {
+        "type": "vars",
+        "items": {
+         "best": 3
+        }
+       }
+      ]
+     },
+     {
+      "text": "R adds A at 9: window 6..9 isn't valid yet (missing 1), so keep growing.",
+      "panels": [
+       {
+        "type": "row",
+        "cells": [
+         "X",
+         "B",
+         "A",
+         "Y",
+         "C",
+         "B",
+         "A",
+         "X",
+         "C",
+         "A"
+        ],
+        "states": {
+         "6": "active",
+         "7": "active",
+         "8": "active",
+         "9": "active"
+        },
+        "pointers": {
+         "L": 6,
+         "R": 9
+        }
+       },
+       {
+        "type": "vars",
+        "items": {
+         "best": 3
+        }
+       }
+      ]
+     },
+     {
+      "text": "Every index entered the window once (via R) and left at most once (via L): O(n) moves in total.",
+      "panels": []
+     },
+     {
+      "text": "Shortest: 'CBA'.",
+      "panels": [],
+      "result": "CBA"
+     }
+    ],
+    "title": "need[c] = how many more c the window still needs (negative = extra). missing = total still needed. Grow; when missing hits 0, record and shrink until a needed character leaves."
+   }
+  }
+ ],
+ "takeaways": [
+  {
+   "md": "- **Minimum window containing a multiset:** shrinking window + one `missing` counter.\n- Let `need` go negative for extras; only threshold crossings change `missing`.\n- Strict `<` when recording keeps the leftmost of equal-length answers."
+  }
+ ]
+}

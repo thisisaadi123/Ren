@@ -1,0 +1,924 @@
+{
+ "version": 1,
+ "summary": "Split the value into a part for each post: `(y_i − x_i) + (y_j + x_j)`. For each right post `j`, the best\npartner is the post within distance `k` to its left with the largest `y_i − x_i`. As `j` moves right, that range\nslides, so a monotonic deque of `y − x` values gives the best partner in O(1) amortised. O(n).",
+ "question": [
+  {
+   "md": "Posts are sorted by position `x`. A pair `i < j` with `x_j − x_i ≤ k` can hold a banner worth\n`y_i + y_j + (x_j − x_i)`. Return the best value. At least one valid pair exists.\n\n- **Heights can be negative**, so the best value can be negative too.\n- **Distance helps:** a farther partner adds more `x_j − x_i`, but it must stay within `k`.\n- **Up to 10⁵ posts.** Values reach about 6 × 10⁸ in size; use 64-bit to be safe (the return type is `long`)."
+  }
+ ],
+ "think": [
+  {
+   "md": "Posts `[[0, 3], [2, 1], [3, 5], [7, 2], [8, 6], [12, 0]]`, `k = 4`. The best banner joins posts 2 and 3: 5 + 2 +\n(7 − 3) = **11**.\n\nThe value mixes both posts, but it separates: `y_i + y_j + x_j − x_i = (y_i − x_i) + (y_j + x_j)`. With `j`\nfixed, `y_j + x_j` is a constant, so we just need the largest `y_i − x_i` among the posts in range."
+  },
+  {
+   "table": {
+    "head": [
+     "post",
+     "x",
+     "y",
+     "y − x",
+     "y + x"
+    ],
+    "rows": [
+     [
+      "0",
+      "0",
+      "3",
+      "3",
+      "3"
+     ],
+     [
+      "1",
+      "2",
+      "1",
+      "-1",
+      "3"
+     ],
+     [
+      "2",
+      "3",
+      "5",
+      "2",
+      "8"
+     ],
+     [
+      "3",
+      "7",
+      "2",
+      "-5",
+      "9"
+     ],
+     [
+      "4",
+      "8",
+      "6",
+      "-2",
+      "14"
+     ],
+     [
+      "5",
+      "12",
+      "0",
+      "-12",
+      "12"
+     ]
+    ]
+   }
+  },
+  {
+   "md": "The range for `j` is the posts with `x_j − k ≤ x_i` and `i < j`. As `j` moves right, posts leave from the left\nand `j` itself joins on the right: a sliding window (sized by distance, not count). The maximum of a sliding\nwindow is a monotonic deque."
+  }
+ ],
+ "approaches": [
+  {
+   "title": "Every close-enough pair",
+   "kind": "brute",
+   "time": "O(n²)",
+   "space": "O(1)",
+   "idea": [
+    {
+     "md": "For every pair `i < j` with `x_j − x_i ≤ k`, compute the value and keep the best."
+    }
+   ],
+   "build": [
+    "Double loop over `j` and `i < j`.",
+    "Skip pairs farther than `k`.",
+    "Track the maximum (start below any possible value)."
+   ],
+   "code": {
+    "python": "class Solution:\n    def bestPair(self, posts: List[List[int]], k: int) -> int:\n        best = None\n        for j in range(len(posts)):\n            for i in range(j):\n                if posts[j][0] - posts[i][0] <= k:\n                    value = posts[i][1] + posts[j][1] + posts[j][0] - posts[i][0]\n                    if best is None or value > best:\n                        best = value\n        return best\n",
+    "java": "class Solution {\n    public long bestPair(int[][] posts, int k) {\n        long best = Long.MIN_VALUE;\n        for (int j = 0; j < posts.length; j++) {\n            for (int i = 0; i < j; i++) {\n                if (posts[j][0] - posts[i][0] <= k) {\n                    long value = (long) posts[i][1] + posts[j][1] + posts[j][0] - posts[i][0];\n                    best = Math.max(best, value);\n                }\n            }\n        }\n        return best;\n    }\n}\n",
+    "cpp": "class Solution {\npublic:\n    long long bestPair(vector<vector<int>>& posts, int k) {\n        long long best = LLONG_MIN;\n        for (size_t j = 0; j < posts.size(); j++) {\n            for (size_t i = 0; i < j; i++) {\n                if (posts[j][0] - posts[i][0] <= k) {\n                    long long value = (long long) posts[i][1] + posts[j][1] + posts[j][0] - posts[i][0];\n                    best = max(best, value);\n                }\n            }\n        }\n        return best;\n    }\n};\n",
+    "c": "long long bestPair(int** posts, int postsSize, int* postsColSize, int k) {\n    long long best = LLONG_MIN;\n    for (int j = 0; j < postsSize; j++) {\n        for (int i = 0; i < j; i++) {\n            if (posts[j][0] - posts[i][0] <= k) {\n                long long value = (long long) posts[i][1] + posts[j][1] + posts[j][0] - posts[i][0];\n                if (value > best) best = value;\n            }\n        }\n    }\n    return best;\n}\n"
+   },
+   "lines": [
+    {
+     "text": "No pair yet: start below every possible value (values can be negative).",
+     "at": {
+      "python": [
+       [
+        3,
+        3
+       ]
+      ],
+      "java": [
+       [
+        3,
+        3
+       ]
+      ],
+      "cpp": [
+       [
+        4,
+        4
+       ]
+      ],
+      "c": [
+       [
+        2,
+        2
+       ]
+      ]
+     }
+    },
+    {
+     "text": "Every pair with `i` left of `j`.",
+     "at": {
+      "python": [
+       [
+        4,
+        5
+       ]
+      ],
+      "java": [
+       [
+        4,
+        5
+       ]
+      ],
+      "cpp": [
+       [
+        5,
+        6
+       ]
+      ],
+      "c": [
+       [
+        3,
+        4
+       ]
+      ]
+     }
+    },
+    {
+     "text": "Only posts at most `k` apart can hold a banner. (Differences stay within 32 bits: at most 2 × 10⁸.)",
+     "at": {
+      "python": [
+       [
+        6,
+        6
+       ]
+      ],
+      "java": [
+       [
+        6,
+        6
+       ]
+      ],
+      "cpp": [
+       [
+        7,
+        7
+       ]
+      ],
+      "c": [
+       [
+        5,
+        5
+       ]
+      ]
+     }
+    },
+    {
+     "text": "The banner's value, in 64 bits.",
+     "at": {
+      "python": [
+       [
+        7,
+        9
+       ]
+      ],
+      "java": [
+       [
+        7,
+        8
+       ]
+      ],
+      "cpp": [
+       [
+        8,
+        9
+       ]
+      ],
+      "c": [
+       [
+        6,
+        7
+       ]
+      ]
+     }
+    },
+    {
+     "text": "The best value; the input guarantees a valid pair.",
+     "at": {
+      "python": [
+       [
+        10,
+        10
+       ]
+      ],
+      "java": [
+       [
+        12,
+        12
+       ]
+      ],
+      "cpp": [
+       [
+        13,
+        13
+       ]
+      ],
+      "c": [
+       [
+        11,
+        11
+       ]
+      ]
+     }
+    }
+   ],
+   "complexity": [
+    {
+     "md": "**Time O(n²):** about 5 × 10⁹ pairs for 10⁵ posts. **Space O(1).**"
+    }
+   ],
+   "walk": {
+    "steps": [
+     {
+      "text": "Right post 0: no earlier post within 4.",
+      "panels": [
+       {
+        "type": "row",
+        "cells": [
+         "0,3",
+         "2,1",
+         "3,5",
+         "7,2",
+         "8,6",
+         "12,0"
+        ],
+        "states": {
+         "0": "active"
+        },
+        "label": "posts (x,y)"
+       },
+       {
+        "type": "vars",
+        "items": {
+         "best": "none"
+        }
+       }
+      ]
+     },
+     {
+      "text": "Right post 1 (x=2, y=1): partners in range [0], values [6].",
+      "panels": [
+       {
+        "type": "row",
+        "cells": [
+         "0,3",
+         "2,1",
+         "3,5",
+         "7,2",
+         "8,6",
+         "12,0"
+        ],
+        "states": {
+         "0": "mark",
+         "1": "active"
+        },
+        "label": "posts (x,y)"
+       },
+       {
+        "type": "vars",
+        "items": {
+         "best": 6
+        }
+       }
+      ]
+     },
+     {
+      "text": "Right post 2 (x=3, y=5): partners in range [0, 1], values [11, 7].",
+      "panels": [
+       {
+        "type": "row",
+        "cells": [
+         "0,3",
+         "2,1",
+         "3,5",
+         "7,2",
+         "8,6",
+         "12,0"
+        ],
+        "states": {
+         "0": "mark",
+         "1": "mark",
+         "2": "active"
+        },
+        "label": "posts (x,y)"
+       },
+       {
+        "type": "vars",
+        "items": {
+         "best": 11
+        }
+       }
+      ]
+     },
+     {
+      "text": "Right post 3 (x=7, y=2): partners in range [2], values [11].",
+      "panels": [
+       {
+        "type": "row",
+        "cells": [
+         "0,3",
+         "2,1",
+         "3,5",
+         "7,2",
+         "8,6",
+         "12,0"
+        ],
+        "states": {
+         "2": "mark",
+         "3": "active"
+        },
+        "label": "posts (x,y)"
+       },
+       {
+        "type": "vars",
+        "items": {
+         "best": 11
+        }
+       }
+      ]
+     },
+     {
+      "text": "Right post 4 (x=8, y=6): partners in range [3], values [9].",
+      "panels": [
+       {
+        "type": "row",
+        "cells": [
+         "0,3",
+         "2,1",
+         "3,5",
+         "7,2",
+         "8,6",
+         "12,0"
+        ],
+        "states": {
+         "3": "mark",
+         "4": "active"
+        },
+        "label": "posts (x,y)"
+       },
+       {
+        "type": "vars",
+        "items": {
+         "best": 11
+        }
+       }
+      ]
+     },
+     {
+      "text": "Right post 5 (x=12, y=0): partners in range [4], values [10].",
+      "panels": [
+       {
+        "type": "row",
+        "cells": [
+         "0,3",
+         "2,1",
+         "3,5",
+         "7,2",
+         "8,6",
+         "12,0"
+        ],
+        "states": {
+         "4": "mark",
+         "5": "active"
+        },
+        "label": "posts (x,y)"
+       },
+       {
+        "type": "vars",
+        "items": {
+         "best": 11
+        }
+       }
+      ]
+     },
+     {
+      "text": "Best banner: 11.",
+      "panels": [],
+      "result": "11"
+     }
+    ],
+    "title": "Try every pair i < j that is at most k = 4 apart and compute y_i + y_j + (x_j − x_i)."
+   },
+   "limits": [
+    {
+     "md": "The distance check rejects most pairs when `k` is small, and when `k` is large most pairs are valid but only the best partner matters. Separating the value into per-post parts makes 'best partner' a sliding-window maximum."
+    }
+   ],
+   "slow": true
+  },
+  {
+   "title": "Split the value, then a monotonic deque",
+   "kind": "best",
+   "time": "O(n)",
+   "space": "O(n)",
+   "idea": [
+    {
+     "md": "Process posts left to right with a deque of earlier posts whose `y − x` strictly decreases from front to back. For post `j`: drop front posts farther than `k`; if the deque isn't empty, `(y_j + x_j) + (y − x of the front)` is the best banner ending at `j`; then pop back posts with `y − x ≤ y_j − x_j` and push `j`."
+    }
+   ],
+   "build": [
+    "An empty deque, best = −∞.",
+    "For each `j`: expire front posts with `x_j − x_front > k`.",
+    "Use the front as the partner, if any.",
+    "Pop dominated posts from the back; push `j`.",
+    "Return the best."
+   ],
+   "code": {
+    "python": "from collections import deque\n\nclass Solution:\n    def bestPair(self, posts: List[List[int]], k: int) -> int:\n        dq, best = deque(), None\n        for j, (x, y) in enumerate(posts):\n            while dq and x - posts[dq[0]][0] > k:\n                dq.popleft()\n            if dq:\n                xi, yi = posts[dq[0]]\n                value = (y + x) + (yi - xi)\n                if best is None or value > best:\n                    best = value\n            while dq and posts[dq[-1]][1] - posts[dq[-1]][0] <= y - x:\n                dq.pop()\n            dq.append(j)\n        return best\n",
+    "java": "class Solution {\n    public long bestPair(int[][] posts, int k) {\n        int n = posts.length;\n        int[] dq = new int[n];\n        int head = 0, tail = 0;\n        long best = Long.MIN_VALUE;\n        for (int j = 0; j < n; j++) {\n            int x = posts[j][0], y = posts[j][1];\n            while (tail > head && x - posts[dq[head]][0] > k) head++;\n            if (tail > head) {\n                int i = dq[head];\n                best = Math.max(best, (long) y + x + posts[i][1] - posts[i][0]);\n            }\n            while (tail > head && posts[dq[tail - 1]][1] - posts[dq[tail - 1]][0] <= y - x) tail--;\n            dq[tail++] = j;\n        }\n        return best;\n    }\n}\n",
+    "cpp": "class Solution {\npublic:\n    long long bestPair(vector<vector<int>>& posts, int k) {\n        deque<int> dq;\n        long long best = LLONG_MIN;\n        for (int j = 0; j < (int) posts.size(); j++) {\n            int x = posts[j][0], y = posts[j][1];\n            while (!dq.empty() && x - posts[dq.front()][0] > k) dq.pop_front();\n            if (!dq.empty()) {\n                int i = dq.front();\n                best = max(best, (long long) y + x + posts[i][1] - posts[i][0]);\n            }\n            while (!dq.empty() && posts[dq.back()][1] - posts[dq.back()][0] <= y - x) dq.pop_back();\n            dq.push_back(j);\n        }\n        return best;\n    }\n};\n",
+    "c": "long long bestPair(int** posts, int postsSize, int* postsColSize, int k) {\n    int* dq = malloc(postsSize * sizeof(int));\n    int head = 0, tail = 0;\n    long long best = LLONG_MIN;\n    for (int j = 0; j < postsSize; j++) {\n        int x = posts[j][0], y = posts[j][1];\n        while (tail > head && x - posts[dq[head]][0] > k) head++;\n        if (tail > head) {\n            int i = dq[head];\n            long long value = (long long) y + x + posts[i][1] - posts[i][0];\n            if (value > best) best = value;\n        }\n        while (tail > head && posts[dq[tail - 1]][1] - posts[dq[tail - 1]][0] <= y - x) tail--;\n        dq[tail++] = j;\n    }\n    free(dq);\n    return best;\n}\n"
+   },
+   "lines": [
+    {
+     "text": "Candidate left posts, in decreasing order of `y − x`, and the best value.",
+     "at": {
+      "python": [
+       [
+        5,
+        5
+       ]
+      ],
+      "java": [
+       [
+        3,
+        6
+       ]
+      ],
+      "cpp": [
+       [
+        4,
+        5
+       ]
+      ],
+      "c": [
+       [
+        2,
+        4
+       ]
+      ]
+     },
+     "notes": {
+      "java": "Array deque with `head`/`tail`.",
+      "c": "Array deque with `head`/`tail`."
+     }
+    },
+    {
+     "text": "Each post as the right end of a banner.",
+     "at": {
+      "python": [
+       [
+        6,
+        6
+       ]
+      ],
+      "java": [
+       [
+        7,
+        8
+       ]
+      ],
+      "cpp": [
+       [
+        6,
+        7
+       ]
+      ],
+      "c": [
+       [
+        5,
+        6
+       ]
+      ]
+     }
+    },
+    {
+     "text": "Posts farther than `k` to the left can't pair with `j`, nor with any later post (positions only grow). Drop them from the front.",
+     "at": {
+      "python": [
+       [
+        7,
+        8
+       ]
+      ],
+      "java": [
+       [
+        9,
+        9
+       ]
+      ],
+      "cpp": [
+       [
+        8,
+        8
+       ]
+      ],
+      "c": [
+       [
+        7,
+        7
+       ]
+      ]
+     }
+    },
+    {
+     "text": "The front has the largest `y − x` in range, so it's `j`'s best partner: value `(y_j + x_j) + (y_i − x_i)`.",
+     "at": {
+      "python": [
+       [
+        9,
+        13
+       ]
+      ],
+      "java": [
+       [
+        10,
+        12
+       ]
+      ],
+      "cpp": [
+       [
+        9,
+        11
+       ]
+      ],
+      "c": [
+       [
+        8,
+        11
+       ]
+      ]
+     }
+    },
+    {
+     "text": "Earlier posts whose `y − x` is no bigger than `j`'s are dominated: `j` is closer (stays in range longer) and at least as good. Remove them, then `j` becomes a candidate partner for later posts.",
+     "at": {
+      "python": [
+       [
+        14,
+        16
+       ]
+      ],
+      "java": [
+       [
+        14,
+        15
+       ]
+      ],
+      "cpp": [
+       [
+        13,
+        14
+       ]
+      ],
+      "c": [
+       [
+        13,
+        14
+       ]
+      ]
+     }
+    },
+    {
+     "text": "The best banner.",
+     "at": {
+      "python": [
+       [
+        17,
+        17
+       ]
+      ],
+      "java": [
+       [
+        17,
+        17
+       ]
+      ],
+      "cpp": [
+       [
+        16,
+        16
+       ]
+      ],
+      "c": [
+       [
+        16,
+        17
+       ]
+      ]
+     }
+    }
+   ],
+   "complexity": [
+    {
+     "md": "**Time O(n):** each post enters and leaves the deque at most once. **Space O(n)** for the deque."
+    }
+   ],
+   "walk": {
+    "steps": [
+     {
+      "text": "Post 0 (x=0): No partner in range. Push it.",
+      "panels": [
+       {
+        "type": "row",
+        "cells": [
+         "0,3",
+         "2,1",
+         "3,5",
+         "7,2",
+         "8,6",
+         "12,0"
+        ],
+        "states": {
+         "0": "active"
+        },
+        "label": "posts (x,y)"
+       },
+       {
+        "type": "row",
+        "cells": [
+         3,
+         -1,
+         2,
+         -5,
+         -2,
+         -12
+        ],
+        "label": "y − x"
+       },
+       {
+        "type": "row",
+        "cells": [
+         "0:3"
+        ],
+        "label": "deque (post:y−x)"
+       },
+       {
+        "type": "vars",
+        "items": {
+         "best": "none"
+        }
+       }
+      ]
+     },
+     {
+      "text": "Post 1 (x=2): Best partner is the front, post 0 (y−x = 3): value 3 + 3 = 6. Push it.",
+      "panels": [
+       {
+        "type": "row",
+        "cells": [
+         "0,3",
+         "2,1",
+         "3,5",
+         "7,2",
+         "8,6",
+         "12,0"
+        ],
+        "states": {
+         "1": "active"
+        },
+        "label": "posts (x,y)"
+       },
+       {
+        "type": "row",
+        "cells": [
+         3,
+         -1,
+         2,
+         -5,
+         -2,
+         -12
+        ],
+        "label": "y − x"
+       },
+       {
+        "type": "row",
+        "cells": [
+         "0:3",
+         "1:-1"
+        ],
+        "label": "deque (post:y−x)"
+       },
+       {
+        "type": "vars",
+        "items": {
+         "best": 6
+        }
+       }
+      ]
+     },
+     {
+      "text": "Post 2 (x=3): Best partner is the front, post 0 (y−x = 3): value 8 + 3 = 11. Its y−x = 2 beats posts [1] at the back: drop them. Push it.",
+      "panels": [
+       {
+        "type": "row",
+        "cells": [
+         "0,3",
+         "2,1",
+         "3,5",
+         "7,2",
+         "8,6",
+         "12,0"
+        ],
+        "states": {
+         "2": "active"
+        },
+        "label": "posts (x,y)"
+       },
+       {
+        "type": "row",
+        "cells": [
+         3,
+         -1,
+         2,
+         -5,
+         -2,
+         -12
+        ],
+        "label": "y − x"
+       },
+       {
+        "type": "row",
+        "cells": [
+         "0:3",
+         "2:2"
+        ],
+        "label": "deque (post:y−x)"
+       },
+       {
+        "type": "vars",
+        "items": {
+         "best": 11
+        }
+       }
+      ]
+     },
+     {
+      "text": "Post 3 (x=7): posts [0] are more than 4 away: drop them from the front. Best partner is the front, post 2 (y−x = 2): value 9 + 2 = 11. Push it.",
+      "panels": [
+       {
+        "type": "row",
+        "cells": [
+         "0,3",
+         "2,1",
+         "3,5",
+         "7,2",
+         "8,6",
+         "12,0"
+        ],
+        "states": {
+         "3": "active"
+        },
+        "label": "posts (x,y)"
+       },
+       {
+        "type": "row",
+        "cells": [
+         3,
+         -1,
+         2,
+         -5,
+         -2,
+         -12
+        ],
+        "label": "y − x"
+       },
+       {
+        "type": "row",
+        "cells": [
+         "2:2",
+         "3:-5"
+        ],
+        "label": "deque (post:y−x)"
+       },
+       {
+        "type": "vars",
+        "items": {
+         "best": 11
+        }
+       }
+      ]
+     },
+     {
+      "text": "Post 4 (x=8): posts [2] are more than 4 away: drop them from the front. Best partner is the front, post 3 (y−x = -5): value 14 + -5 = 9. Its y−x = -2 beats posts [3] at the back: drop them. Push it.",
+      "panels": [
+       {
+        "type": "row",
+        "cells": [
+         "0,3",
+         "2,1",
+         "3,5",
+         "7,2",
+         "8,6",
+         "12,0"
+        ],
+        "states": {
+         "4": "active"
+        },
+        "label": "posts (x,y)"
+       },
+       {
+        "type": "row",
+        "cells": [
+         3,
+         -1,
+         2,
+         -5,
+         -2,
+         -12
+        ],
+        "label": "y − x"
+       },
+       {
+        "type": "row",
+        "cells": [
+         "4:-2"
+        ],
+        "label": "deque (post:y−x)"
+       },
+       {
+        "type": "vars",
+        "items": {
+         "best": 11
+        }
+       }
+      ]
+     },
+     {
+      "text": "Post 5 (x=12): Best partner is the front, post 4 (y−x = -2): value 12 + -2 = 10. Push it.",
+      "panels": [
+       {
+        "type": "row",
+        "cells": [
+         "0,3",
+         "2,1",
+         "3,5",
+         "7,2",
+         "8,6",
+         "12,0"
+        ],
+        "states": {
+         "5": "active"
+        },
+        "label": "posts (x,y)"
+       },
+       {
+        "type": "row",
+        "cells": [
+         3,
+         -1,
+         2,
+         -5,
+         -2,
+         -12
+        ],
+        "label": "y − x"
+       },
+       {
+        "type": "row",
+        "cells": [
+         "4:-2",
+         "5:-12"
+        ],
+        "label": "deque (post:y−x)"
+       },
+       {
+        "type": "vars",
+        "items": {
+         "best": 11
+        }
+       }
+      ]
+     },
+     {
+      "text": "Best banner: 11.",
+      "panels": [],
+      "result": "11"
+     }
+    ],
+    "title": "Rewrite the value as (y_i − x_i) + (y_j + x_j). For each right post j, we need the largest y_i − x_i among posts within k to its left: a sliding-window maximum, kept in a deque."
+   }
+  }
+ ],
+ "takeaways": [
+  {
+   "md": "- **Separate the objective** into a part for each element of the pair; then 'best partner' becomes a max over\n  a range.\n- A window defined by **distance** (not count) still slides, as long as positions are sorted: expire from the\n  front with a while loop.\n- Dominated candidates (older and no better) leave from the back."
+  }
+ ]
+}

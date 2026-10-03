@@ -1,0 +1,1036 @@
+{
+ "version": 1,
+ "summary": "Let `best[i]` be the highest score on landing on stone `i`. You arrive from one of the `k` stones before it, so\n`best[i] = stones[i] + max(best[i−k..i−1])`. That max is a sliding-window maximum over the `best` values\nalready computed, so a monotonic deque gives it in O(1) amortised: O(n) overall.",
+ "question": [
+  {
+   "md": "You start on stone 0, must end on the last stone, and each step jumps forward 1 to `k` stones. Your score is\nthe sum of the stones you land on, including the first and last. Return the maximum score.\n\n- **Negative stones can't always be avoided**: if a run of more than `k − 1` negatives lies in the way, you\n  must land on some of them.\n- **One stone** means the score is just `stones[0]`.\n- **Up to 10⁵ stones and `k` up to 10⁵**, so `n × k` can reach 10¹⁰. The score fits in 64 bits."
+  }
+ ],
+ "think": [
+  {
+   "md": "Stones `[2, -5, -3, 4, -6, -1, 3]` with `k = 2`. The best route lands on stones `[0, 2, 3, 5, 6]` for a score of **5**. Every jump\nis at most 2, so of the two negatives −5, −3 one must be stepped on (the smaller loss, −3), and of −6, −1\nthe −1.\n\nGreedy choices fail: jumping to the best nearby stone can leave you facing a long negative run. Instead, think\nbackwards: whatever route reaches stone `i`, its previous stone is one of the `k` before `i`, and the route up\nto that stone should itself be the best one. So `best[i] = stones[i] + max(best[i−k..i−1])`."
+  },
+  {
+   "table": {
+    "head": [
+     "stone",
+     "value",
+     "best"
+    ],
+    "rows": [
+     [
+      "0",
+      "2",
+      "2"
+     ],
+     [
+      "1",
+      "-5",
+      "-3"
+     ],
+     [
+      "2",
+      "-3",
+      "-1"
+     ],
+     [
+      "3",
+      "4",
+      "3"
+     ],
+     [
+      "4",
+      "-6",
+      "-3"
+     ],
+     [
+      "5",
+      "-1",
+      "2"
+     ],
+     [
+      "6",
+      "3",
+      "5"
+     ]
+    ]
+   }
+  },
+  {
+   "md": "Computing that max by scanning `k` values per stone is O(nk). But as `i` moves right, the range\n`i−k..i−1` slides by one: it's exactly the sliding-window maximum, over the `best` array as it's being built."
+  }
+ ],
+ "approaches": [
+  {
+   "title": "Dynamic programming, scanning back k stones",
+   "kind": "brute",
+   "time": "O(n·k)",
+   "space": "O(n)",
+   "idea": [
+    {
+     "md": "Fill `best` left to right. `best[0] = stones[0]`; for each later stone, scan the up-to-`k` previous `best` values for the maximum and add `stones[i]`."
+    }
+   ],
+   "build": [
+    "`best[0] = stones[0]`.",
+    "For `i ≥ 1`, `best[i] = stones[i] + max(best[max(0, i−k) .. i−1])`.",
+    "Return `best[n−1]`."
+   ],
+   "code": {
+    "python": "class Solution:\n    def bestScore(self, stones: List[int], k: int) -> int:\n        n = len(stones)\n        best = [0] * n\n        best[0] = stones[0]\n        for i in range(1, n):\n            top = best[i - 1]\n            for j in range(max(0, i - k), i):\n                top = max(top, best[j])\n            best[i] = stones[i] + top\n        return best[-1]\n",
+    "java": "class Solution {\n    public long bestScore(int[] stones, int k) {\n        int n = stones.length;\n        long[] best = new long[n];\n        best[0] = stones[0];\n        for (int i = 1; i < n; i++) {\n            long top = best[i - 1];\n            for (int j = Math.max(0, i - k); j < i; j++) top = Math.max(top, best[j]);\n            best[i] = stones[i] + top;\n        }\n        return best[n - 1];\n    }\n}\n",
+    "cpp": "class Solution {\npublic:\n    long long bestScore(vector<int>& stones, int k) {\n        int n = stones.size();\n        vector<long long> best(n);\n        best[0] = stones[0];\n        for (int i = 1; i < n; i++) {\n            long long top = best[i - 1];\n            for (int j = max(0, i - k); j < i; j++) top = max(top, best[j]);\n            best[i] = stones[i] + top;\n        }\n        return best[n - 1];\n    }\n};\n",
+    "c": "long long bestScore(int* stones, int stonesSize, int k) {\n    int n = stonesSize;\n    long long* best = malloc(n * sizeof(long long));\n    best[0] = stones[0];\n    for (int i = 1; i < n; i++) {\n        long long top = best[i - 1];\n        for (int j = i - k > 0 ? i - k : 0; j < i; j++) if (best[j] > top) top = best[j];\n        best[i] = stones[i] + top;\n    }\n    long long answer = best[n - 1];\n    free(best);\n    return answer;\n}\n"
+   },
+   "lines": [
+    {
+     "text": "`best[0]`: you start on stone 0, so its value is always counted.",
+     "at": {
+      "python": [
+       [
+        3,
+        5
+       ]
+      ],
+      "java": [
+       [
+        3,
+        5
+       ]
+      ],
+      "cpp": [
+       [
+        4,
+        6
+       ]
+      ],
+      "c": [
+       [
+        2,
+        4
+       ]
+      ]
+     },
+     "notes": {
+      "java": "`long` values, matching the return type.",
+      "cpp": "64-bit values, matching the return type.",
+      "c": "64-bit values, matching the return type."
+     }
+    },
+    {
+     "text": "Stones in order: every take-off stone is computed before it's needed.",
+     "at": {
+      "python": [
+       [
+        6,
+        6
+       ]
+      ],
+      "java": [
+       [
+        6,
+        6
+       ]
+      ],
+      "cpp": [
+       [
+        7,
+        7
+       ]
+      ],
+      "c": [
+       [
+        5,
+        5
+       ]
+      ]
+     }
+    },
+    {
+     "text": "The best landing score among the stones you could have jumped from.",
+     "at": {
+      "python": [
+       [
+        7,
+        9
+       ]
+      ],
+      "java": [
+       [
+        7,
+        8
+       ]
+      ],
+      "cpp": [
+       [
+        8,
+        9
+       ]
+      ],
+      "c": [
+       [
+        6,
+        7
+       ]
+      ]
+     }
+    },
+    {
+     "text": "Land on stone `i` from that best take-off point.",
+     "at": {
+      "python": [
+       [
+        10,
+        10
+       ]
+      ],
+      "java": [
+       [
+        9,
+        9
+       ]
+      ],
+      "cpp": [
+       [
+        10,
+        10
+       ]
+      ],
+      "c": [
+       [
+        8,
+        8
+       ]
+      ]
+     }
+    },
+    {
+     "text": "The score on the last stone.",
+     "at": {
+      "python": [
+       [
+        11,
+        11
+       ]
+      ],
+      "java": [
+       [
+        11,
+        11
+       ]
+      ],
+      "cpp": [
+       [
+        12,
+        12
+       ]
+      ],
+      "c": [
+       [
+        10,
+        12
+       ]
+      ]
+     }
+    }
+   ],
+   "complexity": [
+    {
+     "md": "**Time O(n·k):** up to 10¹⁰ when `k` is large. **Space O(n).**"
+    }
+   ],
+   "walk": {
+    "steps": [
+     {
+      "text": "best[0] = stones[0] = 2.",
+      "panels": [
+       {
+        "type": "row",
+        "cells": [
+         2,
+         -5,
+         -3,
+         4,
+         -6,
+         -1,
+         3
+        ],
+        "states": {
+         "0": "active"
+        },
+        "label": "stones"
+       },
+       {
+        "type": "row",
+        "cells": [
+         2,
+         "·",
+         "·",
+         "·",
+         "·",
+         "·",
+         "·"
+        ],
+        "label": "best"
+       }
+      ]
+     },
+     {
+      "text": "Stone 1: look back at best[0..0] = [2]; the top is 2 (stone 0). best[1] = -5 + 2 = -3.",
+      "panels": [
+       {
+        "type": "row",
+        "cells": [
+         2,
+         -5,
+         -3,
+         4,
+         -6,
+         -1,
+         3
+        ],
+        "states": {
+         "1": "active"
+        },
+        "label": "stones"
+       },
+       {
+        "type": "row",
+        "cells": [
+         2,
+         -3,
+         "·",
+         "·",
+         "·",
+         "·",
+         "·"
+        ],
+        "states": {
+         "0": "found"
+        },
+        "label": "best"
+       }
+      ]
+     },
+     {
+      "text": "Stone 2: look back at best[0..1] = [2, -3]; the top is 2 (stone 0). best[2] = -3 + 2 = -1.",
+      "panels": [
+       {
+        "type": "row",
+        "cells": [
+         2,
+         -5,
+         -3,
+         4,
+         -6,
+         -1,
+         3
+        ],
+        "states": {
+         "2": "active"
+        },
+        "label": "stones"
+       },
+       {
+        "type": "row",
+        "cells": [
+         2,
+         -3,
+         -1,
+         "·",
+         "·",
+         "·",
+         "·"
+        ],
+        "states": {
+         "0": "found",
+         "1": "mark"
+        },
+        "label": "best"
+       }
+      ]
+     },
+     {
+      "text": "Stone 3: look back at best[1..2] = [-3, -1]; the top is -1 (stone 2). best[3] = 4 + -1 = 3.",
+      "panels": [
+       {
+        "type": "row",
+        "cells": [
+         2,
+         -5,
+         -3,
+         4,
+         -6,
+         -1,
+         3
+        ],
+        "states": {
+         "3": "active"
+        },
+        "label": "stones"
+       },
+       {
+        "type": "row",
+        "cells": [
+         2,
+         -3,
+         -1,
+         3,
+         "·",
+         "·",
+         "·"
+        ],
+        "states": {
+         "1": "mark",
+         "2": "found"
+        },
+        "label": "best"
+       }
+      ]
+     },
+     {
+      "text": "Stone 4: look back at best[2..3] = [-1, 3]; the top is 3 (stone 3). best[4] = -6 + 3 = -3.",
+      "panels": [
+       {
+        "type": "row",
+        "cells": [
+         2,
+         -5,
+         -3,
+         4,
+         -6,
+         -1,
+         3
+        ],
+        "states": {
+         "4": "active"
+        },
+        "label": "stones"
+       },
+       {
+        "type": "row",
+        "cells": [
+         2,
+         -3,
+         -1,
+         3,
+         -3,
+         "·",
+         "·"
+        ],
+        "states": {
+         "2": "mark",
+         "3": "found"
+        },
+        "label": "best"
+       }
+      ]
+     },
+     {
+      "text": "Stone 5: look back at best[3..4] = [3, -3]; the top is 3 (stone 3). best[5] = -1 + 3 = 2.",
+      "panels": [
+       {
+        "type": "row",
+        "cells": [
+         2,
+         -5,
+         -3,
+         4,
+         -6,
+         -1,
+         3
+        ],
+        "states": {
+         "5": "active"
+        },
+        "label": "stones"
+       },
+       {
+        "type": "row",
+        "cells": [
+         2,
+         -3,
+         -1,
+         3,
+         -3,
+         2,
+         "·"
+        ],
+        "states": {
+         "3": "found",
+         "4": "mark"
+        },
+        "label": "best"
+       }
+      ]
+     },
+     {
+      "text": "Stone 6: look back at best[4..5] = [-3, 2]; the top is 2 (stone 5). best[6] = 3 + 2 = 5.",
+      "panels": [
+       {
+        "type": "row",
+        "cells": [
+         2,
+         -5,
+         -3,
+         4,
+         -6,
+         -1,
+         3
+        ],
+        "states": {
+         "6": "active"
+        },
+        "label": "stones"
+       },
+       {
+        "type": "row",
+        "cells": [
+         2,
+         -3,
+         -1,
+         3,
+         -3,
+         2,
+         5
+        ],
+        "states": {
+         "4": "mark",
+         "5": "found"
+        },
+        "label": "best"
+       }
+      ]
+     },
+     {
+      "text": "best[6] = 5.",
+      "panels": [],
+      "result": "5"
+     }
+    ],
+    "title": "best[i] = the top score on arriving at stone i = stones[i] + the best of the 2 stones before it. Check all k every time."
+   },
+   "limits": [
+    {
+     "md": "Consecutive stones look at windows that overlap in `k − 1` places, so most of each scan is repeated. The window maximum can be maintained incrementally with a deque."
+    }
+   ],
+   "slow": true
+  },
+  {
+   "title": "Dynamic programming with a monotonic deque",
+   "kind": "best",
+   "time": "O(n)",
+   "space": "O(n)",
+   "idea": [
+    {
+     "md": "Keep a deque of stone indices whose `best` values decrease from front to back. For stone `i`: drop the front if it's more than `k` stones back; `best[i] = stones[i] + best[front]`; then pop from the back every stone with `best ≤ best[i]` (older and no better) and push `i`."
+    }
+   ],
+   "build": [
+    "`best[0] = stones[0]`, deque = [0].",
+    "For each `i ≥ 1`: expire the front (index `< i − k`).",
+    "`best[i] = stones[i] + best[front]`.",
+    "Pop weaker stones from the back; push `i`.",
+    "Return `best[n−1]`."
+   ],
+   "code": {
+    "python": "from collections import deque\n\nclass Solution:\n    def bestScore(self, stones: List[int], k: int) -> int:\n        n = len(stones)\n        best = [0] * n\n        best[0] = stones[0]\n        dq = deque([0])\n        for i in range(1, n):\n            if dq[0] < i - k:\n                dq.popleft()\n            best[i] = stones[i] + best[dq[0]]\n            while dq and best[dq[-1]] <= best[i]:\n                dq.pop()\n            dq.append(i)\n        return best[-1]\n",
+    "java": "class Solution {\n    public long bestScore(int[] stones, int k) {\n        int n = stones.length;\n        long[] best = new long[n];\n        int[] dq = new int[n];\n        int head = 0, tail = 0;\n        best[0] = stones[0];\n        dq[tail++] = 0;\n        for (int i = 1; i < n; i++) {\n            if (dq[head] < i - k) head++;\n            best[i] = stones[i] + best[dq[head]];\n            while (tail > head && best[dq[tail - 1]] <= best[i]) tail--;\n            dq[tail++] = i;\n        }\n        return best[n - 1];\n    }\n}\n",
+    "cpp": "class Solution {\npublic:\n    long long bestScore(vector<int>& stones, int k) {\n        int n = stones.size();\n        vector<long long> best(n);\n        deque<int> dq;\n        best[0] = stones[0];\n        dq.push_back(0);\n        for (int i = 1; i < n; i++) {\n            if (dq.front() < i - k) dq.pop_front();\n            best[i] = stones[i] + best[dq.front()];\n            while (!dq.empty() && best[dq.back()] <= best[i]) dq.pop_back();\n            dq.push_back(i);\n        }\n        return best[n - 1];\n    }\n};\n",
+    "c": "long long bestScore(int* stones, int stonesSize, int k) {\n    int n = stonesSize;\n    long long* best = malloc(n * sizeof(long long));\n    int* dq = malloc(n * sizeof(int));\n    int head = 0, tail = 0;\n    best[0] = stones[0];\n    dq[tail++] = 0;\n    for (int i = 1; i < n; i++) {\n        if (dq[head] < i - k) head++;\n        best[i] = stones[i] + best[dq[head]];\n        while (tail > head && best[dq[tail - 1]] <= best[i]) tail--;\n        dq[tail++] = i;\n    }\n    long long answer = best[n - 1];\n    free(best);\n    free(dq);\n    return answer;\n}\n"
+   },
+   "lines": [
+    {
+     "text": "`best[0]` and a deque holding stone 0, the only take-off point so far.",
+     "at": {
+      "python": [
+       [
+        5,
+        8
+       ]
+      ],
+      "java": [
+       [
+        3,
+        8
+       ]
+      ],
+      "cpp": [
+       [
+        4,
+        8
+       ]
+      ],
+      "c": [
+       [
+        2,
+        7
+       ]
+      ]
+     },
+     "notes": {
+      "java": "The deque is an array with `head`/`tail`; each index enters once.",
+      "c": "The deque is an array with `head`/`tail`; each index enters once."
+     }
+    },
+    {
+     "text": "Stones in order.",
+     "at": {
+      "python": [
+       [
+        9,
+        9
+       ]
+      ],
+      "java": [
+       [
+        9,
+        9
+       ]
+      ],
+      "cpp": [
+       [
+        9,
+        9
+       ]
+      ],
+      "c": [
+       [
+        8,
+        8
+       ]
+      ]
+     }
+    },
+    {
+     "text": "A stone more than `k` back can't be jumped from any more. Only one stone falls out of range per step, so one check suffices.",
+     "at": {
+      "python": [
+       [
+        10,
+        11
+       ]
+      ],
+      "java": [
+       [
+        10,
+        10
+       ]
+      ],
+      "cpp": [
+       [
+        10,
+        10
+       ]
+      ],
+      "c": [
+       [
+        9,
+        9
+       ]
+      ]
+     }
+    },
+    {
+     "text": "The front has the highest `best` among stones in range: take off from it.",
+     "at": {
+      "python": [
+       [
+        12,
+        12
+       ]
+      ],
+      "java": [
+       [
+        11,
+        11
+       ]
+      ],
+      "cpp": [
+       [
+        11,
+        11
+       ]
+      ],
+      "c": [
+       [
+        10,
+        10
+       ]
+      ]
+     }
+    },
+    {
+     "text": "Stones at the back with `best ≤ best[i]` are older (they'll go out of range sooner) and no better, so they'll never be the front again. Remove them, then add `i`. The deque is never empty when the front is read, since `i − 1` is always in range.",
+     "at": {
+      "python": [
+       [
+        13,
+        15
+       ]
+      ],
+      "java": [
+       [
+        12,
+        13
+       ]
+      ],
+      "cpp": [
+       [
+        12,
+        13
+       ]
+      ],
+      "c": [
+       [
+        11,
+        12
+       ]
+      ]
+     }
+    },
+    {
+     "text": "The highest score landing on the last stone.",
+     "at": {
+      "python": [
+       [
+        16,
+        16
+       ]
+      ],
+      "java": [
+       [
+        15,
+        15
+       ]
+      ],
+      "cpp": [
+       [
+        15,
+        15
+       ]
+      ],
+      "c": [
+       [
+        14,
+        17
+       ]
+      ]
+     }
+    }
+   ],
+   "complexity": [
+    {
+     "md": "**Time O(n):** each stone enters and leaves the deque at most once. **Space O(n)** for `best` (the deque holds at most `k + 1` indices)."
+    }
+   ],
+   "walk": {
+    "steps": [
+     {
+      "text": "best[0] = 2; the deque holds stone 0.",
+      "panels": [
+       {
+        "type": "row",
+        "cells": [
+         2,
+         -5,
+         -3,
+         4,
+         -6,
+         -1,
+         3
+        ],
+        "states": {
+         "0": "active"
+        },
+        "label": "stones"
+       },
+       {
+        "type": "row",
+        "cells": [
+         2,
+         "·",
+         "·",
+         "·",
+         "·",
+         "·",
+         "·"
+        ],
+        "label": "best"
+       },
+       {
+        "type": "row",
+        "cells": [
+         "0:2"
+        ],
+        "label": "deque (stone:best)"
+       }
+      ]
+     },
+     {
+      "text": "Stone 1: The front (stone 0, best 2) is the best take-off: best[1] = -5 + 2 = -3.",
+      "panels": [
+       {
+        "type": "row",
+        "cells": [
+         2,
+         -5,
+         -3,
+         4,
+         -6,
+         -1,
+         3
+        ],
+        "states": {
+         "1": "active"
+        },
+        "label": "stones"
+       },
+       {
+        "type": "row",
+        "cells": [
+         2,
+         -3,
+         "·",
+         "·",
+         "·",
+         "·",
+         "·"
+        ],
+        "label": "best"
+       },
+       {
+        "type": "row",
+        "cells": [
+         "0:2",
+         "1:-3"
+        ],
+        "label": "deque (stone:best)"
+       }
+      ]
+     },
+     {
+      "text": "Stone 2: The front (stone 0, best 2) is the best take-off: best[2] = -3 + 2 = -1. Stones [1] at the back are no better and older: drop them.",
+      "panels": [
+       {
+        "type": "row",
+        "cells": [
+         2,
+         -5,
+         -3,
+         4,
+         -6,
+         -1,
+         3
+        ],
+        "states": {
+         "2": "active"
+        },
+        "label": "stones"
+       },
+       {
+        "type": "row",
+        "cells": [
+         2,
+         -3,
+         -1,
+         "·",
+         "·",
+         "·",
+         "·"
+        ],
+        "label": "best"
+       },
+       {
+        "type": "row",
+        "cells": [
+         "0:2",
+         "2:-1"
+        ],
+        "label": "deque (stone:best)"
+       }
+      ]
+     },
+     {
+      "text": "Stone 3: stone 0 is out of reach, drop it. The front (stone 2, best -1) is the best take-off: best[3] = 4 + -1 = 3. Stones [2] at the back are no better and older: drop them.",
+      "panels": [
+       {
+        "type": "row",
+        "cells": [
+         2,
+         -5,
+         -3,
+         4,
+         -6,
+         -1,
+         3
+        ],
+        "states": {
+         "3": "active"
+        },
+        "label": "stones"
+       },
+       {
+        "type": "row",
+        "cells": [
+         2,
+         -3,
+         -1,
+         3,
+         "·",
+         "·",
+         "·"
+        ],
+        "label": "best"
+       },
+       {
+        "type": "row",
+        "cells": [
+         "3:3"
+        ],
+        "label": "deque (stone:best)"
+       }
+      ]
+     },
+     {
+      "text": "Stone 4: The front (stone 3, best 3) is the best take-off: best[4] = -6 + 3 = -3.",
+      "panels": [
+       {
+        "type": "row",
+        "cells": [
+         2,
+         -5,
+         -3,
+         4,
+         -6,
+         -1,
+         3
+        ],
+        "states": {
+         "4": "active"
+        },
+        "label": "stones"
+       },
+       {
+        "type": "row",
+        "cells": [
+         2,
+         -3,
+         -1,
+         3,
+         -3,
+         "·",
+         "·"
+        ],
+        "label": "best"
+       },
+       {
+        "type": "row",
+        "cells": [
+         "3:3",
+         "4:-3"
+        ],
+        "label": "deque (stone:best)"
+       }
+      ]
+     },
+     {
+      "text": "Stone 5: The front (stone 3, best 3) is the best take-off: best[5] = -1 + 3 = 2. Stones [4] at the back are no better and older: drop them.",
+      "panels": [
+       {
+        "type": "row",
+        "cells": [
+         2,
+         -5,
+         -3,
+         4,
+         -6,
+         -1,
+         3
+        ],
+        "states": {
+         "5": "active"
+        },
+        "label": "stones"
+       },
+       {
+        "type": "row",
+        "cells": [
+         2,
+         -3,
+         -1,
+         3,
+         -3,
+         2,
+         "·"
+        ],
+        "label": "best"
+       },
+       {
+        "type": "row",
+        "cells": [
+         "3:3",
+         "5:2"
+        ],
+        "label": "deque (stone:best)"
+       }
+      ]
+     },
+     {
+      "text": "Stone 6: stone 3 is out of reach, drop it. The front (stone 5, best 2) is the best take-off: best[6] = 3 + 2 = 5. Stones [5] at the back are no better and older: drop them.",
+      "panels": [
+       {
+        "type": "row",
+        "cells": [
+         2,
+         -5,
+         -3,
+         4,
+         -6,
+         -1,
+         3
+        ],
+        "states": {
+         "6": "active"
+        },
+        "label": "stones"
+       },
+       {
+        "type": "row",
+        "cells": [
+         2,
+         -3,
+         -1,
+         3,
+         -3,
+         2,
+         5
+        ],
+        "label": "best"
+       },
+       {
+        "type": "row",
+        "cells": [
+         "6:5"
+        ],
+        "label": "deque (stone:best)"
+       }
+      ]
+     },
+     {
+      "text": "best[6] = 5.",
+      "panels": [],
+      "result": "5"
+     }
+    ],
+    "title": "Same recurrence, but the 'best of the last k' is a sliding-window maximum: keep a deque of stones whose best values decrease front to back."
+   }
+  }
+ ],
+ "takeaways": [
+  {
+   "md": "- **DP whose transition is 'max over the last k states'** = DP + sliding-window maximum with a monotonic deque.\n- The deque is filled with DP values as they're computed, so it works even though the window's contents are\n  not known in advance.\n- Test greedy ideas against a run of negatives longer than `k`: they usually fail there."
+  }
+ ]
+}

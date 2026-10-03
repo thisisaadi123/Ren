@@ -1,0 +1,910 @@
+{
+ "version": 1,
+ "summary": "Factors are at least 1, so extending a run never lowers its product: a counting window works. Multiply in each\nfactor; while the product is at least `cap`, divide out the leftmost factor. Then all `r − left + 1` runs ending\nat `r` are under the cap. A cap of 0 or 1 admits nothing. O(n).",
+ "question": [
+  {
+   "md": "Count the contiguous runs of `factors` whose product is strictly less than `cap`.\n\n- **n up to 10⁵**, factors 1..1000, cap up to 10⁶."
+  },
+  {
+   "md": "**Edge cases to keep in mind**\n\n- `cap ≤ 1`: every product is at least 1, so nothing qualifies.\n- Runs of 1s don't change the product, so windows can get very long.\n- A single factor `≥ cap` empties the window."
+  }
+ ],
+ "think": [
+  {
+   "md": "**Why a window works.** Every factor is at least 1, so extending a run never lowers its product. A run under\nthe cap stays under it when shrunk, and the earliest valid start only moves right."
+  },
+  {
+   "md": "**Counting windows, not measuring them.** For a rule that survives shrinking, the valid windows ending at a fixed `R`\nare exactly those starting at `L, L + 1, …, R`, where `L` is the earliest valid start. That's `R − L + 1` windows,\nand we can add them all in one step. Running the usual two pointers and adding `R − L + 1` for every `R` counts\n**every** valid window exactly once (each window is counted at its own right end)."
+  },
+  {
+   "md": "**Trace with `cap = 25`:**"
+  },
+  {
+   "table": {
+    "head": [
+     "R",
+     "factor",
+     "L",
+     "window",
+     "product",
+     "runs ending here",
+     "total"
+    ],
+    "rows": [
+     [
+      "0",
+      "3",
+      "0",
+      "3",
+      "3",
+      "1",
+      "1"
+     ],
+     [
+      "1",
+      "2",
+      "0",
+      "3 2",
+      "6",
+      "2",
+      "3"
+     ],
+     [
+      "2",
+      "5",
+      "1",
+      "2 5",
+      "10",
+      "2",
+      "5"
+     ],
+     [
+      "3",
+      "1",
+      "1",
+      "2 5 1",
+      "10",
+      "3",
+      "8"
+     ],
+     [
+      "4",
+      "4",
+      "2",
+      "5 1 4",
+      "20",
+      "3",
+      "11"
+     ],
+     [
+      "5",
+      "6",
+      "3",
+      "1 4 6",
+      "24",
+      "3",
+      "14"
+     ],
+     [
+      "6",
+      "1",
+      "3",
+      "1 4 6 1",
+      "24",
+      "4",
+      "18"
+     ]
+    ]
+   }
+  },
+  {
+   "md": "Total **18**.\n\n**Keeping the product small.** The window always keeps its product below `cap ≤ 10⁶`. Multiplying in one more\nfactor (≤ 1000) gives less than 10⁹, which fits even in 32 bits; dividing it back out is exact because it was\nmultiplied in. So the running product never overflows, unlike the product of the whole array.\n\n**Why `cap ≤ 1` is special.** With `cap = 1`, even an empty-looking window can't satisfy `product < 1`, so the\nshrink loop would push `L` past `R`. Returning 0 up front avoids that."
+  }
+ ],
+ "approaches": [
+  {
+   "title": "Extend from every start",
+   "kind": "brute",
+   "time": "O(n²)",
+   "space": "O(1)",
+   "idea": [
+    {
+     "md": "For each start, multiply factors while the product stays below the cap, counting each run. With many 1s every start extends far: quadratic."
+    }
+   ],
+   "build": [
+    "Loop over starts.",
+    "Multiply while under the cap.",
+    "Count."
+   ],
+   "code": {
+    "python": "class Solution:\n    def countUnderCap(self, factors: List[int], cap: int) -> int:\n        n, total = len(factors), 0\n        for i in range(n):\n            product = 1\n            for j in range(i, n):\n                product *= factors[j]\n                if product >= cap:\n                    break\n                total += 1\n        return total\n",
+    "java": "class Solution {\n    public long countUnderCap(int[] factors, int cap) {\n        int n = factors.length;\n        long total = 0;\n        for (int i = 0; i < n; i++) {\n            long product = 1;\n            for (int j = i; j < n; j++) {\n                product *= factors[j];\n                if (product >= cap) break;\n                total++;\n            }\n        }\n        return total;\n    }\n}\n",
+    "cpp": "class Solution {\npublic:\n    long long countUnderCap(vector<int>& factors, int cap) {\n        int n = factors.size();\n        long long total = 0;\n        for (int i = 0; i < n; i++) {\n            long long product = 1;\n            for (int j = i; j < n; j++) {\n                product *= factors[j];\n                if (product >= cap) break;\n                total++;\n            }\n        }\n        return total;\n    }\n};\n",
+    "c": "long long countUnderCap(int* factors, int factorsSize, int cap) {\n    long long total = 0;\n    for (int i = 0; i < factorsSize; i++) {\n        long long product = 1;\n        for (int j = i; j < factorsSize; j++) {\n            product *= factors[j];\n            if (product >= cap) break;\n            total++;\n        }\n    }\n    return total;\n}\n"
+   },
+   "lines": [
+    {
+     "text": "The running count.",
+     "at": {
+      "python": [
+       [
+        3,
+        3
+       ]
+      ],
+      "java": [
+       [
+        3,
+        4
+       ]
+      ],
+      "cpp": [
+       [
+        4,
+        5
+       ]
+      ],
+      "c": [
+       [
+        2,
+        2
+       ]
+      ]
+     }
+    },
+    {
+     "text": "Each factor as the left end. Every index is tried as the left end of the window. Nothing learned from one start is reused for the next, which is exactly the waste the better approaches remove.",
+     "at": {
+      "python": [
+       [
+        4,
+        4
+       ]
+      ],
+      "java": [
+       [
+        5,
+        5
+       ]
+      ],
+      "cpp": [
+       [
+        6,
+        6
+       ]
+      ],
+      "c": [
+       [
+        3,
+        3
+       ]
+      ]
+     }
+    },
+    {
+     "text": "Multiply in the next factor; once the product reaches the cap, longer runs can't drop below it, so stop. The product is kept in 64 bits: it's below 10⁶ before the multiply and at most 1000 times larger after.",
+     "at": {
+      "python": [
+       [
+        5,
+        10
+       ]
+      ],
+      "java": [
+       [
+        6,
+        10
+       ]
+      ],
+      "cpp": [
+       [
+        7,
+        11
+       ]
+      ],
+      "c": [
+       [
+        4,
+        8
+       ]
+      ]
+     }
+    },
+    {
+     "text": "The total.",
+     "at": {
+      "python": [
+       [
+        11,
+        11
+       ]
+      ],
+      "java": [
+       [
+        13,
+        13
+       ]
+      ],
+      "cpp": [
+       [
+        14,
+        14
+       ]
+      ],
+      "c": [
+       [
+        11,
+        11
+       ]
+      ]
+     }
+    }
+   ],
+   "complexity": [
+    {
+     "md": "**Time O(n²)** in the worst case. **Space O(1).**"
+    }
+   ],
+   "walk": {
+    "steps": [
+     {
+      "text": "From 0: 2 run(s) stay under 25.",
+      "panels": [
+       {
+        "type": "row",
+        "cells": [
+         3,
+         2,
+         5,
+         1,
+         4,
+         6,
+         1
+        ],
+        "states": {
+         "0": "found",
+         "1": "found"
+        }
+       },
+       {
+        "type": "vars",
+        "items": {
+         "total": 2
+        }
+       }
+      ]
+     },
+     {
+      "text": "From 1: 3 run(s) stay under 25.",
+      "panels": [
+       {
+        "type": "row",
+        "cells": [
+         3,
+         2,
+         5,
+         1,
+         4,
+         6,
+         1
+        ],
+        "states": {
+         "1": "found",
+         "2": "found",
+         "3": "found"
+        }
+       },
+       {
+        "type": "vars",
+        "items": {
+         "total": 5
+        }
+       }
+      ]
+     },
+     {
+      "text": "From 2: 3 run(s) stay under 25.",
+      "panels": [
+       {
+        "type": "row",
+        "cells": [
+         3,
+         2,
+         5,
+         1,
+         4,
+         6,
+         1
+        ],
+        "states": {
+         "2": "found",
+         "3": "found",
+         "4": "found"
+        }
+       },
+       {
+        "type": "vars",
+        "items": {
+         "total": 8
+        }
+       }
+      ]
+     },
+     {
+      "text": "From 3: 4 run(s) stay under 25.",
+      "panels": [
+       {
+        "type": "row",
+        "cells": [
+         3,
+         2,
+         5,
+         1,
+         4,
+         6,
+         1
+        ],
+        "states": {
+         "3": "found",
+         "4": "found",
+         "5": "found",
+         "6": "found"
+        }
+       },
+       {
+        "type": "vars",
+        "items": {
+         "total": 12
+        }
+       }
+      ]
+     },
+     {
+      "text": "From 4: 3 run(s) stay under 25.",
+      "panels": [
+       {
+        "type": "row",
+        "cells": [
+         3,
+         2,
+         5,
+         1,
+         4,
+         6,
+         1
+        ],
+        "states": {
+         "4": "found",
+         "5": "found",
+         "6": "found"
+        }
+       },
+       {
+        "type": "vars",
+        "items": {
+         "total": 15
+        }
+       }
+      ]
+     },
+     {
+      "text": "From 5: 2 run(s) stay under 25.",
+      "panels": [
+       {
+        "type": "row",
+        "cells": [
+         3,
+         2,
+         5,
+         1,
+         4,
+         6,
+         1
+        ],
+        "states": {
+         "5": "found",
+         "6": "found"
+        }
+       },
+       {
+        "type": "vars",
+        "items": {
+         "total": 17
+        }
+       }
+      ]
+     },
+     {
+      "text": "From 6: 1 run(s) stay under 25.",
+      "panels": [
+       {
+        "type": "row",
+        "cells": [
+         3,
+         2,
+         5,
+         1,
+         4,
+         6,
+         1
+        ],
+        "states": {
+         "6": "found"
+        }
+       },
+       {
+        "type": "vars",
+        "items": {
+         "total": 18
+        }
+       }
+      ]
+     },
+     {
+      "text": "Total: 18.",
+      "panels": [],
+      "result": "18"
+     }
+    ],
+    "title": "From each start, multiply as you extend; stop once the product reaches the cap."
+   },
+   "limits": [
+    {
+     "md": "Runs of 1s don't increase the product, so each start may extend across the whole array: O(n²)."
+    }
+   ],
+   "slow": true
+  },
+  {
+   "title": "Counting window with a running product",
+   "kind": "best",
+   "time": "O(n)",
+   "space": "O(1)",
+   "idea": [
+    {
+     "md": "Multiply in `factors[R]`. While `product ≥ cap`, divide by `factors[L]` and advance `L`. Then add\n`R − L + 1`.\n\n**Invariant.** After the loop, `product` is the product of `[L, R]`, it's below the cap, and `L` is the\nearliest start with that property. So exactly `R − L + 1` runs ending at `R` qualify."
+    }
+   ],
+   "build": [
+    "If `cap ≤ 1`, return 0.",
+    "`product = 1`, `L = 0`, `total = 0`.",
+    "For each `R`: `product *= factors[R]`; while `product ≥ cap`, `product /= factors[L]`, `L += 1`.",
+    "`total += R − L + 1`."
+   ],
+   "code": {
+    "python": "class Solution:\n    def countUnderCap(self, factors: List[int], cap: int) -> int:\n        if cap <= 1:\n            return 0\n        product, left, total = 1, 0, 0\n        for i, f in enumerate(factors):\n            product *= f\n            while product >= cap:\n                product //= factors[left]\n                left += 1\n            total += i - left + 1\n        return total\n",
+    "java": "class Solution {\n    public long countUnderCap(int[] factors, int cap) {\n        if (cap <= 1) return 0;\n        long product = 1, total = 0;\n        int left = 0;\n        for (int i = 0; i < factors.length; i++) {\n            product *= factors[i];\n            while (product >= cap) product /= factors[left++];\n            total += i - left + 1;\n        }\n        return total;\n    }\n}\n",
+    "cpp": "class Solution {\npublic:\n    long long countUnderCap(vector<int>& factors, int cap) {\n        if (cap <= 1) return 0;\n        long long product = 1, total = 0;\n        int left = 0;\n        for (int i = 0; i < (int) factors.size(); i++) {\n            product *= factors[i];\n            while (product >= cap) product /= factors[left++];\n            total += i - left + 1;\n        }\n        return total;\n    }\n};\n",
+    "c": "long long countUnderCap(int* factors, int factorsSize, int cap) {\n    if (cap <= 1) return 0;\n    long long product = 1, total = 0;\n    int left = 0;\n    for (int i = 0; i < factorsSize; i++) {\n        product *= factors[i];\n        while (product >= cap) product /= factors[left++];\n        total += i - left + 1;\n    }\n    return total;\n}\n"
+   },
+   "lines": [
+    {
+     "text": "Every product is at least 1, so with `cap ≤ 1` nothing qualifies. Returning here also stops the shrink loop from running past an empty window.",
+     "at": {
+      "python": [
+       [
+        3,
+        4
+       ]
+      ],
+      "java": [
+       [
+        3,
+        3
+       ]
+      ],
+      "cpp": [
+       [
+        4,
+        4
+       ]
+      ],
+      "c": [
+       [
+        2,
+        2
+       ]
+      ]
+     }
+    },
+    {
+     "text": "Empty window: product 1.",
+     "at": {
+      "python": [
+       [
+        5,
+        5
+       ]
+      ],
+      "java": [
+       [
+        4,
+        5
+       ]
+      ],
+      "cpp": [
+       [
+        5,
+        6
+       ]
+      ],
+      "c": [
+       [
+        3,
+        4
+       ]
+      ]
+     }
+    },
+    {
+     "text": "Multiply in factor `R`.",
+     "at": {
+      "python": [
+       [
+        6,
+        7
+       ]
+      ],
+      "java": [
+       [
+        6,
+        7
+       ]
+      ],
+      "cpp": [
+       [
+        7,
+        8
+       ]
+      ],
+      "c": [
+       [
+        5,
+        6
+       ]
+      ]
+     }
+    },
+    {
+     "text": "While the product is too big, divide out the leftmost factor. The division is exact because that factor was multiplied in earlier.",
+     "at": {
+      "python": [
+       [
+        8,
+        10
+       ]
+      ],
+      "java": [
+       [
+        8,
+        8
+       ]
+      ],
+      "cpp": [
+       [
+        9,
+        9
+       ]
+      ],
+      "c": [
+       [
+        7,
+        7
+       ]
+      ]
+     }
+    },
+    {
+     "text": "All windows ending at `R` that start at `L`, `L + 1`, …, `R` satisfy the rule (shrinking keeps it), so this adds `R − L + 1` windows in one step. Each window is counted exactly once: at its own right end.",
+     "at": {
+      "python": [
+       [
+        11,
+        11
+       ]
+      ],
+      "java": [
+       [
+        9,
+        9
+       ]
+      ],
+      "cpp": [
+       [
+        10,
+        10
+       ]
+      ],
+      "c": [
+       [
+        8,
+        8
+       ]
+      ]
+     }
+    },
+    {
+     "text": "The total.",
+     "at": {
+      "python": [
+       [
+        12,
+        12
+       ]
+      ],
+      "java": [
+       [
+        11,
+        11
+       ]
+      ],
+      "cpp": [
+       [
+        12,
+        12
+       ]
+      ],
+      "c": [
+       [
+        10,
+        10
+       ]
+      ]
+     }
+    }
+   ],
+   "complexity": [
+    {
+     "md": "**Time O(n).** **Space O(1).**"
+    }
+   ],
+   "walk": {
+    "steps": [
+     {
+      "text": "R = 0 adds 3. Every start 0 gives a valid window ending at R: +1.",
+      "panels": [
+       {
+        "type": "row",
+        "cells": [
+         3,
+         2,
+         5,
+         1,
+         4,
+         6,
+         1
+        ],
+        "states": {
+         "0": "active"
+        },
+        "pointers": {
+         "L": 0,
+         "R": 0
+        }
+       },
+       {
+        "type": "vars",
+        "items": {
+         "total": 1,
+         "product": 3
+        }
+       }
+      ]
+     },
+     {
+      "text": "R = 1 adds 2. Every starts 0..1 gives a valid window ending at R: +2.",
+      "panels": [
+       {
+        "type": "row",
+        "cells": [
+         3,
+         2,
+         5,
+         1,
+         4,
+         6,
+         1
+        ],
+        "states": {
+         "0": "active",
+         "1": "active"
+        },
+        "pointers": {
+         "L": 0,
+         "R": 1
+        }
+       },
+       {
+        "type": "vars",
+        "items": {
+         "total": 3,
+         "product": 6
+        }
+       }
+      ]
+     },
+     {
+      "text": "R = 2 adds 5. L moves past 0..0 to restore the rule. Every starts 1..2 gives a valid window ending at R: +2.",
+      "panels": [
+       {
+        "type": "row",
+        "cells": [
+         3,
+         2,
+         5,
+         1,
+         4,
+         6,
+         1
+        ],
+        "states": {
+         "1": "active",
+         "2": "active",
+         "0": "dim"
+        },
+        "pointers": {
+         "L": 1,
+         "R": 2
+        }
+       },
+       {
+        "type": "vars",
+        "items": {
+         "total": 5,
+         "product": 10
+        }
+       }
+      ]
+     },
+     {
+      "text": "R = 3 adds 1. Every starts 1..3 gives a valid window ending at R: +3.",
+      "panels": [
+       {
+        "type": "row",
+        "cells": [
+         3,
+         2,
+         5,
+         1,
+         4,
+         6,
+         1
+        ],
+        "states": {
+         "1": "active",
+         "2": "active",
+         "3": "active"
+        },
+        "pointers": {
+         "L": 1,
+         "R": 3
+        }
+       },
+       {
+        "type": "vars",
+        "items": {
+         "total": 8,
+         "product": 10
+        }
+       }
+      ]
+     },
+     {
+      "text": "R = 4 adds 4. L moves past 1..1 to restore the rule. Every starts 2..4 gives a valid window ending at R: +3.",
+      "panels": [
+       {
+        "type": "row",
+        "cells": [
+         3,
+         2,
+         5,
+         1,
+         4,
+         6,
+         1
+        ],
+        "states": {
+         "2": "active",
+         "3": "active",
+         "4": "active",
+         "1": "dim"
+        },
+        "pointers": {
+         "L": 2,
+         "R": 4
+        }
+       },
+       {
+        "type": "vars",
+        "items": {
+         "total": 11,
+         "product": 20
+        }
+       }
+      ]
+     },
+     {
+      "text": "R = 5 adds 6. L moves past 2..2 to restore the rule. Every starts 3..5 gives a valid window ending at R: +3.",
+      "panels": [
+       {
+        "type": "row",
+        "cells": [
+         3,
+         2,
+         5,
+         1,
+         4,
+         6,
+         1
+        ],
+        "states": {
+         "3": "active",
+         "4": "active",
+         "5": "active",
+         "2": "dim"
+        },
+        "pointers": {
+         "L": 3,
+         "R": 5
+        }
+       },
+       {
+        "type": "vars",
+        "items": {
+         "total": 14,
+         "product": 24
+        }
+       }
+      ]
+     },
+     {
+      "text": "R = 6 adds 1. Every starts 3..6 gives a valid window ending at R: +4.",
+      "panels": [
+       {
+        "type": "row",
+        "cells": [
+         3,
+         2,
+         5,
+         1,
+         4,
+         6,
+         1
+        ],
+        "states": {
+         "3": "active",
+         "4": "active",
+         "5": "active",
+         "6": "active"
+        },
+        "pointers": {
+         "L": 3,
+         "R": 6
+        }
+       },
+       {
+        "type": "vars",
+        "items": {
+         "total": 18,
+         "product": 24
+        }
+       }
+      ]
+     },
+     {
+      "text": "Total: 18.",
+      "panels": [],
+      "result": "18"
+     }
+    ],
+    "title": "Keep the product of the window. Multiply in each new factor; while the product is at least the cap, divide out factors from the left. Every start in the window gives a run ending here."
+   }
+  }
+ ],
+ "takeaways": [
+  {
+   "md": "- **Products of factors ≥ 1 behave like sums of non-negatives:** counting windows apply.\n- Guard the degenerate cap first.\n- Keep the running value bounded by the window rule to avoid overflow."
+  }
+ ]
+}

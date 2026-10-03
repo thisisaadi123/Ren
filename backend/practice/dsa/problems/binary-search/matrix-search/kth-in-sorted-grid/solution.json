@@ -1,0 +1,1281 @@
+{
+ "version": 1,
+ "summary": "Rows and columns are sorted, so the number of cells ≤ v can be counted in O(n) by a staircase walk. That\ncount only grows with v, so binary-search the smallest v whose count reaches k: O(n log(max − min)) time and\nO(1) memory. A min-heap over the rows is the natural middle ground: O(k log n) time, O(n) memory.",
+ "question": [
+  {
+   "md": "An n × n grid has every row and every column sorted. Return the k-th smallest value, counting duplicates.\n\n- **Rows don't continue each other,** so the grid isn't one sorted list.\n- **Memory goal: less than O(n²)**, which rules out copying everything into one array.\n- **Values are ±10⁹:** the difference `hi − lo` can reach 2 × 10⁹, so compute the midpoint with 64-bit math or\n  `lo + (hi − lo) / 2` in a wide type."
+  }
+ ],
+ "think": [
+  {
+   "md": "Take this 4 × 4 grid and k = 7. Sorted, the values are `[1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 16, 17]`; the 7-th is 7."
+  },
+  {
+   "panels": [
+    {
+     "type": "grid",
+     "cells": [
+      [
+       1,
+       4,
+       7,
+       11
+      ],
+      [
+       2,
+       5,
+       8,
+       12
+      ],
+      [
+       3,
+       6,
+       9,
+       16
+      ],
+      [
+       10,
+       13,
+       14,
+       17
+      ]
+     ],
+     "states": {
+      "0,0": "found",
+      "0,1": "found",
+      "0,2": "found",
+      "1,0": "found",
+      "1,1": "found",
+      "2,0": "found",
+      "2,1": "found"
+     }
+    }
+   ],
+   "caption": "The cells ≤ 7 form a staircase shape in the top-left."
+  },
+  {
+   "md": "Notice the shape of \"cells ≤ v\": in each row it's a prefix, and the prefixes get shorter going down (columns\nare sorted). So you can count them with a staircase walk: start at the bottom-left; if the cell is ≤ v, the\nwhole column above it is ≤ v too (add r + 1, move right); otherwise move up. That's O(n).\n\nWith a cheap count, use the **binary search on the value** idea: the k-th smallest is the smallest v with at\nleast k cells ≤ v. The search runs over the value range [1, 17] (top-left to bottom-right)."
+  }
+ ],
+ "approaches": [
+  {
+   "title": "Flatten and sort",
+   "kind": "brute",
+   "time": "O(n² log n)",
+   "space": "O(n²)",
+   "idea": [
+    {
+     "md": "Copy all n² values into one array, sort it, return index k − 1."
+    }
+   ],
+   "build": [
+    "Copy every value.",
+    "Sort.",
+    "Return element k − 1."
+   ],
+   "code": {
+    "python": "class Solution:\n    def kthInGrid(self, grid: List[List[int]], k: int) -> int:\n        return sorted(v for row in grid for v in row)[k - 1]\n",
+    "java": "class Solution {\n    public int kthInGrid(int[][] grid, int k) {\n        int n = grid.length;\n        int[] all = new int[n * n];\n        for (int r = 0; r < n; r++) System.arraycopy(grid[r], 0, all, r * n, n);\n        Arrays.sort(all);\n        return all[k - 1];\n    }\n}\n",
+    "cpp": "class Solution {\npublic:\n    int kthInGrid(vector<vector<int>>& grid, int k) {\n        vector<int> all;\n        for (auto& row : grid) all.insert(all.end(), row.begin(), row.end());\n        sort(all.begin(), all.end());\n        return all[k - 1];\n    }\n};\n",
+    "c": "static int cmpInt(const void* a, const void* b) {\n    int p = *(const int*) a, q = *(const int*) b;\n    return (p > q) - (p < q);\n}\n\nint kthInGrid(int** grid, int gridSize, int* gridColSize, int k) {\n    int n = gridSize;\n    int* all = malloc(n * n * sizeof(int));\n    for (int r = 0; r < n; r++) memcpy(all + r * n, grid[r], n * sizeof(int));\n    qsort(all, n * n, sizeof(int), cmpInt);\n    int answer = all[k - 1];\n    free(all);\n    return answer;\n}\n"
+   },
+   "lines": [
+    {
+     "text": "Every value in one array, sorted; the answer is at index k − 1.",
+     "at": {
+      "python": [
+       [
+        3,
+        3
+       ]
+      ],
+      "java": [
+       [
+        4,
+        7
+       ]
+      ],
+      "cpp": [
+       [
+        4,
+        7
+       ]
+      ],
+      "c": [
+       [
+        1,
+        4
+       ],
+       [
+        8,
+        13
+       ]
+      ]
+     }
+    }
+   ],
+   "complexity": [
+    {
+     "md": "**Time O(n² log n).** **Space O(n²)**, which the problem asks to avoid."
+    }
+   ],
+   "walk": {
+    "steps": [
+     {
+      "text": "Copy all 16 values into one list: [1, 4, 7, 11, 2, 5, 8, 12, 3, 6, 9, 16, 10, 13, 14, 17].",
+      "panels": [
+       {
+        "type": "grid",
+        "cells": [
+         [
+          1,
+          4,
+          7,
+          11
+         ],
+         [
+          2,
+          5,
+          8,
+          12
+         ],
+         [
+          3,
+          6,
+          9,
+          16
+         ],
+         [
+          10,
+          13,
+          14,
+          17
+         ]
+        ]
+       },
+       {
+        "type": "row",
+        "cells": [
+         1,
+         4,
+         7,
+         11,
+         2,
+         5,
+         8,
+         12,
+         3,
+         6,
+         9,
+         16,
+         10,
+         13,
+         14,
+         17
+        ],
+        "slots": true
+       }
+      ]
+     },
+     {
+      "text": "All values sorted: [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 16, 17].",
+      "panels": [
+       {
+        "type": "grid",
+        "cells": [
+         [
+          1,
+          4,
+          7,
+          11
+         ],
+         [
+          2,
+          5,
+          8,
+          12
+         ],
+         [
+          3,
+          6,
+          9,
+          16
+         ],
+         [
+          10,
+          13,
+          14,
+          17
+         ]
+        ]
+       },
+       {
+        "type": "row",
+        "cells": [
+         1,
+         2,
+         3,
+         4,
+         5,
+         6,
+         7,
+         8,
+         9,
+         10,
+         11,
+         12,
+         13,
+         14,
+         16,
+         17
+        ],
+        "states": {
+         "6": "answer"
+        },
+        "slots": true
+       }
+      ],
+      "result": "7"
+     }
+    ],
+    "title": "Collect all n² values, sort them, take the k-th."
+   },
+   "limits": [
+    {
+     "md": "Ignores all the sorting already present and uses n² memory."
+    }
+   ]
+  },
+  {
+   "title": "Min-heap over the rows",
+   "kind": "better",
+   "time": "O(k log n)",
+   "space": "O(n)",
+   "idea": [
+    {
+     "md": "Each row is sorted, so the overall next-smallest value is always the smallest among the rows' next unused values. Keep those n values in a min-heap; pop k times, each time pushing the popped row's next value."
+    }
+   ],
+   "build": [
+    "Push `(grid[r][0], r, 0)` for every row.",
+    "Pop k times; after popping `(v, r, c)`, push `(grid[r][c + 1], r, c + 1)` if it exists.",
+    "The k-th popped value is the answer."
+   ],
+   "code": {
+    "python": "import heapq\n\nclass Solution:\n    def kthInGrid(self, grid: List[List[int]], k: int) -> int:\n        n = len(grid)\n        heap = [(grid[r][0], r, 0) for r in range(n)]\n        heapq.heapify(heap)\n        for _ in range(k):\n            v, r, c = heapq.heappop(heap)\n            if c + 1 < n:\n                heapq.heappush(heap, (grid[r][c + 1], r, c + 1))\n        return v\n",
+    "java": "class Solution {\n    public int kthInGrid(int[][] grid, int k) {\n        int n = grid.length;\n        PriorityQueue<int[]> heap = new PriorityQueue<>((x, y) -> Integer.compare(x[0], y[0]));\n        for (int r = 0; r < n; r++) heap.add(new int[] {grid[r][0], r, 0});\n        int[] top = null;\n        for (int t = 0; t < k; t++) {\n            top = heap.poll();\n            int r = top[1], c = top[2];\n            if (c + 1 < n) heap.add(new int[] {grid[r][c + 1], r, c + 1});\n        }\n        return top[0];\n    }\n}\n",
+    "cpp": "class Solution {\npublic:\n    int kthInGrid(vector<vector<int>>& grid, int k) {\n        int n = grid.size();\n        priority_queue<tuple<int, int, int>, vector<tuple<int, int, int>>, greater<>> heap;\n        for (int r = 0; r < n; r++) heap.push({grid[r][0], r, 0});\n        int v = 0;\n        for (int t = 0; t < k; t++) {\n            auto [val, r, c] = heap.top();\n            heap.pop();\n            v = val;\n            if (c + 1 < n) heap.push({grid[r][c + 1], r, c + 1});\n        }\n        return v;\n    }\n};\n",
+    "c": "typedef struct { int v, r, c; } Item;\n\nstatic void siftDown(Item* h, int size, int i) {\n    while (1) {\n        int l = 2 * i + 1, s = i;\n        if (l < size && h[l].v < h[s].v) s = l;\n        if (l + 1 < size && h[l + 1].v < h[s].v) s = l + 1;\n        if (s == i) return;\n        Item t = h[i]; h[i] = h[s]; h[s] = t;\n        i = s;\n    }\n}\n\nint kthInGrid(int** grid, int gridSize, int* gridColSize, int k) {\n    int n = gridSize, size = n;\n    Item* h = malloc(n * sizeof(Item));\n    for (int r = 0; r < n; r++) h[r] = (Item) {grid[r][0], r, 0};\n    for (int i = n / 2 - 1; i >= 0; i--) siftDown(h, size, i);\n    int v = 0;\n    for (int t = 0; t < k; t++) {\n        Item top = h[0];\n        v = top.v;\n        if (top.c + 1 < n) h[0] = (Item) {grid[top.r][top.c + 1], top.r, top.c + 1};\n        else h[0] = h[--size];\n        siftDown(h, size, 0);\n    }\n    free(h);\n    return v;\n}\n"
+   },
+   "lines": [
+    {
+     "text": "C has no heap: a binary min-heap ordered by value; `siftDown` restores the order after the top is replaced.",
+     "at": {
+      "c": [
+       [
+        1,
+        1
+       ],
+       [
+        3,
+        12
+       ]
+      ]
+     }
+    },
+    {
+     "text": "Every row's first (smallest) value goes in: n entries, each remembering its row and column.",
+     "at": {
+      "python": [
+       [
+        6,
+        7
+       ]
+      ],
+      "java": [
+       [
+        4,
+        5
+       ]
+      ],
+      "cpp": [
+       [
+        5,
+        6
+       ]
+      ],
+      "c": [
+       [
+        16,
+        18
+       ]
+      ]
+     },
+     "notes": {
+      "c": "Build the heap bottom-up in O(n)."
+     }
+    },
+    {
+     "text": "The heap's top is the smallest value not yet taken anywhere in the grid.",
+     "at": {
+      "python": [
+       [
+        8,
+        9
+       ]
+      ],
+      "java": [
+       [
+        6,
+        8
+       ]
+      ],
+      "cpp": [
+       [
+        7,
+        11
+       ]
+      ],
+      "c": [
+       [
+        19,
+        22
+       ]
+      ]
+     }
+    },
+    {
+     "text": "Replace it with the next value of the same row (if any), so the heap again holds each row's next candidate.",
+     "at": {
+      "python": [
+       [
+        10,
+        11
+       ]
+      ],
+      "java": [
+       [
+        9,
+        10
+       ]
+      ],
+      "cpp": [
+       [
+        12,
+        12
+       ]
+      ],
+      "c": [
+       [
+        23,
+        25
+       ]
+      ]
+     },
+     "notes": {
+      "c": "Overwrite the top with the row's next value (or the last heap item when the row is exhausted) and sift it down: one O(log n) step."
+     }
+    },
+    {
+     "text": "The k-th value popped.",
+     "at": {
+      "python": [
+       [
+        12,
+        12
+       ]
+      ],
+      "java": [
+       [
+        12,
+        12
+       ]
+      ],
+      "cpp": [
+       [
+        14,
+        14
+       ]
+      ],
+      "c": [
+       [
+        27,
+        28
+       ]
+      ]
+     }
+    }
+   ],
+   "complexity": [
+    {
+     "md": "**Time O(k log n):** up to n² log n when k is large. **Space O(n)** for the heap."
+    }
+   ],
+   "walk": {
+    "steps": [
+     {
+      "text": "Heap starts with each row's first value.",
+      "panels": [
+       {
+        "type": "grid",
+        "cells": [
+         [
+          1,
+          4,
+          7,
+          11
+         ],
+         [
+          2,
+          5,
+          8,
+          12
+         ],
+         [
+          3,
+          6,
+          9,
+          16
+         ],
+         [
+          10,
+          13,
+          14,
+          17
+         ]
+        ],
+        "states": {
+         "0,0": "found",
+         "1,0": "found",
+         "2,0": "found",
+         "3,0": "found"
+        }
+       },
+       {
+        "type": "row",
+        "cells": [
+         1,
+         2,
+         3,
+         10
+        ],
+        "label": "heap"
+       }
+      ]
+     },
+     {
+      "text": "Pop #1: 1 from row 0; push 4.",
+      "panels": [
+       {
+        "type": "grid",
+        "cells": [
+         [
+          1,
+          4,
+          7,
+          11
+         ],
+         [
+          2,
+          5,
+          8,
+          12
+         ],
+         [
+          3,
+          6,
+          9,
+          16
+         ],
+         [
+          10,
+          13,
+          14,
+          17
+         ]
+        ],
+        "states": {
+         "0,0": "active",
+         "1,0": "found",
+         "0,1": "found",
+         "2,0": "found",
+         "3,0": "found"
+        }
+       },
+       {
+        "type": "row",
+        "cells": [
+         2,
+         3,
+         4,
+         10
+        ],
+        "label": "heap"
+       }
+      ]
+     },
+     {
+      "text": "Pop #2: 2 from row 1; push 5.",
+      "panels": [
+       {
+        "type": "grid",
+        "cells": [
+         [
+          1,
+          4,
+          7,
+          11
+         ],
+         [
+          2,
+          5,
+          8,
+          12
+         ],
+         [
+          3,
+          6,
+          9,
+          16
+         ],
+         [
+          10,
+          13,
+          14,
+          17
+         ]
+        ],
+        "states": {
+         "1,0": "active",
+         "0,0": "dim",
+         "2,0": "found",
+         "0,1": "found",
+         "3,0": "found",
+         "1,1": "found"
+        }
+       },
+       {
+        "type": "row",
+        "cells": [
+         3,
+         4,
+         5,
+         10
+        ],
+        "label": "heap"
+       }
+      ]
+     },
+     {
+      "text": "Pop #3: 3 from row 2; push 6.",
+      "panels": [
+       {
+        "type": "grid",
+        "cells": [
+         [
+          1,
+          4,
+          7,
+          11
+         ],
+         [
+          2,
+          5,
+          8,
+          12
+         ],
+         [
+          3,
+          6,
+          9,
+          16
+         ],
+         [
+          10,
+          13,
+          14,
+          17
+         ]
+        ],
+        "states": {
+         "1,0": "dim",
+         "2,0": "active",
+         "0,0": "dim",
+         "0,1": "found",
+         "1,1": "found",
+         "3,0": "found",
+         "2,1": "found"
+        }
+       },
+       {
+        "type": "row",
+        "cells": [
+         4,
+         5,
+         6,
+         10
+        ],
+        "label": "heap"
+       }
+      ]
+     },
+     {
+      "text": "Pop #4: 4 from row 0; push 7.",
+      "panels": [
+       {
+        "type": "grid",
+        "cells": [
+         [
+          1,
+          4,
+          7,
+          11
+         ],
+         [
+          2,
+          5,
+          8,
+          12
+         ],
+         [
+          3,
+          6,
+          9,
+          16
+         ],
+         [
+          10,
+          13,
+          14,
+          17
+         ]
+        ],
+        "states": {
+         "1,0": "dim",
+         "0,1": "active",
+         "2,0": "dim",
+         "0,0": "dim",
+         "1,1": "found",
+         "2,1": "found",
+         "3,0": "found",
+         "0,2": "found"
+        }
+       },
+       {
+        "type": "row",
+        "cells": [
+         5,
+         6,
+         7,
+         10
+        ],
+        "label": "heap"
+       }
+      ]
+     },
+     {
+      "text": "Pop #5: 5 from row 1; push 8.",
+      "panels": [
+       {
+        "type": "grid",
+        "cells": [
+         [
+          1,
+          4,
+          7,
+          11
+         ],
+         [
+          2,
+          5,
+          8,
+          12
+         ],
+         [
+          3,
+          6,
+          9,
+          16
+         ],
+         [
+          10,
+          13,
+          14,
+          17
+         ]
+        ],
+        "states": {
+         "0,1": "dim",
+         "0,0": "dim",
+         "1,1": "active",
+         "2,0": "dim",
+         "1,0": "dim",
+         "2,1": "found",
+         "0,2": "found",
+         "3,0": "found",
+         "1,2": "found"
+        }
+       },
+       {
+        "type": "row",
+        "cells": [
+         6,
+         7,
+         8,
+         10
+        ],
+        "label": "heap"
+       }
+      ]
+     },
+     {
+      "text": "Pop #6: 6 from row 2; push 9.",
+      "panels": [
+       {
+        "type": "grid",
+        "cells": [
+         [
+          1,
+          4,
+          7,
+          11
+         ],
+         [
+          2,
+          5,
+          8,
+          12
+         ],
+         [
+          3,
+          6,
+          9,
+          16
+         ],
+         [
+          10,
+          13,
+          14,
+          17
+         ]
+        ],
+        "states": {
+         "0,1": "dim",
+         "2,1": "active",
+         "0,0": "dim",
+         "1,1": "dim",
+         "2,0": "dim",
+         "1,0": "dim",
+         "0,2": "found",
+         "1,2": "found",
+         "3,0": "found",
+         "2,2": "found"
+        }
+       },
+       {
+        "type": "row",
+        "cells": [
+         7,
+         8,
+         9,
+         10
+        ],
+        "label": "heap"
+       }
+      ]
+     },
+     {
+      "text": "Pop #7: 7 from row 0; push 11.",
+      "panels": [
+       {
+        "type": "grid",
+        "cells": [
+         [
+          1,
+          4,
+          7,
+          11
+         ],
+         [
+          2,
+          5,
+          8,
+          12
+         ],
+         [
+          3,
+          6,
+          9,
+          16
+         ],
+         [
+          10,
+          13,
+          14,
+          17
+         ]
+        ],
+        "states": {
+         "0,1": "dim",
+         "2,1": "dim",
+         "0,0": "dim",
+         "1,1": "dim",
+         "2,0": "dim",
+         "0,2": "answer",
+         "1,0": "dim",
+         "1,2": "found",
+         "2,2": "found",
+         "3,0": "found",
+         "0,3": "found"
+        }
+       },
+       {
+        "type": "row",
+        "cells": [
+         8,
+         9,
+         10,
+         11
+        ],
+        "label": "heap"
+       }
+      ],
+      "result": "7"
+     }
+    ],
+    "title": "Keep the smallest unused value of every row in a min-heap. Pop k times; each pop pushes the next value of that row."
+   },
+   "limits": [
+    {
+     "md": "The cost grows with k (up to n² pops). Counting cells ≤ v doesn't depend on k at all, so binary search on the value is faster for large k and needs no heap."
+    }
+   ]
+  },
+  {
+   "title": "Binary search on the value with a staircase count",
+   "kind": "best",
+   "time": "O(n log(max − min))",
+   "space": "O(1)",
+   "idea": [
+    {
+     "md": "Search v in `[grid[0][0], grid[n−1][n−1]]`. `count(v)`: start at the bottom-left; if `grid[r][c] ≤ v`, add `r + 1` (the whole column above) and move right; else move up. If `count(mid) ≥ k`, `hi = mid`; else `lo = mid + 1`."
+    }
+   ],
+   "build": [
+    "`lo` = top-left, `hi` = bottom-right (the min and max).",
+    "Midpoint with 64-bit arithmetic.",
+    "Staircase count; move the bounds.",
+    "Return `lo`."
+   ],
+   "code": {
+    "python": "class Solution:\n    def kthInGrid(self, grid: List[List[int]], k: int) -> int:\n        n = len(grid)\n        def count_at_most(v):\n            r, c, total = n - 1, 0, 0\n            while r >= 0 and c < n:\n                if grid[r][c] <= v:\n                    total += r + 1\n                    c += 1\n                else:\n                    r -= 1\n            return total\n        lo, hi = grid[0][0], grid[-1][-1]\n        while lo < hi:\n            mid = (lo + hi) // 2\n            if count_at_most(mid) >= k:\n                hi = mid\n            else:\n                lo = mid + 1\n        return lo\n",
+    "java": "class Solution {\n    public int kthInGrid(int[][] grid, int k) {\n        long lo = grid[0][0], hi = grid[grid.length - 1][grid.length - 1];\n        while (lo < hi) {\n            long mid = lo + (hi - lo) / 2;\n            if (countAtMost(grid, mid) >= k) hi = mid;\n            else lo = mid + 1;\n        }\n        return (int) lo;\n    }\n\n    private int countAtMost(int[][] grid, long v) {\n        int n = grid.length, r = n - 1, c = 0, total = 0;\n        while (r >= 0 && c < n) {\n            if (grid[r][c] <= v) { total += r + 1; c++; }\n            else r--;\n        }\n        return total;\n    }\n}\n",
+    "cpp": "class Solution {\npublic:\n    int kthInGrid(vector<vector<int>>& grid, int k) {\n        int n = grid.size();\n        auto countAtMost = [&](long long v) {\n            int r = n - 1, c = 0, total = 0;\n            while (r >= 0 && c < n) {\n                if (grid[r][c] <= v) { total += r + 1; c++; }\n                else r--;\n            }\n            return total;\n        };\n        long long lo = grid[0][0], hi = grid[n - 1][n - 1];\n        while (lo < hi) {\n            long long mid = lo + (hi - lo) / 2;\n            if (countAtMost(mid) >= k) hi = mid;\n            else lo = mid + 1;\n        }\n        return (int) lo;\n    }\n};\n",
+    "c": "static int countAtMost(int** grid, int n, long long v) {\n    int r = n - 1, c = 0, total = 0;\n    while (r >= 0 && c < n) {\n        if (grid[r][c] <= v) { total += r + 1; c++; }\n        else r--;\n    }\n    return total;\n}\n\nint kthInGrid(int** grid, int gridSize, int* gridColSize, int k) {\n    int n = gridSize;\n    long long lo = grid[0][0], hi = grid[n - 1][n - 1];\n    while (lo < hi) {\n        long long mid = lo + (hi - lo) / 2;\n        if (countAtMost(grid, n, mid) >= k) hi = mid;\n        else lo = mid + 1;\n    }\n    return (int) lo;\n}\n"
+   },
+   "lines": [
+    {
+     "text": "Cells ≤ v in O(n): from the bottom-left, a cell ≤ v means its whole column above it is ≤ v too (columns are sorted), so add r + 1 and move right; a cell > v means move up.",
+     "at": {
+      "python": [
+       [
+        4,
+        12
+       ]
+      ],
+      "java": [
+       [
+        12,
+        19
+       ]
+      ],
+      "cpp": [
+       [
+        5,
+        12
+       ]
+      ],
+      "c": [
+       [
+        1,
+        8
+       ]
+      ]
+     }
+    },
+    {
+     "text": "The answer lies between the smallest (top-left) and largest (bottom-right) value. Kept in 64 bits, since `hi − lo` can be 2 × 10⁹.",
+     "at": {
+      "python": [
+       [
+        13,
+        13
+       ]
+      ],
+      "java": [
+       [
+        3,
+        3
+       ]
+      ],
+      "cpp": [
+       [
+        13,
+        13
+       ]
+      ],
+      "c": [
+       [
+        12,
+        12
+       ]
+      ]
+     }
+    },
+    {
+     "text": "Halve the value range.",
+     "at": {
+      "python": [
+       [
+        14,
+        15
+       ]
+      ],
+      "java": [
+       [
+        4,
+        5
+       ]
+      ],
+      "cpp": [
+       [
+        14,
+        15
+       ]
+      ],
+      "c": [
+       [
+        13,
+        14
+       ]
+      ]
+     }
+    },
+    {
+     "text": "At least k cells ≤ mid: the answer is ≤ mid. Otherwise above.",
+     "at": {
+      "python": [
+       [
+        16,
+        19
+       ]
+      ],
+      "java": [
+       [
+        6,
+        7
+       ]
+      ],
+      "cpp": [
+       [
+        16,
+        17
+       ]
+      ],
+      "c": [
+       [
+        15,
+        16
+       ]
+      ]
+     }
+    },
+    {
+     "text": "The smallest v with ≥ k cells ≤ v, which is an actual grid value.",
+     "at": {
+      "python": [
+       [
+        20,
+        20
+       ]
+      ],
+      "java": [
+       [
+        9,
+        9
+       ]
+      ],
+      "cpp": [
+       [
+        19,
+        19
+       ]
+      ],
+      "c": [
+       [
+        18,
+        18
+       ]
+      ]
+     }
+    }
+   ],
+   "complexity": [
+    {
+     "md": "**Time O(n log(max − min)):** about 32 counts of O(n) each. **Space O(1).**"
+    }
+   ],
+   "walk": {
+    "steps": [
+     {
+      "text": "v = 9: 9 cells ≤ 9 → ≥ 7: answer ≤ 9.",
+      "panels": [
+       {
+        "type": "grid",
+        "cells": [
+         [
+          1,
+          4,
+          7,
+          11
+         ],
+         [
+          2,
+          5,
+          8,
+          12
+         ],
+         [
+          3,
+          6,
+          9,
+          16
+         ],
+         [
+          10,
+          13,
+          14,
+          17
+         ]
+        ],
+        "states": {
+         "0,0": "found",
+         "0,1": "found",
+         "0,2": "found",
+         "1,0": "found",
+         "1,1": "found",
+         "1,2": "found",
+         "2,0": "found",
+         "2,1": "found",
+         "2,2": "found"
+        }
+       },
+       {
+        "type": "vars",
+        "items": {
+         "lo": 1,
+         "hi": 17,
+         "count": 9
+        }
+       }
+      ]
+     },
+     {
+      "text": "v = 5: 5 cells ≤ 5 → < 7: answer > 5.",
+      "panels": [
+       {
+        "type": "grid",
+        "cells": [
+         [
+          1,
+          4,
+          7,
+          11
+         ],
+         [
+          2,
+          5,
+          8,
+          12
+         ],
+         [
+          3,
+          6,
+          9,
+          16
+         ],
+         [
+          10,
+          13,
+          14,
+          17
+         ]
+        ],
+        "states": {
+         "0,0": "found",
+         "0,1": "found",
+         "1,0": "found",
+         "1,1": "found",
+         "2,0": "found"
+        }
+       },
+       {
+        "type": "vars",
+        "items": {
+         "lo": 1,
+         "hi": 9,
+         "count": 5
+        }
+       }
+      ]
+     },
+     {
+      "text": "v = 7: 7 cells ≤ 7 → ≥ 7: answer ≤ 7.",
+      "panels": [
+       {
+        "type": "grid",
+        "cells": [
+         [
+          1,
+          4,
+          7,
+          11
+         ],
+         [
+          2,
+          5,
+          8,
+          12
+         ],
+         [
+          3,
+          6,
+          9,
+          16
+         ],
+         [
+          10,
+          13,
+          14,
+          17
+         ]
+        ],
+        "states": {
+         "0,0": "found",
+         "0,1": "found",
+         "0,2": "found",
+         "1,0": "found",
+         "1,1": "found",
+         "2,0": "found",
+         "2,1": "found"
+        }
+       },
+       {
+        "type": "vars",
+        "items": {
+         "lo": 6,
+         "hi": 9,
+         "count": 7
+        }
+       }
+      ]
+     },
+     {
+      "text": "v = 6: 6 cells ≤ 6 → < 7: answer > 6.",
+      "panels": [
+       {
+        "type": "grid",
+        "cells": [
+         [
+          1,
+          4,
+          7,
+          11
+         ],
+         [
+          2,
+          5,
+          8,
+          12
+         ],
+         [
+          3,
+          6,
+          9,
+          16
+         ],
+         [
+          10,
+          13,
+          14,
+          17
+         ]
+        ],
+        "states": {
+         "0,0": "found",
+         "0,1": "found",
+         "1,0": "found",
+         "1,1": "found",
+         "2,0": "found",
+         "2,1": "found"
+        }
+       },
+       {
+        "type": "vars",
+        "items": {
+         "lo": 6,
+         "hi": 7,
+         "count": 6
+        }
+       }
+      ]
+     },
+     {
+      "text": "lo = hi = 7.",
+      "panels": [
+       {
+        "type": "grid",
+        "cells": [
+         [
+          1,
+          4,
+          7,
+          11
+         ],
+         [
+          2,
+          5,
+          8,
+          12
+         ],
+         [
+          3,
+          6,
+          9,
+          16
+         ],
+         [
+          10,
+          13,
+          14,
+          17
+         ]
+        ],
+        "states": {
+         "0,2": "answer"
+        }
+       }
+      ],
+      "result": "7"
+     }
+    ],
+    "title": "Binary-search the value v. Count cells ≤ v with a staircase walk from the bottom-left. The answer is the smallest v with count ≥ k."
+   }
+  }
+ ],
+ "takeaways": [
+  {
+   "md": "- k-th smallest in a row- and column-sorted grid: **binary search on the value** + **staircase count**.\n- A min-heap merging sorted rows is the general \"k-way merge\"; it costs O(k log n).\n- Use 64-bit midpoints when the value range spans the whole 32-bit range."
+  }
+ ]
+}

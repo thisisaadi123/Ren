@@ -1,0 +1,798 @@
+{
+ "version": 1,
+ "summary": "The most recently opened bracket must be the first one closed: that's exactly a stack. Push every opening\nbracket; every closing bracket must match the top, which is then popped. The file is sealed if no closing\nbracket mismatches and the stack is empty at the end. O(n).",
+ "question": [
+  {
+   "md": "Three bracket kinds, `()`, `[]`, `{}`. Every opener must be closed by the same kind, in last-opened-first-closed\norder. Return whether `s` is sealed.\n\n- **Order matters:** `([)]` has the right counts but closes `(` while `[` is still open: not sealed.\n- **Leftovers fail:** `((` never closes.\n- **A closer with nothing open** (`)` first) fails immediately."
+  }
+ ],
+ "think": [
+  {
+   "md": "Take `{[()]}([)]`. Read left to right: `{`, `[`, `(` open; `)` closes the most recent `(`; `]` closes `[`; `}` closes\n`{`. Then `(`, `[` open, and `)` arrives while `[` is the most recent: mismatch."
+  },
+  {
+   "panels": [
+    {
+     "type": "row",
+     "cells": [
+      "{",
+      "[",
+      "(",
+      ")",
+      "]",
+      "}",
+      "(",
+      "[",
+      ")",
+      "]"
+     ],
+     "states": {
+      "8": "mark"
+     }
+    }
+   ],
+   "caption": "The ')' at position 8 tries to close '[' : not sealed."
+  },
+  {
+   "md": "\"Most recent open bracket\" is the top of a stack. A counter isn't enough with several kinds: `([)]` keeps every\ncount at or above zero but closes in the wrong order."
+  }
+ ],
+ "approaches": [
+  {
+   "title": "Delete matching pairs until stable",
+   "kind": "brute",
+   "time": "O(n²)",
+   "space": "O(n)",
+   "idea": [
+    {
+     "md": "A sealed string always contains an adjacent pair like `()`, and deleting it leaves a sealed string. So keep deleting adjacent pairs; the original was sealed exactly when nothing remains."
+    }
+   ],
+   "build": [
+    "Work on a copy.",
+    "While it contains `()`, `[]` or `{}`, delete one such pair.",
+    "Return whether the copy is empty."
+   ],
+   "code": {
+    "python": "class Solution:\n    def isSealed(self, s: str) -> bool:\n        prev = None\n        while prev != s:\n            prev = s\n            s = s.replace(\"()\", \"\").replace(\"[]\", \"\").replace(\"{}\", \"\")\n        return s == \"\"\n",
+    "java": "class Solution {\n    public boolean isSealed(String s) {\n        String prev = null;\n        while (!s.equals(prev)) {\n            prev = s;\n            s = s.replace(\"()\", \"\").replace(\"[]\", \"\").replace(\"{}\", \"\");\n        }\n        return s.isEmpty();\n    }\n}\n",
+    "cpp": "class Solution {\npublic:\n    bool isSealed(string& s) {\n        string t = s;\n        bool changed = true;\n        while (changed) {\n            changed = false;\n            for (const char* p : {\"()\", \"[]\", \"{}\"}) {\n                size_t i;\n                while ((i = t.find(p)) != string::npos) { t.erase(i, 2); changed = true; }\n            }\n        }\n        return t.empty();\n    }\n};\n",
+    "c": "bool isSealed(char* s) {\n    int n = strlen(s);\n    char* t = malloc(n + 1);\n    memcpy(t, s, n + 1);\n    bool changed = true;\n    while (changed) {\n        changed = false;\n        int w = 0;\n        for (int i = 0; t[i]; i++) {\n            char c = t[i], d = t[i + 1];\n            if ((c == '(' && d == ')') || (c == '[' && d == ']') || (c == '{' && d == '}')) { i++; changed = true; continue; }\n            t[w++] = c;\n        }\n        t[w] = '\\0';\n    }\n    bool sealed = t[0] == '\\0';\n    free(t);\n    return sealed;\n}\n"
+   },
+   "lines": [
+    {
+     "text": "Repeat until a round deletes nothing.",
+     "at": {
+      "python": [
+       [
+        3,
+        5
+       ]
+      ],
+      "java": [
+       [
+        3,
+        5
+       ]
+      ],
+      "cpp": [
+       [
+        4,
+        7
+       ]
+      ],
+      "c": [
+       [
+        3,
+        7
+       ]
+      ]
+     }
+    },
+    {
+     "text": "Remove adjacent matching pairs.",
+     "at": {
+      "python": [
+       [
+        6,
+        6
+       ]
+      ],
+      "java": [
+       [
+        6,
+        6
+       ]
+      ],
+      "cpp": [
+       [
+        8,
+        10
+       ]
+      ],
+      "c": [
+       [
+        8,
+        14
+       ]
+      ]
+     },
+     "notes": {
+      "c": "One left-to-right pass copies characters, skipping every adjacent matching pair it sees."
+     }
+    },
+    {
+     "text": "Everything cancelled out → sealed.",
+     "at": {
+      "python": [
+       [
+        7,
+        7
+       ]
+      ],
+      "java": [
+       [
+        8,
+        8
+       ]
+      ],
+      "cpp": [
+       [
+        13,
+        13
+       ]
+      ],
+      "c": [
+       [
+        16,
+        18
+       ]
+      ]
+     }
+    }
+   ],
+   "complexity": [
+    {
+     "md": "**Time O(n²):** each round is O(n) and nested strings like `((((…))))` need about n/2 rounds. **Space O(n)** for the copy."
+    }
+   ],
+   "walk": {
+    "steps": [
+     {
+      "text": "Start: {[()]}()",
+      "panels": [
+       {
+        "type": "row",
+        "cells": [
+         "{",
+         "[",
+         "(",
+         ")",
+         "]",
+         "}",
+         "(",
+         ")"
+        ]
+       }
+      ]
+     },
+     {
+      "text": "Delete the adjacent pair () at position 2.",
+      "panels": [
+       {
+        "type": "row",
+        "cells": [
+         "{",
+         "[",
+         "(",
+         ")",
+         "]",
+         "}",
+         "(",
+         ")"
+        ],
+        "states": {
+         "2": "mark",
+         "3": "mark"
+        }
+       }
+      ]
+     },
+     {
+      "text": "Delete the adjacent pair () at position 4.",
+      "panels": [
+       {
+        "type": "row",
+        "cells": [
+         "{",
+         "[",
+         "]",
+         "}",
+         "(",
+         ")"
+        ],
+        "states": {
+         "4": "mark",
+         "5": "mark"
+        }
+       }
+      ]
+     },
+     {
+      "text": "Delete the adjacent pair [] at position 1.",
+      "panels": [
+       {
+        "type": "row",
+        "cells": [
+         "{",
+         "[",
+         "]",
+         "}"
+        ],
+        "states": {
+         "1": "mark",
+         "2": "mark"
+        }
+       }
+      ]
+     },
+     {
+      "text": "Delete the adjacent pair {} at position 0.",
+      "panels": [
+       {
+        "type": "row",
+        "cells": [
+         "{",
+         "}"
+        ],
+        "states": {
+         "0": "mark",
+         "1": "mark"
+        }
+       }
+      ]
+     },
+     {
+      "text": "Nothing left: sealed.",
+      "panels": [
+       {
+        "type": "row",
+        "cells": [],
+        "label": "remaining"
+       }
+      ],
+      "result": "true"
+     }
+    ],
+    "title": "Repeatedly delete adjacent matching pairs '()', '[]', '{}' until nothing changes. Sealed exactly when everything disappears."
+   },
+   "limits": [
+    {
+     "md": "Each round rescans the whole string to remove a layer. A stack processes each bracket exactly once."
+    }
+   ],
+   "slow": true
+  },
+  {
+   "title": "Stack of open brackets",
+   "kind": "best",
+   "time": "O(n)",
+   "space": "O(n)",
+   "idea": [
+    {
+     "md": "Push openers. On a closer: the stack must be non-empty and its top must be the matching opener; pop it. At the end the stack must be empty."
+    }
+   ],
+   "build": [
+    "Map each closer to its opener.",
+    "For each character: opener → push; closer → check the top and pop, or fail.",
+    "Return whether the stack is empty."
+   ],
+   "code": {
+    "python": "class Solution:\n    def isSealed(self, s: str) -> bool:\n        pair = {\")\": \"(\", \"]\": \"[\", \"}\": \"{\"}\n        stack = []\n        for c in s:\n            if c in pair:\n                if not stack or stack[-1] != pair[c]:\n                    return False\n                stack.pop()\n            else:\n                stack.append(c)\n        return not stack\n",
+    "java": "class Solution {\n    public boolean isSealed(String s) {\n        Deque<Character> stack = new ArrayDeque<>();\n        for (char c : s.toCharArray()) {\n            if (c == '(' || c == '[' || c == '{') stack.push(c);\n            else {\n                char want = c == ')' ? '(' : c == ']' ? '[' : '{';\n                if (stack.isEmpty() || stack.pop() != want) return false;\n            }\n        }\n        return stack.isEmpty();\n    }\n}\n",
+    "cpp": "class Solution {\npublic:\n    bool isSealed(string& s) {\n        vector<char> stack;\n        for (char c : s) {\n            if (c == '(' || c == '[' || c == '{') stack.push_back(c);\n            else {\n                char want = c == ')' ? '(' : c == ']' ? '[' : '{';\n                if (stack.empty() || stack.back() != want) return false;\n                stack.pop_back();\n            }\n        }\n        return stack.empty();\n    }\n};\n",
+    "c": "bool isSealed(char* s) {\n    int n = strlen(s), top = 0;\n    char* stack = malloc(n + 1);\n    bool ok = true;\n    for (int i = 0; i < n && ok; i++) {\n        char c = s[i];\n        if (c == '(' || c == '[' || c == '{') stack[top++] = c;\n        else {\n            char want = c == ')' ? '(' : c == ']' ? '[' : '{';\n            if (top == 0 || stack[top - 1] != want) ok = false;\n            else top--;\n        }\n    }\n    ok = ok && top == 0;\n    free(stack);\n    return ok;\n}\n"
+   },
+   "lines": [
+    {
+     "text": "Which opener each closer needs.",
+     "at": {
+      "python": [
+       [
+        3,
+        3
+       ]
+      ],
+      "java": [
+       [
+        7,
+        7
+       ]
+      ],
+      "cpp": [
+       [
+        8,
+        8
+       ]
+      ],
+      "c": [
+       [
+        9,
+        9
+       ]
+      ]
+     }
+    },
+    {
+     "text": "Open brackets not yet closed, most recent on top.",
+     "at": {
+      "python": [
+       [
+        4,
+        4
+       ]
+      ],
+      "java": [
+       [
+        3,
+        3
+       ]
+      ],
+      "cpp": [
+       [
+        4,
+        4
+       ]
+      ],
+      "c": [
+       [
+        3,
+        4
+       ]
+      ]
+     },
+     "notes": {
+      "c": "An array plus a `top` count works as a stack; it never holds more than n brackets."
+     }
+    },
+    {
+     "text": "One pass over the characters.",
+     "at": {
+      "python": [
+       [
+        5,
+        5
+       ]
+      ],
+      "java": [
+       [
+        4,
+        4
+       ]
+      ],
+      "cpp": [
+       [
+        5,
+        5
+       ]
+      ],
+      "c": [
+       [
+        5,
+        6
+       ]
+      ]
+     }
+    },
+    {
+     "text": "An opener waits on the stack for its closer.",
+     "at": {
+      "python": [
+       [
+        10,
+        11
+       ]
+      ],
+      "java": [
+       [
+        5,
+        5
+       ]
+      ],
+      "cpp": [
+       [
+        6,
+        6
+       ]
+      ],
+      "c": [
+       [
+        7,
+        7
+       ]
+      ]
+     }
+    },
+    {
+     "text": "A closer must match the most recently opened bracket; otherwise (or with nothing open) the file isn't sealed.",
+     "at": {
+      "python": [
+       [
+        6,
+        9
+       ]
+      ],
+      "java": [
+       [
+        6,
+        6
+       ],
+       [
+        8,
+        8
+       ]
+      ],
+      "cpp": [
+       [
+        7,
+        7
+       ],
+       [
+        9,
+        10
+       ]
+      ],
+      "c": [
+       [
+        8,
+        8
+       ],
+       [
+        10,
+        11
+       ]
+      ]
+     },
+     "notes": {
+      "java": "`pop()` removes and returns the top in one step."
+     }
+    },
+    {
+     "text": "Sealed only if nothing is left open.",
+     "at": {
+      "python": [
+       [
+        12,
+        12
+       ]
+      ],
+      "java": [
+       [
+        11,
+        11
+       ]
+      ],
+      "cpp": [
+       [
+        13,
+        13
+       ]
+      ],
+      "c": [
+       [
+        14,
+        16
+       ]
+      ]
+     }
+    }
+   ],
+   "complexity": [
+    {
+     "md": "**Time O(n).** **Space O(n)** for the stack."
+    }
+   ],
+   "walk": {
+    "steps": [
+     {
+      "text": "'{' opens: push.",
+      "panels": [
+       {
+        "type": "row",
+        "cells": [
+         "{",
+         "[",
+         "(",
+         ")",
+         "]",
+         "}",
+         "(",
+         "[",
+         ")",
+         "]"
+        ],
+        "states": {
+         "0": "active"
+        }
+       },
+       {
+        "type": "row",
+        "cells": [
+         "{"
+        ],
+        "states": {
+         "0": "new"
+        },
+        "label": "stack"
+       }
+      ]
+     },
+     {
+      "text": "'[' opens: push.",
+      "panels": [
+       {
+        "type": "row",
+        "cells": [
+         "{",
+         "[",
+         "(",
+         ")",
+         "]",
+         "}",
+         "(",
+         "[",
+         ")",
+         "]"
+        ],
+        "states": {
+         "1": "active"
+        }
+       },
+       {
+        "type": "row",
+        "cells": [
+         "{",
+         "["
+        ],
+        "states": {
+         "1": "new"
+        },
+        "label": "stack"
+       }
+      ]
+     },
+     {
+      "text": "'(' opens: push.",
+      "panels": [
+       {
+        "type": "row",
+        "cells": [
+         "{",
+         "[",
+         "(",
+         ")",
+         "]",
+         "}",
+         "(",
+         "[",
+         ")",
+         "]"
+        ],
+        "states": {
+         "2": "active"
+        }
+       },
+       {
+        "type": "row",
+        "cells": [
+         "{",
+         "[",
+         "("
+        ],
+        "states": {
+         "2": "new"
+        },
+        "label": "stack"
+       }
+      ]
+     },
+     {
+      "text": "')' matches the top '(': pop.",
+      "panels": [
+       {
+        "type": "row",
+        "cells": [
+         "{",
+         "[",
+         "(",
+         ")",
+         "]",
+         "}",
+         "(",
+         "[",
+         ")",
+         "]"
+        ],
+        "states": {
+         "3": "active"
+        }
+       },
+       {
+        "type": "row",
+        "cells": [
+         "{",
+         "["
+        ],
+        "label": "stack"
+       }
+      ]
+     },
+     {
+      "text": "']' matches the top '[': pop.",
+      "panels": [
+       {
+        "type": "row",
+        "cells": [
+         "{",
+         "[",
+         "(",
+         ")",
+         "]",
+         "}",
+         "(",
+         "[",
+         ")",
+         "]"
+        ],
+        "states": {
+         "4": "active"
+        }
+       },
+       {
+        "type": "row",
+        "cells": [
+         "{"
+        ],
+        "label": "stack"
+       }
+      ]
+     },
+     {
+      "text": "'}' matches the top '{': pop.",
+      "panels": [
+       {
+        "type": "row",
+        "cells": [
+         "{",
+         "[",
+         "(",
+         ")",
+         "]",
+         "}",
+         "(",
+         "[",
+         ")",
+         "]"
+        ],
+        "states": {
+         "5": "active"
+        }
+       },
+       {
+        "type": "row",
+        "cells": [],
+        "label": "stack"
+       }
+      ]
+     },
+     {
+      "text": "'(' opens: push.",
+      "panels": [
+       {
+        "type": "row",
+        "cells": [
+         "{",
+         "[",
+         "(",
+         ")",
+         "]",
+         "}",
+         "(",
+         "[",
+         ")",
+         "]"
+        ],
+        "states": {
+         "6": "active"
+        }
+       },
+       {
+        "type": "row",
+        "cells": [
+         "("
+        ],
+        "states": {
+         "0": "new"
+        },
+        "label": "stack"
+       }
+      ]
+     },
+     {
+      "text": "'[' opens: push.",
+      "panels": [
+       {
+        "type": "row",
+        "cells": [
+         "{",
+         "[",
+         "(",
+         ")",
+         "]",
+         "}",
+         "(",
+         "[",
+         ")",
+         "]"
+        ],
+        "states": {
+         "7": "active"
+        }
+       },
+       {
+        "type": "row",
+        "cells": [
+         "(",
+         "["
+        ],
+        "states": {
+         "1": "new"
+        },
+        "label": "stack"
+       }
+      ]
+     },
+     {
+      "text": "')' needs '(' on top, but the top is '['. Not sealed.",
+      "panels": [
+       {
+        "type": "row",
+        "cells": [
+         "{",
+         "[",
+         "(",
+         ")",
+         "]",
+         "}",
+         "(",
+         "[",
+         ")",
+         "]"
+        ],
+        "states": {
+         "8": "mark"
+        }
+       },
+       {
+        "type": "row",
+        "cells": [
+         "(",
+         "["
+        ],
+        "label": "stack"
+       }
+      ],
+      "result": "false"
+     }
+    ],
+    "title": "Push opening brackets; each closing bracket must match the top of the stack."
+   }
+  }
+ ],
+ "takeaways": [
+  {
+   "md": "- Nested structure with \"last opened, first closed\" → **stack**.\n- With one bracket kind a counter suffices; with several kinds you need the stack to check the kind.\n- Fail fast on a closer with an empty stack, and remember to require an empty stack at the end."
+  }
+ ]
+}

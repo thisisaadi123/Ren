@@ -1,0 +1,616 @@
+{
+ "version": 1,
+ "summary": "Place people tallest first (equal heights by `ahead` ascending), inserting each at index `ahead`: everyone\nalready placed is at least as tall, so exactly `ahead` of them end up in front, and shorter people inserted\nlater don't affect that count. O(n²) with list insertions, fine for n ≤ 2000.",
+ "question": [
+  {
+   "md": "Each person is `[height, ahead]`: `ahead` people at least as tall stood in front of them. Rebuild the line from\nfront to back.\n\n- **\"At least as tall\"** includes equal heights.\n- **A valid line always exists**, and at most 2000 people."
+  },
+  {
+   "md": "**Edge cases to keep in mind**\n\n- People of equal height count each other (\"at least as tall\").\n- A person with `ahead = 0` has nobody taller or equal in front.\n- The input always describes some valid line."
+  }
+ ],
+ "think": [
+  {
+   "md": "**Every custom order is a sort with the right key.** Decide what makes one item come before another, and express it\neither as a **key** (a tuple compared element by element: first key, then the next to break ties) or as a\n**comparator** (a rule for two items). The sort then does the rest in O(n log n). The thinking is all in choosing a key\nor rule that really produces the required order."
+  },
+  {
+   "md": "**Tallest first.** A shorter person is invisible to a taller person's count. So if we place people from tallest\nto shortest, each new person is at most as tall as everyone already placed, and everyone placed so far counts\ntoward their `ahead`. Inserting them at index `ahead` gives them exactly `ahead` taller-or-equal people in front.\nPeople placed later are shorter, so they never change earlier people's counts. For equal heights, processing\nthem in increasing `ahead` order means a later equal-height person is inserted behind the earlier ones, so their\ncounts stay right too.\n\n**Trace** for `[[7, 0], [4, 4], [7, 1], [5, 0], [6, 1], [5, 2]]`, sorted by height ↓ then `ahead` ↑:"
+  },
+  {
+   "table": {
+    "head": [
+     "person",
+     "insert at",
+     "line after"
+    ],
+    "rows": [
+     [
+      "[7, 0]",
+      "0",
+      "[[7, 0]]"
+     ],
+     [
+      "[7, 1]",
+      "1",
+      "[[7, 0], [7, 1]]"
+     ],
+     [
+      "[6, 1]",
+      "1",
+      "[[7, 0], [6, 1], [7, 1]]"
+     ],
+     [
+      "[5, 0]",
+      "0",
+      "[[5, 0], [7, 0], [6, 1], [7, 1]]"
+     ],
+     [
+      "[5, 2]",
+      "2",
+      "[[5, 0], [7, 0], [5, 2], [6, 1], [7, 1]]"
+     ],
+     [
+      "[4, 4]",
+      "4",
+      "[[5, 0], [7, 0], [5, 2], [6, 1], [4, 4], [7, 1]]"
+     ]
+    ]
+   }
+  }
+ ],
+ "approaches": [
+  {
+   "title": "Shortest first into empty spots",
+   "kind": "better",
+   "time": "O(n²)",
+   "space": "O(n)",
+   "idea": [
+    {
+     "md": "Shortest first: sort by height ascending (ties: `ahead` descending) and put each person into the\n`(ahead + 1)`-th **empty** slot from the front. Empty slots will later be filled by taller (or equal) people,\nso exactly `ahead` of them end up in front."
+    }
+   ],
+   "build": [
+    "Empty line of `n` slots.",
+    "Sort shortest first.",
+    "Place each person in the right empty slot."
+   ],
+   "code": {
+    "python": "class Solution:\n    def rebuildLine(self, people: List[List[int]]) -> List[List[int]]:\n        n = len(people)\n        line = [None] * n\n        for h, k in sorted(people, key=lambda p: (p[0], -p[1])):\n            empty = -1\n            for i in range(n):\n                if line[i] is None:\n                    empty += 1\n                    if empty == k:\n                        line[i] = [h, k]\n                        break\n        return line\n",
+    "java": "class Solution {\n    public int[][] rebuildLine(int[][] people) {\n        int n = people.length;\n        int[][] line = new int[n][];\n        int[][] a = people.clone();\n        Arrays.sort(a, (x, y) -> x[0] != y[0] ? x[0] - y[0] : y[1] - x[1]);\n        for (int[] p : a) {\n            int empty = -1;\n            for (int i = 0; i < n; i++)\n                if (line[i] == null && ++empty == p[1]) { line[i] = new int[] {p[0], p[1]}; break; }\n        }\n        return line;\n    }\n}\n",
+    "cpp": "class Solution {\npublic:\n    vector<vector<int>> rebuildLine(vector<vector<int>>& people) {\n        int n = people.size();\n        vector<vector<int>> line(n);\n        vector<vector<int>> a = people;\n        sort(a.begin(), a.end(), [](auto& x, auto& y) { return x[0] != y[0] ? x[0] < y[0] : x[1] > y[1]; });\n        for (auto& p : a) {\n            int empty = -1;\n            for (int i = 0; i < n; i++)\n                if (line[i].empty() && ++empty == p[1]) { line[i] = p; break; }\n        }\n        return line;\n    }\n};\n",
+    "c": "static int shortest_first(const void* x, const void* y) {\n    const int *a = *(int* const*) x, *b = *(int* const*) y;\n    return a[0] != b[0] ? a[0] - b[0] : b[1] - a[1];\n}\n\nint** rebuildLine(int** people, int peopleSize, int* peopleColSize, int* returnSize, int** returnColumnSizes) {\n    int n = peopleSize;\n    int** line = calloc(n, sizeof(int*));\n    int** a = malloc(n * sizeof(int*));\n    memcpy(a, people, n * sizeof(int*));\n    qsort(a, n, sizeof(int*), shortest_first);\n    for (int p = 0; p < n; p++) {\n        int empty = -1;\n        for (int i = 0; i < n; i++)\n            if (!line[i] && ++empty == a[p][1]) {\n                line[i] = malloc(2 * sizeof(int));\n                line[i][0] = a[p][0];\n                line[i][1] = a[p][1];\n                break;\n            }\n    }\n    free(a);\n    *returnSize = n;\n    *returnColumnSizes = malloc(n * sizeof(int));\n    for (int i = 0; i < n; i++) (*returnColumnSizes)[i] = 2;\n    return line;\n}\n"
+   },
+   "lines": [
+    {
+     "text": "An empty line of `n` spots.",
+     "at": {
+      "python": [
+       [
+        3,
+        4
+       ]
+      ],
+      "java": [
+       [
+        3,
+        4
+       ]
+      ],
+      "cpp": [
+       [
+        4,
+        5
+       ]
+      ],
+      "c": [
+       [
+        7,
+        8
+       ]
+      ]
+     }
+    },
+    {
+     "text": "Shortest first. Among equal heights, larger `ahead` first: the equal person placed later must land in front of it, among the empty spots it left.",
+     "at": {
+      "python": [
+       [
+        5,
+        5
+       ]
+      ],
+      "java": [
+       [
+        5,
+        6
+       ]
+      ],
+      "cpp": [
+       [
+        6,
+        7
+       ]
+      ],
+      "c": [
+       [
+        1,
+        4
+       ],
+       [
+        9,
+        11
+       ]
+      ]
+     }
+    },
+    {
+     "text": "Spots already filled hold shorter people, who don't count for this person. The empty spots in front will all get taller-or-equal people, so leave exactly `ahead` of them free in front.",
+     "at": {
+      "python": [
+       [
+        6,
+        12
+       ]
+      ],
+      "java": [
+       [
+        7,
+        10
+       ]
+      ],
+      "cpp": [
+       [
+        8,
+        11
+       ]
+      ],
+      "c": [
+       [
+        12,
+        19
+       ]
+      ]
+     }
+    },
+    {
+     "text": "The full line.",
+     "at": {
+      "python": [
+       [
+        13,
+        13
+       ]
+      ],
+      "java": [
+       [
+        12,
+        12
+       ]
+      ],
+      "cpp": [
+       [
+        13,
+        13
+       ]
+      ],
+      "c": [
+       [
+        22,
+        26
+       ]
+      ]
+     },
+     "notes": {
+      "c": "Every row has 2 columns."
+     }
+    }
+   ],
+   "complexity": [
+    {
+     "md": "**Time O(n²):** each placement scans for empty slots. **Space O(n).**"
+    }
+   ],
+   "walk": {
+    "steps": [
+     {
+      "text": "4,4: everyone placed so far is shorter, so they don't count. Take empty spot number 5 (index 4).",
+      "panels": [
+       {
+        "type": "row",
+        "cells": [
+         "·",
+         "·",
+         "·",
+         "·",
+         "4,4",
+         "·"
+        ],
+        "states": {
+         "4": "new"
+        }
+       }
+      ]
+     },
+     {
+      "text": "5,2: everyone placed so far is shorter, so they don't count. Take empty spot number 3 (index 2).",
+      "panels": [
+       {
+        "type": "row",
+        "cells": [
+         "·",
+         "·",
+         "5,2",
+         "·",
+         "4,4",
+         "·"
+        ],
+        "states": {
+         "2": "new"
+        }
+       }
+      ]
+     },
+     {
+      "text": "5,0: everyone placed so far is shorter, so they don't count. Take empty spot number 1 (index 0).",
+      "panels": [
+       {
+        "type": "row",
+        "cells": [
+         "5,0",
+         "·",
+         "5,2",
+         "·",
+         "4,4",
+         "·"
+        ],
+        "states": {
+         "0": "new"
+        }
+       }
+      ]
+     },
+     {
+      "text": "6,1: everyone placed so far is shorter, so they don't count. Take empty spot number 2 (index 3).",
+      "panels": [
+       {
+        "type": "row",
+        "cells": [
+         "5,0",
+         "·",
+         "5,2",
+         "6,1",
+         "4,4",
+         "·"
+        ],
+        "states": {
+         "3": "new"
+        }
+       }
+      ]
+     },
+     {
+      "text": "7,1: everyone placed so far is shorter, so they don't count. Take empty spot number 2 (index 5).",
+      "panels": [
+       {
+        "type": "row",
+        "cells": [
+         "5,0",
+         "·",
+         "5,2",
+         "6,1",
+         "4,4",
+         "7,1"
+        ],
+        "states": {
+         "5": "new"
+        }
+       }
+      ]
+     },
+     {
+      "text": "7,0: everyone placed so far is shorter, so they don't count. Take empty spot number 1 (index 1).",
+      "panels": [
+       {
+        "type": "row",
+        "cells": [
+         "5,0",
+         "7,0",
+         "5,2",
+         "6,1",
+         "4,4",
+         "7,1"
+        ],
+        "states": {
+         "1": "new"
+        }
+       }
+      ]
+     },
+     {
+      "text": "Line: [[5, 0], [7, 0], [5, 2], [6, 1], [4, 4], [7, 1]].",
+      "panels": [],
+      "result": "[[5, 0], [7, 0], [5, 2], [6, 1], [4, 4], [7, 1]]"
+     }
+    ],
+    "title": "Shortest first: each person takes the empty spot that leaves exactly 'ahead' spots in front for taller-or-equal people still to come."
+   },
+   "limits": [
+    {
+     "md": "Each placement scans the line. Inserting tallest first is shorter to write (still O(n²) with list inserts, fine for n ≤ 2000)."
+    }
+   ]
+  },
+  {
+   "title": "Tallest first, insert at index ahead",
+   "kind": "best",
+   "time": "O(n²)",
+   "space": "O(n)",
+   "idea": [
+    {
+     "md": "Sort by height descending, ties by `ahead` ascending, and insert each person at index `ahead` of the growing\nline.\n\n**Why it's correct.** When a person is inserted, everyone already in the line is at least as tall, so\nindex `ahead` gives exactly `ahead` of them in front. Later insertions are of shorter people (who don't\ncount) or equal-height people with larger `ahead` (inserted behind them)."
+    }
+   ],
+   "build": [
+    "Sort by (−height, ahead).",
+    "Insert each at index `ahead`."
+   ],
+   "code": {
+    "python": "class Solution:\n    def rebuildLine(self, people: List[List[int]]) -> List[List[int]]:\n        line = []\n        for h, k in sorted(people, key=lambda p: (-p[0], p[1])):\n            line.insert(k, [h, k])\n        return line\n",
+    "java": "class Solution {\n    public int[][] rebuildLine(int[][] people) {\n        int[][] a = people.clone();\n        Arrays.sort(a, (x, y) -> x[0] != y[0] ? y[0] - x[0] : x[1] - y[1]);\n        List<int[]> line = new ArrayList<>();\n        for (int[] p : a) line.add(p[1], p);\n        return line.toArray(new int[0][]);\n    }\n}\n",
+    "cpp": "class Solution {\npublic:\n    vector<vector<int>> rebuildLine(vector<vector<int>>& people) {\n        vector<vector<int>> a = people;\n        sort(a.begin(), a.end(), [](auto& x, auto& y) { return x[0] != y[0] ? x[0] > y[0] : x[1] < y[1]; });\n        vector<vector<int>> line;\n        for (auto& p : a) line.insert(line.begin() + p[1], p);\n        return line;\n    }\n};\n",
+    "c": "static int tallest_first(const void* x, const void* y) {\n    const int *a = *(int* const*) x, *b = *(int* const*) y;\n    return a[0] != b[0] ? b[0] - a[0] : a[1] - b[1];\n}\n\nint** rebuildLine(int** people, int peopleSize, int* peopleColSize, int* returnSize, int** returnColumnSizes) {\n    int n = peopleSize;\n    int** a = malloc(n * sizeof(int*));\n    memcpy(a, people, n * sizeof(int*));\n    qsort(a, n, sizeof(int*), tallest_first);\n    int** line = malloc(n * sizeof(int*));\n    for (int p = 0; p < n; p++) {\n        int k = a[p][1];\n        memmove(line + k + 1, line + k, (p - k) * sizeof(int*));\n        line[k] = malloc(2 * sizeof(int));\n        line[k][0] = a[p][0];\n        line[k][1] = k;\n    }\n    free(a);\n    *returnSize = n;\n    *returnColumnSizes = malloc(n * sizeof(int));\n    for (int i = 0; i < n; i++) (*returnColumnSizes)[i] = 2;\n    return line;\n}\n"
+   },
+   "lines": [
+    {
+     "text": "Tallest first; equal heights by `ahead` ascending, so equals already placed are the ones that stand in front.",
+     "at": {
+      "python": [
+       [
+        4,
+        4
+       ]
+      ],
+      "java": [
+       [
+        3,
+        4
+       ]
+      ],
+      "cpp": [
+       [
+        4,
+        5
+       ]
+      ],
+      "c": [
+       [
+        1,
+        4
+       ],
+       [
+        8,
+        10
+       ]
+      ]
+     }
+    },
+    {
+     "text": "The line being built.",
+     "at": {
+      "python": [
+       [
+        3,
+        3
+       ]
+      ],
+      "java": [
+       [
+        5,
+        5
+       ]
+      ],
+      "cpp": [
+       [
+        6,
+        6
+       ]
+      ],
+      "c": [
+       [
+        7,
+        7
+       ],
+       [
+        11,
+        11
+       ]
+      ]
+     }
+    },
+    {
+     "text": "Everyone already in line is at least as tall, so index `ahead` puts exactly `ahead` of them in front. Later (shorter) arrivals don't change this person's count.",
+     "at": {
+      "python": [
+       [
+        5,
+        5
+       ]
+      ],
+      "java": [
+       [
+        6,
+        6
+       ]
+      ],
+      "cpp": [
+       [
+        7,
+        7
+       ]
+      ],
+      "c": [
+       [
+        12,
+        17
+       ]
+      ]
+     },
+     "notes": {
+      "c": "Shift the tail of the array one place right with `memmove` to open index `ahead`."
+     }
+    },
+    {
+     "text": "The line, front to back.",
+     "at": {
+      "python": [
+       [
+        6,
+        6
+       ]
+      ],
+      "java": [
+       [
+        7,
+        7
+       ]
+      ],
+      "cpp": [
+       [
+        8,
+        8
+       ]
+      ],
+      "c": [
+       [
+        19,
+        23
+       ]
+      ]
+     },
+     "notes": {
+      "c": "Every row has 2 columns."
+     }
+    }
+   ],
+   "complexity": [
+    {
+     "md": "**Time O(n²)** for list insertions (n ≤ 2000). **Space O(n).**"
+    }
+   ],
+   "walk": {
+    "steps": [
+     {
+      "text": "7,0: insert at index 0.",
+      "panels": [
+       {
+        "type": "row",
+        "cells": [
+         "7,0"
+        ],
+        "states": {
+         "0": "new"
+        }
+       }
+      ]
+     },
+     {
+      "text": "7,1: insert at index 1.",
+      "panels": [
+       {
+        "type": "row",
+        "cells": [
+         "7,0",
+         "7,1"
+        ],
+        "states": {
+         "1": "new"
+        }
+       }
+      ]
+     },
+     {
+      "text": "6,1: insert at index 1.",
+      "panels": [
+       {
+        "type": "row",
+        "cells": [
+         "7,0",
+         "6,1",
+         "7,1"
+        ],
+        "states": {
+         "1": "new"
+        }
+       }
+      ]
+     },
+     {
+      "text": "5,0: insert at index 0.",
+      "panels": [
+       {
+        "type": "row",
+        "cells": [
+         "5,0",
+         "7,0",
+         "6,1",
+         "7,1"
+        ],
+        "states": {
+         "0": "new"
+        }
+       }
+      ]
+     },
+     {
+      "text": "5,2: insert at index 2.",
+      "panels": [
+       {
+        "type": "row",
+        "cells": [
+         "5,0",
+         "7,0",
+         "5,2",
+         "6,1",
+         "7,1"
+        ],
+        "states": {
+         "2": "new"
+        }
+       }
+      ]
+     },
+     {
+      "text": "4,4: insert at index 4.",
+      "panels": [
+       {
+        "type": "row",
+        "cells": [
+         "5,0",
+         "7,0",
+         "5,2",
+         "6,1",
+         "4,4",
+         "7,1"
+        ],
+        "states": {
+         "4": "new"
+        }
+       }
+      ]
+     },
+     {
+      "text": "Line: [[5, 0], [7, 0], [5, 2], [6, 1], [4, 4], [7, 1]].",
+      "panels": [],
+      "result": "[[5, 0], [7, 0], [5, 2], [6, 1], [4, 4], [7, 1]]"
+     }
+    ],
+    "title": "Tallest first: when a person is placed, everyone already in line is at least as tall, so they slot in at index 'ahead'. Shorter people inserted later never change that count."
+   }
+  }
+ ],
+ "takeaways": [
+  {
+   "md": "- **Queue reconstruction:** tallest first, insert at index `ahead`.\n- Process items in an order where later items don't disturb earlier ones.\n- **Pitfall:** sorting equal heights by `ahead` descending in the tallest-first approach."
+  }
+ ]
+}

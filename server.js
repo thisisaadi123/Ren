@@ -11,6 +11,10 @@
 //   GET  /api/dsa/solution?id=              -> 200 { the written-out solution } | 401 | 404
 //   POST /api/dsa/run    { id, lang, code, cases } -> 200 { cases } (this machine only)
 //   POST /api/dsa/submit { id, lang, code }        -> 200 { verdict, passed, total }
+//   GET  /api/sql                           -> 200 { tracks, topics } | 401
+//   GET  /api/sql/problem?id=               -> 200 { problem for the page } | 401 | 404
+//   POST /api/sql/run    { id, code }       -> 200 { cases } (this machine only)
+//   POST /api/sql/submit { id, code }       -> 200 { verdict, passed, total }
 //
 // Accounts are kept in memory only: nothing is written to disk, and every
 // account except the seed user is forgotten when the server stops.
@@ -250,6 +254,26 @@ const api = {
 
   "POST /api/dsa/run": (req, res) => judgeCode(req, res, "run"),
   "POST /api/dsa/submit": (req, res) => judgeCode(req, res, "submit"),
+
+  "GET /api/sql": (req, res) => {
+    if (!currentUser(req)) return send(res, 401, { error: "Not signed in." });
+    send(res, 200, sqlSheet());
+  },
+
+  "GET /api/sql/problem": async (req, res) => {
+    if (!currentUser(req)) return send(res, 401, { error: "Not signed in." });
+    const id = new URL(req.url, "http://localhost").searchParams.get("id");
+    const judge = await import(SQL_JUDGE);
+    try {
+      send(res, 200, judge.problemView(id));
+    } catch (err) {
+      if (err.name === "JudgeError") return send(res, err.status, { error: err.message });
+      throw err;
+    }
+  },
+
+  "POST /api/sql/run": (req, res) => judgeCode(req, res, "run", SQL_JUDGE),
+  "POST /api/sql/submit": (req, res) => judgeCode(req, res, "submit", SQL_JUDGE),
 };
 
 /* Running code ---------------------------------------------------------------- */
@@ -260,7 +284,10 @@ const api = {
 const running = new Set();
 const fromThisMachine = (req) => ["127.0.0.1", "::1", "::ffff:127.0.0.1"].includes(req.socket.remoteAddress);
 
-async function judgeCode(req, res, action) {
+const DSA_JUDGE = "./backend/practice/dsa/tools/judge.mjs";
+const SQL_JUDGE = "./backend/practice/sql/tools/judge.mjs";
+
+async function judgeCode(req, res, action, module = DSA_JUDGE) {
   const user = currentUser(req);
   if (!user) return send(res, 401, { error: "Not signed in." });
   if (!fromThisMachine(req)) return send(res, 403, { error: "Code only runs on the machine the server is on." });
@@ -268,7 +295,7 @@ async function judgeCode(req, res, action) {
   const body = await readJson(req, 200_000);
   running.add(user.id);
   try {
-    const judge = await import("./backend/practice/dsa/tools/judge.mjs");
+    const judge = await import(module);
     send(res, 200, await judge[action]({ id: body.id, lang: body.lang, code: body.code, cases: body.cases }));
   } catch (err) {
     if (err.name === "JudgeError") return send(res, err.status, { error: err.message });
@@ -342,6 +369,54 @@ function dsaSheet() {
   };
 }
 
+/* SQL sheet ------------------------------------------------------------------ */
+
+// The same shape as the DSA sheet, from backend/practice/sql: the taxonomy,
+// plus each problem's problem.json. A problem's type is how many tables it
+// works with.
+const SQL_BANK = path.join(ROOT, "backend", "practice", "sql");
+const TABLE_TYPES = ["One table", "Two tables", "Three or more"];
+
+function sqlSheet() {
+  const YAML = require("yaml");
+  const taxonomy = YAML.parse(fs.readFileSync(path.join(SQL_BANK, "taxonomy.yaml"), "utf8"));
+  const problems = new Map(); // "topic/pattern" -> problems
+  const dir = path.join(SQL_BANK, "problems");
+  const subdirs = (d) => (fs.existsSync(d) ? fs.readdirSync(d, { withFileTypes: true }).filter((e) => e.isDirectory()) : []);
+  for (const topic of subdirs(dir)) {
+    for (const pattern of subdirs(path.join(dir, topic.name))) {
+      for (const slug of subdirs(path.join(dir, topic.name, pattern.name))) {
+        const file = path.join(dir, topic.name, pattern.name, slug.name, "problem.json");
+        if (!fs.existsSync(file)) continue;
+        const p = JSON.parse(fs.readFileSync(file, "utf8"));
+        const key = `${p.topic}/${p.pattern}`;
+        const list = problems.get(key) || [];
+        const type = TABLE_TYPES[Math.min(p.tables.length, 3) - 1];
+        list.push({ id: p.id, title: p.title, difficulty: p.difficulty, type });
+        problems.set(key, list);
+      }
+    }
+  }
+  return {
+    types: TABLE_TYPES,
+    tracks: taxonomy.tracks.map(({ id, name }) => ({ id, name })),
+    topics: taxonomy.topics.map((t) => ({
+      id: t.id,
+      name: t.name,
+      track: t.track,
+      patterns: t.patterns.map((p) => ({
+        id: p.id,
+        name: p.name,
+        about: p.about,
+        count: Math.max(p.count, (problems.get(`${t.id}/${p.id}`) || []).length),
+        problems: (problems.get(`${t.id}/${p.id}`) || []).sort(
+          (a, b) => DIFFICULTY[a.difficulty] - DIFFICULTY[b.difficulty] || a.title.localeCompare(b.title)
+        ),
+      })),
+    })),
+  };
+}
+
 /* Static files ------------------------------------------------------------ */
 
 const TYPES = {
@@ -357,7 +432,7 @@ const TYPES = {
 };
 
 // Pages that need a session, and pages that make no sense with one.
-const PRIVATE = new Set(["/app.html", "/practice.html", "/dsa.html", "/problem.html"]);
+const PRIVATE = new Set(["/app.html", "/practice.html", "/dsa.html", "/problem.html", "/sql.html", "/sql-problem.html"]);
 const GUEST_ONLY = new Set(["/login.html", "/signup.html"]);
 
 // Any missing page gets the 404 page (design/404.html), with a 404 status.
@@ -377,6 +452,7 @@ function serveStatic(req, res, pathname) {
   if (pathname === "/app") pathname = "/app.html";
   if (pathname === "/practice") pathname = "/practice.html";
   if (pathname === "/dsa") pathname = "/dsa.html";
+  if (pathname === "/sql") pathname = "/sql.html";
 
   if (PRIVATE.has(pathname) && !currentUser(req)) {
     res.writeHead(302, { Location: "/login.html" });

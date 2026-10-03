@@ -1,0 +1,656 @@
+{
+ "version": 1,
+ "summary": "A bracket must be removed exactly when it has no partner: a `)` that arrives with nothing open, or a `(` never\nclosed. Matching with a stack (or two counter passes) identifies exactly those, and removing only them is the\nminimum. O(n).",
+ "question": [
+  {
+   "md": "Remove the fewest brackets so the remaining brackets are balanced; letters stay. Return any valid result.\n\n- **Letters never move or disappear.**\n- **Several answers can be valid** (which of two equivalent `)` to drop); any one is accepted.\n- **Removing unmatched brackets is enough and necessary:** every unmatched bracket must go, and once they're\n  gone the rest is balanced."
+  }
+ ],
+ "think": [
+  {
+   "md": "Take `a)b(c(d)e)f)(g`. Match brackets left to right: the first `)` has nothing open (stray). `(c(d)e)` is fully matched.\nThe `)` after `f` has nothing open (stray). The final `(` is never closed (stray). Removing those three gives\n`ab(c(d)e)fg`."
+  },
+  {
+   "panels": [
+    {
+     "type": "row",
+     "cells": [
+      "a",
+      ")",
+      "b",
+      "(",
+      "c",
+      "(",
+      "d",
+      ")",
+      "e",
+      ")",
+      "f",
+      ")",
+      "(",
+      "g"
+     ],
+     "states": {
+      "1": "mark",
+      "11": "mark",
+      "12": "mark"
+     },
+     "slots": true
+    }
+   ],
+   "caption": "The stray brackets (marked) are exactly the unmatched ones."
+  },
+  {
+   "md": "Why is that the minimum? Each unmatched bracket must be removed (nothing can partner with it), and removing\nonly those leaves every remaining bracket with its partner. Greedy left-to-right matching (each `)` with the most\nrecent open `(`) finds a maximum set of matched pairs, so it leaves the fewest strays."
+  }
+ ],
+ "approaches": [
+  {
+   "title": "Stack of '(' positions",
+   "kind": "better",
+   "time": "O(n)",
+   "space": "O(n)",
+   "idea": [
+    {
+     "md": "Scan once: push the index of every `(`; on `)`, pop a partner if any, otherwise mark the `)` for removal. After the scan, every index still on the stack is an unclosed `(`: mark those too. Build the result without the marked positions."
+    }
+   ],
+   "build": [
+    "Stack of `(` indices; a set (or boolean array) of indices to drop.",
+    "Scan and match.",
+    "Mark the leftover `(`.",
+    "Copy every unmarked character."
+   ],
+   "code": {
+    "python": "class Solution:\n    def stripStray(self, s: str) -> str:\n        stack, drop = [], set()\n        for i, c in enumerate(s):\n            if c == \"(\":\n                stack.append(i)\n            elif c == \")\":\n                if stack:\n                    stack.pop()\n                else:\n                    drop.add(i)\n        drop.update(stack)\n        return \"\".join(c for i, c in enumerate(s) if i not in drop)\n",
+    "java": "class Solution {\n    public String stripStray(String s) {\n        int n = s.length();\n        Deque<Integer> stack = new ArrayDeque<>();\n        boolean[] drop = new boolean[n];\n        for (int i = 0; i < n; i++) {\n            char c = s.charAt(i);\n            if (c == '(') stack.push(i);\n            else if (c == ')') {\n                if (!stack.isEmpty()) stack.pop();\n                else drop[i] = true;\n            }\n        }\n        for (int i : stack) drop[i] = true;\n        StringBuilder out = new StringBuilder();\n        for (int i = 0; i < n; i++) if (!drop[i]) out.append(s.charAt(i));\n        return out.toString();\n    }\n}\n",
+    "cpp": "class Solution {\npublic:\n    string stripStray(string& s) {\n        int n = s.size();\n        vector<int> stack;\n        vector<bool> drop(n, false);\n        for (int i = 0; i < n; i++) {\n            if (s[i] == '(') stack.push_back(i);\n            else if (s[i] == ')') {\n                if (!stack.empty()) stack.pop_back();\n                else drop[i] = true;\n            }\n        }\n        for (int i : stack) drop[i] = true;\n        string out;\n        for (int i = 0; i < n; i++) if (!drop[i]) out += s[i];\n        return out;\n    }\n};\n",
+    "c": "char* stripStray(char* s) {\n    int n = strlen(s), top = 0;\n    int* stack = malloc((n + 1) * sizeof(int));\n    bool* drop = calloc(n + 1, sizeof(bool));\n    for (int i = 0; i < n; i++) {\n        if (s[i] == '(') stack[top++] = i;\n        else if (s[i] == ')') {\n            if (top > 0) top--;\n            else drop[i] = true;\n        }\n    }\n    while (top > 0) drop[stack[--top]] = true;\n    char* out = malloc(n + 1);\n    int w = 0;\n    for (int i = 0; i < n; i++) if (!drop[i]) out[w++] = s[i];\n    out[w] = '\\0';\n    free(stack);\n    free(drop);\n    return out;\n}\n"
+   },
+   "lines": [
+    {
+     "text": "Indices of open `(`, and which positions to drop.",
+     "at": {
+      "python": [
+       [
+        3,
+        3
+       ]
+      ],
+      "java": [
+       [
+        4,
+        5
+       ]
+      ],
+      "cpp": [
+       [
+        5,
+        6
+       ]
+      ],
+      "c": [
+       [
+        3,
+        4
+       ]
+      ]
+     }
+    },
+    {
+     "text": "Each `)` closes the most recent open `(`; with none open, it's stray.",
+     "at": {
+      "python": [
+       [
+        4,
+        11
+       ]
+      ],
+      "java": [
+       [
+        6,
+        11
+       ]
+      ],
+      "cpp": [
+       [
+        7,
+        11
+       ]
+      ],
+      "c": [
+       [
+        5,
+        9
+       ]
+      ]
+     }
+    },
+    {
+     "text": "`(` still open at the end are never closed: stray.",
+     "at": {
+      "python": [
+       [
+        12,
+        12
+       ]
+      ],
+      "java": [
+       [
+        14,
+        14
+       ]
+      ],
+      "cpp": [
+       [
+        14,
+        14
+       ]
+      ],
+      "c": [
+       [
+        12,
+        12
+       ]
+      ]
+     }
+    },
+    {
+     "text": "Keep everything that isn't marked, letters included.",
+     "at": {
+      "python": [
+       [
+        13,
+        13
+       ]
+      ],
+      "java": [
+       [
+        15,
+        17
+       ]
+      ],
+      "cpp": [
+       [
+        15,
+        17
+       ]
+      ],
+      "c": [
+       [
+        13,
+        19
+       ]
+      ]
+     }
+    }
+   ],
+   "complexity": [
+    {
+     "md": "**Time O(n).** **Space O(n)** for the stack and marks."
+    }
+   ],
+   "walk": {
+    "steps": [
+     {
+      "text": "')' at 1: nothing open → stray.",
+      "panels": [
+       {
+        "type": "row",
+        "cells": [
+         "a",
+         ")",
+         "b",
+         "(",
+         "c",
+         "(",
+         "d",
+         ")",
+         "e",
+         ")",
+         "f",
+         ")",
+         "(",
+         "g"
+        ],
+        "states": {
+         "1": "mark"
+        },
+        "slots": true
+       },
+       {
+        "type": "row",
+        "cells": [],
+        "label": "open '(' indices"
+       }
+      ]
+     },
+     {
+      "text": "'(' at 3: push.",
+      "panels": [
+       {
+        "type": "row",
+        "cells": [
+         "a",
+         ")",
+         "b",
+         "(",
+         "c",
+         "(",
+         "d",
+         ")",
+         "e",
+         ")",
+         "f",
+         ")",
+         "(",
+         "g"
+        ],
+        "states": {
+         "3": "active"
+        },
+        "slots": true
+       },
+       {
+        "type": "row",
+        "cells": [
+         3
+        ],
+        "label": "open '(' indices"
+       }
+      ]
+     },
+     {
+      "text": "'(' at 5: push.",
+      "panels": [
+       {
+        "type": "row",
+        "cells": [
+         "a",
+         ")",
+         "b",
+         "(",
+         "c",
+         "(",
+         "d",
+         ")",
+         "e",
+         ")",
+         "f",
+         ")",
+         "(",
+         "g"
+        ],
+        "states": {
+         "5": "active"
+        },
+        "slots": true
+       },
+       {
+        "type": "row",
+        "cells": [
+         3,
+         5
+        ],
+        "label": "open '(' indices"
+       }
+      ]
+     },
+     {
+      "text": "')' at 7 matches '(' at 5.",
+      "panels": [
+       {
+        "type": "row",
+        "cells": [
+         "a",
+         ")",
+         "b",
+         "(",
+         "c",
+         "(",
+         "d",
+         ")",
+         "e",
+         ")",
+         "f",
+         ")",
+         "(",
+         "g"
+        ],
+        "states": {
+         "7": "found",
+         "5": "found"
+        },
+        "slots": true
+       },
+       {
+        "type": "row",
+        "cells": [
+         3
+        ],
+        "label": "open '(' indices"
+       }
+      ]
+     },
+     {
+      "text": "')' at 9 matches '(' at 3.",
+      "panels": [
+       {
+        "type": "row",
+        "cells": [
+         "a",
+         ")",
+         "b",
+         "(",
+         "c",
+         "(",
+         "d",
+         ")",
+         "e",
+         ")",
+         "f",
+         ")",
+         "(",
+         "g"
+        ],
+        "states": {
+         "9": "found",
+         "3": "found"
+        },
+        "slots": true
+       },
+       {
+        "type": "row",
+        "cells": [],
+        "label": "open '(' indices"
+       }
+      ]
+     },
+     {
+      "text": "')' at 11: nothing open → stray.",
+      "panels": [
+       {
+        "type": "row",
+        "cells": [
+         "a",
+         ")",
+         "b",
+         "(",
+         "c",
+         "(",
+         "d",
+         ")",
+         "e",
+         ")",
+         "f",
+         ")",
+         "(",
+         "g"
+        ],
+        "states": {
+         "11": "mark"
+        },
+        "slots": true
+       },
+       {
+        "type": "row",
+        "cells": [],
+        "label": "open '(' indices"
+       }
+      ]
+     },
+     {
+      "text": "'(' at 12: push.",
+      "panels": [
+       {
+        "type": "row",
+        "cells": [
+         "a",
+         ")",
+         "b",
+         "(",
+         "c",
+         "(",
+         "d",
+         ")",
+         "e",
+         ")",
+         "f",
+         ")",
+         "(",
+         "g"
+        ],
+        "states": {
+         "12": "active"
+        },
+        "slots": true
+       },
+       {
+        "type": "row",
+        "cells": [
+         12
+        ],
+        "label": "open '(' indices"
+       }
+      ]
+     },
+     {
+      "text": "Leftover '(' [12] are stray too. Remove positions [1, 11, 12]: 'ab(c(d)e)fg'.",
+      "panels": [
+       {
+        "type": "row",
+        "cells": [
+         "a",
+         ")",
+         "b",
+         "(",
+         "c",
+         "(",
+         "d",
+         ")",
+         "e",
+         ")",
+         "f",
+         ")",
+         "(",
+         "g"
+        ],
+        "states": {
+         "1": "mark",
+         "11": "mark",
+         "12": "mark"
+        },
+        "slots": true
+       }
+      ],
+      "result": "ab(c(d)e)fg"
+     }
+    ],
+    "title": "Push each '(' index. A ')' pops its partner, or is stray if the stack is empty. '(' left on the stack at the end are stray too."
+   },
+   "limits": [
+    {
+     "md": "The stack only needs to know *how many* `(` are open, not where, if strays are removed in two directional passes."
+    }
+   ]
+  },
+  {
+   "title": "Two counting passes",
+   "kind": "best",
+   "time": "O(n)",
+   "space": "O(1)",
+   "idea": [
+    {
+     "md": "Pass 1, left to right: keep a balance; skip any `)` when the balance is 0 (stray), otherwise copy. Pass 2, right to left over that result: skip any `(` when the balance of `)` seen is 0 (an unclosed `(`), otherwise copy. Reverse."
+    }
+   ],
+   "build": [
+    "Left-to-right: drop `)` with no open `(`.",
+    "Right-to-left: drop `(` with no `)` after it.",
+    "Return the kept characters in order."
+   ],
+   "code": {
+    "python": "class Solution:\n    def stripStray(self, s: str) -> str:\n        first, open_ = [], 0\n        for c in s:\n            if c == \")\":\n                if open_ == 0:\n                    continue\n                open_ -= 1\n            elif c == \"(\":\n                open_ += 1\n            first.append(c)\n        out, close = [], 0\n        for c in reversed(first):\n            if c == \"(\":\n                if close == 0:\n                    continue\n                close -= 1\n            elif c == \")\":\n                close += 1\n            out.append(c)\n        return \"\".join(reversed(out))\n",
+    "java": "class Solution {\n    public String stripStray(String s) {\n        StringBuilder first = new StringBuilder();\n        int open = 0;\n        for (char c : s.toCharArray()) {\n            if (c == ')') { if (open == 0) continue; open--; }\n            else if (c == '(') open++;\n            first.append(c);\n        }\n        StringBuilder out = new StringBuilder();\n        int close = 0;\n        for (int i = first.length() - 1; i >= 0; i--) {\n            char c = first.charAt(i);\n            if (c == '(') { if (close == 0) continue; close--; }\n            else if (c == ')') close++;\n            out.append(c);\n        }\n        return out.reverse().toString();\n    }\n}\n",
+    "cpp": "class Solution {\npublic:\n    string stripStray(string& s) {\n        string first;\n        int open = 0;\n        for (char c : s) {\n            if (c == ')') { if (open == 0) continue; open--; }\n            else if (c == '(') open++;\n            first += c;\n        }\n        string out;\n        int close = 0;\n        for (int i = (int) first.size() - 1; i >= 0; i--) {\n            char c = first[i];\n            if (c == '(') { if (close == 0) continue; close--; }\n            else if (c == ')') close++;\n            out += c;\n        }\n        reverse(out.begin(), out.end());\n        return out;\n    }\n};\n",
+    "c": "char* stripStray(char* s) {\n    int n = strlen(s), w = 0, open = 0;\n    char* buf = malloc(n + 1);\n    for (int i = 0; i < n; i++) {\n        char c = s[i];\n        if (c == ')') { if (open == 0) continue; open--; }\n        else if (c == '(') open++;\n        buf[w++] = c;\n    }\n    int close = 0, r = w;\n    for (int i = w - 1; i >= 0; i--) {\n        char c = buf[i];\n        if (c == '(') { if (close == 0) continue; close--; }\n        else if (c == ')') close++;\n        buf[--r] = c;\n    }\n    memmove(buf, buf + r, w - r);\n    buf[w - r] = '\\0';\n    return buf;\n}\n"
+   },
+   "lines": [
+    {
+     "text": "Left to right: a `)` with no open `(` is stray and skipped; everything else is kept. Afterwards every `)` has a partner, but some `(` may be left open.",
+     "at": {
+      "python": [
+       [
+        3,
+        11
+       ]
+      ],
+      "java": [
+       [
+        3,
+        8
+       ]
+      ],
+      "cpp": [
+       [
+        4,
+        9
+       ]
+      ],
+      "c": [
+       [
+        3,
+        8
+       ]
+      ]
+     }
+    },
+    {
+     "text": "Right to left over the kept text: a `(` with no `)` after it is an unclosed opener and is skipped.",
+     "at": {
+      "python": [
+       [
+        12,
+        20
+       ]
+      ],
+      "java": [
+       [
+        10,
+        16
+       ]
+      ],
+      "cpp": [
+       [
+        11,
+        17
+       ]
+      ],
+      "c": [
+       [
+        10,
+        15
+       ]
+      ]
+     },
+     "notes": {
+      "c": "Written backwards into the same buffer from its end, so kept characters end up in order at the back of the buffer."
+     }
+    },
+    {
+     "text": "Reverse back into reading order.",
+     "at": {
+      "python": [
+       [
+        21,
+        21
+       ]
+      ],
+      "java": [
+       [
+        18,
+        18
+       ]
+      ],
+      "cpp": [
+       [
+        19,
+        20
+       ]
+      ],
+      "c": [
+       [
+        17,
+        19
+       ]
+      ]
+     },
+     "notes": {
+      "c": "Slide the kept block to the front and terminate it."
+     }
+    }
+   ],
+   "complexity": [
+    {
+     "md": "**Time O(n):** two passes. **Space O(1)** besides the output being built."
+    }
+   ],
+   "walk": {
+    "steps": [
+     {
+      "text": "After pass 1 (stray ')' removed): 'ab(c(d)e)f(g', with 1 '(' still open.",
+      "panels": [
+       {
+        "type": "row",
+        "cells": [
+         "a",
+         "b",
+         "(",
+         "c",
+         "(",
+         "d",
+         ")",
+         "e",
+         ")",
+         "f",
+         "(",
+         "g"
+        ],
+        "slots": true
+       }
+      ]
+     },
+     {
+      "text": "After pass 2 (unclosed '(' removed from the right): 'ab(c(d)e)fg'.",
+      "panels": [
+       {
+        "type": "row",
+        "cells": [
+         "a",
+         "b",
+         "(",
+         "c",
+         "(",
+         "d",
+         ")",
+         "e",
+         ")",
+         "f",
+         "g"
+        ],
+        "slots": true
+       }
+      ],
+      "result": "ab(c(d)e)fg"
+     }
+    ],
+    "title": "Pass 1 (left to right) drops ')' that have no open '('. Pass 2 (right to left) drops '(' that have no ')' after them."
+   }
+  }
+ ],
+ "takeaways": [
+  {
+   "md": "- **Remove the minimum to balance** = remove exactly the unmatched brackets.\n- Unmatched `)` are found left to right; unmatched `(` right to left (or as leftovers on a stack)."
+  }
+ ]
+}

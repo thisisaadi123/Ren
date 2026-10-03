@@ -1,0 +1,725 @@
+{
+ "version": 1,
+ "summary": "Merge sort fits linked lists perfectly: find the middle with a slow and a fast pointer, cut the list in two,\nsort each half, and merge the halves by relinking nodes, no copying. O(n log n) time and only O(log n) extra\nspace for the recursion.",
+ "question": [
+  {
+   "md": "Sort a singly linked list by `val` and return the new head.\n\n- **No random access:** you can't jump to the middle or swap by index like with an array.\n- **The list can be empty** (return null) or have one car.\n- **Up to 5 × 10⁴ cars.**"
+  },
+  {
+   "md": "**Edge cases to keep in mind**\n\n- An empty train or a single car: already sorted.\n- Equal weights: either order is fine.\n- Linked lists have no indexing, so array-style quick sort (random access, swaps by index) doesn't fit."
+  }
+ ],
+ "think": [
+  {
+   "md": "**Why O(n log n) sorts work.** Insertion sort places each value by scanning a sorted prefix: up to `n` steps per value,\nO(n²) total. The O(n log n) sorts **divide** the problem:\n\n- **Merge sort** splits the array in half, sorts each half, and merges two sorted halves in linear time. There are\n  `log₂ n` levels of halving and each level does O(n) merging: O(n log n), always. It's **stable** (equal values keep\n  their order) but needs an O(n) buffer for arrays.\n- **Quick sort** picks a pivot, partitions the values into \"smaller\" and \"larger\" around it, then sorts both sides. With\n  a random pivot the split is balanced on average: O(n log n) expected, in place, but O(n²) if pivots keep being\n  extreme, and not stable."
+  },
+  {
+   "md": "**Why merge sort suits linked lists.** Its two operations are exactly what lists do well:\n\n- **Split:** find the middle with slow/fast pointers (fast moves two cars per step, so when it reaches the end,\n  slow is in the middle), then cut the link after the middle.\n- **Merge:** relink the smaller front car each step; no extra array is needed.\n\nFor `[4, 2, 1, 3, 2]`:"
+  },
+  {
+   "table": {
+    "head": [
+     "stage",
+     "runs"
+    ],
+    "rows": [
+     [
+      "start",
+      "4 | 2 | 1 | 3 | 2"
+     ],
+     [
+      "after merge level 1",
+      "2 4 | 1 3 | 2"
+     ],
+     [
+      "after merge level 2",
+      "1 2 3 4 | 2"
+     ],
+     [
+      "after merge level 3",
+      "1 2 2 3 4"
+     ]
+    ]
+   }
+  }
+ ],
+ "approaches": [
+  {
+   "title": "Copy into an array and sort",
+   "kind": "brute",
+   "time": "O(n log n)",
+   "space": "O(n)",
+   "idea": [
+    {
+     "md": "Copy the weights into an array, sort it, and write the sorted weights back into the cars in order."
+    }
+   ],
+   "build": [
+    "Read the weights.",
+    "Sort.",
+    "Write them back."
+   ],
+   "code": {
+    "python": "class Solution:\n    def sortCars(self, head: Optional[ListNode]) -> Optional[ListNode]:\n        vals, node = [], head\n        while node:\n            vals.append(node.val)\n            node = node.next\n        vals.sort()\n        node = head\n        for v in vals:\n            node.val = v\n            node = node.next\n        return head\n",
+    "java": "class Solution {\n    public ListNode sortCars(ListNode head) {\n        List<Integer> vals = new ArrayList<>();\n        for (ListNode n = head; n != null; n = n.next) vals.add(n.val);\n        Collections.sort(vals);\n        ListNode n = head;\n        for (int v : vals) { n.val = v; n = n.next; }\n        return head;\n    }\n}\n",
+    "cpp": "class Solution {\npublic:\n    ListNode* sortCars(ListNode* head) {\n        vector<int> vals;\n        for (ListNode* n = head; n; n = n->next) vals.push_back(n->val);\n        sort(vals.begin(), vals.end());\n        ListNode* n = head;\n        for (int v : vals) { n->val = v; n = n->next; }\n        return head;\n    }\n};\n",
+    "c": "static int cmp(const void* x, const void* y) {\n    int a = *(const int*) x, b = *(const int*) y;\n    return (a > b) - (a < b);\n}\n\nstruct ListNode* sortCars(struct ListNode* head) {\n    int n = 0;\n    for (struct ListNode* p = head; p; p = p->next) n++;\n    int* vals = malloc((n + 1) * sizeof(int));\n    int i = 0;\n    for (struct ListNode* p = head; p; p = p->next) vals[i++] = p->val;\n    qsort(vals, n, sizeof(int), cmp);\n    i = 0;\n    for (struct ListNode* p = head; p; p = p->next) p->val = vals[i++];\n    free(vals);\n    return head;\n}\n"
+   },
+   "lines": [
+    {
+     "text": "Collect the values in list order.",
+     "at": {
+      "python": [
+       [
+        3,
+        6
+       ]
+      ],
+      "java": [
+       [
+        3,
+        4
+       ]
+      ],
+      "cpp": [
+       [
+        4,
+        5
+       ]
+      ],
+      "c": [
+       [
+        7,
+        11
+       ]
+      ]
+     }
+    },
+    {
+     "text": "Sort them as an array.",
+     "at": {
+      "python": [
+       [
+        7,
+        7
+       ]
+      ],
+      "java": [
+       [
+        5,
+        5
+       ]
+      ],
+      "cpp": [
+       [
+        6,
+        6
+       ]
+      ],
+      "c": [
+       [
+        1,
+        4
+       ],
+       [
+        12,
+        12
+       ]
+      ]
+     }
+    },
+    {
+     "text": "Overwrite node values in order; the links never change.",
+     "at": {
+      "python": [
+       [
+        8,
+        11
+       ]
+      ],
+      "java": [
+       [
+        6,
+        7
+       ]
+      ],
+      "cpp": [
+       [
+        7,
+        8
+       ]
+      ],
+      "c": [
+       [
+        13,
+        14
+       ]
+      ]
+     }
+    },
+    {
+     "text": "Same head node, now holding the smallest value.",
+     "at": {
+      "python": [
+       [
+        12,
+        12
+       ]
+      ],
+      "java": [
+       [
+        8,
+        8
+       ]
+      ],
+      "cpp": [
+       [
+        9,
+        9
+       ]
+      ],
+      "c": [
+       [
+        15,
+        16
+       ]
+      ]
+     }
+    }
+   ],
+   "complexity": [
+    {
+     "md": "**Time O(n log n).** **Space O(n)** for the array."
+    }
+   ],
+   "walk": {
+    "steps": [
+     {
+      "text": "Read the weights.",
+      "panels": [
+       {
+        "type": "list",
+        "values": [
+         4,
+         2,
+         1,
+         3,
+         2
+        ]
+       },
+       {
+        "type": "row",
+        "cells": [
+         4,
+         2,
+         1,
+         3,
+         2
+        ],
+        "label": "array"
+       }
+      ]
+     },
+     {
+      "text": "Sort the array.",
+      "panels": [
+       {
+        "type": "list",
+        "values": [
+         4,
+         2,
+         1,
+         3,
+         2
+        ]
+       },
+       {
+        "type": "row",
+        "cells": [
+         1,
+         2,
+         2,
+         3,
+         4
+        ],
+        "label": "array"
+       }
+      ]
+     },
+     {
+      "text": "Write them back car by car.",
+      "panels": [
+       {
+        "type": "list",
+        "values": [
+         1,
+         2,
+         2,
+         3,
+         4
+        ]
+       }
+      ],
+      "result": "[1, 2, 2, 3, 4]"
+     }
+    ],
+    "title": "Copy the weights into an array, sort the array, then write the sorted values back into the cars in order."
+   },
+   "limits": [
+    {
+     "md": "Needs an array as large as the train, and rewrites values instead of reordering the cars themselves."
+    }
+   ]
+  },
+  {
+   "title": "Merge sort on the list",
+   "kind": "best",
+   "time": "O(n log n)",
+   "space": "O(log n)",
+   "idea": [
+    {
+     "md": "If the train has 0 or 1 cars, return it. Otherwise find the middle with slow/fast pointers, cut the list in\ntwo, sort each half recursively, and merge them with a dummy head.\n\n**Why `fast` starts at `head.next`.** For a two-car list, `slow` then stays on the first car, so the cut\nproduces two non-empty halves and the recursion always shrinks."
+    }
+   ],
+   "build": [
+    "Base case: 0 or 1 cars.",
+    "Slow/fast to the middle; cut.",
+    "Sort both halves.",
+    "Merge with a dummy head."
+   ],
+   "code": {
+    "python": "class Solution:\n    def sortCars(self, head: Optional[ListNode]) -> Optional[ListNode]:\n        if not head or not head.next:\n            return head\n        slow, fast = head, head.next\n        while fast and fast.next:\n            slow, fast = slow.next, fast.next.next\n        right, slow.next = slow.next, None\n        a, b = self.sortCars(head), self.sortCars(right)\n        dummy = tail = ListNode()\n        while a and b:\n            if a.val <= b.val:\n                tail.next, a = a, a.next\n            else:\n                tail.next, b = b, b.next\n            tail = tail.next\n        tail.next = a or b\n        return dummy.next\n",
+    "java": "class Solution {\n    public ListNode sortCars(ListNode head) {\n        if (head == null || head.next == null) return head;\n        ListNode slow = head, fast = head.next;\n        while (fast != null && fast.next != null) { slow = slow.next; fast = fast.next.next; }\n        ListNode right = slow.next;\n        slow.next = null;\n        ListNode a = sortCars(head), b = sortCars(right);\n        ListNode dummy = new ListNode(), tail = dummy;\n        while (a != null && b != null) {\n            if (a.val <= b.val) { tail.next = a; a = a.next; }\n            else { tail.next = b; b = b.next; }\n            tail = tail.next;\n        }\n        tail.next = a != null ? a : b;\n        return dummy.next;\n    }\n}\n",
+    "cpp": "class Solution {\npublic:\n    ListNode* sortCars(ListNode* head) {\n        if (!head || !head->next) return head;\n        ListNode *slow = head, *fast = head->next;\n        while (fast && fast->next) { slow = slow->next; fast = fast->next->next; }\n        ListNode* right = slow->next;\n        slow->next = nullptr;\n        ListNode *a = sortCars(head), *b = sortCars(right);\n        ListNode dummy;\n        ListNode* tail = &dummy;\n        while (a && b) {\n            if (a->val <= b->val) { tail->next = a; a = a->next; }\n            else { tail->next = b; b = b->next; }\n            tail = tail->next;\n        }\n        tail->next = a ? a : b;\n        return dummy.next;\n    }\n};\n",
+    "c": "struct ListNode* sortCars(struct ListNode* head) {\n    if (!head || !head->next) return head;\n    struct ListNode *slow = head, *fast = head->next;\n    while (fast && fast->next) { slow = slow->next; fast = fast->next->next; }\n    struct ListNode* right = slow->next;\n    slow->next = NULL;\n    struct ListNode *a = sortCars(head), *b = sortCars(right);\n    struct ListNode dummy = {0, NULL}, *tail = &dummy;\n    while (a && b) {\n        if (a->val <= b->val) { tail->next = a; a = a->next; }\n        else { tail->next = b; b = b->next; }\n        tail = tail->next;\n    }\n    tail->next = a ? a : b;\n    return dummy.next;\n}\n"
+   },
+   "lines": [
+    {
+     "text": "Zero or one car is already sorted.",
+     "at": {
+      "python": [
+       [
+        3,
+        4
+       ]
+      ],
+      "java": [
+       [
+        3,
+        3
+       ]
+      ],
+      "cpp": [
+       [
+        4,
+        4
+       ]
+      ],
+      "c": [
+       [
+        2,
+        2
+       ]
+      ]
+     }
+    },
+    {
+     "text": "Fast moves two steps for slow's one; starting fast one ahead makes slow stop at the last node of the first half (so a 2-node list splits 1 + 1).",
+     "at": {
+      "python": [
+       [
+        5,
+        7
+       ]
+      ],
+      "java": [
+       [
+        4,
+        5
+       ]
+      ],
+      "cpp": [
+       [
+        5,
+        6
+       ]
+      ],
+      "c": [
+       [
+        3,
+        4
+       ]
+      ]
+     }
+    },
+    {
+     "text": "Detach the second half.",
+     "at": {
+      "python": [
+       [
+        8,
+        8
+       ]
+      ],
+      "java": [
+       [
+        6,
+        7
+       ]
+      ],
+      "cpp": [
+       [
+        7,
+        8
+       ]
+      ],
+      "c": [
+       [
+        5,
+        6
+       ]
+      ]
+     }
+    },
+    {
+     "text": "Sort each half.",
+     "at": {
+      "python": [
+       [
+        9,
+        9
+       ]
+      ],
+      "java": [
+       [
+        8,
+        8
+       ]
+      ],
+      "cpp": [
+       [
+        9,
+        9
+       ]
+      ],
+      "c": [
+       [
+        7,
+        7
+       ]
+      ]
+     }
+    },
+    {
+     "text": "A dummy node gives the merged list a fixed start; link whichever front node is smaller (left on ties, keeping it stable).",
+     "at": {
+      "python": [
+       [
+        10,
+        16
+       ]
+      ],
+      "java": [
+       [
+        9,
+        13
+       ]
+      ],
+      "cpp": [
+       [
+        10,
+        15
+       ]
+      ],
+      "c": [
+       [
+        8,
+        12
+       ]
+      ]
+     }
+    },
+    {
+     "text": "Whatever remains is sorted already: link it in one go.",
+     "at": {
+      "python": [
+       [
+        17,
+        17
+       ]
+      ],
+      "java": [
+       [
+        15,
+        15
+       ]
+      ],
+      "cpp": [
+       [
+        17,
+        17
+       ]
+      ],
+      "c": [
+       [
+        14,
+        14
+       ]
+      ]
+     }
+    },
+    {
+     "text": "The merged list starts after the dummy.",
+     "at": {
+      "python": [
+       [
+        18,
+        18
+       ]
+      ],
+      "java": [
+       [
+        16,
+        16
+       ]
+      ],
+      "cpp": [
+       [
+        18,
+        18
+       ]
+      ],
+      "c": [
+       [
+        15,
+        15
+       ]
+      ]
+     }
+    }
+   ],
+   "complexity": [
+    {
+     "md": "**Time O(n log n).** **Space O(log n)** for the recursion; no arrays."
+    }
+   ],
+   "walk": {
+    "steps": [
+     {
+      "text": "Split at the middle: slow moves one car, fast two, so slow stops at the end of the first half.",
+      "panels": [
+       {
+        "type": "list",
+        "values": [
+         4,
+         2,
+         1,
+         3,
+         2
+        ],
+        "states": {
+         "2": "active"
+        },
+        "pointers": {
+         "slow": 2
+        }
+       }
+      ]
+     },
+     {
+      "text": "Cut after the middle: [4, 2, 1] and [3, 2].",
+      "panels": [
+       {
+        "type": "list",
+        "values": [
+         4,
+         2,
+         1
+        ],
+        "label": "left"
+       },
+       {
+        "type": "list",
+        "values": [
+         3,
+         2
+        ],
+        "label": "right"
+       }
+      ]
+     },
+     {
+      "text": "Sorting each half the same way gives [1, 2, 4] and [2, 3].",
+      "panels": [
+       {
+        "type": "list",
+        "values": [
+         1,
+         2,
+         4
+        ],
+        "label": "left sorted"
+       },
+       {
+        "type": "list",
+        "values": [
+         2,
+         3
+        ],
+        "label": "right sorted"
+       }
+      ]
+     },
+     {
+      "text": "Link the smaller front car: 1.",
+      "panels": [
+       {
+        "type": "list",
+        "values": [
+         1
+        ],
+        "states": {
+         "0": "new"
+        },
+        "label": "merged"
+       },
+       {
+        "type": "list",
+        "values": [
+         2,
+         4
+        ],
+        "label": "left"
+       },
+       {
+        "type": "list",
+        "values": [
+         2,
+         3
+        ],
+        "label": "right"
+       }
+      ]
+     },
+     {
+      "text": "Link the smaller front car: 2.",
+      "panels": [
+       {
+        "type": "list",
+        "values": [
+         1,
+         2
+        ],
+        "states": {
+         "1": "new"
+        },
+        "label": "merged"
+       },
+       {
+        "type": "list",
+        "values": [
+         4
+        ],
+        "label": "left"
+       },
+       {
+        "type": "list",
+        "values": [
+         2,
+         3
+        ],
+        "label": "right"
+       }
+      ]
+     },
+     {
+      "text": "Link the smaller front car: 2.",
+      "panels": [
+       {
+        "type": "list",
+        "values": [
+         1,
+         2,
+         2
+        ],
+        "states": {
+         "2": "new"
+        },
+        "label": "merged"
+       },
+       {
+        "type": "list",
+        "values": [
+         4
+        ],
+        "label": "left"
+       },
+       {
+        "type": "list",
+        "values": [
+         3
+        ],
+        "label": "right"
+       }
+      ]
+     },
+     {
+      "text": "Link the smaller front car: 3.",
+      "panels": [
+       {
+        "type": "list",
+        "values": [
+         1,
+         2,
+         2,
+         3
+        ],
+        "states": {
+         "3": "new"
+        },
+        "label": "merged"
+       },
+       {
+        "type": "list",
+        "values": [
+         4
+        ],
+        "label": "left"
+       },
+       {
+        "type": "list",
+        "values": [
+         "·"
+        ],
+        "label": "right"
+       }
+      ]
+     },
+     {
+      "text": "One half is empty; link the rest. Result: [1, 2, 2, 3, 4].",
+      "panels": [
+       {
+        "type": "list",
+        "values": [
+         1,
+         2,
+         2,
+         3,
+         4
+        ],
+        "label": "merged"
+       }
+      ],
+      "result": "[1, 2, 2, 3, 4]"
+     }
+    ],
+    "title": "Merge sort on the list itself: find the middle with slow/fast pointers, cut, sort both halves, merge by relinking."
+   }
+  }
+ ],
+ "takeaways": [
+  {
+   "md": "- **Sorting a linked list:** merge sort (split with slow/fast, merge by relinking).\n- Cut the list after finding the middle, or the halves stay connected.\n- **Pitfall:** starting `fast` at `head`, which can leave a two-node list unsplit forever."
+  }
+ ]
+}

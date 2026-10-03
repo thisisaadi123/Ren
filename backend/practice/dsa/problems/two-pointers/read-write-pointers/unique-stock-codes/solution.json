@@ -1,0 +1,679 @@
+{
+ "version": 1,
+ "summary": "In a sorted list, copies of a code sit next to each other. Read left to right with a write pointer: keep a code\nonly if it differs from the last code kept (`a[write − 1]`). The kept prefix is the answer. O(n), in place.",
+ "question": [
+  {
+   "md": "Codes are sorted with repeats. Keep each code once, in increasing order, ideally in place.\n\n- **Sorted** means equal codes are adjacent.\n- **Up to 10⁵ codes.**"
+  },
+  {
+   "md": "**Edge cases to keep in mind**\n\n- One code: unchanged.\n- All codes equal: one code remains.\n- The input is sorted, so equal codes are always next to each other."
+  }
+ ],
+ "think": [
+  {
+   "md": "**Why deleting by shifting is slow.** Removing one element from the middle of an array means moving everything after\nit one step left: O(n) per deletion. With many deletions that's O(n²), even though each kept element only needs to\nmove once, straight to its final slot."
+  },
+  {
+   "md": "**The read/write idea.** One pointer, `read`, visits every element once. A second pointer, `write`, marks the end of\nthe part we're keeping, which always sits at the **front** of the array. Each kept element is copied to `a[write]`\nand `write` moves on; a dropped element is simply not copied.\n\n**Why it's safe to overwrite in place.** `write` never gets ahead of `read` (it moves at most once per element read),\nso every write lands on a slot that has already been read. Nothing unread is ever lost.\n\n**Invariant.** After reading the first `r` elements, `a[0 .. write)` holds exactly the elements that should be kept\namong those `r`, in their original order."
+  },
+  {
+   "md": "**What counts as a repeat?** Because the list is sorted, equal codes form one consecutive run. A code is a repeat\nexactly when it equals the **last code we kept**. (Comparing with the previous code in the input works too; the\nlast kept code is the same value.)"
+  },
+  {
+   "md": "**Trace on `[3, 3, 5, 8, 8, 8, 11]`:**"
+  },
+  {
+   "table": {
+    "head": [
+     "read",
+     "code",
+     "decision",
+     "write after",
+     "kept part"
+    ],
+    "rows": [
+     [
+      "0",
+      "3",
+      "first code: always kept",
+      "1",
+      "[3]"
+     ],
+     [
+      "1",
+      "3",
+      "equals last kept 3: repeat",
+      "1",
+      "[3]"
+     ],
+     [
+      "2",
+      "5",
+      "differs from last kept 3: keep",
+      "2",
+      "[3, 5]"
+     ],
+     [
+      "3",
+      "8",
+      "differs from last kept 5: keep",
+      "3",
+      "[3, 5, 8]"
+     ],
+     [
+      "4",
+      "8",
+      "equals last kept 8: repeat",
+      "3",
+      "[3, 5, 8]"
+     ],
+     [
+      "5",
+      "8",
+      "equals last kept 8: repeat",
+      "3",
+      "[3, 5, 8]"
+     ],
+     [
+      "6",
+      "11",
+      "differs from last kept 8: keep",
+      "4",
+      "[3, 5, 8, 11]"
+     ]
+    ]
+   }
+  }
+ ],
+ "approaches": [
+  {
+   "title": "Delete repeats by shifting",
+   "kind": "brute",
+   "time": "O(n²)",
+   "space": "O(1)",
+   "idea": [
+    {
+     "md": "Scan from the second code; when a code equals the one before it, shift the tail left over it and shrink the list."
+    }
+   ],
+   "build": [
+    "Scan from index 1.",
+    "On a repeat, shift and shrink.",
+    "Otherwise advance."
+   ],
+   "code": {
+    "python": "class Solution:\n    def uniqueSorted(self, codes: List[int]) -> List[int]:\n        a, n, i = codes[:], len(codes), 1\n        while i < n:\n            if a[i] == a[i - 1]:\n                for j in range(i, n - 1):\n                    a[j] = a[j + 1]\n                n -= 1\n            else:\n                i += 1\n        return a[:n]\n",
+    "java": "class Solution {\n    public int[] uniqueSorted(int[] codes) {\n        int[] a = codes.clone();\n        int n = a.length, i = 1;\n        while (i < n) {\n            if (a[i] == a[i - 1]) {\n                for (int j = i; j < n - 1; j++) a[j] = a[j + 1];\n                n--;\n            } else i++;\n        }\n        return Arrays.copyOf(a, n);\n    }\n}\n",
+    "cpp": "class Solution {\npublic:\n    vector<int> uniqueSorted(vector<int>& codes) {\n        vector<int> a = codes;\n        int n = a.size(), i = 1;\n        while (i < n) {\n            if (a[i] == a[i - 1]) {\n                for (int j = i; j < n - 1; j++) a[j] = a[j + 1];\n                n--;\n            } else i++;\n        }\n        a.resize(n);\n        return a;\n    }\n};\n",
+    "c": "int* uniqueSorted(int* codes, int codesSize, int* returnSize) {\n    int* a = malloc(codesSize * sizeof(int));\n    memcpy(a, codes, codesSize * sizeof(int));\n    int n = codesSize, i = 1;\n    while (i < n) {\n        if (a[i] == a[i - 1]) {\n            for (int j = i; j < n - 1; j++) a[j] = a[j + 1];\n            n--;\n        } else i++;\n    }\n    *returnSize = n;\n    return a;\n}\n"
+   },
+   "lines": [
+    {
+     "text": "A working copy, its length, and the scan position (starting at the second code).",
+     "at": {
+      "python": [
+       [
+        3,
+        3
+       ]
+      ],
+      "java": [
+       [
+        3,
+        4
+       ]
+      ],
+      "cpp": [
+       [
+        4,
+        5
+       ]
+      ],
+      "c": [
+       [
+        2,
+        4
+       ]
+      ]
+     }
+    },
+    {
+     "text": "Compare each code with its left neighbour in the shrinking list.",
+     "at": {
+      "python": [
+       [
+        4,
+        4
+       ],
+       [
+        9,
+        10
+       ]
+      ],
+      "java": [
+       [
+        5,
+        5
+       ],
+       [
+        9,
+        9
+       ]
+      ],
+      "cpp": [
+       [
+        6,
+        6
+       ],
+       [
+        10,
+        10
+       ]
+      ],
+      "c": [
+       [
+        5,
+        5
+       ],
+       [
+        9,
+        9
+       ]
+      ]
+     }
+    },
+    {
+     "text": "A repeat: slide the tail left over it and shrink. The index stays to check the code that moved in.",
+     "at": {
+      "python": [
+       [
+        5,
+        8
+       ]
+      ],
+      "java": [
+       [
+        6,
+        8
+       ]
+      ],
+      "cpp": [
+       [
+        7,
+        9
+       ]
+      ],
+      "c": [
+       [
+        6,
+        8
+       ]
+      ]
+     }
+    },
+    {
+     "text": "The first `n` codes.",
+     "at": {
+      "python": [
+       [
+        11,
+        11
+       ]
+      ],
+      "java": [
+       [
+        11,
+        11
+       ]
+      ],
+      "cpp": [
+       [
+        12,
+        13
+       ]
+      ],
+      "c": [
+       [
+        11,
+        12
+       ]
+      ]
+     }
+    }
+   ],
+   "complexity": [
+    {
+     "md": "**Time O(n²)** for long runs of repeats. **Space O(1)** besides the copy."
+    }
+   ],
+   "walk": {
+    "steps": [
+     {
+      "text": "Start.",
+      "panels": [
+       {
+        "type": "row",
+        "cells": [
+         3,
+         3,
+         5,
+         8,
+         8,
+         8,
+         11
+        ]
+       }
+      ]
+     },
+     {
+      "text": "3 repeats: shift the 5 codes after it left.",
+      "panels": [
+       {
+        "type": "row",
+        "cells": [
+         3,
+         3,
+         5,
+         8,
+         8,
+         8,
+         11
+        ],
+        "states": {
+         "1": "mark"
+        }
+       }
+      ]
+     },
+     {
+      "text": "8 repeats: shift the 2 codes after it left.",
+      "panels": [
+       {
+        "type": "row",
+        "cells": [
+         3,
+         5,
+         8,
+         8,
+         8,
+         11
+        ],
+        "states": {
+         "3": "mark"
+        }
+       }
+      ]
+     },
+     {
+      "text": "8 repeats: shift the 1 codes after it left.",
+      "panels": [
+       {
+        "type": "row",
+        "cells": [
+         3,
+         5,
+         8,
+         8,
+         11
+        ],
+        "states": {
+         "3": "mark"
+        }
+       }
+      ]
+     },
+     {
+      "text": "Left: [3, 5, 8, 11].",
+      "panels": [],
+      "result": "[3, 5, 8, 11]"
+     }
+    ],
+    "title": "Whenever a code equals the one before it, delete it by shifting the rest left."
+   },
+   "limits": [
+    {
+     "md": "Every removed repeat shifts the whole tail. The write pointer places each kept code once."
+    }
+   ],
+   "slow": true
+  },
+  {
+   "title": "Write pointer, compare with the last kept",
+   "kind": "best",
+   "time": "O(n)",
+   "space": "O(1)",
+   "idea": [
+    {
+     "md": "Keep `a[0]`. For each later code, copy it to `a[write]` if it differs from `a[write − 1]`, the last kept\ncode. The answer is `a[0 .. write)`.\n\n**Why one comparison is enough.** The kept part is strictly increasing and the input is sorted, so a new\ncode is either equal to the last kept code (a repeat) or larger than every kept code (new)."
+    }
+   ],
+   "build": [
+    "`write = 1` (the first code is always kept).",
+    "For each later code, keep it if it differs from the last kept one.",
+    "Return the first `write` codes."
+   ],
+   "code": {
+    "python": "class Solution:\n    def uniqueSorted(self, codes: List[int]) -> List[int]:\n        a, write = codes[:], 1\n        for i in range(1, len(a)):\n            if a[i] != a[write - 1]:\n                a[write] = a[i]\n                write += 1\n        return a[:write]\n",
+    "java": "class Solution {\n    public int[] uniqueSorted(int[] codes) {\n        int[] a = codes.clone();\n        int write = 1;\n        for (int i = 1; i < a.length; i++)\n            if (a[i] != a[write - 1]) a[write++] = a[i];\n        return Arrays.copyOf(a, write);\n    }\n}\n",
+    "cpp": "class Solution {\npublic:\n    vector<int> uniqueSorted(vector<int>& codes) {\n        vector<int> a = codes;\n        int write = 1;\n        for (int i = 1; i < (int) a.size(); i++)\n            if (a[i] != a[write - 1]) a[write++] = a[i];\n        a.resize(write);\n        return a;\n    }\n};\n",
+    "c": "int* uniqueSorted(int* codes, int codesSize, int* returnSize) {\n    int* a = malloc(codesSize * sizeof(int));\n    memcpy(a, codes, codesSize * sizeof(int));\n    int write = 1;\n    for (int i = 1; i < codesSize; i++)\n        if (a[i] != a[write - 1]) a[write++] = a[i];\n    *returnSize = write;\n    return a;\n}\n"
+   },
+   "lines": [
+    {
+     "text": "The first code is always kept, so the kept prefix starts with length 1.",
+     "at": {
+      "python": [
+       [
+        3,
+        3
+       ]
+      ],
+      "java": [
+       [
+        3,
+        4
+       ]
+      ],
+      "cpp": [
+       [
+        4,
+        5
+       ]
+      ],
+      "c": [
+       [
+        2,
+        4
+       ]
+      ]
+     }
+    },
+    {
+     "text": "Every later code, in order.",
+     "at": {
+      "python": [
+       [
+        4,
+        4
+       ]
+      ],
+      "java": [
+       [
+        5,
+        5
+       ]
+      ],
+      "cpp": [
+       [
+        6,
+        6
+       ]
+      ],
+      "c": [
+       [
+        5,
+        5
+       ]
+      ]
+     }
+    },
+    {
+     "text": "A code different from the last kept one is new: write it to the next free slot.",
+     "at": {
+      "python": [
+       [
+        5,
+        7
+       ]
+      ],
+      "java": [
+       [
+        6,
+        6
+       ]
+      ],
+      "cpp": [
+       [
+        7,
+        7
+       ]
+      ],
+      "c": [
+       [
+        6,
+        6
+       ]
+      ]
+     }
+    },
+    {
+     "text": "The kept prefix, one copy of each code in increasing order.",
+     "at": {
+      "python": [
+       [
+        8,
+        8
+       ]
+      ],
+      "java": [
+       [
+        7,
+        7
+       ]
+      ],
+      "cpp": [
+       [
+        8,
+        9
+       ]
+      ],
+      "c": [
+       [
+        7,
+        8
+       ]
+      ]
+     }
+    }
+   ],
+   "complexity": [
+    {
+     "md": "**Time O(n).** **Space O(1)** besides the output."
+    }
+   ],
+   "walk": {
+    "steps": [
+     {
+      "text": "Read 3: a new code, write it at 0.",
+      "panels": [
+       {
+        "type": "row",
+        "cells": [
+         3,
+         3,
+         5,
+         8,
+         8,
+         8,
+         11
+        ],
+        "states": {
+         "0": "found"
+        },
+        "pointers": {
+         "read": 0,
+         "write": 0
+        }
+       }
+      ]
+     },
+     {
+      "text": "Read 3: same as the last kept code, skip it.",
+      "panels": [
+       {
+        "type": "row",
+        "cells": [
+         3,
+         3,
+         5,
+         8,
+         8,
+         8,
+         11
+        ],
+        "states": {
+         "0": "found"
+        },
+        "pointers": {
+         "read": 1,
+         "write": 1
+        }
+       }
+      ]
+     },
+     {
+      "text": "Read 5: a new code, write it at 1.",
+      "panels": [
+       {
+        "type": "row",
+        "cells": [
+         3,
+         5,
+         5,
+         8,
+         8,
+         8,
+         11
+        ],
+        "states": {
+         "0": "found",
+         "1": "found"
+        },
+        "pointers": {
+         "read": 2,
+         "write": 1
+        }
+       }
+      ]
+     },
+     {
+      "text": "Read 8: a new code, write it at 2.",
+      "panels": [
+       {
+        "type": "row",
+        "cells": [
+         3,
+         5,
+         8,
+         8,
+         8,
+         8,
+         11
+        ],
+        "states": {
+         "0": "found",
+         "1": "found",
+         "2": "found"
+        },
+        "pointers": {
+         "read": 3,
+         "write": 2
+        }
+       }
+      ]
+     },
+     {
+      "text": "Read 8: same as the last kept code, skip it.",
+      "panels": [
+       {
+        "type": "row",
+        "cells": [
+         3,
+         5,
+         8,
+         8,
+         8,
+         8,
+         11
+        ],
+        "states": {
+         "0": "found",
+         "1": "found",
+         "2": "found"
+        },
+        "pointers": {
+         "read": 4,
+         "write": 3
+        }
+       }
+      ]
+     },
+     {
+      "text": "Read 8: same as the last kept code, skip it.",
+      "panels": [
+       {
+        "type": "row",
+        "cells": [
+         3,
+         5,
+         8,
+         8,
+         8,
+         8,
+         11
+        ],
+        "states": {
+         "0": "found",
+         "1": "found",
+         "2": "found"
+        },
+        "pointers": {
+         "read": 5,
+         "write": 3
+        }
+       }
+      ]
+     },
+     {
+      "text": "Read 11: a new code, write it at 3.",
+      "panels": [
+       {
+        "type": "row",
+        "cells": [
+         3,
+         5,
+         8,
+         11,
+         8,
+         8,
+         11
+        ],
+        "states": {
+         "0": "found",
+         "1": "found",
+         "2": "found",
+         "3": "found"
+        },
+        "pointers": {
+         "read": 6,
+         "write": 3
+        }
+       }
+      ]
+     },
+     {
+      "text": "Unique codes: [3, 5, 8, 11].",
+      "panels": [],
+      "result": "[3, 5, 8, 11]"
+     }
+    ],
+    "title": "The list is sorted, so repeats sit together: keep a code only if it differs from the last kept one."
+   }
+  }
+ ],
+ "takeaways": [
+  {
+   "md": "- **De-duplicate a sorted array in place:** compare with the last kept value.\n- Sortedness turns \"seen anywhere before\" into \"equal to the last kept\".\n- **Pitfall:** comparing with `a[i − 1]` after it may have been overwritten; compare with the kept prefix instead."
+  }
+ ]
+}

@@ -4,44 +4,61 @@
  "question": [
   {
    "md": "There are n tickets, each showing a number from 1 to n; some numbers repeat and others are missing.\nReturn the missing numbers in increasing order.\n\n- **Values 1 … n in an array of length n:** each value is a valid index after subtracting 1.\n- **Repeats are allowed** (any number of times) and must not confuse the marking.\n- **Increasing order** for the answer.\n- **Goal:** O(n) time and O(1) extra space apart from the answer."
+  },
+  {
+   "md": "**Edge cases to keep in mind**\n\n- Every number present: return an empty list.\n- The same number many times: its slot is negative after the first tick and stays negative.\n- The answer must be in increasing order, which a left-to-right read gives for free."
   }
  ],
  "think": [
   {
-   "md": "Take `tickets = [3, 1, 3, 6, 1, 2]` (n = 6). The numbers present are 1, 2, 3 and 6, so 4 and 5 are\nunclaimed.\n\nA checklist with one box per number 1 … n solves it: tick a box for each ticket, then read off the empty\nboxes in order. The array already has n slots, so **slot `v − 1` can be number v's box**. We only need a\nway to tick a box without losing the value stored in it, and since all values are positive, a minus\nsign works perfectly."
+   "md": "**The array as its own checklist.** When the values are numbers `1 … n` and the array has `n` slots, slot `v − 1` can\nserve as the checkbox for value `v`. To tick it, change slot `v − 1` in a way that is **reversible** and that doesn't\ndestroy the value stored there:\n\n- **Flip its sign** (values are positive, so the original is `|x|`);\n- **Add `n`** (the original is `(x − 1) mod n + 1`, and the number of additions counts how often `v` appeared).\n\nReading a slot's value always uses the decoding (`abs`, or the `mod`), so earlier ticks never confuse later reads.\nThat's O(n) time with O(1) extra space, and a final pass can restore the input."
   },
   {
-   "panels": [
-    {
-     "type": "row",
-     "cells": [
-      3,
-      1,
-      3,
-      6,
-      1,
-      2
-     ],
-     "slots": true
-    },
-    {
-     "type": "row",
-     "cells": [
-      "1",
-      "2",
+   "md": "**Ticking for `[3, 1, 3, 6, 1, 2]`** (each value `v` makes slot `v − 1` negative):"
+  },
+  {
+   "table": {
+    "head": [
+     "value read (|x|)",
+     "slot ticked",
+     "array after"
+    ],
+    "rows": [
+     [
       "3",
-      "4?",
-      "5?",
-      "6"
+      "2",
+      "3 1 -3 6 1 2"
      ],
-     "states": {
-      "3": "answer",
-      "4": "answer"
-     },
-     "label": "box for number slot + 1"
-    }
-   ],
-   "caption": "Boxes 3 and 4 (numbers 4 and 5) never get ticked."
+     [
+      "1",
+      "0",
+      "-3 1 -3 6 1 2"
+     ],
+     [
+      "3",
+      "2",
+      "-3 1 -3 6 1 2"
+     ],
+     [
+      "6",
+      "5",
+      "-3 1 -3 6 1 -2"
+     ],
+     [
+      "1",
+      "0",
+      "-3 1 -3 6 1 -2"
+     ],
+     [
+      "2",
+      "1",
+      "-3 -1 -3 6 1 -2"
+     ]
+    ]
+   }
+  },
+  {
+   "md": "Slots still positive: indices [3, 4], so the unclaimed numbers are **[4, 5]**."
   }
  ],
  "approaches": [
@@ -52,12 +69,12 @@
    "space": "O(1)",
    "idea": [
     {
-     "md": "For each number 1 … n, scan the tickets; collect the ones never found. Checking in order keeps the answer sorted."
+     "md": "For each number `1 … n`, scan the tickets for it; collect the ones not found."
     }
    ],
    "build": [
-    "For `x` from 1 to n: if `x` is on no ticket (scan), append it.",
-    "Return the list."
+    "For each candidate number, linear search.",
+    "Collect the missing ones."
    ],
    "code": {
     "python": "class Solution:\n    def findUnclaimed(self, tickets: List[int]) -> List[int]:\n        return [x for x in range(1, len(tickets) + 1) if x not in tickets]\n",
@@ -67,7 +84,7 @@
    },
    "lines": [
     {
-     "text": "Every number from 1 to n, each looked up with a full scan; missing ones are collected in increasing order.",
+     "text": "Every number from 1 to n that no ticket shows, found by searching the whole list.",
      "at": {
       "python": [
        [
@@ -96,7 +113,7 @@
      }
     },
     {
-     "text": "The unclaimed numbers.",
+     "text": "The unclaimed numbers in order.",
      "at": {
       "java": [
        [
@@ -321,7 +338,7 @@
    },
    "limits": [
     {
-     "md": "n separate scans. One pass that records every number at once is enough."
+     "md": "Each search rescans all tickets. One pass that records presence answers every number at once."
     }
    ],
    "slow": true
@@ -333,13 +350,13 @@
    "space": "O(n)",
    "idea": [
     {
-     "md": "One pass sets `seen[v]` for every ticket; a second pass over 1 … n collects the unset ones in order."
+     "md": "Use a boolean array `seen[1 … n]`: one pass marks the numbers present, a second collects the unmarked ones."
     }
    ],
    "build": [
-    "`seen` with n + 1 falses.",
-    "Set `seen[v]` for each ticket.",
-    "Collect every `x` in 1 … n with `seen[x]` false."
+    "Flag array of size `n + 1`.",
+    "Mark each ticket.",
+    "Collect unmarked numbers."
    ],
    "code": {
     "python": "class Solution:\n    def findUnclaimed(self, tickets: List[int]) -> List[int]:\n        n = len(tickets)\n        seen = [False] * (n + 1)\n        for v in tickets:\n            seen[v] = True\n        return [x for x in range(1, n + 1) if not seen[x]]\n",
@@ -349,7 +366,7 @@
    },
    "lines": [
     {
-     "text": "A box per number; each ticket ticks its number's box (repeats just tick it again).",
+     "text": "Mark every number that appears on some ticket.",
      "at": {
       "python": [
        [
@@ -378,7 +395,7 @@
      }
     },
     {
-     "text": "Unticked boxes, read in order, are the unclaimed numbers.",
+     "text": "Numbers never marked, in increasing order.",
      "at": {
       "python": [
        [
@@ -654,7 +671,7 @@
    },
    "limits": [
     {
-     "md": "The flags are a second length-n array, while the input already offers n slots indexed by number. Marking the input itself meets the O(1)-space goal."
+     "md": "The flag array is extra memory, but the input already has exactly one slot per number."
     }
    ]
   },
@@ -665,13 +682,13 @@
    "space": "O(1)",
    "idea": [
     {
-     "md": "For each slot, read its value as `v = abs(x)` (an earlier step may have negated it) and make slot\n`v − 1` negative with `−abs(…)`, so repeats leave it negative instead of flipping it back. After the\npass, slot `i` is positive exactly when `i + 1` never appeared. Collect those in order, then restore\nthe signs."
+     "md": "For each ticket value `v = |x|`, make slot `v − 1` negative. Afterwards, every slot that is still positive\nbelongs to a number nobody claimed. Restore the signs at the end.\n\n**Why reading `|x|` matters.** Slot `i` may already have been negated by an earlier ticket, but its\noriginal value is still `|x|`."
     }
    ],
    "build": [
-    "For each slot: `v = abs(tickets[i])`; set `tickets[v − 1] = −abs(tickets[v − 1])`.",
-    "Collect `i + 1` for every slot that's still positive.",
-    "Flip every slot back to positive; return the list."
+    "Negate slot `|x| − 1` for each value.",
+    "Collect `i + 1` for each positive slot.",
+    "Restore the signs."
    ],
    "code": {
     "python": "class Solution:\n    def findUnclaimed(self, tickets: List[int]) -> List[int]:\n        for x in tickets:\n            v = abs(x)\n            tickets[v - 1] = -abs(tickets[v - 1])\n        out = [i + 1 for i, x in enumerate(tickets) if x > 0]\n        for i in range(len(tickets)):\n            tickets[i] = abs(tickets[i])\n        return out\n",
@@ -681,7 +698,7 @@
    },
    "lines": [
     {
-     "text": "The value being read may already carry a mark, so `abs` recovers it. Then tick number `v`'s box: make slot `v − 1` negative. `−abs(…)` (instead of `−x`) keeps a box ticked when a repeat ticks it again.",
+     "text": "Tick number `|x|` by making its slot negative; `-abs(...)` keeps an already-ticked slot negative.",
      "at": {
       "python": [
        [
@@ -714,7 +731,7 @@
      }
     },
     {
-     "text": "A slot that's still positive was never ticked: number `i + 1` is unclaimed. Reading slots in order gives increasing numbers.",
+     "text": "A slot that is still positive was never ticked: its number `i + 1` is unclaimed.",
      "at": {
       "python": [
        [
@@ -743,7 +760,7 @@
      }
     },
     {
-     "text": "Remove the marks so the caller's array is unchanged.",
+     "text": "Undo the marks so the caller's list is unchanged.",
      "at": {
       "python": [
        [
@@ -772,7 +789,7 @@
      }
     },
     {
-     "text": "The unclaimed numbers.",
+     "text": "The unclaimed numbers in increasing order.",
      "at": {
       "python": [
        [
@@ -806,7 +823,7 @@
    ],
    "complexity": [
     {
-     "md": "**Time O(n):** three passes. **Space O(1)** extra besides the answer."
+     "md": "**Time O(n):** three passes. **Space O(1)** besides the answer."
     }
    ],
    "walk": {
@@ -982,7 +999,7 @@
  ],
  "takeaways": [
   {
-   "md": "- Values in `1 … n` + array of length n = **the array can be its own checklist**.\n- Mark with `−abs(slot)` rather than `−slot`, so a repeated value can't un-mark a slot.\n- Always read values through `abs` once marking has started, and restore the array if the caller may\n  still need it."
+   "md": "- **Values `1 … n` in an array of size `n`:** use slot `v − 1` as `v`'s marker.\n- Mark reversibly (sign) and always decode with `abs` when reading.\n- **Pitfall:** `tickets[v − 1] *= −1`, which un-ticks a slot ticked twice."
   }
  ]
 }

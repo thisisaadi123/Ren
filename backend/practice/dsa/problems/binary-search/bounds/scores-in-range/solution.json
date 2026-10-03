@@ -1,0 +1,461 @@
+{
+ "version": 1,
+ "summary": "Sort the scores once. In sorted order, the scores within `[lo, hi]` are one contiguous block, from the first\nscore ≥ lo to just before the first score > hi. Two binary searches per query give its size: O((n + q) log n).",
+ "question": [
+  {
+   "md": "For each query `[lo, hi]`, count the scores with `lo ≤ score ≤ hi`, answering in order.\n\n- **The scores are unsorted**, but we may sort a copy: queries only ask how many, not which ones.\n- **Inclusive bounds**, and repeated scores each count.\n- **Many queries:** up to 10⁵ queries over 10⁵ scores, so scanning all scores per query (10¹⁰) is too slow."
+  }
+ ],
+ "think": [
+  {
+   "md": "Take `scores = [70, 85, 90, 60, 85, 72, 99, 55]`. Sorted: `[55, 60, 70, 72, 85, 85, 90, 99]`. For the query [70, 86], the qualifying scores 70, 72, 85, 85 sit\nnext to each other in sorted order."
+  },
+  {
+   "panels": [
+    {
+     "type": "row",
+     "cells": [
+      55,
+      60,
+      70,
+      72,
+      85,
+      85,
+      90,
+      99
+     ],
+     "states": {
+      "2": "answer",
+      "3": "answer",
+      "4": "answer",
+      "5": "answer"
+     },
+     "slots": true
+    }
+   ],
+   "caption": "Scores within a range are always one block of the sorted list."
+  },
+  {
+   "md": "The block starts at the **lower bound** of lo (first score ≥ lo) and ends just before the **upper bound** of\nhi (first score > hi). Their difference is the count. Sorting costs O(n log n) once; each query then costs\ntwo O(log n) searches."
+  }
+ ],
+ "approaches": [
+  {
+   "title": "Scan all scores per query",
+   "kind": "brute",
+   "time": "O(n · q)",
+   "space": "O(1)",
+   "idea": [
+    {
+     "md": "For each query, count the scores between lo and hi with a full pass."
+    }
+   ],
+   "build": [
+    "For each query, loop over all scores and count those with `lo ≤ s ≤ hi`."
+   ],
+   "code": {
+    "python": "class Solution:\n    def countInRange(self, scores: List[int], queries: List[List[int]]) -> List[int]:\n        return [sum(1 for s in scores if lo <= s <= hi) for lo, hi in queries]\n",
+    "java": "class Solution {\n    public int[] countInRange(int[] scores, int[][] queries) {\n        int[] out = new int[queries.length];\n        for (int q = 0; q < queries.length; q++)\n            for (int s : scores)\n                if (s >= queries[q][0] && s <= queries[q][1]) out[q]++;\n        return out;\n    }\n}\n",
+    "cpp": "class Solution {\npublic:\n    vector<int> countInRange(vector<int>& scores, vector<vector<int>>& queries) {\n        vector<int> out;\n        for (auto& q : queries) {\n            int c = 0;\n            for (int s : scores) if (s >= q[0] && s <= q[1]) c++;\n            out.push_back(c);\n        }\n        return out;\n    }\n};\n",
+    "c": "int* countInRange(int* scores, int scoresSize, int** queries, int queriesSize, int* queriesColSize, int* returnSize) {\n    int* out = calloc(queriesSize, sizeof(int));\n    for (int q = 0; q < queriesSize; q++)\n        for (int i = 0; i < scoresSize; i++)\n            if (scores[i] >= queries[q][0] && scores[i] <= queries[q][1]) out[q]++;\n    *returnSize = queriesSize;\n    return out;\n}\n"
+   },
+   "lines": [
+    {
+     "text": "Each query checks every score.",
+     "at": {
+      "python": [
+       [
+        3,
+        3
+       ]
+      ],
+      "java": [
+       [
+        4,
+        6
+       ]
+      ],
+      "cpp": [
+       [
+        5,
+        8
+       ]
+      ],
+      "c": [
+       [
+        3,
+        5
+       ]
+      ]
+     }
+    },
+    {
+     "text": "Counts in query order.",
+     "at": {
+      "java": [
+       [
+        7,
+        7
+       ]
+      ],
+      "cpp": [
+       [
+        10,
+        10
+       ]
+      ],
+      "c": [
+       [
+        6,
+        7
+       ]
+      ]
+     }
+    }
+   ],
+   "complexity": [
+    {
+     "md": "**Time O(n · q).** **Space O(1)** besides the output."
+    }
+   ],
+   "walk": {
+    "steps": [
+     {
+      "text": "Query [70, 86]: 4 scores inside (checked all 8).",
+      "panels": [
+       {
+        "type": "row",
+        "cells": [
+         70,
+         85,
+         90,
+         60,
+         85,
+         72,
+         99,
+         55
+        ],
+        "states": {
+         "0": "answer",
+         "1": "answer",
+         "2": "dim",
+         "3": "dim",
+         "4": "answer",
+         "5": "answer",
+         "6": "dim",
+         "7": "dim"
+        },
+        "slots": true
+       }
+      ]
+     },
+     {
+      "text": "Query [0, 59]: 1 score inside (checked all 8).",
+      "panels": [
+       {
+        "type": "row",
+        "cells": [
+         70,
+         85,
+         90,
+         60,
+         85,
+         72,
+         99,
+         55
+        ],
+        "states": {
+         "0": "dim",
+         "1": "dim",
+         "2": "dim",
+         "3": "dim",
+         "4": "dim",
+         "5": "dim",
+         "6": "dim",
+         "7": "answer"
+        },
+        "slots": true
+       }
+      ]
+     },
+     {
+      "text": "Query [85, 85]: 2 scores inside (checked all 8).",
+      "panels": [
+       {
+        "type": "row",
+        "cells": [
+         70,
+         85,
+         90,
+         60,
+         85,
+         72,
+         99,
+         55
+        ],
+        "states": {
+         "0": "dim",
+         "1": "answer",
+         "2": "dim",
+         "3": "dim",
+         "4": "answer",
+         "5": "dim",
+         "6": "dim",
+         "7": "dim"
+        },
+        "slots": true
+       }
+      ],
+      "result": "[4, 1, 2]"
+     }
+    ],
+    "title": "For every query, scan all scores and count those inside the range."
+   },
+   "limits": [
+    {
+     "md": "Every query re-reads every score. Sorting once makes each query's matches a block whose ends can be binary-searched."
+    }
+   ],
+   "slow": true
+  },
+  {
+   "title": "Sort once, two binary searches per query",
+   "kind": "best",
+   "time": "O((n + q) log n)",
+   "space": "O(n)",
+   "idea": [
+    {
+     "md": "Sort a copy. For each query: `a` = first index with score ≥ lo, `b` = first index with score > hi. Answer `b − a`."
+    }
+   ],
+   "build": [
+    "Sort a copy of the scores.",
+    "For each query, compute the lower bound of lo and the upper bound of hi.",
+    "Append `b − a`."
+   ],
+   "code": {
+    "python": "from bisect import bisect_left, bisect_right\n\nclass Solution:\n    def countInRange(self, scores: List[int], queries: List[List[int]]) -> List[int]:\n        s = sorted(scores)\n        return [bisect_right(s, hi) - bisect_left(s, lo) for lo, hi in queries]\n",
+    "java": "class Solution {\n    public int[] countInRange(int[] scores, int[][] queries) {\n        int[] s = scores.clone();\n        Arrays.sort(s);\n        int[] out = new int[queries.length];\n        for (int q = 0; q < queries.length; q++) {\n            out[q] = firstAbove(s, queries[q][1]) - firstAbove(s, queries[q][0] - 1L);\n        }\n        return out;\n    }\n\n    // First index whose value is greater than x.\n    private int firstAbove(int[] a, long x) {\n        int lo = 0, hi = a.length;\n        while (lo < hi) {\n            int mid = lo + (hi - lo) / 2;\n            if (a[mid] <= x) lo = mid + 1; else hi = mid;\n        }\n        return lo;\n    }\n}\n",
+    "cpp": "class Solution {\npublic:\n    vector<int> countInRange(vector<int>& scores, vector<vector<int>>& queries) {\n        vector<int> s = scores;\n        sort(s.begin(), s.end());\n        vector<int> out;\n        for (auto& q : queries) {\n            auto a = lower_bound(s.begin(), s.end(), q[0]);\n            auto b = upper_bound(s.begin(), s.end(), q[1]);\n            out.push_back(b - a);\n        }\n        return out;\n    }\n};\n",
+    "c": "static int cmpInt(const void* a, const void* b) {\n    int p = *(const int*) a, q = *(const int*) b;\n    return (p > q) - (p < q);\n}\n\n// First index whose value is greater than x.\nstatic int firstAbove(const int* a, int n, long long x) {\n    int lo = 0, hi = n;\n    while (lo < hi) {\n        int mid = lo + (hi - lo) / 2;\n        if (a[mid] <= x) lo = mid + 1; else hi = mid;\n    }\n    return lo;\n}\n\nint* countInRange(int* scores, int scoresSize, int** queries, int queriesSize, int* queriesColSize, int* returnSize) {\n    int* s = malloc(scoresSize * sizeof(int));\n    memcpy(s, scores, scoresSize * sizeof(int));\n    qsort(s, scoresSize, sizeof(int), cmpInt);\n    int* out = malloc(queriesSize * sizeof(int));\n    for (int q = 0; q < queriesSize; q++) {\n        out[q] = firstAbove(s, scoresSize, queries[q][1]) - firstAbove(s, scoresSize, (long long) queries[q][0] - 1);\n    }\n    free(s);\n    *returnSize = queriesSize;\n    return out;\n}\n"
+   },
+   "lines": [
+    {
+     "text": "`firstAbove(x)` is the upper bound: the first index whose value exceeds x. \"First ≥ lo\" equals \"first > lo − 1\" for integers, so one helper serves both ends; `lo − 1` is computed in 64 bits because lo can be −10⁹.",
+     "at": {
+      "java": [
+       [
+        13,
+        20
+       ]
+      ],
+      "c": [
+       [
+        7,
+        14
+       ]
+      ]
+     }
+    },
+    {
+     "text": "Sort a copy once.",
+     "at": {
+      "python": [
+       [
+        5,
+        5
+       ]
+      ],
+      "java": [
+       [
+        3,
+        4
+       ]
+      ],
+      "cpp": [
+       [
+        4,
+        5
+       ]
+      ],
+      "c": [
+       [
+        1,
+        4
+       ],
+       [
+        17,
+        19
+       ]
+      ]
+     }
+    },
+    {
+     "text": "Scores in `[lo, hi]` are the block from the first value ≥ lo up to (not including) the first value > hi.",
+     "at": {
+      "python": [
+       [
+        6,
+        6
+       ]
+      ],
+      "java": [
+       [
+        5,
+        7
+       ],
+       [
+        9,
+        9
+       ]
+      ],
+      "cpp": [
+       [
+        6,
+        10
+       ],
+       [
+        12,
+        12
+       ]
+      ],
+      "c": [
+       [
+        20,
+        22
+       ],
+       [
+        24,
+        26
+       ]
+      ]
+     },
+     "notes": {
+      "python": "`bisect_left` is the lower bound, `bisect_right` the upper bound.",
+      "cpp": "`lower_bound(lo)` and `upper_bound(hi)` bracket exactly the scores in range."
+     }
+    }
+   ],
+   "complexity": [
+    {
+     "md": "**Time O(n log n + q log n).** **Space O(n)** for the sorted copy."
+    }
+   ],
+   "walk": {
+    "steps": [
+     {
+      "text": "Sorted: [55, 60, 70, 72, 85, 85, 90, 99].",
+      "panels": [
+       {
+        "type": "row",
+        "cells": [
+         70,
+         85,
+         90,
+         60,
+         85,
+         72,
+         99,
+         55
+        ],
+        "label": "scores"
+       },
+       {
+        "type": "row",
+        "cells": [
+         55,
+         60,
+         70,
+         72,
+         85,
+         85,
+         90,
+         99
+        ],
+        "label": "sorted",
+        "slots": true
+       }
+      ]
+     },
+     {
+      "text": "Query [70, 86]: first ≥ 70 is index 2; first > 86 is index 6; count 6 − 2 = 4.",
+      "panels": [
+       {
+        "type": "row",
+        "cells": [
+         55,
+         60,
+         70,
+         72,
+         85,
+         85,
+         90,
+         99
+        ],
+        "states": {
+         "2": "answer",
+         "3": "answer",
+         "4": "answer",
+         "5": "answer"
+        },
+        "slots": true
+       }
+      ]
+     },
+     {
+      "text": "Query [0, 59]: first ≥ 0 is index 0; first > 59 is index 1; count 1 − 0 = 1.",
+      "panels": [
+       {
+        "type": "row",
+        "cells": [
+         55,
+         60,
+         70,
+         72,
+         85,
+         85,
+         90,
+         99
+        ],
+        "states": {
+         "0": "answer"
+        },
+        "slots": true
+       }
+      ]
+     },
+     {
+      "text": "Query [85, 85]: first ≥ 85 is index 4; first > 85 is index 6; count 6 − 4 = 2.",
+      "panels": [
+       {
+        "type": "row",
+        "cells": [
+         55,
+         60,
+         70,
+         72,
+         85,
+         85,
+         90,
+         99
+        ],
+        "states": {
+         "4": "answer",
+         "5": "answer"
+        },
+        "slots": true
+       }
+      ],
+      "result": "[4, 1, 2]"
+     }
+    ],
+    "title": "Sort once. For each query, the matching scores form one block: [first ≥ lo, first > hi)."
+   }
+  }
+ ],
+ "takeaways": [
+  {
+   "md": "- **Count in [lo, hi] on sorted data** = `upperBound(hi) − lowerBound(lo)`.\n- Sorting once pays off when many queries follow.\n- For integers, \"≥ lo\" equals \"> lo − 1\", so one bound function can serve both ends."
+  }
+ ]
+}

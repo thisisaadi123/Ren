@@ -1,0 +1,748 @@
+{
+ "version": 1,
+ "summary": "Earlier digits matter more, so whenever a digit is bigger than the one right after it, erasing it makes the\nnumber smaller. Scan once with a stack of kept digits: each new digit pops bigger digits off the top while\nerasures remain. Leftover erasures come off the end. Strip leading zeros. O(n).",
+ "question": [
+  {
+   "md": "Erase exactly `k` digits from the string `num`, keeping the rest in order, so the result is as small as possible.\nDrop leading zeros; return `\"0\"` if nothing (or only zeros) remains.\n\n- **Same length after erasing**, so comparing results is comparing digit by digit from the left.\n- **Erasing a digit can expose zeros** at the front, which disappear and make the number much shorter.\n- **Up to 10⁵ digits**: far too many to try subsets."
+  }
+ ],
+ "think": [
+  {
+   "md": "Take `4205318` with `k = 3`. Erase 4 (the 2 after it is smaller), then 2 (the 0 after it is smaller), then 5 (the\n3 after it is smaller): `0318`, which is **318**.\n\nAll results have the same length, so the smallest one has the smallest first digit, then the smallest second\ndigit, and so on. Look at the first place where the digits go down, `d > next`. Erasing `d` puts the smaller\n`next` in its spot, and nothing earlier changes. Erasing anything else leaves `d` where it is or later digits\nchange, which only affects less important positions. So: **erase the first digit that's bigger than its\nsuccessor**, then repeat."
+  },
+  {
+   "panels": [
+    {
+     "type": "row",
+     "cells": [
+      "4",
+      "2",
+      "0",
+      "5",
+      "3",
+      "1",
+      "8"
+     ],
+     "label": "reading"
+    },
+    {
+     "type": "row",
+     "cells": [
+      "3",
+      "1",
+      "8"
+     ],
+     "label": "smallest"
+    }
+   ]
+  },
+  {
+   "md": "Doing that literally restarts the scan each time. But after erasing a digit, the only new 'drop' can appear\njust before the erased spot, between the previous kept digit and the next one. So a stack of kept digits handles\nall the rounds in a single left-to-right pass."
+  }
+ ],
+ "approaches": [
+  {
+   "title": "Erase the first drop, k times",
+   "kind": "brute",
+   "time": "O(n·k)",
+   "space": "O(n)",
+   "idea": [
+    {
+     "md": "Repeat `k` times: find the first `i` with `num[i] > num[i+1]` (or the last digit if the digits never decrease) and erase it. Finally strip leading zeros."
+    }
+   ],
+   "build": [
+    "Copy the digits.",
+    "k rounds: scan for the first drop, erase that digit.",
+    "Strip leading zeros; empty → `\"0\"`."
+   ],
+   "code": {
+    "python": "class Solution:\n    def trimReading(self, num: str, k: int) -> str:\n        s = num\n        for _ in range(k):\n            i = 0\n            while i + 1 < len(s) and s[i] <= s[i + 1]:\n                i += 1\n            s = s[:i] + s[i + 1:]\n        return s.lstrip(\"0\") or \"0\"\n",
+    "java": "class Solution {\n    public String trimReading(String num, int k) {\n        StringBuilder s = new StringBuilder(num);\n        for (int r = 0; r < k; r++) {\n            int i = 0;\n            while (i + 1 < s.length() && s.charAt(i) <= s.charAt(i + 1)) i++;\n            s.deleteCharAt(i);\n        }\n        int z = 0;\n        while (z < s.length() && s.charAt(z) == '0') z++;\n        return z == s.length() ? \"0\" : s.substring(z);\n    }\n}\n",
+    "cpp": "class Solution {\npublic:\n    string trimReading(string& num, int k) {\n        string s = num;\n        for (int r = 0; r < k; r++) {\n            size_t i = 0;\n            while (i + 1 < s.size() && s[i] <= s[i + 1]) i++;\n            s.erase(i, 1);\n        }\n        size_t z = s.find_first_not_of('0');\n        return z == string::npos ? \"0\" : s.substr(z);\n    }\n};\n",
+    "c": "char* trimReading(char* num, int k) {\n    int len = strlen(num);\n    char* s = malloc(len + 2);\n    strcpy(s, num);\n    for (int r = 0; r < k; r++) {\n        int i = 0;\n        while (i + 1 < len && s[i] <= s[i + 1]) i++;\n        memmove(s + i, s + i + 1, len - i);\n        len--;\n    }\n    int z = 0;\n    while (z < len && s[z] == '0') z++;\n    if (z == len) { strcpy(s, \"0\"); return s; }\n    memmove(s, s + z, len - z + 1);\n    return s;\n}\n"
+   },
+   "lines": [
+    {
+     "text": "A copy we can erase from.",
+     "at": {
+      "python": [
+       [
+        3,
+        3
+       ]
+      ],
+      "java": [
+       [
+        3,
+        3
+       ]
+      ],
+      "cpp": [
+       [
+        4,
+        4
+       ]
+      ],
+      "c": [
+       [
+        2,
+        4
+       ]
+      ]
+     }
+    },
+    {
+     "text": "One erasure per round.",
+     "at": {
+      "python": [
+       [
+        4,
+        4
+       ]
+      ],
+      "java": [
+       [
+        4,
+        4
+       ]
+      ],
+      "cpp": [
+       [
+        5,
+        5
+       ]
+      ],
+      "c": [
+       [
+        5,
+        5
+       ]
+      ]
+     }
+    },
+    {
+     "text": "The first position where the next digit is smaller; if there's none, `i` ends on the last digit.",
+     "at": {
+      "python": [
+       [
+        5,
+        7
+       ]
+      ],
+      "java": [
+       [
+        5,
+        6
+       ]
+      ],
+      "cpp": [
+       [
+        6,
+        7
+       ]
+      ],
+      "c": [
+       [
+        6,
+        7
+       ]
+      ]
+     }
+    },
+    {
+     "text": "Erase it: the smaller digit after it moves into its place.",
+     "at": {
+      "python": [
+       [
+        8,
+        8
+       ]
+      ],
+      "java": [
+       [
+        7,
+        7
+       ]
+      ],
+      "cpp": [
+       [
+        8,
+        8
+       ]
+      ],
+      "c": [
+       [
+        8,
+        9
+       ]
+      ]
+     },
+     "notes": {
+      "c": "`memmove` shifts the tail (including the terminating NUL) one place left."
+     }
+    },
+    {
+     "text": "Strip leading zeros; nothing left means `\"0\"`.",
+     "at": {
+      "python": [
+       [
+        9,
+        9
+       ]
+      ],
+      "java": [
+       [
+        9,
+        11
+       ]
+      ],
+      "cpp": [
+       [
+        10,
+        11
+       ]
+      ],
+      "c": [
+       [
+        11,
+        15
+       ]
+      ]
+     }
+    }
+   ],
+   "complexity": [
+    {
+     "md": "**Time O(n·k):** each round rescans from the start and shifts the string. **Space O(n).**"
+    }
+   ],
+   "walk": {
+    "steps": [
+     {
+      "text": "Start: 4205318, k = 3.",
+      "panels": [
+       {
+        "type": "row",
+        "cells": [
+         "4",
+         "2",
+         "0",
+         "5",
+         "3",
+         "1",
+         "8"
+        ]
+       }
+      ]
+     },
+     {
+      "text": "Round 1: the first drop is after '4' at position 0 ('4' > '2'): erase it.",
+      "panels": [
+       {
+        "type": "row",
+        "cells": [
+         "4",
+         "2",
+         "0",
+         "5",
+         "3",
+         "1",
+         "8"
+        ],
+        "states": {
+         "0": "mark"
+        }
+       }
+      ]
+     },
+     {
+      "text": "Round 2: the first drop is after '2' at position 0 ('2' > '0'): erase it.",
+      "panels": [
+       {
+        "type": "row",
+        "cells": [
+         "2",
+         "0",
+         "5",
+         "3",
+         "1",
+         "8"
+        ],
+        "states": {
+         "0": "mark"
+        }
+       }
+      ]
+     },
+     {
+      "text": "Round 3: the first drop is after '5' at position 1 ('5' > '3'): erase it.",
+      "panels": [
+       {
+        "type": "row",
+        "cells": [
+         "0",
+         "5",
+         "3",
+         "1",
+         "8"
+        ],
+        "states": {
+         "1": "mark"
+        }
+       }
+      ]
+     },
+     {
+      "text": "Left: 0318; drop leading zeros → 318.",
+      "panels": [
+       {
+        "type": "row",
+        "cells": [
+         "0",
+         "3",
+         "1",
+         "8"
+        ]
+       }
+      ],
+      "result": "318"
+     }
+    ],
+    "title": "Erase one digit at a time: the first digit that is bigger than the digit after it (or the last digit if they never go down). Repeat k times."
+   },
+   "limits": [
+    {
+     "md": "With `k` near `n`, that's ~10¹⁰ steps. After an erasure, only the spot just before it can become a new drop, so a stack can continue where it left off instead of restarting."
+    }
+   ],
+   "slow": true
+  },
+  {
+   "title": "Greedy stack of kept digits",
+   "kind": "best",
+   "time": "O(n)",
+   "space": "O(n)",
+   "idea": [
+    {
+     "md": "For each digit `d`: while erasures remain and the top of the stack is bigger than `d`, pop it (erase it) and decrement `k`. Push `d`. If erasures remain at the end, the kept digits never decrease, so drop the last `k`. Strip leading zeros."
+    }
+   ],
+   "build": [
+    "An empty stack (a char buffer).",
+    "For each digit: pop bigger tops while `k > 0`; push.",
+    "Remove `k` digits from the end.",
+    "Skip leading zeros; empty → `\"0\"`."
+   ],
+   "code": {
+    "python": "class Solution:\n    def trimReading(self, num: str, k: int) -> str:\n        stack = []\n        for d in num:\n            while k and stack and stack[-1] > d:\n                stack.pop()\n                k -= 1\n            stack.append(d)\n        if k:\n            stack = stack[:-k]\n        return \"\".join(stack).lstrip(\"0\") or \"0\"\n",
+    "java": "class Solution {\n    public String trimReading(String num, int k) {\n        StringBuilder stack = new StringBuilder();\n        for (char d : num.toCharArray()) {\n            while (k > 0 && stack.length() > 0 && stack.charAt(stack.length() - 1) > d) {\n                stack.setLength(stack.length() - 1);\n                k--;\n            }\n            stack.append(d);\n        }\n        stack.setLength(stack.length() - k);\n        int z = 0;\n        while (z < stack.length() && stack.charAt(z) == '0') z++;\n        return z == stack.length() ? \"0\" : stack.substring(z);\n    }\n}\n",
+    "cpp": "class Solution {\npublic:\n    string trimReading(string& num, int k) {\n        string stack;\n        for (char d : num) {\n            while (k > 0 && !stack.empty() && stack.back() > d) {\n                stack.pop_back();\n                k--;\n            }\n            stack.push_back(d);\n        }\n        stack.resize(stack.size() - k);\n        size_t z = stack.find_first_not_of('0');\n        return z == string::npos ? \"0\" : stack.substr(z);\n    }\n};\n",
+    "c": "char* trimReading(char* num, int k) {\n    int n = strlen(num), top = 0;\n    char* stack = malloc(n + 2);\n    for (int i = 0; i < n; i++) {\n        while (k > 0 && top > 0 && stack[top - 1] > num[i]) {\n            top--;\n            k--;\n        }\n        stack[top++] = num[i];\n    }\n    top -= k;\n    int z = 0;\n    while (z < top && stack[z] == '0') z++;\n    if (z == top) { strcpy(stack, \"0\"); return stack; }\n    memmove(stack, stack + z, top - z);\n    stack[top - z] = '\\0';\n    return stack;\n}\n"
+   },
+   "lines": [
+    {
+     "text": "The kept digits, as a stack.",
+     "at": {
+      "python": [
+       [
+        3,
+        3
+       ]
+      ],
+      "java": [
+       [
+        3,
+        3
+       ]
+      ],
+      "cpp": [
+       [
+        4,
+        4
+       ]
+      ],
+      "c": [
+       [
+        2,
+        3
+       ]
+      ]
+     }
+    },
+    {
+     "text": "One pass over the digits.",
+     "at": {
+      "python": [
+       [
+        4,
+        4
+       ]
+      ],
+      "java": [
+       [
+        4,
+        4
+       ]
+      ],
+      "cpp": [
+       [
+        5,
+        5
+       ]
+      ],
+      "c": [
+       [
+        4,
+        4
+       ]
+      ]
+     }
+    },
+    {
+     "text": "A kept digit bigger than the new one is a 'drop': erasing it brings a smaller digit into an earlier position. Keep popping while erasures remain, because the digit below may be bigger too.",
+     "at": {
+      "python": [
+       [
+        5,
+        7
+       ]
+      ],
+      "java": [
+       [
+        5,
+        7
+       ]
+      ],
+      "cpp": [
+       [
+        6,
+        8
+       ]
+      ],
+      "c": [
+       [
+        5,
+        7
+       ]
+      ]
+     }
+    },
+    {
+     "text": "Keep the new digit (for now).",
+     "at": {
+      "python": [
+       [
+        8,
+        8
+       ]
+      ],
+      "java": [
+       [
+        9,
+        9
+       ]
+      ],
+      "cpp": [
+       [
+        10,
+        10
+       ]
+      ],
+      "c": [
+       [
+        9,
+        9
+       ]
+      ]
+     }
+    },
+    {
+     "text": "Erasures left over: the kept digits never decrease, so the last ones are the biggest and least important. Remove `k` from the end.",
+     "at": {
+      "python": [
+       [
+        9,
+        10
+       ]
+      ],
+      "java": [
+       [
+        11,
+        11
+       ]
+      ],
+      "cpp": [
+       [
+        12,
+        12
+       ]
+      ],
+      "c": [
+       [
+        11,
+        11
+       ]
+      ]
+     }
+    },
+    {
+     "text": "Strip leading zeros; nothing left means `\"0\"`.",
+     "at": {
+      "python": [
+       [
+        11,
+        11
+       ]
+      ],
+      "java": [
+       [
+        12,
+        14
+       ]
+      ],
+      "cpp": [
+       [
+        13,
+        14
+       ]
+      ],
+      "c": [
+       [
+        12,
+        17
+       ]
+      ]
+     }
+    }
+   ],
+   "complexity": [
+    {
+     "md": "**Time O(n):** each digit is pushed once and popped at most once. **Space O(n)** for the kept digits."
+    }
+   ],
+   "walk": {
+    "steps": [
+     {
+      "text": "Digit '4': nothing bigger on top to erase. Keep it. Erasures left: 3.",
+      "panels": [
+       {
+        "type": "row",
+        "cells": [
+         "4",
+         "2",
+         "0",
+         "5",
+         "3",
+         "1",
+         "8"
+        ],
+        "states": {
+         "0": "active"
+        }
+       },
+       {
+        "type": "row",
+        "cells": [
+         "4"
+        ],
+        "label": "kept"
+       }
+      ]
+     },
+     {
+      "text": "Digit '2': erase ['4'] (bigger, and earlier). Keep it. Erasures left: 2.",
+      "panels": [
+       {
+        "type": "row",
+        "cells": [
+         "4",
+         "2",
+         "0",
+         "5",
+         "3",
+         "1",
+         "8"
+        ],
+        "states": {
+         "1": "active"
+        }
+       },
+       {
+        "type": "row",
+        "cells": [
+         "2"
+        ],
+        "label": "kept"
+       }
+      ]
+     },
+     {
+      "text": "Digit '0': erase ['2'] (bigger, and earlier). Keep it. Erasures left: 1.",
+      "panels": [
+       {
+        "type": "row",
+        "cells": [
+         "4",
+         "2",
+         "0",
+         "5",
+         "3",
+         "1",
+         "8"
+        ],
+        "states": {
+         "2": "active"
+        }
+       },
+       {
+        "type": "row",
+        "cells": [
+         "0"
+        ],
+        "label": "kept"
+       }
+      ]
+     },
+     {
+      "text": "Digit '5': nothing bigger on top to erase. Keep it. Erasures left: 1.",
+      "panels": [
+       {
+        "type": "row",
+        "cells": [
+         "4",
+         "2",
+         "0",
+         "5",
+         "3",
+         "1",
+         "8"
+        ],
+        "states": {
+         "3": "active"
+        }
+       },
+       {
+        "type": "row",
+        "cells": [
+         "0",
+         "5"
+        ],
+        "label": "kept"
+       }
+      ]
+     },
+     {
+      "text": "Digit '3': erase ['5'] (bigger, and earlier). Keep it. Erasures left: 0.",
+      "panels": [
+       {
+        "type": "row",
+        "cells": [
+         "4",
+         "2",
+         "0",
+         "5",
+         "3",
+         "1",
+         "8"
+        ],
+        "states": {
+         "4": "active"
+        }
+       },
+       {
+        "type": "row",
+        "cells": [
+         "0",
+         "3"
+        ],
+        "label": "kept"
+       }
+      ]
+     },
+     {
+      "text": "Digit '1': nothing bigger on top to erase. Keep it. Erasures left: 0.",
+      "panels": [
+       {
+        "type": "row",
+        "cells": [
+         "4",
+         "2",
+         "0",
+         "5",
+         "3",
+         "1",
+         "8"
+        ],
+        "states": {
+         "5": "active"
+        }
+       },
+       {
+        "type": "row",
+        "cells": [
+         "0",
+         "3",
+         "1"
+        ],
+        "label": "kept"
+       }
+      ]
+     },
+     {
+      "text": "Digit '8': nothing bigger on top to erase. Keep it. Erasures left: 0.",
+      "panels": [
+       {
+        "type": "row",
+        "cells": [
+         "4",
+         "2",
+         "0",
+         "5",
+         "3",
+         "1",
+         "8"
+        ],
+        "states": {
+         "6": "active"
+        }
+       },
+       {
+        "type": "row",
+        "cells": [
+         "0",
+         "3",
+         "1",
+         "8"
+        ],
+        "label": "kept"
+       }
+      ]
+     },
+     {
+      "text": "Kept '0318'; drop leading zeros → 318.",
+      "panels": [
+       {
+        "type": "row",
+        "cells": [
+         "0",
+         "3",
+         "1",
+         "8"
+        ],
+        "label": "kept"
+       }
+      ],
+      "result": "318"
+     }
+    ],
+    "title": "Keep the digits kept so far on a stack. A new digit pops bigger digits off the top while erasures remain: an earlier position matters more."
+   }
+  }
+ ],
+ "takeaways": [
+  {
+   "md": "- **Smallest subsequence of fixed length:** greedily remove a digit when a smaller one follows, using a stack.\n- The kept digits end up non-decreasing; leftover removals come off the end.\n- Watch the edge cases: leading zeros and an empty result."
+  }
+ ]
+}

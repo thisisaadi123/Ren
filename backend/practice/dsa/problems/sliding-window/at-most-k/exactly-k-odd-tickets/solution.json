@@ -1,0 +1,1477 @@
+{
+ "version": 1,
+ "summary": "Only parity matters, so this is \"count subarrays of 0/1 values summing to k\". Either count prefix sums (how\nmany earlier prefixes had `p − k` odds) or use two windows: `atMost(k) − atMost(k − 1)`, where each counts\nstretches with at most that many odds by adding `r − left + 1` per end. O(n).",
+ "question": [
+  {
+   "md": "Count contiguous stretches of `tickets` containing exactly `k` odd numbers.\n\n- **n up to 10⁵**; the count needs 64 bits."
+  },
+  {
+   "md": "**Edge cases to keep in mind**\n\n- Fewer than `k` odd tickets in total: 0.\n- Even tickets around a valid stretch can be added or left out freely, which multiplies the count.\n- The count can reach ~5 × 10⁹: use 64 bits."
+  }
+ ],
+ "think": [
+  {
+   "md": "**Only parity matters.** Replace each ticket by 1 if odd, 0 if even: `[0, 1, 0, 1, 1, 0, 0, 1, 0]`. We're counting stretches whose sum\nis exactly `k = 2`.\n\n**Method 1: prefix counts.** Let `p` be the number of odd tickets among the first `i + 1` tickets. A stretch from\n`a` to `i` has `p(i) − p(a − 1)` odd tickets. It has exactly `k` when the earlier prefix had `p − k`. So for\neach position, add **how many earlier prefixes had `p − k` odd tickets** (the empty prefix, with 0, counts\nonce):"
+  },
+  {
+   "table": {
+    "head": [
+     "i",
+     "ticket",
+     "p",
+     "looking for",
+     "matches",
+     "total"
+    ],
+    "rows": [
+     [
+      "0",
+      "2",
+      "0",
+      "-2",
+      "0",
+      "0"
+     ],
+     [
+      "1",
+      "5",
+      "1",
+      "-1",
+      "0",
+      "0"
+     ],
+     [
+      "2",
+      "4",
+      "1",
+      "-1",
+      "0",
+      "0"
+     ],
+     [
+      "3",
+      "7",
+      "2",
+      "0",
+      "2",
+      "2"
+     ],
+     [
+      "4",
+      "3",
+      "3",
+      "1",
+      "2",
+      "4"
+     ],
+     [
+      "5",
+      "6",
+      "3",
+      "1",
+      "2",
+      "6"
+     ],
+     [
+      "6",
+      "8",
+      "3",
+      "1",
+      "2",
+      "8"
+     ],
+     [
+      "7",
+      "1",
+      "4",
+      "2",
+      "1",
+      "9"
+     ],
+     [
+      "8",
+      "2",
+      "4",
+      "2",
+      "1",
+      "10"
+     ]
+    ]
+   }
+  },
+  {
+   "md": "Total **10**.\n\n**Method 2: at-most windows.** \"At most `k` odd tickets\" survives shrinking, so `atMost(k) − atMost(k − 1)` works\nexactly as for distinct values, with an O(1)-memory window instead of a table."
+  }
+ ],
+ "approaches": [
+  {
+   "title": "Extend from every start",
+   "kind": "brute",
+   "time": "O(n²)",
+   "space": "O(1)",
+   "idea": [
+    {
+     "md": "From every start, extend while the odd count is at most `k`, counting the ends where it equals `k`. Stops early once past `k`, but still quadratic when odd tickets are rare."
+    }
+   ],
+   "build": [
+    "Loop over starts.",
+    "Running odd count.",
+    "Stop past `k`."
+   ],
+   "code": {
+    "python": "class Solution:\n    def countOddStretches(self, tickets: List[int], k: int) -> int:\n        n, total = len(tickets), 0\n        for i in range(n):\n            odd = 0\n            for j in range(i, n):\n                odd += tickets[j] & 1\n                if odd > k:\n                    break\n                if odd == k:\n                    total += 1\n        return total\n",
+    "java": "class Solution {\n    public long countOddStretches(int[] tickets, int k) {\n        int n = tickets.length;\n        long total = 0;\n        for (int i = 0; i < n; i++) {\n            int odd = 0;\n            for (int j = i; j < n; j++) {\n                odd += tickets[j] & 1;\n                if (odd > k) break;\n                if (odd == k) total++;\n            }\n        }\n        return total;\n    }\n}\n",
+    "cpp": "class Solution {\npublic:\n    long long countOddStretches(vector<int>& tickets, int k) {\n        int n = tickets.size();\n        long long total = 0;\n        for (int i = 0; i < n; i++) {\n            int odd = 0;\n            for (int j = i; j < n; j++) {\n                odd += tickets[j] & 1;\n                if (odd > k) break;\n                if (odd == k) total++;\n            }\n        }\n        return total;\n    }\n};\n",
+    "c": "long long countOddStretches(int* tickets, int ticketsSize, int k) {\n    long long total = 0;\n    for (int i = 0; i < ticketsSize; i++) {\n        int odd = 0;\n        for (int j = i; j < ticketsSize; j++) {\n            odd += tickets[j] & 1;\n            if (odd > k) break;\n            if (odd == k) total++;\n        }\n    }\n    return total;\n}\n"
+   },
+   "lines": [
+    {
+     "text": "The running count.",
+     "at": {
+      "python": [
+       [
+        3,
+        3
+       ]
+      ],
+      "java": [
+       [
+        3,
+        4
+       ]
+      ],
+      "cpp": [
+       [
+        4,
+        5
+       ]
+      ],
+      "c": [
+       [
+        2,
+        2
+       ]
+      ]
+     }
+    },
+    {
+     "text": "Each draw as the left end. Every index is tried as the left end of the window. Nothing learned from one start is reused for the next, which is exactly the waste the better approaches remove.",
+     "at": {
+      "python": [
+       [
+        4,
+        4
+       ]
+      ],
+      "java": [
+       [
+        5,
+        5
+       ]
+      ],
+      "cpp": [
+       [
+        6,
+        6
+       ]
+      ],
+      "c": [
+       [
+        3,
+        3
+       ]
+      ]
+     }
+    },
+    {
+     "text": "`& 1` is 1 for odd numbers. Past `k` odd tickets, stop: longer stretches only add more.",
+     "at": {
+      "python": [
+       [
+        5,
+        9
+       ]
+      ],
+      "java": [
+       [
+        6,
+        9
+       ]
+      ],
+      "cpp": [
+       [
+        7,
+        10
+       ]
+      ],
+      "c": [
+       [
+        4,
+        7
+       ]
+      ]
+     }
+    },
+    {
+     "text": "A stretch with exactly `k` odd tickets.",
+     "at": {
+      "python": [
+       [
+        10,
+        11
+       ]
+      ],
+      "java": [
+       [
+        10,
+        10
+       ]
+      ],
+      "cpp": [
+       [
+        11,
+        11
+       ]
+      ],
+      "c": [
+       [
+        8,
+        8
+       ]
+      ]
+     }
+    },
+    {
+     "text": "The total.",
+     "at": {
+      "python": [
+       [
+        12,
+        12
+       ]
+      ],
+      "java": [
+       [
+        13,
+        13
+       ]
+      ],
+      "cpp": [
+       [
+        14,
+        14
+       ]
+      ],
+      "c": [
+       [
+        11,
+        11
+       ]
+      ]
+     }
+    }
+   ],
+   "complexity": [
+    {
+     "md": "**Time O(n²).** **Space O(1).**"
+    }
+   ],
+   "walk": {
+    "steps": [
+     {
+      "text": "From 0: exactly 2 odd for ends [3].",
+      "panels": [
+       {
+        "type": "row",
+        "cells": [
+         2,
+         5,
+         4,
+         7,
+         3,
+         6,
+         8,
+         1,
+         2
+        ],
+        "states": {
+         "3": "found"
+        }
+       }
+      ]
+     },
+     {
+      "text": "From 1: exactly 2 odd for ends [3].",
+      "panels": [
+       {
+        "type": "row",
+        "cells": [
+         2,
+         5,
+         4,
+         7,
+         3,
+         6,
+         8,
+         1,
+         2
+        ],
+        "states": {
+         "3": "found"
+        }
+       }
+      ]
+     },
+     {
+      "text": "From 2: exactly 2 odd for ends [4, 5, 6].",
+      "panels": [
+       {
+        "type": "row",
+        "cells": [
+         2,
+         5,
+         4,
+         7,
+         3,
+         6,
+         8,
+         1,
+         2
+        ],
+        "states": {
+         "4": "found",
+         "5": "found",
+         "6": "found"
+        }
+       }
+      ]
+     },
+     {
+      "text": "From 3: exactly 2 odd for ends [4, 5, 6].",
+      "panels": [
+       {
+        "type": "row",
+        "cells": [
+         2,
+         5,
+         4,
+         7,
+         3,
+         6,
+         8,
+         1,
+         2
+        ],
+        "states": {
+         "4": "found",
+         "5": "found",
+         "6": "found"
+        }
+       }
+      ]
+     },
+     {
+      "text": "From 4: exactly 2 odd for ends [7, 8].",
+      "panels": [
+       {
+        "type": "row",
+        "cells": [
+         2,
+         5,
+         4,
+         7,
+         3,
+         6,
+         8,
+         1,
+         2
+        ],
+        "states": {
+         "7": "found",
+         "8": "found"
+        }
+       }
+      ]
+     },
+     {
+      "text": "From 5: exactly 2 odd for ends none.",
+      "panels": [
+       {
+        "type": "row",
+        "cells": [
+         2,
+         5,
+         4,
+         7,
+         3,
+         6,
+         8,
+         1,
+         2
+        ]
+       }
+      ]
+     },
+     {
+      "text": "From 6: exactly 2 odd for ends none.",
+      "panels": [
+       {
+        "type": "row",
+        "cells": [
+         2,
+         5,
+         4,
+         7,
+         3,
+         6,
+         8,
+         1,
+         2
+        ]
+       }
+      ]
+     },
+     {
+      "text": "From 7: exactly 2 odd for ends none.",
+      "panels": [
+       {
+        "type": "row",
+        "cells": [
+         2,
+         5,
+         4,
+         7,
+         3,
+         6,
+         8,
+         1,
+         2
+        ]
+       }
+      ]
+     },
+     {
+      "text": "From 8: exactly 2 odd for ends none.",
+      "panels": [
+       {
+        "type": "row",
+        "cells": [
+         2,
+         5,
+         4,
+         7,
+         3,
+         6,
+         8,
+         1,
+         2
+        ]
+       }
+      ]
+     },
+     {
+      "text": "Total: 10.",
+      "panels": [],
+      "result": "10"
+     }
+    ],
+    "title": "From each start, count odd numbers as you extend; count the ends where there are exactly k."
+   },
+   "limits": [
+    {
+     "md": "Quadratic when odd tickets are rare: each start scans a long run of even tickets."
+    }
+   ],
+   "slow": true
+  },
+  {
+   "title": "Prefix counts",
+   "kind": "better",
+   "time": "O(n)",
+   "space": "O(n)",
+   "idea": [
+    {
+     "md": "Keep `seen[c]` = how many prefixes so far contain exactly `c` odd tickets, with `seen[0] = 1` for the\nempty prefix. For each ticket: update `p`, add `seen[p − k]` (if `p ≥ k`), then record `seen[p] += 1`.\n\n**Why it's right.** Each stretch ending at `i` corresponds to one earlier prefix; the stretch has exactly\n`k` odds precisely when that prefix has `p − k`. Counting those prefixes counts those stretches.\n\nSince `p` never exceeds `n`, an array replaces a hash map."
+    }
+   ],
+   "build": [
+    "`seen` array of size `n + 1`, `seen[0] = 1`; `p = 0`, `total = 0`.",
+    "For each ticket: `p += ticket & 1`.",
+    "If `p ≥ k`: `total += seen[p − k]`.",
+    "`seen[p] += 1` (after the lookup, so a prefix never pairs with itself)."
+   ],
+   "code": {
+    "python": "class Solution:\n    def countOddStretches(self, tickets: List[int], k: int) -> int:\n        seen = [0] * (len(tickets) + 1)\n        seen[0] = 1\n        p = total = 0\n        for v in tickets:\n            p += v & 1\n            if p >= k:\n                total += seen[p - k]\n            seen[p] += 1\n        return total\n",
+    "java": "class Solution {\n    public long countOddStretches(int[] tickets, int k) {\n        int[] seen = new int[tickets.length + 1];\n        seen[0] = 1;\n        int p = 0;\n        long total = 0;\n        for (int v : tickets) {\n            p += v & 1;\n            if (p >= k) total += seen[p - k];\n            seen[p]++;\n        }\n        return total;\n    }\n}\n",
+    "cpp": "class Solution {\npublic:\n    long long countOddStretches(vector<int>& tickets, int k) {\n        vector<int> seen(tickets.size() + 1, 0);\n        seen[0] = 1;\n        int p = 0;\n        long long total = 0;\n        for (int v : tickets) {\n            p += v & 1;\n            if (p >= k) total += seen[p - k];\n            seen[p]++;\n        }\n        return total;\n    }\n};\n",
+    "c": "long long countOddStretches(int* tickets, int ticketsSize, int k) {\n    int* seen = calloc(ticketsSize + 1, sizeof(int));\n    seen[0] = 1;\n    int p = 0;\n    long long total = 0;\n    for (int i = 0; i < ticketsSize; i++) {\n        p += tickets[i] & 1;\n        if (p >= k) total += seen[p - k];\n        seen[p]++;\n    }\n    free(seen);\n    return total;\n}\n"
+   },
+   "lines": [
+    {
+     "text": "`seen[c]` = how many prefixes so far contain exactly `c` odd tickets. The empty prefix has 0, so `seen[0] = 1`. An array works because `c` is at most `n`.",
+     "at": {
+      "python": [
+       [
+        3,
+        5
+       ]
+      ],
+      "java": [
+       [
+        3,
+        6
+       ]
+      ],
+      "cpp": [
+       [
+        4,
+        7
+       ]
+      ],
+      "c": [
+       [
+        2,
+        5
+       ]
+      ]
+     }
+    },
+    {
+     "text": "`p` = odd tickets among the tickets read so far.",
+     "at": {
+      "python": [
+       [
+        6,
+        7
+       ]
+      ],
+      "java": [
+       [
+        7,
+        8
+       ]
+      ],
+      "cpp": [
+       [
+        8,
+        9
+       ]
+      ],
+      "c": [
+       [
+        6,
+        7
+       ]
+      ]
+     }
+    },
+    {
+     "text": "A stretch ending here has exactly `k` odd tickets when the prefix before it had `p − k`. There are `seen[p − k]` such prefixes, so that many stretches.",
+     "at": {
+      "python": [
+       [
+        8,
+        9
+       ]
+      ],
+      "java": [
+       [
+        9,
+        9
+       ]
+      ],
+      "cpp": [
+       [
+        10,
+        10
+       ]
+      ],
+      "c": [
+       [
+        8,
+        8
+       ]
+      ]
+     }
+    },
+    {
+     "text": "Only now add the current prefix, so it can't pair with itself (that would be an empty stretch).",
+     "at": {
+      "python": [
+       [
+        10,
+        10
+       ]
+      ],
+      "java": [
+       [
+        10,
+        10
+       ]
+      ],
+      "cpp": [
+       [
+        11,
+        11
+       ]
+      ],
+      "c": [
+       [
+        9,
+        9
+       ]
+      ]
+     }
+    },
+    {
+     "text": "The total.",
+     "at": {
+      "python": [
+       [
+        11,
+        11
+       ]
+      ],
+      "java": [
+       [
+        12,
+        12
+       ]
+      ],
+      "cpp": [
+       [
+        13,
+        13
+       ]
+      ],
+      "c": [
+       [
+        11,
+        12
+       ]
+      ]
+     }
+    }
+   ],
+   "complexity": [
+    {
+     "md": "**Time O(n).** **Space O(n)** for `seen`."
+    }
+   ],
+   "walk": {
+    "steps": [
+     {
+      "text": "Ticket 2: 0 odd so far; 0 earlier point(s) had -2.",
+      "panels": [
+       {
+        "type": "row",
+        "cells": [
+         2,
+         5,
+         4,
+         7,
+         3,
+         6,
+         8,
+         1,
+         2
+        ],
+        "states": {
+         "0": "active"
+        }
+       },
+       {
+        "type": "vars",
+        "items": {
+         "total": 0,
+         "odd so far": 0
+        }
+       }
+      ]
+     },
+     {
+      "text": "Ticket 5: 1 odd so far; 0 earlier point(s) had -1.",
+      "panels": [
+       {
+        "type": "row",
+        "cells": [
+         2,
+         5,
+         4,
+         7,
+         3,
+         6,
+         8,
+         1,
+         2
+        ],
+        "states": {
+         "1": "active"
+        }
+       },
+       {
+        "type": "vars",
+        "items": {
+         "total": 0,
+         "odd so far": 1
+        }
+       }
+      ]
+     },
+     {
+      "text": "Ticket 4: 1 odd so far; 0 earlier point(s) had -1.",
+      "panels": [
+       {
+        "type": "row",
+        "cells": [
+         2,
+         5,
+         4,
+         7,
+         3,
+         6,
+         8,
+         1,
+         2
+        ],
+        "states": {
+         "2": "active"
+        }
+       },
+       {
+        "type": "vars",
+        "items": {
+         "total": 0,
+         "odd so far": 1
+        }
+       }
+      ]
+     },
+     {
+      "text": "Ticket 7: 2 odd so far; 2 earlier point(s) had 0.",
+      "panels": [
+       {
+        "type": "row",
+        "cells": [
+         2,
+         5,
+         4,
+         7,
+         3,
+         6,
+         8,
+         1,
+         2
+        ],
+        "states": {
+         "3": "active"
+        }
+       },
+       {
+        "type": "vars",
+        "items": {
+         "total": 2,
+         "odd so far": 2
+        }
+       }
+      ]
+     },
+     {
+      "text": "Ticket 3: 3 odd so far; 2 earlier point(s) had 1.",
+      "panels": [
+       {
+        "type": "row",
+        "cells": [
+         2,
+         5,
+         4,
+         7,
+         3,
+         6,
+         8,
+         1,
+         2
+        ],
+        "states": {
+         "4": "active"
+        }
+       },
+       {
+        "type": "vars",
+        "items": {
+         "total": 4,
+         "odd so far": 3
+        }
+       }
+      ]
+     },
+     {
+      "text": "Ticket 6: 3 odd so far; 2 earlier point(s) had 1.",
+      "panels": [
+       {
+        "type": "row",
+        "cells": [
+         2,
+         5,
+         4,
+         7,
+         3,
+         6,
+         8,
+         1,
+         2
+        ],
+        "states": {
+         "5": "active"
+        }
+       },
+       {
+        "type": "vars",
+        "items": {
+         "total": 6,
+         "odd so far": 3
+        }
+       }
+      ]
+     },
+     {
+      "text": "Ticket 8: 3 odd so far; 2 earlier point(s) had 1.",
+      "panels": [
+       {
+        "type": "row",
+        "cells": [
+         2,
+         5,
+         4,
+         7,
+         3,
+         6,
+         8,
+         1,
+         2
+        ],
+        "states": {
+         "6": "active"
+        }
+       },
+       {
+        "type": "vars",
+        "items": {
+         "total": 8,
+         "odd so far": 3
+        }
+       }
+      ]
+     },
+     {
+      "text": "Ticket 1: 4 odd so far; 1 earlier point(s) had 2.",
+      "panels": [
+       {
+        "type": "row",
+        "cells": [
+         2,
+         5,
+         4,
+         7,
+         3,
+         6,
+         8,
+         1,
+         2
+        ],
+        "states": {
+         "7": "active"
+        }
+       },
+       {
+        "type": "vars",
+        "items": {
+         "total": 9,
+         "odd so far": 4
+        }
+       }
+      ]
+     },
+     {
+      "text": "Ticket 2: 4 odd so far; 1 earlier point(s) had 2.",
+      "panels": [
+       {
+        "type": "row",
+        "cells": [
+         2,
+         5,
+         4,
+         7,
+         3,
+         6,
+         8,
+         1,
+         2
+        ],
+        "states": {
+         "8": "active"
+        }
+       },
+       {
+        "type": "vars",
+        "items": {
+         "total": 10,
+         "odd so far": 4
+        }
+       }
+      ]
+     },
+     {
+      "text": "Total: 10.",
+      "panels": [],
+      "result": "10"
+     }
+    ],
+    "title": "Let p be the number of odd tickets seen so far. A stretch ending here has exactly k odds when it starts right after a point where the count was p − k. Keep how often each count has occurred."
+   },
+   "limits": [
+    {
+     "md": "It needs a table of size `n + 1`. The two-window method computes the same count with O(1) memory."
+    }
+   ]
+  },
+  {
+   "title": "atMost(k) − atMost(k − 1)",
+   "kind": "best",
+   "time": "O(n)",
+   "space": "O(1)",
+   "idea": [
+    {
+     "md": "`atMost(t)`: window holding at most `t` odd tickets; for each `R`, add `tickets[R] & 1`, shrink while over\n`t`, then add `R − L + 1`. Return `atMost(k) − atMost(k − 1)`.\n\nThe per-`R` difference `L_(k−1) − L_k` is exactly the number of starts giving `k` odd tickets: the\nwindow for `k − 1` must drop one more odd ticket (and the evens before it) than the window for `k`."
+    }
+   ],
+   "build": [
+    "`atMost(t)` with `L`, `odd`, `total`.",
+    "Add `tickets[R] & 1`; while `odd > t`, remove `tickets[L] & 1` and `L += 1`.",
+    "`total += R − L + 1`.",
+    "Answer: `atMost(k) − atMost(k − 1)`."
+   ],
+   "code": {
+    "python": "class Solution:\n    def countOddStretches(self, tickets: List[int], k: int) -> int:\n        def at_most(limit):\n            left = odd = total = 0\n            for i, v in enumerate(tickets):\n                odd += v & 1\n                while odd > limit:\n                    odd -= tickets[left] & 1\n                    left += 1\n                total += i - left + 1\n            return total\n        return at_most(k) - at_most(k - 1)\n",
+    "java": "class Solution {\n    private long atMost(int[] tickets, int limit) {\n        int left = 0, odd = 0;\n        long total = 0;\n        for (int i = 0; i < tickets.length; i++) {\n            odd += tickets[i] & 1;\n            while (odd > limit) odd -= tickets[left++] & 1;\n            total += i - left + 1;\n        }\n        return total;\n    }\n\n    public long countOddStretches(int[] tickets, int k) {\n        return atMost(tickets, k) - atMost(tickets, k - 1);\n    }\n}\n",
+    "cpp": "class Solution {\n    static long long atMost(const vector<int>& tickets, int limit) {\n        int left = 0, odd = 0;\n        long long total = 0;\n        for (int i = 0; i < (int) tickets.size(); i++) {\n            odd += tickets[i] & 1;\n            while (odd > limit) odd -= tickets[left++] & 1;\n            total += i - left + 1;\n        }\n        return total;\n    }\n\npublic:\n    long long countOddStretches(vector<int>& tickets, int k) {\n        return atMost(tickets, k) - atMost(tickets, k - 1);\n    }\n};\n",
+    "c": "static long long at_most(const int* tickets, int n, int limit) {\n    int left = 0, odd = 0;\n    long long total = 0;\n    for (int i = 0; i < n; i++) {\n        odd += tickets[i] & 1;\n        while (odd > limit) odd -= tickets[left++] & 1;\n        total += i - left + 1;\n    }\n    return total;\n}\n\nlong long countOddStretches(int* tickets, int ticketsSize, int k) {\n    return at_most(tickets, ticketsSize, k) - at_most(tickets, ticketsSize, k - 1);\n}\n"
+   },
+   "lines": [
+    {
+     "text": "Counts stretches with at most `limit` odd tickets.",
+     "at": {
+      "python": [
+       [
+        3,
+        4
+       ]
+      ],
+      "java": [
+       [
+        2,
+        4
+       ],
+       [
+        11,
+        11
+       ]
+      ],
+      "cpp": [
+       [
+        2,
+        4
+       ],
+       [
+        11,
+        11
+       ]
+      ],
+      "c": [
+       [
+        1,
+        3
+       ],
+       [
+        10,
+        10
+       ]
+      ]
+     }
+    },
+    {
+     "text": "Add ticket `R` to the window's odd count.",
+     "at": {
+      "python": [
+       [
+        5,
+        6
+       ]
+      ],
+      "java": [
+       [
+        5,
+        6
+       ]
+      ],
+      "cpp": [
+       [
+        5,
+        6
+       ]
+      ],
+      "c": [
+       [
+        4,
+        5
+       ]
+      ]
+     }
+    },
+    {
+     "text": "Too many odd tickets: drop from the left until one odd ticket leaves (even tickets in front of it go too).",
+     "at": {
+      "python": [
+       [
+        7,
+        9
+       ]
+      ],
+      "java": [
+       [
+        7,
+        7
+       ]
+      ],
+      "cpp": [
+       [
+        7,
+        7
+       ]
+      ],
+      "c": [
+       [
+        6,
+        6
+       ]
+      ]
+     }
+    },
+    {
+     "text": "All windows ending at `R` that start at `L`, `L + 1`, …, `R` satisfy the rule (shrinking keeps it), so this adds `R − L + 1` windows in one step. Each window is counted exactly once: at its own right end.",
+     "at": {
+      "python": [
+       [
+        10,
+        11
+       ]
+      ],
+      "java": [
+       [
+        8,
+        8
+       ],
+       [
+        10,
+        10
+       ]
+      ],
+      "cpp": [
+       [
+        8,
+        8
+       ],
+       [
+        10,
+        10
+       ]
+      ],
+      "c": [
+       [
+        7,
+        7
+       ],
+       [
+        9,
+        9
+       ]
+      ]
+     }
+    },
+    {
+     "text": "At most `k` minus at most `k − 1` = exactly `k`.",
+     "at": {
+      "python": [
+       [
+        12,
+        12
+       ]
+      ],
+      "java": [
+       [
+        14,
+        14
+       ]
+      ],
+      "cpp": [
+       [
+        15,
+        15
+       ]
+      ],
+      "c": [
+       [
+        13,
+        13
+       ]
+      ]
+     }
+    }
+   ],
+   "complexity": [
+    {
+     "md": "**Time O(n).** **Space O(1).**"
+    }
+   ],
+   "walk": {
+    "steps": [
+     {
+      "text": "At most 2. R = 0 adds 2. Every start 0 gives a valid window ending at R: +1.",
+      "panels": [
+       {
+        "type": "row",
+        "cells": [
+         2,
+         5,
+         4,
+         7,
+         3,
+         6,
+         8,
+         1,
+         2
+        ],
+        "states": {
+         "0": "active"
+        },
+        "pointers": {
+         "L": 0,
+         "R": 0
+        }
+       },
+       {
+        "type": "vars",
+        "items": {
+         "total": 1,
+         "odd": 0
+        }
+       }
+      ]
+     },
+     {
+      "text": "At most 2. R = 1 adds 5. Every starts 0..1 gives a valid window ending at R: +2.",
+      "panels": [
+       {
+        "type": "row",
+        "cells": [
+         2,
+         5,
+         4,
+         7,
+         3,
+         6,
+         8,
+         1,
+         2
+        ],
+        "states": {
+         "0": "active",
+         "1": "active"
+        },
+        "pointers": {
+         "L": 0,
+         "R": 1
+        }
+       },
+       {
+        "type": "vars",
+        "items": {
+         "total": 3,
+         "odd": 1
+        }
+       }
+      ]
+     },
+     {
+      "text": "At most 2. R = 2 adds 4. Every starts 0..2 gives a valid window ending at R: +3.",
+      "panels": [
+       {
+        "type": "row",
+        "cells": [
+         2,
+         5,
+         4,
+         7,
+         3,
+         6,
+         8,
+         1,
+         2
+        ],
+        "states": {
+         "0": "active",
+         "1": "active",
+         "2": "active"
+        },
+        "pointers": {
+         "L": 0,
+         "R": 2
+        }
+       },
+       {
+        "type": "vars",
+        "items": {
+         "total": 6,
+         "odd": 1
+        }
+       }
+      ]
+     },
+     {
+      "text": "At most 2. R = 3 adds 7. Every starts 0..3 gives a valid window ending at R: +4.",
+      "panels": [
+       {
+        "type": "row",
+        "cells": [
+         2,
+         5,
+         4,
+         7,
+         3,
+         6,
+         8,
+         1,
+         2
+        ],
+        "states": {
+         "0": "active",
+         "1": "active",
+         "2": "active",
+         "3": "active"
+        },
+        "pointers": {
+         "L": 0,
+         "R": 3
+        }
+       },
+       {
+        "type": "vars",
+        "items": {
+         "total": 10,
+         "odd": 2
+        }
+       }
+      ]
+     },
+     {
+      "text": "At most 2. R = 4 adds 3. L moves past 0..1 to restore the rule. Every starts 2..4 gives a valid window ending at R: +3.",
+      "panels": [
+       {
+        "type": "row",
+        "cells": [
+         2,
+         5,
+         4,
+         7,
+         3,
+         6,
+         8,
+         1,
+         2
+        ],
+        "states": {
+         "2": "active",
+         "3": "active",
+         "4": "active",
+         "0": "dim",
+         "1": "dim"
+        },
+        "pointers": {
+         "L": 2,
+         "R": 4
+        }
+       },
+       {
+        "type": "vars",
+        "items": {
+         "total": 13,
+         "odd": 2
+        }
+       }
+      ]
+     },
+     {
+      "text": "At most 2. R = 5 adds 6. Every starts 2..5 gives a valid window ending at R: +4.",
+      "panels": [
+       {
+        "type": "row",
+        "cells": [
+         2,
+         5,
+         4,
+         7,
+         3,
+         6,
+         8,
+         1,
+         2
+        ],
+        "states": {
+         "2": "active",
+         "3": "active",
+         "4": "active",
+         "5": "active"
+        },
+        "pointers": {
+         "L": 2,
+         "R": 5
+        }
+       },
+       {
+        "type": "vars",
+        "items": {
+         "total": 17,
+         "odd": 2
+        }
+       }
+      ]
+     },
+     {
+      "text": "At most 2. R = 6 adds 8. Every starts 2..6 gives a valid window ending at R: +5.",
+      "panels": [
+       {
+        "type": "row",
+        "cells": [
+         2,
+         5,
+         4,
+         7,
+         3,
+         6,
+         8,
+         1,
+         2
+        ],
+        "states": {
+         "2": "active",
+         "3": "active",
+         "4": "active",
+         "5": "active",
+         "6": "active"
+        },
+        "pointers": {
+         "L": 2,
+         "R": 6
+        }
+       },
+       {
+        "type": "vars",
+        "items": {
+         "total": 22,
+         "odd": 2
+        }
+       }
+      ]
+     },
+     {
+      "text": "At most 2. R = 7 adds 1. L moves past 2..3 to restore the rule. Every starts 4..7 gives a valid window ending at R: +4.",
+      "panels": [
+       {
+        "type": "row",
+        "cells": [
+         2,
+         5,
+         4,
+         7,
+         3,
+         6,
+         8,
+         1,
+         2
+        ],
+        "states": {
+         "4": "active",
+         "5": "active",
+         "6": "active",
+         "7": "active",
+         "2": "dim",
+         "3": "dim"
+        },
+        "pointers": {
+         "L": 4,
+         "R": 7
+        }
+       },
+       {
+        "type": "vars",
+        "items": {
+         "total": 26,
+         "odd": 2
+        }
+       }
+      ]
+     },
+     {
+      "text": "At most 2. R = 8 adds 2. Every starts 4..8 gives a valid window ending at R: +5.",
+      "panels": [
+       {
+        "type": "row",
+        "cells": [
+         2,
+         5,
+         4,
+         7,
+         3,
+         6,
+         8,
+         1,
+         2
+        ],
+        "states": {
+         "4": "active",
+         "5": "active",
+         "6": "active",
+         "7": "active",
+         "8": "active"
+        },
+        "pointers": {
+         "L": 4,
+         "R": 8
+        }
+       },
+       {
+        "type": "vars",
+        "items": {
+         "total": 31,
+         "odd": 2
+        }
+       }
+      ]
+     },
+     {
+      "text": "atMost(2) = 31, atMost(1) = 21. Difference: 10.",
+      "panels": [],
+      "result": "10"
+     }
+    ],
+    "title": "Exactly 2 = atMost(2) − atMost(1), each counted with a window that holds at most that many odd tickets."
+   }
+  }
+ ],
+ "takeaways": [
+  {
+   "md": "- **Subarrays with sum exactly k** (non-negative values): prefix-count table, or atMost difference.\n- Prefix sums with a lookup of `p − k` work even with negative values; at-most windows don't.\n- Reduce to 0/1 when only a property matters."
+  }
+ ]
+}

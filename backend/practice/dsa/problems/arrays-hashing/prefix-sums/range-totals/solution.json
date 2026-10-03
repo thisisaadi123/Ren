@@ -1,0 +1,575 @@
+{
+ "version": 1,
+ "summary": "With many range-sum questions on the same data, precompute prefix sums once: `prefix[k]` = total of the\nfirst k days. Then the total from day l to day r is `prefix[r + 1] − prefix[l]`, one subtraction per query.\nO(n + q) instead of O(n · q).",
+ "question": [
+  {
+   "md": "For each query `[l, r]`, return `sales[l] + … + sales[r]` (both ends included), in query order.\n\n- **Many queries on unchanged data:** up to 10⁵ queries over up to 10⁵ days. Summing each range directly\n  could take 10¹⁰ steps.\n- **Big numbers:** values reach ±10⁹ and a range can contain 10⁵ of them, so totals reach ±10¹⁴. Use\n  64-bit integers for the prefix sums (`[10⁹, 10⁹]` already sums past the 32-bit limit).\n- **Single-day queries** like `[3, 3]` are allowed."
+  },
+  {
+   "md": "**Edge cases to keep in mind**\n\n- A query with `l = r` is a single day.\n- Totals can reach `10⁵ × 10⁹ = 10¹⁴` in size: use 64-bit sums.\n- Up to 10⁵ queries, so each must be answered quickly."
+  }
+ ],
+ "think": [
+  {
+   "md": "**Prefix sums.** Let `P[k]` be the sum of the first `k` elements (`P[0] = 0`). Then the sum of any stretch\n`a[i .. j−1]` is `P[j] − P[i]`: everything up to `j`, minus everything before `i`. One O(n) pass builds `P`; after\nthat, every range sum costs O(1). Many \"subarray sum\" questions become questions about **pairs of prefix sums**."
+  },
+  {
+   "md": "**Prefix sums of `[3, -1, 4, 1, 5, 9, -2]`:**"
+  },
+  {
+   "table": {
+    "head": [
+     "k",
+     "0",
+     "1",
+     "2",
+     "3",
+     "4",
+     "5",
+     "6",
+     "7"
+    ],
+    "rows": [
+     [
+      "P[k]",
+      "0",
+      "3",
+      "2",
+      "6",
+      "7",
+      "12",
+      "21",
+      "19"
+     ]
+    ]
+   }
+  },
+  {
+   "md": "**Answering queries with `P[r + 1] − P[l]`:**"
+  },
+  {
+   "table": {
+    "head": [
+     "query [l, r]",
+     "P[r + 1]",
+     "P[l]",
+     "total"
+    ],
+    "rows": [
+     [
+      "[1, 4]",
+      "12",
+      "3",
+      "9"
+     ],
+     [
+      "[0, 6]",
+      "19",
+      "0",
+      "19"
+     ],
+     [
+      "[3, 3]",
+      "7",
+      "6",
+      "1"
+     ],
+     [
+      "[5, 6]",
+      "19",
+      "12",
+      "7"
+     ]
+    ]
+   }
+  }
+ ],
+ "approaches": [
+  {
+   "title": "Add up each range",
+   "kind": "brute",
+   "time": "O(n · q)",
+   "space": "O(1)",
+   "idea": [
+    {
+     "md": "Answer each query by adding up its range directly."
+    }
+   ],
+   "build": [
+    "For each query, sum `sales[l .. r]`."
+   ],
+   "code": {
+    "python": "class Solution:\n    def rangeTotals(self, sales: List[int], queries: List[List[int]]) -> List[int]:\n        return [sum(sales[l:r + 1]) for l, r in queries]\n",
+    "java": "class Solution {\n    public long[] rangeTotals(int[] sales, int[][] queries) {\n        long[] out = new long[queries.length];\n        for (int q = 0; q < queries.length; q++) {\n            long total = 0;\n            for (int k = queries[q][0]; k <= queries[q][1]; k++) total += sales[k];\n            out[q] = total;\n        }\n        return out;\n    }\n}\n",
+    "cpp": "class Solution {\npublic:\n    vector<long long> rangeTotals(vector<int>& sales, vector<vector<int>>& queries) {\n        vector<long long> out;\n        for (auto& q : queries) {\n            long long total = 0;\n            for (int k = q[0]; k <= q[1]; k++) total += sales[k];\n            out.push_back(total);\n        }\n        return out;\n    }\n};\n",
+    "c": "long long* rangeTotals(int* sales, int salesSize, int** queries, int queriesSize, int* queriesColSize, int* returnSize) {\n    long long* out = malloc(queriesSize * sizeof(long long));\n    for (int q = 0; q < queriesSize; q++) {\n        long long total = 0;\n        for (int k = queries[q][0]; k <= queries[q][1]; k++) total += sales[k];\n        out[q] = total;\n    }\n    *returnSize = queriesSize;\n    return out;\n}\n"
+   },
+   "lines": [
+    {
+     "text": "Each query walks its whole range, adding in 64 bits.",
+     "at": {
+      "python": [
+       [
+        3,
+        3
+       ]
+      ],
+      "java": [
+       [
+        4,
+        7
+       ]
+      ],
+      "cpp": [
+       [
+        5,
+        8
+       ]
+      ],
+      "c": [
+       [
+        3,
+        6
+       ]
+      ]
+     }
+    },
+    {
+     "text": "Answers in query order.",
+     "at": {
+      "java": [
+       [
+        9,
+        9
+       ]
+      ],
+      "cpp": [
+       [
+        10,
+        10
+       ]
+      ],
+      "c": [
+       [
+        8,
+        9
+       ]
+      ]
+     }
+    }
+   ],
+   "complexity": [
+    {
+     "md": "**Time O(n · q)** in the worst case: 10¹⁰ additions for 10⁵ long queries. **Space O(q)** for the answers."
+    }
+   ],
+   "walk": {
+    "steps": [
+     {
+      "text": "Query [0, 2]: 3 + -1 + 4 = 6 (3 additions).",
+      "panels": [
+       {
+        "type": "row",
+        "cells": [
+         3,
+         -1,
+         4,
+         1,
+         5,
+         9,
+         -2
+        ],
+        "states": {
+         "0": "active",
+         "1": "active",
+         "2": "active"
+        },
+        "slots": true
+       }
+      ]
+     },
+     {
+      "text": "Query [1, 4]: -1 + 4 + 1 + 5 = 9 (4 additions).",
+      "panels": [
+       {
+        "type": "row",
+        "cells": [
+         3,
+         -1,
+         4,
+         1,
+         5,
+         9,
+         -2
+        ],
+        "states": {
+         "1": "active",
+         "2": "active",
+         "3": "active",
+         "4": "active"
+        },
+        "slots": true
+       }
+      ]
+     },
+     {
+      "text": "Query [3, 3]: 1 = 1 (1 additions).",
+      "panels": [
+       {
+        "type": "row",
+        "cells": [
+         3,
+         -1,
+         4,
+         1,
+         5,
+         9,
+         -2
+        ],
+        "states": {
+         "3": "active"
+        },
+        "slots": true
+       }
+      ]
+     },
+     {
+      "text": "Query [2, 6]: 4 + 1 + 5 + 9 + -2 = 17 (5 additions).",
+      "panels": [
+       {
+        "type": "row",
+        "cells": [
+         3,
+         -1,
+         4,
+         1,
+         5,
+         9,
+         -2
+        ],
+        "states": {
+         "2": "active",
+         "3": "active",
+         "4": "active",
+         "5": "active",
+         "6": "active"
+        },
+        "slots": true
+       }
+      ],
+      "result": "[6, 9, 1, 17]"
+     }
+    ],
+    "title": "Answer every query by adding up its range directly."
+   },
+   "limits": [
+    {
+     "md": "Overlapping queries re-add the same days. Precomputing prefix sums once answers every query in O(1)."
+    }
+   ],
+   "slow": true
+  },
+  {
+   "title": "Prefix sums",
+   "kind": "best",
+   "time": "O(n + q)",
+   "space": "O(n)",
+   "idea": [
+    {
+     "md": "Build `P` once. Answer each query `[l, r]` with `P[r + 1] − P[l]`.\n\n**Why it's right.** `P[r + 1]` covers days `0 … r`; subtracting `P[l]` removes days `0 … l − 1`, leaving\nexactly `l … r`."
+    }
+   ],
+   "build": [
+    "Prefix sums with a leading 0.",
+    "One subtraction per query."
+   ],
+   "code": {
+    "python": "class Solution:\n    def rangeTotals(self, sales: List[int], queries: List[List[int]]) -> List[int]:\n        prefix = [0]\n        for s in sales:\n            prefix.append(prefix[-1] + s)\n        return [prefix[r + 1] - prefix[l] for l, r in queries]\n",
+    "java": "class Solution {\n    public long[] rangeTotals(int[] sales, int[][] queries) {\n        long[] prefix = new long[sales.length + 1];\n        for (int i = 0; i < sales.length; i++) prefix[i + 1] = prefix[i] + sales[i];\n        long[] out = new long[queries.length];\n        for (int q = 0; q < queries.length; q++) out[q] = prefix[queries[q][1] + 1] - prefix[queries[q][0]];\n        return out;\n    }\n}\n",
+    "cpp": "class Solution {\npublic:\n    vector<long long> rangeTotals(vector<int>& sales, vector<vector<int>>& queries) {\n        vector<long long> prefix(sales.size() + 1, 0);\n        for (size_t i = 0; i < sales.size(); i++) prefix[i + 1] = prefix[i] + sales[i];\n        vector<long long> out;\n        for (auto& q : queries) out.push_back(prefix[q[1] + 1] - prefix[q[0]]);\n        return out;\n    }\n};\n",
+    "c": "long long* rangeTotals(int* sales, int salesSize, int** queries, int queriesSize, int* queriesColSize, int* returnSize) {\n    long long* prefix = malloc((salesSize + 1) * sizeof(long long));\n    prefix[0] = 0;\n    for (int i = 0; i < salesSize; i++) prefix[i + 1] = prefix[i] + sales[i];\n    long long* out = malloc(queriesSize * sizeof(long long));\n    for (int q = 0; q < queriesSize; q++) out[q] = prefix[queries[q][1] + 1] - prefix[queries[q][0]];\n    free(prefix);\n    *returnSize = queriesSize;\n    return out;\n}\n"
+   },
+   "lines": [
+    {
+     "text": "Running totals, one longer than the input so `prefix[0]` is the empty sum. 64-bit, because totals reach 10¹⁴.",
+     "at": {
+      "python": [
+       [
+        3,
+        5
+       ]
+      ],
+      "java": [
+       [
+        3,
+        4
+       ]
+      ],
+      "cpp": [
+       [
+        4,
+        5
+       ]
+      ],
+      "c": [
+       [
+        2,
+        4
+       ]
+      ]
+     }
+    },
+    {
+     "text": "Days l … r = (first r + 1 days) − (first l days).",
+     "at": {
+      "python": [
+       [
+        6,
+        6
+       ]
+      ],
+      "java": [
+       [
+        5,
+        7
+       ]
+      ],
+      "cpp": [
+       [
+        6,
+        8
+       ]
+      ],
+      "c": [
+       [
+        5,
+        9
+       ]
+      ]
+     },
+     "notes": {
+      "c": "Free the prefix array; the caller frees `out`."
+     }
+    }
+   ],
+   "complexity": [
+    {
+     "md": "**Time O(n + q).** **Space O(n)** for the prefix sums."
+    }
+   ],
+   "walk": {
+    "steps": [
+     {
+      "text": "prefix[k] = total of the first k days; prefix[0] = 0.",
+      "panels": [
+       {
+        "type": "row",
+        "cells": [
+         3,
+         -1,
+         4,
+         1,
+         5,
+         9,
+         -2
+        ],
+        "slots": true
+       },
+       {
+        "type": "row",
+        "cells": [
+         0,
+         3,
+         2,
+         6,
+         7,
+         12,
+         21,
+         19
+        ],
+        "label": "prefix",
+        "slots": true
+       }
+      ]
+     },
+     {
+      "text": "Query [0, 2] = prefix[3] − prefix[0] = 6 − 0 = 6.",
+      "panels": [
+       {
+        "type": "row",
+        "cells": [
+         3,
+         -1,
+         4,
+         1,
+         5,
+         9,
+         -2
+        ],
+        "states": {
+         "0": "active",
+         "1": "active",
+         "2": "active"
+        },
+        "slots": true
+       },
+       {
+        "type": "row",
+        "cells": [
+         0,
+         3,
+         2,
+         6,
+         7,
+         12,
+         21,
+         19
+        ],
+        "states": {
+         "0": "mark",
+         "3": "answer"
+        },
+        "label": "prefix",
+        "slots": true
+       }
+      ]
+     },
+     {
+      "text": "Query [1, 4] = prefix[5] − prefix[1] = 12 − 3 = 9.",
+      "panels": [
+       {
+        "type": "row",
+        "cells": [
+         3,
+         -1,
+         4,
+         1,
+         5,
+         9,
+         -2
+        ],
+        "states": {
+         "1": "active",
+         "2": "active",
+         "3": "active",
+         "4": "active"
+        },
+        "slots": true
+       },
+       {
+        "type": "row",
+        "cells": [
+         0,
+         3,
+         2,
+         6,
+         7,
+         12,
+         21,
+         19
+        ],
+        "states": {
+         "1": "mark",
+         "5": "answer"
+        },
+        "label": "prefix",
+        "slots": true
+       }
+      ]
+     },
+     {
+      "text": "Query [3, 3] = prefix[4] − prefix[3] = 7 − 6 = 1.",
+      "panels": [
+       {
+        "type": "row",
+        "cells": [
+         3,
+         -1,
+         4,
+         1,
+         5,
+         9,
+         -2
+        ],
+        "states": {
+         "3": "active"
+        },
+        "slots": true
+       },
+       {
+        "type": "row",
+        "cells": [
+         0,
+         3,
+         2,
+         6,
+         7,
+         12,
+         21,
+         19
+        ],
+        "states": {
+         "3": "mark",
+         "4": "answer"
+        },
+        "label": "prefix",
+        "slots": true
+       }
+      ]
+     },
+     {
+      "text": "Query [2, 6] = prefix[7] − prefix[2] = 19 − 2 = 17.",
+      "panels": [
+       {
+        "type": "row",
+        "cells": [
+         3,
+         -1,
+         4,
+         1,
+         5,
+         9,
+         -2
+        ],
+        "states": {
+         "2": "active",
+         "3": "active",
+         "4": "active",
+         "5": "active",
+         "6": "active"
+        },
+        "slots": true
+       },
+       {
+        "type": "row",
+        "cells": [
+         0,
+         3,
+         2,
+         6,
+         7,
+         12,
+         21,
+         19
+        ],
+        "states": {
+         "2": "mark",
+         "7": "answer"
+        },
+        "label": "prefix",
+        "slots": true
+       }
+      ],
+      "result": "[6, 9, 1, 17]"
+     }
+    ],
+    "title": "Build prefix sums once; each query is then one subtraction."
+   }
+  }
+ ],
+ "takeaways": [
+  {
+   "md": "- **Many range-sum queries on a fixed array:** prefix sums, O(1) per query.\n- The leading `P[0] = 0` removes the special case for `l = 0`.\n- **Pitfall:** off-by-one (`P[r] − P[l]` misses day `r`); 32-bit overflow."
+  }
+ ]
+}

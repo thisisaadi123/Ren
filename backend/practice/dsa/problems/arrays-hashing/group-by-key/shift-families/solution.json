@@ -4,47 +4,103 @@
  "question": [
   {
    "md": "Shifting moves every letter of a word forward by the same number of places, wrapping `z` → `a`. Words\nthat can be shifted into one another form a **family**. Count the families.\n\n- **Wrap-around counts:** `\"az\"` shifted by 1 is `\"ba\"`, so they're one family.\n- **Lengths must match:** a shift never changes length, so `\"a\"` and `\"aa\"` are different families.\n- **Identical words** are one family (a shift by 0).\n- **Every one-letter word** is in a single family: any letter shifts into any other.\n- **Size:** up to 10⁴ words of at most 50 letters."
+  },
+  {
+   "md": "**Edge cases to keep in mind**\n\n- Words of different lengths are never in the same family.\n- Wrap-around: `\"az\"` and `\"ba\"` are one family (shift by 1, `z` wraps to `a`).\n- All one-letter words form one family."
   }
  ],
  "think": [
   {
-   "md": "Take `[\"abc\", \"bcd\", \"xyz\", \"az\", \"ba\", \"a\", \"z\", \"acd\"]`.\n\nWhat doesn't change when you shift? The **distance from each letter to the next**: abc goes +1, +1;\nso do bcd and xyz. az goes +25 (a to z), and ba goes from b to a, which is also +25 with wrap-around.\nSo family = same length and same sequence of gaps.\n\nAn equivalent, easier-to-code fingerprint: **shift every word so its first letter becomes `a`**. Every\nmember of a family lands on the same word."
+   "md": "**Group by a canonical key.** When \"belongs together\" is an equivalence (anagrams, same shape, shift-equivalent),\nfind a **key** that every member of a group shares and no other item has. Then grouping is just a hash map from key\nto items: one pass, no pairwise comparisons. The art is in choosing the key:\n\n- it must be **identical** for items that belong together (otherwise one group splits in two);\n- it must **differ** for items that don't (otherwise two groups merge);\n- it should be cheap to compute."
   },
   {
-   "panels": [
-    {
-     "type": "row",
-     "cells": [
+   "md": "**The key for shifts.** Shifting changes every letter by the same amount, so shift each word so that its first\nletter becomes `a`. Words in the same family land on the same normalised word; words in different families don't\n(the gaps between consecutive letters, mod 26, are what's left, and shifting can't change them)."
+  },
+  {
+   "md": "**Normalised forms of `['abc', 'bcd', 'xyz', 'az', 'ba', 'a', 'z', 'acd']`:**"
+  },
+  {
+   "table": {
+    "head": [
+     "word",
+     "shift by",
+     "normalised"
+    ],
+    "rows": [
+     [
       "abc",
+      "0",
+      "abc"
+     ],
+     [
       "bcd",
+      "1",
+      "abc"
+     ],
+     [
       "xyz",
+      "23",
+      "abc"
+     ],
+     [
       "az",
+      "0",
+      "az"
+     ],
+     [
       "ba",
+      "1",
+      "az"
+     ],
+     [
       "a",
+      "0",
+      "a"
+     ],
+     [
       "z",
-      "acd"
+      "25",
+      "a"
      ],
-     "label": "word"
-    },
-    {
-     "type": "row",
-     "cells": [
-      "abc",
-      "abc",
-      "abc",
-      "az",
-      "az",
-      "a",
-      "a",
+     [
+      "acd",
+      "0",
       "acd"
-     ],
-     "label": "shifted to start at a"
-    }
-   ],
-   "caption": "abc, bcd, xyz → abc;  az, ba → az;  a, z → a;  acd → acd. Four families."
+     ]
+    ]
+   }
   },
   {
-   "md": "The normal form is a **key**: same key, same family. Counting families becomes counting distinct\nkeys."
+   "md": "**Families:**"
+  },
+  {
+   "table": {
+    "head": [
+     "normalised key",
+     "members"
+    ],
+    "rows": [
+     [
+      "abc",
+      "abc, bcd, xyz"
+     ],
+     [
+      "az",
+      "az, ba"
+     ],
+     [
+      "a",
+      "a, z"
+     ],
+     [
+      "acd",
+      "acd"
+     ]
+    ]
+   }
+  },
+  {
+   "md": "**4** families."
   }
  ],
  "approaches": [
@@ -55,14 +111,13 @@
    "space": "O(n · L)",
    "idea": [
     {
-     "md": "Keep one representative word per family found so far. For a new word, try every representative of the same length with all 26 shifts; if one equals the word, it joins that family. Otherwise it's a new family."
+     "md": "Keep one representative per family. For each word, try all 26 shifts against every representative of the same length; if none matches, it starts a new family."
     }
    ],
    "build": [
-    "Keep a list of representatives.",
-    "For each word, for each representative of the same length, for each shift k in 0 … 25: compare the shifted representative with the word.",
-    "No match anywhere: add the word as a new representative.",
-    "Return the number of representatives."
+    "Representatives list.",
+    "Try 26 shifts per representative.",
+    "New family if nothing matches."
    ],
    "code": {
     "python": "class Solution:\n    def countShiftFamilies(self, words: List[str]) -> int:\n        def shifted_equal(r, w, k):\n            return all((ord(a) - 97 + k) % 26 == ord(b) - 97 for a, b in zip(r, w))\n        reps = []\n        for w in words:\n            if not any(len(r) == len(w) and any(shifted_equal(r, w, k) for k in range(26))\n                       for r in reps):\n                reps.append(w)\n        return len(reps)\n",
@@ -251,7 +306,7 @@
    ],
    "complexity": [
     {
-     "md": "**Time O(n · f · 26 · L)** for f families: up to 10⁴ × 10⁴ × 26 × 50 in the worst case. **Space O(n · L)** in the worst case (representatives)."
+     "md": "**Time O(n · f · 26 · L)** for `f` families: quadratic when most words are in their own family. **Space O(n · L).**"
     }
    ],
    "walk": {
@@ -562,7 +617,7 @@
    },
    "limits": [
     {
-     "md": "Membership in a family is tested by trying shifts against every family. A fingerprint that's identical for the whole family would make membership an equality test, and equal fingerprints can be sorted or hashed."
+     "md": "Searching families by trial is slow. Normalising each word gives a key that identifies its family directly."
     }
    ],
    "slow": true
@@ -574,13 +629,13 @@
    "space": "O(n · L)",
    "idea": [
     {
-     "md": "Shift every word back so its first letter is `a`: letter `c` becomes `(c − first) mod 26`. Family members all become the same string. Sort the normal forms and count how many differ from their predecessor."
+     "md": "Normalise every word (shift so it starts with `a`), sort the normalised words, and count the distinct ones."
     }
    ],
    "build": [
-    "For each word, build its normal form with `(c − w[0] + 26) % 26 + 'a'`.",
-    "Sort the normal forms.",
-    "Count positions where the value differs from the one before (plus the first)."
+    "Normalise each word.",
+    "Sort the keys.",
+    "Count distinct keys."
    ],
    "code": {
     "python": "class Solution:\n    def countShiftFamilies(self, words: List[str]) -> int:\n        def normal(w):\n            return \"\".join(chr((ord(c) - ord(w[0])) % 26 + 97) for c in w)\n        keys = sorted(normal(w) for w in words)\n        return sum(1 for i in range(len(keys)) if i == 0 or keys[i] != keys[i - 1])\n",
@@ -698,7 +753,7 @@
    ],
    "complexity": [
     {
-     "md": "**Time O(n · L · log n):** normalising is O(n · L); sorting compares strings of length L about n log n times. **Space O(n · L)** for the keys."
+     "md": "**Time O(n · L + n log n · L).** **Space O(n · L).**"
     }
    ],
    "walk": {
@@ -796,7 +851,7 @@
    },
    "limits": [
     {
-     "md": "The sort is only there to bring equal keys together. A hash set recognises equal keys directly, without ordering anything."
+     "md": "Sorting just to count distinct keys; a hash set counts them in one pass."
     }
    ]
   },
@@ -807,12 +862,12 @@
    "space": "O(n · L)",
    "idea": [
     {
-     "md": "Same normal form (shift so the word starts with `a`), but put every normal form into a hash set. Equal forms collapse into one entry, so the set's size is the number of families."
+     "md": "Normalise each word and add it to a hash set. The set's size is the number of families.\n\n**Why it's correct.** Two words are in the same family exactly when they have the same length and the same\nnormalised form."
     }
    ],
    "build": [
-    "Create an empty hash set of strings.",
-    "For each word, add its normal form.",
+    "Empty set.",
+    "Add each word's normalised form.",
     "Return the set's size."
    ],
    "code": {
@@ -972,7 +1027,7 @@
    ],
    "complexity": [
     {
-     "md": "**Time O(n · L)** on average: one normalising pass and one hash insert (hashing L characters) per word. **Space O(n · L)** for the set."
+     "md": "**Time O(n · L)** expected. **Space O(n · L).**"
     }
    ],
    "walk": {
@@ -1285,7 +1340,7 @@
  ],
  "takeaways": [
   {
-   "md": "- For \"equivalent under some transformation\", find an **invariant** or a **canonical representative**:\n  here, the gaps between letters, or the word shifted to start at `a`.\n- Counting equivalence classes = counting distinct canonical keys: a hash set's size.\n- Modular arithmetic handles wrap-around; add the modulus before `%` in languages where `%` can be\n  negative."
+   "md": "- **Shift-equivalence:** normalise so the first letter is `a`; use mod 26 for wrap-around.\n- Counting groups = size of the set of keys.\n- **Pitfall:** forgetting the wrap-around (negative differences without `mod 26`)."
   }
  ]
 }

@@ -1,0 +1,465 @@
+{
+ "version": 1,
+ "summary": "Walking uphill must eventually reach a summit, because the trail ends in a drop on both sides. So at `mid`,\nif the next point is higher, a summit exists to the right; otherwise one exists at mid or to its left.\nBinary search keeps the half that's guaranteed to contain a summit: O(log n). Any summit is accepted.",
+ "question": [
+  {
+   "md": "Heights have no equal neighbours; the trail drops to −∞ before the first and after the last point. Return the\nindex of **any** point higher than both neighbours, in O(log n).\n\n- **Any summit** is accepted; there may be several.\n- **The ends can be summits** thanks to the imaginary drops: `[7]` → 0; `[1, 2]` → 1.\n- **Heights span the full 32-bit range**, but only comparisons are needed, so no overflow risk.\n- **The input isn't sorted**, yet binary search still works."
+  }
+ ],
+ "think": [
+  {
+   "md": "Take `[2, 5, 3, 1, 4, 8, 6, 7, 0]`. Summits are at indices [1, 5, 7]. We only need one.\n\nStand at any point and look right. If the next point is **higher**, keep walking right while it keeps rising.\nYou can't climb forever: either the trail turns down (that's a summit) or it ends (the last point, with a\ndrop after it, is a summit). So **\"the next point is higher\" guarantees a summit to the right**. Likewise, if\nthe next point is lower, a summit exists at the current point or to its left."
+  },
+  {
+   "panels": [
+    {
+     "type": "row",
+     "cells": [
+      2,
+      5,
+      3,
+      1,
+      4,
+      8,
+      6,
+      7,
+      0
+     ],
+     "states": {
+      "1": "answer",
+      "5": "answer",
+      "7": "answer"
+     },
+     "slots": true
+    }
+   ],
+   "caption": "Any of the shaded points is a valid answer."
+  },
+  {
+   "md": "That's enough for binary search. At mid: rising to the right → `lo = mid + 1`; falling → `hi = mid`. The kept\nhalf always contains a summit, and when one index is left, it is one."
+  }
+ ],
+ "approaches": [
+  {
+   "title": "Scan for the first downturn",
+   "kind": "brute",
+   "time": "O(n)",
+   "space": "O(1)",
+   "idea": [
+    {
+     "md": "Return the first index i whose next point is lower, or the last index if the trail never turns down. Every point before i was rising, so i is higher than its left neighbour too."
+    }
+   ],
+   "build": [
+    "For i from 0 to n − 2: if `h[i] > h[i + 1]`, return i.",
+    "Return n − 1."
+   ],
+   "code": {
+    "python": "class Solution:\n    def findSummit(self, heights: List[int]) -> int:\n        for i in range(len(heights) - 1):\n            if heights[i] > heights[i + 1]:\n                return i\n        return len(heights) - 1\n",
+    "java": "class Solution {\n    public int findSummit(int[] heights) {\n        for (int i = 0; i + 1 < heights.length; i++) if (heights[i] > heights[i + 1]) return i;\n        return heights.length - 1;\n    }\n}\n",
+    "cpp": "class Solution {\npublic:\n    int findSummit(vector<int>& heights) {\n        for (size_t i = 0; i + 1 < heights.size(); i++) if (heights[i] > heights[i + 1]) return i;\n        return heights.size() - 1;\n    }\n};\n",
+    "c": "int findSummit(int* heights, int heightsSize) {\n    for (int i = 0; i + 1 < heightsSize; i++) if (heights[i] > heights[i + 1]) return i;\n    return heightsSize - 1;\n}\n"
+   },
+   "lines": [
+    {
+     "text": "The first point higher than the next. It was reached by climbing (or is index 0, with a drop before it), so it beats its left neighbour as well.",
+     "at": {
+      "python": [
+       [
+        3,
+        5
+       ]
+      ],
+      "java": [
+       [
+        3,
+        3
+       ]
+      ],
+      "cpp": [
+       [
+        4,
+        4
+       ]
+      ],
+      "c": [
+       [
+        2,
+        2
+       ]
+      ]
+     }
+    },
+    {
+     "text": "Climbing all the way: the last point is a summit thanks to the drop after it.",
+     "at": {
+      "python": [
+       [
+        6,
+        6
+       ]
+      ],
+      "java": [
+       [
+        4,
+        4
+       ]
+      ],
+      "cpp": [
+       [
+        5,
+        5
+       ]
+      ],
+      "c": [
+       [
+        3,
+        3
+       ]
+      ]
+     }
+    }
+   ],
+   "complexity": [
+    {
+     "md": "**Time O(n).** **Space O(1).**"
+    }
+   ],
+   "walk": {
+    "steps": [
+     {
+      "text": "2 < 5: keep climbing.",
+      "panels": [
+       {
+        "type": "row",
+        "cells": [
+         2,
+         5,
+         3,
+         1,
+         4,
+         8,
+         6,
+         7,
+         0
+        ],
+        "states": {
+         "0": "active"
+        },
+        "slots": true
+       }
+      ]
+     },
+     {
+      "text": "5 > 3: since we got here by climbing, it's higher than both neighbours. Summit at 1.",
+      "panels": [
+       {
+        "type": "row",
+        "cells": [
+         2,
+         5,
+         3,
+         1,
+         4,
+         8,
+         6,
+         7,
+         0
+        ],
+        "states": {
+         "1": "answer"
+        },
+        "slots": true
+       }
+      ],
+      "result": "1"
+     }
+    ],
+    "title": "Scan for the first point that is higher than the point after it (or the last point)."
+   },
+   "limits": [
+    {
+     "md": "Linear; the requirement is O(log n). The \"walk uphill\" argument works from any midpoint, not just from the start."
+    }
+   ]
+  },
+  {
+   "title": "Binary search uphill",
+   "kind": "best",
+   "time": "O(log n)",
+   "space": "O(1)",
+   "idea": [
+    {
+     "md": "`lo = 0`, `hi = n − 1`. If `h[mid] < h[mid + 1]`, a summit lies right: `lo = mid + 1`. Else one lies at mid or left: `hi = mid`. Return `lo`."
+    }
+   ],
+   "build": [
+    "`lo = 0`, `hi = n − 1`.",
+    "Compare mid with mid + 1; keep the uphill half.",
+    "Return `lo`."
+   ],
+   "code": {
+    "python": "class Solution:\n    def findSummit(self, heights: List[int]) -> int:\n        lo, hi = 0, len(heights) - 1\n        while lo < hi:\n            mid = (lo + hi) // 2\n            if heights[mid] < heights[mid + 1]:\n                lo = mid + 1\n            else:\n                hi = mid\n        return lo\n",
+    "java": "class Solution {\n    public int findSummit(int[] heights) {\n        int lo = 0, hi = heights.length - 1;\n        while (lo < hi) {\n            int mid = lo + (hi - lo) / 2;\n            if (heights[mid] < heights[mid + 1]) lo = mid + 1;\n            else hi = mid;\n        }\n        return lo;\n    }\n}\n",
+    "cpp": "class Solution {\npublic:\n    int findSummit(vector<int>& heights) {\n        int lo = 0, hi = (int) heights.size() - 1;\n        while (lo < hi) {\n            int mid = lo + (hi - lo) / 2;\n            if (heights[mid] < heights[mid + 1]) lo = mid + 1;\n            else hi = mid;\n        }\n        return lo;\n    }\n};\n",
+    "c": "int findSummit(int* heights, int heightsSize) {\n    int lo = 0, hi = heightsSize - 1;\n    while (lo < hi) {\n        int mid = lo + (hi - lo) / 2;\n        if (heights[mid] < heights[mid + 1]) lo = mid + 1;\n        else hi = mid;\n    }\n    return lo;\n}\n"
+   },
+   "lines": [
+    {
+     "text": "A summit exists somewhere in the whole trail.",
+     "at": {
+      "python": [
+       [
+        3,
+        3
+       ]
+      ],
+      "java": [
+       [
+        3,
+        3
+       ]
+      ],
+      "cpp": [
+       [
+        4,
+        4
+       ]
+      ],
+      "c": [
+       [
+        2,
+        2
+       ]
+      ]
+     }
+    },
+    {
+     "text": "`mid < hi`, so `mid + 1` is valid.",
+     "at": {
+      "python": [
+       [
+        4,
+        5
+       ]
+      ],
+      "java": [
+       [
+        4,
+        5
+       ]
+      ],
+      "cpp": [
+       [
+        5,
+        6
+       ]
+      ],
+      "c": [
+       [
+        3,
+        4
+       ]
+      ]
+     }
+    },
+    {
+     "text": "Go towards the higher neighbour: a summit is guaranteed that way. Invariant: `[lo, hi]` always contains a summit.",
+     "at": {
+      "python": [
+       [
+        6,
+        9
+       ]
+      ],
+      "java": [
+       [
+        6,
+        7
+       ]
+      ],
+      "cpp": [
+       [
+        7,
+        8
+       ]
+      ],
+      "c": [
+       [
+        5,
+        6
+       ]
+      ]
+     }
+    },
+    {
+     "text": "One index left: it's a summit.",
+     "at": {
+      "python": [
+       [
+        10,
+        10
+       ]
+      ],
+      "java": [
+       [
+        9,
+        9
+       ]
+      ],
+      "cpp": [
+       [
+        10,
+        10
+       ]
+      ],
+      "c": [
+       [
+        8,
+        8
+       ]
+      ]
+     }
+    }
+   ],
+   "complexity": [
+    {
+     "md": "**Time O(log n).** **Space O(1).**"
+    }
+   ],
+   "walk": {
+    "steps": [
+     {
+      "text": "lo=0, hi=8, mid=4: 4 < 8, so the trail rises after mid: a summit lies to the right, lo = 5.",
+      "panels": [
+       {
+        "type": "row",
+        "cells": [
+         2,
+         5,
+         3,
+         1,
+         4,
+         8,
+         6,
+         7,
+         0
+        ],
+        "states": {
+         "4": "active",
+         "5": "mark"
+        },
+        "pointers": {
+         "lo": 0,
+         "mid": 4,
+         "hi": 8
+        },
+        "slots": true
+       }
+      ]
+     },
+     {
+      "text": "lo=5, hi=8, mid=6: 6 < 7, so the trail rises after mid: a summit lies to the right, lo = 7.",
+      "panels": [
+       {
+        "type": "row",
+        "cells": [
+         2,
+         5,
+         3,
+         1,
+         4,
+         8,
+         6,
+         7,
+         0
+        ],
+        "states": {
+         "0": "dim",
+         "1": "dim",
+         "2": "dim",
+         "3": "dim",
+         "4": "dim",
+         "6": "active",
+         "7": "mark"
+        },
+        "pointers": {
+         "lo": 5,
+         "mid": 6,
+         "hi": 8
+        },
+        "slots": true
+       }
+      ]
+     },
+     {
+      "text": "lo=7, hi=8, mid=7: 7 > 0, so the trail falls after mid: a summit lies at mid or to its left, hi = 7.",
+      "panels": [
+       {
+        "type": "row",
+        "cells": [
+         2,
+         5,
+         3,
+         1,
+         4,
+         8,
+         6,
+         7,
+         0
+        ],
+        "states": {
+         "0": "dim",
+         "1": "dim",
+         "2": "dim",
+         "3": "dim",
+         "4": "dim",
+         "5": "dim",
+         "6": "dim",
+         "7": "active",
+         "8": "mark"
+        },
+        "pointers": {
+         "lo": 7,
+         "mid": 7,
+         "hi": 8
+        },
+        "slots": true
+       }
+      ]
+     },
+     {
+      "text": "lo = hi = 7: 7 is higher than its neighbours.",
+      "panels": [
+       {
+        "type": "row",
+        "cells": [
+         2,
+         5,
+         3,
+         1,
+         4,
+         8,
+         6,
+         7,
+         0
+        ],
+        "states": {
+         "7": "answer"
+        },
+        "slots": true
+       }
+      ],
+      "result": "7"
+     }
+    ],
+    "title": "Compare mid with its right neighbour and walk uphill: there is always a summit in the uphill direction."
+   }
+  }
+ ],
+ "takeaways": [
+  {
+   "md": "- **Peak finding:** move towards the higher neighbour; the boundary drops guarantee a peak in that\n  direction, so binary search works on unsorted data.\n- The invariant \"the range contains a valid answer\" is what makes it correct, not sortedness."
+  }
+ ]
+}

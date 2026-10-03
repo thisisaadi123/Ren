@@ -1,0 +1,31 @@
+{
+  "id": "up-and-down-periods",
+  "title": "Up and Down Periods",
+  "topic": "gaps-islands",
+  "pattern": "streaks",
+  "difficulty": "hard",
+  "statement": "A service was checked once a day, every day; `ok` is `1` if it was up. Report the periods of consecutive days in the\nsame state.\n\nReturn `state` (`'up'` or `'down'`), `start_day` and `end_day` of each period, ordered by `start_day`.",
+  "notes": "Two row numbers, one over all days and one within each state, drift apart by one every time the state changes, so their difference names each period.",
+  "tables": [
+    {
+      "name": "health_checks",
+      "columns": [
+        [
+          "day",
+          "TEXT",
+          "pk"
+        ],
+        [
+          "ok",
+          "INTEGER"
+        ]
+      ]
+    }
+  ],
+  "ordered": true,
+  "reference": "WITH marked AS (\n  SELECT day, ok,\n         ROW_NUMBER() OVER (ORDER BY day) - ROW_NUMBER() OVER (PARTITION BY ok ORDER BY day) AS grp\n  FROM health_checks\n)\nSELECT CASE WHEN ok = 1 THEN 'up' ELSE 'down' END AS state, MIN(day) AS start_day, MAX(day) AS end_day\nFROM marked\nGROUP BY ok, grp\nORDER BY start_day",
+  "wrong": [
+    "SELECT CASE WHEN ok = 1 THEN 'up' ELSE 'down' END AS state, MIN(day) AS start_day, MAX(day) AS end_day FROM health_checks GROUP BY ok ORDER BY start_day",
+    "WITH marked AS (SELECT day, ok, ROW_NUMBER() OVER (ORDER BY day) - ROW_NUMBER() OVER (ORDER BY day) AS grp FROM health_checks) SELECT CASE WHEN ok = 1 THEN 'up' ELSE 'down' END AS state, MIN(day) AS start_day, MAX(day) AS end_day FROM marked GROUP BY ok, grp ORDER BY start_day"
+  ]
+}

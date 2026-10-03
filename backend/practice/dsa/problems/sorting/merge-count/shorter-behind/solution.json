@@ -1,0 +1,1071 @@
+{
+ "version": 1,
+ "summary": "Scan from the back of the queue, keeping a Fenwick tree (binary indexed tree) of the heights already seen. For\neach person, a prefix-sum query counts the seen heights below theirs, then their height is added. Heights lie\nin −10⁴..10⁴, so the tree is small and each step is O(log R). (Merge sort on indices also works.)",
+ "question": [
+  {
+   "md": "For every person, count the people **behind** them who are **strictly shorter**.\n\n- **Heights repeat** and can be negative (−10⁴ to 10⁴).\n- **Up to 10⁵ people**, so O(n²) is too slow."
+  },
+  {
+   "md": "**Edge cases to keep in mind**\n\n- Strictly shorter: equal heights don't count.\n- The last person always gets 0.\n- Heights can be negative (down to −10⁴), so a Fenwick tree needs an offset."
+  }
+ ],
+ "think": [
+  {
+   "md": "**Counting pairs with merge sort.** Questions like \"how many pairs `i < j` have `a[i] > a[j]`\" split nicely:\n\n- pairs with both positions in the **left half** and pairs in the **right half** are counted recursively;\n- pairs that **cross** (`i` in the left half, `j` in the right half) only care about the *values*, not their order\n  inside each half, so both halves may be sorted first, and with sorted halves the crossing pairs are counted with a\n  linear sweep.\n\nEach level of the recursion does O(n) counting plus O(n) merging, over `log n` levels: **O(n log n)** instead of O(n²)."
+  },
+  {
+   "md": "**Inversions per person.** Here each person needs their **own** count. For `[5, 2, 6, 1, 3]`:"
+  },
+  {
+   "table": {
+    "head": [
+     "person",
+     "height",
+     "shorter people behind"
+    ],
+    "rows": [
+     [
+      "0",
+      "5",
+      "3"
+     ],
+     [
+      "1",
+      "2",
+      "1"
+     ],
+     [
+      "2",
+      "6",
+      "2"
+     ],
+     [
+      "3",
+      "1",
+      "0"
+     ],
+     [
+      "4",
+      "3",
+      "0"
+     ]
+    ]
+   }
+  },
+  {
+   "md": "**Two fast ways.**\n\n- **Merge sort on positions:** sort the positions by height. When a person from the left half is placed, every\n  right-half person already placed is shorter and stands behind them: credit the left person with that number.\n- **Fenwick tree from the back:** walk from the back of the queue, keeping counts of the heights seen so far\n  (everyone behind). For each person, query how many seen heights are smaller, then add their height. A Fenwick\n  tree answers \"how many values below h\" and adds a value in O(log R)."
+  }
+ ],
+ "approaches": [
+  {
+   "title": "Look behind each person",
+   "kind": "brute",
+   "time": "O(n²)",
+   "space": "O(n)",
+   "idea": [
+    {
+     "md": "For each person, scan everyone behind and count the shorter ones."
+    }
+   ],
+   "build": [
+    "For each person, scan behind.",
+    "Count shorter heights."
+   ],
+   "code": {
+    "python": "class Solution:\n    def countShorterBehind(self, heights: List[int]) -> List[int]:\n        n = len(heights)\n        out = [0] * n\n        for i in range(n):\n            for j in range(i + 1, n):\n                if heights[j] < heights[i]:\n                    out[i] += 1\n        return out\n",
+    "java": "class Solution {\n    public int[] countShorterBehind(int[] heights) {\n        int n = heights.length;\n        int[] out = new int[n];\n        for (int i = 0; i < n; i++)\n            for (int j = i + 1; j < n; j++)\n                if (heights[j] < heights[i]) out[i]++;\n        return out;\n    }\n}\n",
+    "cpp": "class Solution {\npublic:\n    vector<int> countShorterBehind(vector<int>& heights) {\n        int n = heights.size();\n        vector<int> out(n, 0);\n        for (int i = 0; i < n; i++)\n            for (int j = i + 1; j < n; j++)\n                if (heights[j] < heights[i]) out[i]++;\n        return out;\n    }\n};\n",
+    "c": "int* countShorterBehind(int* heights, int heightsSize, int* returnSize) {\n    int n = heightsSize;\n    int* out = calloc(n, sizeof(int));\n    for (int i = 0; i < n; i++)\n        for (int j = i + 1; j < n; j++)\n            if (heights[j] < heights[i]) out[i]++;\n    *returnSize = n;\n    return out;\n}\n"
+   },
+   "lines": [
+    {
+     "text": "One count per person.",
+     "at": {
+      "python": [
+       [
+        3,
+        4
+       ]
+      ],
+      "java": [
+       [
+        3,
+        4
+       ]
+      ],
+      "cpp": [
+       [
+        4,
+        5
+       ]
+      ],
+      "c": [
+       [
+        2,
+        3
+       ]
+      ]
+     }
+    },
+    {
+     "text": "Everyone behind person `i` who is strictly shorter.",
+     "at": {
+      "python": [
+       [
+        5,
+        8
+       ]
+      ],
+      "java": [
+       [
+        5,
+        7
+       ]
+      ],
+      "cpp": [
+       [
+        6,
+        8
+       ]
+      ],
+      "c": [
+       [
+        4,
+        6
+       ]
+      ]
+     }
+    },
+    {
+     "text": "All counts.",
+     "at": {
+      "python": [
+       [
+        9,
+        9
+       ]
+      ],
+      "java": [
+       [
+        8,
+        8
+       ]
+      ],
+      "cpp": [
+       [
+        9,
+        9
+       ]
+      ],
+      "c": [
+       [
+        7,
+        8
+       ]
+      ]
+     }
+    }
+   ],
+   "complexity": [
+    {
+     "md": "**Time O(n²).** **Space O(1)** besides the output."
+    }
+   ],
+   "walk": {
+    "steps": [
+     {
+      "text": "5: 3 shorter behind.",
+      "panels": [
+       {
+        "type": "row",
+        "cells": [
+         5,
+         2,
+         6,
+         1,
+         3
+        ],
+        "states": {
+         "0": "active",
+         "1": "mark",
+         "3": "mark",
+         "4": "mark"
+        }
+       },
+       {
+        "type": "row",
+        "cells": [
+         3,
+         "·",
+         "·",
+         "·",
+         "·"
+        ],
+        "label": "count"
+       }
+      ]
+     },
+     {
+      "text": "2: 1 shorter behind.",
+      "panels": [
+       {
+        "type": "row",
+        "cells": [
+         5,
+         2,
+         6,
+         1,
+         3
+        ],
+        "states": {
+         "1": "active",
+         "3": "mark"
+        }
+       },
+       {
+        "type": "row",
+        "cells": [
+         3,
+         1,
+         "·",
+         "·",
+         "·"
+        ],
+        "label": "count"
+       }
+      ]
+     },
+     {
+      "text": "6: 2 shorter behind.",
+      "panels": [
+       {
+        "type": "row",
+        "cells": [
+         5,
+         2,
+         6,
+         1,
+         3
+        ],
+        "states": {
+         "2": "active",
+         "3": "mark",
+         "4": "mark"
+        }
+       },
+       {
+        "type": "row",
+        "cells": [
+         3,
+         1,
+         2,
+         "·",
+         "·"
+        ],
+        "label": "count"
+       }
+      ]
+     },
+     {
+      "text": "1: 0 shorter behind.",
+      "panels": [
+       {
+        "type": "row",
+        "cells": [
+         5,
+         2,
+         6,
+         1,
+         3
+        ],
+        "states": {
+         "3": "active"
+        }
+       },
+       {
+        "type": "row",
+        "cells": [
+         3,
+         1,
+         2,
+         0,
+         "·"
+        ],
+        "label": "count"
+       }
+      ]
+     },
+     {
+      "text": "3: 0 shorter behind.",
+      "panels": [
+       {
+        "type": "row",
+        "cells": [
+         5,
+         2,
+         6,
+         1,
+         3
+        ],
+        "states": {
+         "4": "active"
+        }
+       },
+       {
+        "type": "row",
+        "cells": [
+         3,
+         1,
+         2,
+         0,
+         0
+        ],
+        "label": "count"
+       }
+      ]
+     },
+     {
+      "text": "Counts: [3, 1, 2, 0, 0].",
+      "panels": [],
+      "result": "[3, 1, 2, 0, 0]"
+     }
+    ],
+    "title": "For each person, look at everyone behind and count the shorter ones."
+   },
+   "limits": [
+    {
+     "md": "Each scan restarts. Merge sort or a Fenwick tree shares the work."
+    }
+   ],
+   "slow": true
+  },
+  {
+   "title": "Merge sort on positions",
+   "kind": "better",
+   "time": "O(n log n)",
+   "space": "O(n)",
+   "idea": [
+    {
+     "md": "Merge sort an array of positions by height. During each merge, when the next left-half person is placed,\nthe right-half people already placed (`j − mid` of them) are shorter and behind: add that to their count."
+    }
+   ],
+   "build": [
+    "Positions array.",
+    "Merge by height, crediting left people with `j − mid`.",
+    "Copy back."
+   ],
+   "code": {
+    "python": "class Solution:\n    def countShorterBehind(self, heights: List[int]) -> List[int]:\n        n = len(heights)\n        out, idx, buf = [0] * n, list(range(n)), [0] * n\n        def sort(lo, hi):\n            if hi - lo <= 1:\n                return\n            mid = (lo + hi) // 2\n            sort(lo, mid)\n            sort(mid, hi)\n            i, j, k = lo, mid, lo\n            while i < mid:\n                if j < hi and heights[idx[j]] < heights[idx[i]]:\n                    buf[k] = idx[j]; j += 1\n                else:\n                    out[idx[i]] += j - mid\n                    buf[k] = idx[i]; i += 1\n                k += 1\n            buf[k:k + hi - j] = idx[j:hi]\n            idx[lo:hi] = buf[lo:hi]\n        sort(0, n)\n        return out\n",
+    "java": "class Solution {\n    private int[] h, out, idx, buf;\n\n    public int[] countShorterBehind(int[] heights) {\n        int n = heights.length;\n        h = heights;\n        out = new int[n];\n        idx = new int[n];\n        buf = new int[n];\n        for (int i = 0; i < n; i++) idx[i] = i;\n        sort(0, n);\n        return out;\n    }\n\n    private void sort(int lo, int hi) {\n        if (hi - lo <= 1) return;\n        int mid = (lo + hi) >>> 1;\n        sort(lo, mid);\n        sort(mid, hi);\n        int i = lo, j = mid, k = lo;\n        while (i < mid) {\n            if (j < hi && h[idx[j]] < h[idx[i]]) buf[k++] = idx[j++];\n            else { out[idx[i]] += j - mid; buf[k++] = idx[i++]; }\n        }\n        while (j < hi) buf[k++] = idx[j++];\n        System.arraycopy(buf, lo, idx, lo, hi - lo);\n    }\n}\n",
+    "cpp": "class Solution {\n    vector<int> h, out, idx, buf;\n\n    void sort(int lo, int hi) {\n        if (hi - lo <= 1) return;\n        int mid = (lo + hi) / 2;\n        sort(lo, mid);\n        sort(mid, hi);\n        int i = lo, j = mid, k = lo;\n        while (i < mid) {\n            if (j < hi && h[idx[j]] < h[idx[i]]) buf[k++] = idx[j++];\n            else { out[idx[i]] += j - mid; buf[k++] = idx[i++]; }\n        }\n        while (j < hi) buf[k++] = idx[j++];\n        copy(buf.begin() + lo, buf.begin() + hi, idx.begin() + lo);\n    }\n\npublic:\n    vector<int> countShorterBehind(vector<int>& heights) {\n        int n = heights.size();\n        h = heights;\n        out.assign(n, 0);\n        buf.assign(n, 0);\n        idx.resize(n);\n        iota(idx.begin(), idx.end(), 0);\n        sort(0, n);\n        return out;\n    }\n};\n",
+    "c": "static void sort_idx(const int* h, int* out, int* idx, int* buf, int lo, int hi) {\n    if (hi - lo <= 1) return;\n    int mid = lo + (hi - lo) / 2;\n    sort_idx(h, out, idx, buf, lo, mid);\n    sort_idx(h, out, idx, buf, mid, hi);\n    int i = lo, j = mid, k = lo;\n    while (i < mid) {\n        if (j < hi && h[idx[j]] < h[idx[i]]) buf[k++] = idx[j++];\n        else { out[idx[i]] += j - mid; buf[k++] = idx[i++]; }\n    }\n    while (j < hi) buf[k++] = idx[j++];\n    memcpy(idx + lo, buf + lo, (hi - lo) * sizeof(int));\n}\n\nint* countShorterBehind(int* heights, int heightsSize, int* returnSize) {\n    int n = heightsSize;\n    int* out = calloc(n, sizeof(int));\n    int* idx = malloc(n * sizeof(int));\n    int* buf = malloc(n * sizeof(int));\n    for (int i = 0; i < n; i++) idx[i] = i;\n    sort_idx(heights, out, idx, buf, 0, n);\n    free(idx); free(buf);\n    *returnSize = n;\n    return out;\n}\n"
+   },
+   "lines": [
+    {
+     "text": "Counts, the positions to sort, and a buffer. Sorting positions (not heights) lets each count go to the right person.",
+     "at": {
+      "python": [
+       [
+        3,
+        4
+       ]
+      ],
+      "java": [
+       [
+        5,
+        10
+       ]
+      ],
+      "cpp": [
+       [
+        20,
+        25
+       ]
+      ],
+      "c": [
+       [
+        16,
+        20
+       ]
+      ]
+     }
+    },
+    {
+     "text": "Sort each half of the positions by height.",
+     "at": {
+      "python": [
+       [
+        5,
+        10
+       ]
+      ],
+      "java": [
+       [
+        15,
+        19
+       ]
+      ],
+      "cpp": [
+       [
+        4,
+        8
+       ]
+      ],
+      "c": [
+       [
+        1,
+        5
+       ]
+      ]
+     }
+    },
+    {
+     "text": "Take a right-half person first only when strictly shorter.",
+     "at": {
+      "python": [
+       [
+        11,
+        14
+       ],
+       [
+        18,
+        18
+       ]
+      ],
+      "java": [
+       [
+        20,
+        22
+       ]
+      ],
+      "cpp": [
+       [
+        9,
+        11
+       ]
+      ],
+      "c": [
+       [
+        6,
+        8
+       ]
+      ]
+     }
+    },
+    {
+     "text": "When a left-half person is placed, the `j − mid` right-half people already taken are shorter and stand behind them.",
+     "at": {
+      "python": [
+       [
+        15,
+        17
+       ]
+      ],
+      "java": [
+       [
+        23,
+        23
+       ]
+      ],
+      "cpp": [
+       [
+        12,
+        12
+       ]
+      ],
+      "c": [
+       [
+        9,
+        9
+       ]
+      ]
+     }
+    },
+    {
+     "text": "Finish with the remaining right-half people and copy back.",
+     "at": {
+      "python": [
+       [
+        19,
+        20
+       ]
+      ],
+      "java": [
+       [
+        25,
+        26
+       ]
+      ],
+      "cpp": [
+       [
+        14,
+        15
+       ]
+      ],
+      "c": [
+       [
+        11,
+        12
+       ]
+      ]
+     }
+    },
+    {
+     "text": "Every person's count.",
+     "at": {
+      "python": [
+       [
+        21,
+        22
+       ]
+      ],
+      "java": [
+       [
+        11,
+        12
+       ]
+      ],
+      "cpp": [
+       [
+        26,
+        27
+       ]
+      ],
+      "c": [
+       [
+        21,
+        24
+       ]
+      ]
+     }
+    }
+   ],
+   "complexity": [
+    {
+     "md": "**Time O(n log n).** **Space O(n).**"
+    }
+   ],
+   "walk": {
+    "steps": [
+     {
+      "text": "Merge positions 0..1: each left person gains the number of right people already taken (shorter).",
+      "panels": [
+       {
+        "type": "row",
+        "cells": [
+         2,
+         5,
+         6,
+         1,
+         3
+        ],
+        "states": {
+         "0": "found",
+         "1": "found"
+        },
+        "label": "heights by sort order"
+       },
+       {
+        "type": "row",
+        "cells": [
+         1,
+         0,
+         0,
+         0,
+         0
+        ],
+        "label": "count"
+       }
+      ]
+     },
+     {
+      "text": "Merge positions 3..4: each left person gains the number of right people already taken (shorter).",
+      "panels": [
+       {
+        "type": "row",
+        "cells": [
+         2,
+         5,
+         6,
+         1,
+         3
+        ],
+        "states": {
+         "3": "found",
+         "4": "found"
+        },
+        "label": "heights by sort order"
+       },
+       {
+        "type": "row",
+        "cells": [
+         1,
+         0,
+         0,
+         0,
+         0
+        ],
+        "label": "count"
+       }
+      ]
+     },
+     {
+      "text": "Merge positions 2..4: each left person gains the number of right people already taken (shorter).",
+      "panels": [
+       {
+        "type": "row",
+        "cells": [
+         2,
+         5,
+         1,
+         3,
+         6
+        ],
+        "states": {
+         "2": "found",
+         "3": "found",
+         "4": "found"
+        },
+        "label": "heights by sort order"
+       },
+       {
+        "type": "row",
+        "cells": [
+         1,
+         0,
+         2,
+         0,
+         0
+        ],
+        "label": "count"
+       }
+      ]
+     },
+     {
+      "text": "Merge positions 0..4: each left person gains the number of right people already taken (shorter).",
+      "panels": [
+       {
+        "type": "row",
+        "cells": [
+         1,
+         2,
+         3,
+         5,
+         6
+        ],
+        "states": {
+         "0": "found",
+         "1": "found",
+         "2": "found",
+         "3": "found",
+         "4": "found"
+        },
+        "label": "heights by sort order"
+       },
+       {
+        "type": "row",
+        "cells": [
+         3,
+         1,
+         2,
+         0,
+         0
+        ],
+        "label": "count"
+       }
+      ]
+     },
+     {
+      "text": "Counts: [3, 1, 2, 0, 0].",
+      "panels": [],
+      "result": "[3, 1, 2, 0, 0]"
+     }
+    ],
+    "title": "Merge sort the positions by height. When a left-half person is placed, every right-half person already placed is shorter and behind them."
+   },
+   "limits": [
+    {
+     "md": "More bookkeeping (sorting positions). With a small height range, a Fenwick tree is simpler."
+    }
+   ]
+  },
+  {
+   "title": "Fenwick tree over heights, from the back",
+   "kind": "best",
+   "time": "O(n log R)",
+   "space": "O(R)",
+   "idea": [
+    {
+     "md": "Walk from the back. For each person, query the Fenwick tree for how many heights below theirs have been\nadded (everyone behind), record it, then add their height. Heights are shifted by 10001 so they're positive\nindices."
+    }
+   ],
+   "build": [
+    "Fenwick tree over the shifted height range.",
+    "From the back: query, record, add."
+   ],
+   "code": {
+    "python": "class Solution:\n    def countShorterBehind(self, heights: List[int]) -> List[int]:\n        R = 20001\n        tree = [0] * (R + 1)\n        out = [0] * len(heights)\n        for i in range(len(heights) - 1, -1, -1):\n            h = heights[i] + 10001\n            k, c = h - 1, 0\n            while k > 0:\n                c += tree[k]\n                k -= k & -k\n            out[i] = c\n            while h <= R:\n                tree[h] += 1\n                h += h & -h\n        return out\n",
+    "java": "class Solution {\n    public int[] countShorterBehind(int[] heights) {\n        int R = 20001;\n        int[] tree = new int[R + 1], out = new int[heights.length];\n        for (int i = heights.length - 1; i >= 0; i--) {\n            int h = heights[i] + 10001;\n            int c = 0;\n            for (int k = h - 1; k > 0; k -= k & -k) c += tree[k];\n            out[i] = c;\n            for (int k = h; k <= R; k += k & -k) tree[k]++;\n        }\n        return out;\n    }\n}\n",
+    "cpp": "class Solution {\npublic:\n    vector<int> countShorterBehind(vector<int>& heights) {\n        const int R = 20001;\n        vector<int> tree(R + 1, 0), out(heights.size());\n        for (int i = (int) heights.size() - 1; i >= 0; i--) {\n            int h = heights[i] + 10001;\n            int c = 0;\n            for (int k = h - 1; k > 0; k -= k & -k) c += tree[k];\n            out[i] = c;\n            for (int k = h; k <= R; k += k & -k) tree[k]++;\n        }\n        return out;\n    }\n};\n",
+    "c": "int* countShorterBehind(int* heights, int heightsSize, int* returnSize) {\n    const int R = 20001;\n    int* tree = calloc(R + 1, sizeof(int));\n    int* out = malloc(heightsSize * sizeof(int));\n    for (int i = heightsSize - 1; i >= 0; i--) {\n        int h = heights[i] + 10001;\n        int c = 0;\n        for (int k = h - 1; k > 0; k -= k & -k) c += tree[k];\n        out[i] = c;\n        for (int k = h; k <= R; k += k & -k) tree[k]++;\n    }\n    free(tree);\n    *returnSize = heightsSize;\n    return out;\n}\n"
+   },
+   "lines": [
+    {
+     "text": "A Fenwick tree over the 20,001 possible heights (shifted so −10⁴ becomes 1).",
+     "at": {
+      "python": [
+       [
+        3,
+        5
+       ]
+      ],
+      "java": [
+       [
+        3,
+        4
+       ]
+      ],
+      "cpp": [
+       [
+        4,
+        5
+       ]
+      ],
+      "c": [
+       [
+        2,
+        4
+       ]
+      ]
+     }
+    },
+    {
+     "text": "From the back of the queue: the tree holds exactly the people behind person `i`.",
+     "at": {
+      "python": [
+       [
+        6,
+        7
+       ]
+      ],
+      "java": [
+       [
+        5,
+        6
+       ]
+      ],
+      "cpp": [
+       [
+        6,
+        7
+       ]
+      ],
+      "c": [
+       [
+        5,
+        6
+       ]
+      ]
+     }
+    },
+    {
+     "text": "Prefix sum up to `h − 1`: how many people behind are strictly shorter. `k & −k` is the lowest set bit, the size of the range each tree cell covers.",
+     "at": {
+      "python": [
+       [
+        8,
+        12
+       ]
+      ],
+      "java": [
+       [
+        7,
+        9
+       ]
+      ],
+      "cpp": [
+       [
+        8,
+        10
+       ]
+      ],
+      "c": [
+       [
+        7,
+        9
+       ]
+      ]
+     }
+    },
+    {
+     "text": "Now person `i` is behind everyone further forward: add their height.",
+     "at": {
+      "python": [
+       [
+        13,
+        15
+       ]
+      ],
+      "java": [
+       [
+        10,
+        10
+       ]
+      ],
+      "cpp": [
+       [
+        11,
+        11
+       ]
+      ],
+      "c": [
+       [
+        10,
+        10
+       ]
+      ]
+     }
+    },
+    {
+     "text": "All counts.",
+     "at": {
+      "python": [
+       [
+        16,
+        16
+       ]
+      ],
+      "java": [
+       [
+        12,
+        12
+       ]
+      ],
+      "cpp": [
+       [
+        13,
+        13
+       ]
+      ],
+      "c": [
+       [
+        12,
+        14
+       ]
+      ]
+     }
+    }
+   ],
+   "complexity": [
+    {
+     "md": "**Time O(n log R)** with `R` = 20001 possible heights. **Space O(R).**"
+    }
+   ],
+   "walk": {
+    "steps": [
+     {
+      "text": "3: 0 of the heights behind are smaller. Add 3 to the tally.",
+      "panels": [
+       {
+        "type": "row",
+        "cells": [
+         5,
+         2,
+         6,
+         1,
+         3
+        ],
+        "states": {
+         "4": "active"
+        }
+       },
+       {
+        "type": "row",
+        "cells": [
+         3
+        ],
+        "label": "heights behind (sorted for display)"
+       },
+       {
+        "type": "row",
+        "cells": [
+         "·",
+         "·",
+         "·",
+         "·",
+         0
+        ],
+        "label": "count"
+       }
+      ]
+     },
+     {
+      "text": "1: 0 of the heights behind are smaller. Add 1 to the tally.",
+      "panels": [
+       {
+        "type": "row",
+        "cells": [
+         5,
+         2,
+         6,
+         1,
+         3
+        ],
+        "states": {
+         "3": "active"
+        }
+       },
+       {
+        "type": "row",
+        "cells": [
+         1,
+         3
+        ],
+        "label": "heights behind (sorted for display)"
+       },
+       {
+        "type": "row",
+        "cells": [
+         "·",
+         "·",
+         "·",
+         0,
+         0
+        ],
+        "label": "count"
+       }
+      ]
+     },
+     {
+      "text": "6: 2 of the heights behind are smaller. Add 6 to the tally.",
+      "panels": [
+       {
+        "type": "row",
+        "cells": [
+         5,
+         2,
+         6,
+         1,
+         3
+        ],
+        "states": {
+         "2": "active"
+        }
+       },
+       {
+        "type": "row",
+        "cells": [
+         1,
+         3,
+         6
+        ],
+        "label": "heights behind (sorted for display)"
+       },
+       {
+        "type": "row",
+        "cells": [
+         "·",
+         "·",
+         2,
+         0,
+         0
+        ],
+        "label": "count"
+       }
+      ]
+     },
+     {
+      "text": "2: 1 of the heights behind are smaller. Add 2 to the tally.",
+      "panels": [
+       {
+        "type": "row",
+        "cells": [
+         5,
+         2,
+         6,
+         1,
+         3
+        ],
+        "states": {
+         "1": "active"
+        }
+       },
+       {
+        "type": "row",
+        "cells": [
+         1,
+         2,
+         3,
+         6
+        ],
+        "label": "heights behind (sorted for display)"
+       },
+       {
+        "type": "row",
+        "cells": [
+         "·",
+         1,
+         2,
+         0,
+         0
+        ],
+        "label": "count"
+       }
+      ]
+     },
+     {
+      "text": "5: 3 of the heights behind are smaller. Add 5 to the tally.",
+      "panels": [
+       {
+        "type": "row",
+        "cells": [
+         5,
+         2,
+         6,
+         1,
+         3
+        ],
+        "states": {
+         "0": "active"
+        }
+       },
+       {
+        "type": "row",
+        "cells": [
+         1,
+         2,
+         3,
+         5,
+         6
+        ],
+        "label": "heights behind (sorted for display)"
+       },
+       {
+        "type": "row",
+        "cells": [
+         3,
+         1,
+         2,
+         0,
+         0
+        ],
+        "label": "count"
+       }
+      ]
+     },
+     {
+      "text": "Counts: [3, 1, 2, 0, 0].",
+      "panels": [],
+      "result": "[3, 1, 2, 0, 0]"
+     }
+    ],
+    "title": "Walk from the back with a tally of heights seen so far (a Fenwick tree): each person asks how many seen heights are smaller."
+   }
+  }
+ ],
+ "takeaways": [
+  {
+   "md": "- **Per-element inversion counts:** merge sort on positions, or a Fenwick tree scanning from the back.\n- Shift negative values to positive indices for the Fenwick tree.\n- **Pitfall:** querying \"≤ h\" instead of \"< h\" (counts equal heights)."
+  }
+ ]
+}

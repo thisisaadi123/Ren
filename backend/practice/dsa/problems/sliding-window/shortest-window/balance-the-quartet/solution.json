@@ -1,0 +1,941 @@
+{
+ "version": 1,
+ "summary": "A piece works exactly when the singers outside it have at most `n/4` of each voice: then the piece can be\nrepainted to fill every shortfall. Keep counts of the voices outside a sliding window; grow the window, and\nwhile the outside is within limits, record the window and shrink it. O(n).",
+ "question": [
+  {
+   "md": "Repaint one contiguous piece of `s` (any voices you like) so each of `S A T B` appears exactly `n/4` times.\nReturn the shortest such piece (0 if already balanced).\n\n- **n up to 10⁵**, a multiple of 4."
+  },
+  {
+   "md": "**Edge cases to keep in mind**\n\n- Already balanced: the answer is 0 (an empty piece).\n- The piece may contain singers who don't need to change; they can be \"repainted\" to the same voice.\n- Several voices can be over the quota at once."
+  }
+ ],
+ "think": [
+  {
+   "md": "**Think about what stays, not what changes.** Everything outside the chosen piece keeps its voice. If some voice\nalready has more than `n/4 = 2` singers outside the piece, no repainting inside can fix that. So a piece is\nusable only if **every voice appears at most `2` times outside it**.\n\n**That condition is also enough.** Suppose every voice is at most `2` outside. Each voice then needs\n`2 − outside` more singers, and these shortfalls add up to exactly the piece's length (all counts add up to\n`n`). So we can repaint the piece's singers to fill every shortfall.\n\nFor `\"SSATSSBS\"` the surplus is 3 extra S: the piece must include at least that many of each surplus voice. As the\npiece grows, the outside counts only go down, so validity survives growing."
+  },
+  {
+   "md": "**Why one left pointer is enough.** Here the rule gets *easier* as a window grows: if `[L, R]` is valid, every longer\nwindow `[L, R']` with `R' > R` is valid too. For each right end `R`, the best window is the valid one with the\n**latest** start. And that latest start never moves backwards as `R` grows: a start that was too early to be the\ntightest for `R` is still too early for `R + 1`. So `R` grows the window until it's valid, then `L` moves forward as\nlong as the window stays valid, recording each valid window on the way."
+  },
+  {
+   "md": "**Trace** (last column = voice counts outside the tightest window):"
+  },
+  {
+   "table": {
+    "head": [
+     "R",
+     "singer",
+     "tightest window",
+     "length",
+     "best",
+     "outside S A T B"
+    ],
+    "rows": [
+     [
+      "0",
+      "S",
+      "— (not valid yet)",
+      "—",
+      "—",
+      "4 1 1 1"
+     ],
+     [
+      "1",
+      "S",
+      "— (not valid yet)",
+      "—",
+      "—",
+      "3 1 1 1"
+     ],
+     [
+      "2",
+      "A",
+      "— (not valid yet)",
+      "—",
+      "—",
+      "3 0 1 1"
+     ],
+     [
+      "3",
+      "T",
+      "— (not valid yet)",
+      "—",
+      "—",
+      "3 0 0 1"
+     ],
+     [
+      "4",
+      "S",
+      "SSATS",
+      "5",
+      "5",
+      "2 0 0 1"
+     ],
+     [
+      "5",
+      "S",
+      "SATSS",
+      "5",
+      "5",
+      "2 0 0 1"
+     ],
+     [
+      "6",
+      "B",
+      "— (not valid yet)",
+      "—",
+      "5",
+      "3 0 0 0"
+     ],
+     [
+      "7",
+      "S",
+      "SSBS",
+      "4",
+      "4",
+      "2 1 1 0"
+     ]
+    ]
+   }
+  },
+  {
+   "md": "**Why every candidate is seen.** When the inner loop stops at `R`, `[L − 1, R]` was the last valid window, the tightest\none ending at `R`. The shortest valid window overall ends at some `R`, and is the tightest one for that `R`, so it's\nrecorded at that moment."
+  }
+ ],
+ "approaches": [
+  {
+   "title": "Extend from every start",
+   "kind": "brute",
+   "time": "O(n²)",
+   "space": "O(1)",
+   "idea": [
+    {
+     "md": "Check for 0 first. Then from every start, move singers one by one from the outside counts into the piece until no voice exceeds `n/4` outside; that length is the best piece from this start."
+    }
+   ],
+   "build": [
+    "Voice counts.",
+    "Extend from each start.",
+    "Keep the shortest."
+   ],
+   "code": {
+    "python": "class Solution:\n    def shortestFix(self, s: str) -> int:\n        n, q = len(s), len(s) // 4\n        total = {c: s.count(c) for c in \"SATB\"}\n        if all(v == q for v in total.values()):\n            return 0\n        best = n\n        for i in range(n):\n            out = dict(total)\n            for j in range(i, n):\n                out[s[j]] -= 1\n                if all(v <= q for v in out.values()):\n                    best = min(best, j - i + 1)\n                    break\n        return best\n",
+    "java": "class Solution {\n    public int shortestFix(String s) {\n        int n = s.length(), q = n / 4, best = n;\n        int[] total = new int[128];\n        for (char c : s.toCharArray()) total[c]++;\n        if (total['S'] == q && total['A'] == q && total['T'] == q) return 0;\n        for (int i = 0; i < n; i++) {\n            int[] out = total.clone();\n            for (int j = i; j < n; j++) {\n                out[s.charAt(j)]--;\n                if (out['S'] <= q && out['A'] <= q && out['T'] <= q && out['B'] <= q) { best = Math.min(best, j - i + 1); break; }\n            }\n        }\n        return best;\n    }\n}\n",
+    "cpp": "class Solution {\npublic:\n    int shortestFix(string& s) {\n        int n = s.size(), q = n / 4, best = n;\n        array<int, 128> total{};\n        for (char c : s) total[c]++;\n        if (total['S'] == q && total['A'] == q && total['T'] == q) return 0;\n        for (int i = 0; i < n; i++) {\n            array<int, 128> out = total;\n            for (int j = i; j < n; j++) {\n                out[s[j]]--;\n                if (out['S'] <= q && out['A'] <= q && out['T'] <= q && out['B'] <= q) { best = min(best, j - i + 1); break; }\n            }\n        }\n        return best;\n    }\n};\n",
+    "c": "int shortestFix(char* s) {\n    int n = strlen(s), q = n / 4, best = n, total[128] = {0};\n    for (int i = 0; i < n; i++) total[(int) s[i]]++;\n    if (total['S'] == q && total['A'] == q && total['T'] == q) return 0;\n    for (int i = 0; i < n; i++) {\n        int out[128];\n        memcpy(out, total, sizeof(out));\n        for (int j = i; j < n; j++) {\n            out[(int) s[j]]--;\n            if (out['S'] <= q && out['A'] <= q && out['T'] <= q && out['B'] <= q) { if (j - i + 1 < best) best = j - i + 1; break; }\n        }\n    }\n    return best;\n}\n"
+   },
+   "lines": [
+    {
+     "text": "Count each voice. If three of them already sit at `n/4`, the fourth must too, and nothing needs changing.",
+     "at": {
+      "python": [
+       [
+        3,
+        7
+       ]
+      ],
+      "java": [
+       [
+        3,
+        6
+       ]
+      ],
+      "cpp": [
+       [
+        4,
+        7
+       ]
+      ],
+      "c": [
+       [
+        2,
+        4
+       ]
+      ]
+     }
+    },
+    {
+     "text": "Each position as the start of the piece. Every index is tried as the left end of the window. Nothing learned from one start is reused for the next, which is exactly the waste the better approaches remove.",
+     "at": {
+      "python": [
+       [
+        8,
+        8
+       ]
+      ],
+      "java": [
+       [
+        7,
+        7
+       ]
+      ],
+      "cpp": [
+       [
+        8,
+        8
+       ]
+      ],
+      "c": [
+       [
+        5,
+        5
+       ]
+      ]
+     }
+    },
+    {
+     "text": "Move singers from \"outside\" into the piece until no voice has more than `n/4` singers outside. That's the shortest usable piece from this start.",
+     "at": {
+      "python": [
+       [
+        9,
+        14
+       ]
+      ],
+      "java": [
+       [
+        8,
+        11
+       ]
+      ],
+      "cpp": [
+       [
+        9,
+        12
+       ]
+      ],
+      "c": [
+       [
+        6,
+        10
+       ]
+      ]
+     }
+    },
+    {
+     "text": "The shortest piece.",
+     "at": {
+      "python": [
+       [
+        15,
+        15
+       ]
+      ],
+      "java": [
+       [
+        14,
+        14
+       ]
+      ],
+      "cpp": [
+       [
+        15,
+        15
+       ]
+      ],
+      "c": [
+       [
+        13,
+        13
+       ]
+      ]
+     }
+    }
+   ],
+   "complexity": [
+    {
+     "md": "**Time O(n²).** **Space O(1).**"
+    }
+   ],
+   "walk": {
+    "steps": [
+     {
+      "text": "Start 0: extend until the window first becomes valid at 4; length 5.",
+      "panels": [
+       {
+        "type": "row",
+        "cells": [
+         "S",
+         "S",
+         "A",
+         "T",
+         "S",
+         "S",
+         "B",
+         "S"
+        ],
+        "states": {
+         "0": "found",
+         "1": "found",
+         "2": "found",
+         "3": "found",
+         "4": "found"
+        },
+        "pointers": {
+         "L": 0,
+         "R": 4
+        }
+       },
+       {
+        "type": "vars",
+        "items": {
+         "best": 5
+        }
+       }
+      ]
+     },
+     {
+      "text": "Start 1: extend until the window first becomes valid at 5; length 5.",
+      "panels": [
+       {
+        "type": "row",
+        "cells": [
+         "S",
+         "S",
+         "A",
+         "T",
+         "S",
+         "S",
+         "B",
+         "S"
+        ],
+        "states": {
+         "1": "found",
+         "2": "found",
+         "3": "found",
+         "4": "found",
+         "5": "found"
+        },
+        "pointers": {
+         "L": 1,
+         "R": 5
+        }
+       },
+       {
+        "type": "vars",
+        "items": {
+         "best": 5
+        }
+       }
+      ]
+     },
+     {
+      "text": "Start 2: extend until the window first becomes valid at 7; length 6.",
+      "panels": [
+       {
+        "type": "row",
+        "cells": [
+         "S",
+         "S",
+         "A",
+         "T",
+         "S",
+         "S",
+         "B",
+         "S"
+        ],
+        "states": {
+         "2": "found",
+         "3": "found",
+         "4": "found",
+         "5": "found",
+         "6": "found",
+         "7": "found"
+        },
+        "pointers": {
+         "L": 2,
+         "R": 7
+        }
+       },
+       {
+        "type": "vars",
+        "items": {
+         "best": 5
+        }
+       }
+      ]
+     },
+     {
+      "text": "Start 3: extend until the window first becomes valid at 7; length 5.",
+      "panels": [
+       {
+        "type": "row",
+        "cells": [
+         "S",
+         "S",
+         "A",
+         "T",
+         "S",
+         "S",
+         "B",
+         "S"
+        ],
+        "states": {
+         "3": "found",
+         "4": "found",
+         "5": "found",
+         "6": "found",
+         "7": "found"
+        },
+        "pointers": {
+         "L": 3,
+         "R": 7
+        }
+       },
+       {
+        "type": "vars",
+        "items": {
+         "best": 5
+        }
+       }
+      ]
+     },
+     {
+      "text": "Start 4: extend until the window first becomes valid at 7; length 4.",
+      "panels": [
+       {
+        "type": "row",
+        "cells": [
+         "S",
+         "S",
+         "A",
+         "T",
+         "S",
+         "S",
+         "B",
+         "S"
+        ],
+        "states": {
+         "4": "found",
+         "5": "found",
+         "6": "found",
+         "7": "found"
+        },
+        "pointers": {
+         "L": 4,
+         "R": 7
+        }
+       },
+       {
+        "type": "vars",
+        "items": {
+         "best": 4
+        }
+       }
+      ]
+     },
+     {
+      "text": "Start 5: it never becomes valid, and later starts have even less to work with, so stop.",
+      "panels": [
+       {
+        "type": "row",
+        "cells": [
+         "S",
+         "S",
+         "A",
+         "T",
+         "S",
+         "S",
+         "B",
+         "S"
+        ],
+        "states": {
+         "5": "dim",
+         "6": "dim",
+         "7": "dim"
+        }
+       },
+       {
+        "type": "vars",
+        "items": {
+         "best": 4
+        }
+       }
+      ]
+     },
+     {
+      "text": "The remaining starts are checked the same way, about 28 cells read in total, which grows like n². Shortest: 4..7.",
+      "panels": [
+       {
+        "type": "row",
+        "cells": [
+         "S",
+         "S",
+         "A",
+         "T",
+         "S",
+         "S",
+         "B",
+         "S"
+        ],
+        "states": {
+         "4": "found",
+         "5": "found",
+         "6": "found",
+         "7": "found"
+        },
+        "pointers": {
+         "L": 4,
+         "R": 7
+        }
+       },
+       {
+        "type": "vars",
+        "items": {
+         "best": 4
+        }
+       }
+      ]
+     },
+     {
+      "text": "Shortest piece: 4.",
+      "panels": [],
+      "result": "4"
+     }
+    ],
+    "title": "From each start, extend the piece until the singers left outside have at most n/4 of every voice."
+   },
+   "limits": [
+    {
+     "md": "Copies the counts and rescans for every start: O(n²)."
+    }
+   ],
+   "slow": true
+  },
+  {
+   "title": "Shrinking window on the outside counts",
+   "kind": "best",
+   "time": "O(n)",
+   "space": "O(1)",
+   "idea": [
+    {
+     "md": "Start with `out` = the counts of the whole string (the piece is empty). `R` moves a singer into the\npiece: `out[s[R]] −= 1`. While every `out[c] ≤ n/4`, record the piece and give back the leftmost singer\n(`out[s[L]] += 1`, `L += 1`).\n\nThe validity check looks at only four counters, so it's O(1)."
+    }
+   ],
+   "build": [
+    "Count each voice; return 0 if all are `n/4`.",
+    "`L = 0`, `best = n`.",
+    "For each `R`: `out[s[R]] −= 1`.",
+    "While all four `out` counts are `≤ n/4`: record `R − L + 1`; `out[s[L]] += 1`; `L += 1`."
+   ],
+   "code": {
+    "python": "class Solution:\n    def shortestFix(self, s: str) -> int:\n        n, q = len(s), len(s) // 4\n        out = {c: s.count(c) for c in \"SATB\"}\n        if all(v == q for v in out.values()):\n            return 0\n        best, left = n, 0\n        for i, c in enumerate(s):\n            out[c] -= 1\n            while all(v <= q for v in out.values()):\n                best = min(best, i - left + 1)\n                out[s[left]] += 1\n                left += 1\n        return best\n",
+    "java": "class Solution {\n    public int shortestFix(String s) {\n        int n = s.length(), q = n / 4, best = n, left = 0;\n        int[] out = new int[128];\n        for (char c : s.toCharArray()) out[c]++;\n        if (out['S'] == q && out['A'] == q && out['T'] == q) return 0;\n        for (int i = 0; i < n; i++) {\n            out[s.charAt(i)]--;\n            while (out['S'] <= q && out['A'] <= q && out['T'] <= q && out['B'] <= q) {\n                best = Math.min(best, i - left + 1);\n                out[s.charAt(left++)]++;\n            }\n        }\n        return best;\n    }\n}\n",
+    "cpp": "class Solution {\npublic:\n    int shortestFix(string& s) {\n        int n = s.size(), q = n / 4, best = n, left = 0;\n        array<int, 128> out{};\n        for (char c : s) out[c]++;\n        if (out['S'] == q && out['A'] == q && out['T'] == q) return 0;\n        for (int i = 0; i < n; i++) {\n            out[s[i]]--;\n            while (out['S'] <= q && out['A'] <= q && out['T'] <= q && out['B'] <= q) {\n                best = min(best, i - left + 1);\n                out[s[left++]]++;\n            }\n        }\n        return best;\n    }\n};\n",
+    "c": "int shortestFix(char* s) {\n    int n = strlen(s), q = n / 4, best = n, left = 0, out[128] = {0};\n    for (int i = 0; i < n; i++) out[(int) s[i]]++;\n    if (out['S'] == q && out['A'] == q && out['T'] == q) return 0;\n    for (int i = 0; i < n; i++) {\n        out[(int) s[i]]--;\n        while (out['S'] <= q && out['A'] <= q && out['T'] <= q && out['B'] <= q) {\n            if (i - left + 1 < best) best = i - left + 1;\n            out[(int) s[left++]]++;\n        }\n    }\n    return best;\n}\n"
+   },
+   "lines": [
+    {
+     "text": "`out` starts as the counts of the whole string (the piece is empty). Return 0 if it's already balanced.",
+     "at": {
+      "python": [
+       [
+        3,
+        7
+       ]
+      ],
+      "java": [
+       [
+        3,
+        6
+       ]
+      ],
+      "cpp": [
+       [
+        4,
+        7
+       ]
+      ],
+      "c": [
+       [
+        2,
+        4
+       ]
+      ]
+     }
+    },
+    {
+     "text": "Singer `R` joins the piece, so they're no longer outside.",
+     "at": {
+      "python": [
+       [
+        8,
+        9
+       ]
+      ],
+      "java": [
+       [
+        7,
+        8
+       ]
+      ],
+      "cpp": [
+       [
+        8,
+        9
+       ]
+      ],
+      "c": [
+       [
+        5,
+        6
+       ]
+      ]
+     }
+    },
+    {
+     "text": "While the window is valid, it's a candidate: record its length, then drop the leftmost element to try a shorter one. The loop stops at the first invalid window, so the last recorded one is the tightest valid window ending at `R`. The window is valid when every voice has at most `n/4` singers outside it.",
+     "at": {
+      "python": [
+       [
+        10,
+        13
+       ]
+      ],
+      "java": [
+       [
+        9,
+        11
+       ]
+      ],
+      "cpp": [
+       [
+        10,
+        12
+       ]
+      ],
+      "c": [
+       [
+        7,
+        9
+       ]
+      ]
+     }
+    },
+    {
+     "text": "The shortest usable piece.",
+     "at": {
+      "python": [
+       [
+        14,
+        14
+       ]
+      ],
+      "java": [
+       [
+        14,
+        14
+       ]
+      ],
+      "cpp": [
+       [
+        15,
+        15
+       ]
+      ],
+      "c": [
+       [
+        12,
+        12
+       ]
+      ]
+     }
+    }
+   ],
+   "complexity": [
+    {
+     "md": "**Time O(n).** **Space O(1).**"
+    }
+   ],
+   "walk": {
+    "steps": [
+     {
+      "text": "R adds S at 0: window 0..0 isn't valid yet (outside S 4 · A 1 · T 1 · B 1), so keep growing.",
+      "panels": [
+       {
+        "type": "row",
+        "cells": [
+         "S",
+         "S",
+         "A",
+         "T",
+         "S",
+         "S",
+         "B",
+         "S"
+        ],
+        "states": {
+         "0": "active"
+        },
+        "pointers": {
+         "L": 0,
+         "R": 0
+        }
+       },
+       {
+        "type": "vars",
+        "items": {
+         "best": "—"
+        }
+       }
+      ]
+     },
+     {
+      "text": "R adds S at 1: window 0..1 isn't valid yet (outside S 3 · A 1 · T 1 · B 1), so keep growing.",
+      "panels": [
+       {
+        "type": "row",
+        "cells": [
+         "S",
+         "S",
+         "A",
+         "T",
+         "S",
+         "S",
+         "B",
+         "S"
+        ],
+        "states": {
+         "0": "active",
+         "1": "active"
+        },
+        "pointers": {
+         "L": 0,
+         "R": 1
+        }
+       },
+       {
+        "type": "vars",
+        "items": {
+         "best": "—"
+        }
+       }
+      ]
+     },
+     {
+      "text": "R adds A at 2: window 0..2 isn't valid yet (outside S 3 · A 0 · T 1 · B 1), so keep growing.",
+      "panels": [
+       {
+        "type": "row",
+        "cells": [
+         "S",
+         "S",
+         "A",
+         "T",
+         "S",
+         "S",
+         "B",
+         "S"
+        ],
+        "states": {
+         "0": "active",
+         "1": "active",
+         "2": "active"
+        },
+        "pointers": {
+         "L": 0,
+         "R": 2
+        }
+       },
+       {
+        "type": "vars",
+        "items": {
+         "best": "—"
+        }
+       }
+      ]
+     },
+     {
+      "text": "R adds T at 3: window 0..3 isn't valid yet (outside S 3 · A 0 · T 0 · B 1), so keep growing.",
+      "panels": [
+       {
+        "type": "row",
+        "cells": [
+         "S",
+         "S",
+         "A",
+         "T",
+         "S",
+         "S",
+         "B",
+         "S"
+        ],
+        "states": {
+         "0": "active",
+         "1": "active",
+         "2": "active",
+         "3": "active"
+        },
+        "pointers": {
+         "L": 0,
+         "R": 3
+        }
+       },
+       {
+        "type": "vars",
+        "items": {
+         "best": "—"
+        }
+       }
+      ]
+     },
+     {
+      "text": "R adds S at 4: the window 0..4 is valid (outside S 2 · A 0 · T 0 · B 1). L moves right while it stays valid; the tightest is 0..4 (length 5). One more step would break it, so L stops at 1.",
+      "panels": [
+       {
+        "type": "row",
+        "cells": [
+         "S",
+         "S",
+         "A",
+         "T",
+         "S",
+         "S",
+         "B",
+         "S"
+        ],
+        "states": {
+         "0": "found",
+         "1": "found",
+         "2": "found",
+         "3": "found",
+         "4": "found"
+        },
+        "pointers": {
+         "L": 0,
+         "R": 4
+        }
+       },
+       {
+        "type": "vars",
+        "items": {
+         "best": 5
+        }
+       }
+      ]
+     },
+     {
+      "text": "R adds S at 5: the window 1..5 is valid (outside S 2 · A 0 · T 0 · B 1). L moves right while it stays valid; the tightest is 1..5 (length 5). One more step would break it, so L stops at 2.",
+      "panels": [
+       {
+        "type": "row",
+        "cells": [
+         "S",
+         "S",
+         "A",
+         "T",
+         "S",
+         "S",
+         "B",
+         "S"
+        ],
+        "states": {
+         "1": "found",
+         "2": "found",
+         "3": "found",
+         "4": "found",
+         "5": "found"
+        },
+        "pointers": {
+         "L": 1,
+         "R": 5
+        }
+       },
+       {
+        "type": "vars",
+        "items": {
+         "best": 5
+        }
+       }
+      ]
+     },
+     {
+      "text": "R adds B at 6: window 2..6 isn't valid yet (outside S 3 · A 0 · T 0 · B 0), so keep growing.",
+      "panels": [
+       {
+        "type": "row",
+        "cells": [
+         "S",
+         "S",
+         "A",
+         "T",
+         "S",
+         "S",
+         "B",
+         "S"
+        ],
+        "states": {
+         "2": "active",
+         "3": "active",
+         "4": "active",
+         "5": "active",
+         "6": "active"
+        },
+        "pointers": {
+         "L": 2,
+         "R": 6
+        }
+       },
+       {
+        "type": "vars",
+        "items": {
+         "best": 5
+        }
+       }
+      ]
+     },
+     {
+      "text": "R adds S at 7: the window 2..7 is valid (outside S 2 · A 0 · T 0 · B 0). L moves right while it stays valid; the tightest is 4..7 (length 4). One more step would break it, so L stops at 5.",
+      "panels": [
+       {
+        "type": "row",
+        "cells": [
+         "S",
+         "S",
+         "A",
+         "T",
+         "S",
+         "S",
+         "B",
+         "S"
+        ],
+        "states": {
+         "4": "found",
+         "5": "found",
+         "6": "found",
+         "7": "found",
+         "2": "dim",
+         "3": "dim"
+        },
+        "pointers": {
+         "L": 4,
+         "R": 7
+        }
+       },
+       {
+        "type": "vars",
+        "items": {
+         "best": 4
+        }
+       }
+      ]
+     },
+     {
+      "text": "Every index entered the window once (via R) and left at most once (via L): O(n) moves in total.",
+      "panels": []
+     },
+     {
+      "text": "Shortest piece: 4.",
+      "panels": [],
+      "result": "4"
+     }
+    ],
+    "title": "Count voices outside the window. Grow the window (removing singers from 'outside'); while every outside count is ≤ n/4, record the window and shrink it from the left."
+   }
+  }
+ ],
+ "takeaways": [
+  {
+   "md": "- **Reframe \"what to change\" as \"what stays\":** the outside must already satisfy the limits.\n- The window tracks counts of its *complement*.\n- Then it's the standard shortest-valid-window template."
+  }
+ ]
+}

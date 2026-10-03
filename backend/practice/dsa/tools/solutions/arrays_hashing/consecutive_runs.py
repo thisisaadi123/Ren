@@ -1,4 +1,6 @@
 """Arrays & Hashing: consecutive runs."""
+import textwrap
+
 from sol import Grid, Row, Steps, Vars, approach, fig, problem, sol, table  # noqa: F401
 
 # A small hash set of 64-bit keys for the C versions: open addressing, linear probing.
@@ -25,6 +27,7 @@ C_SET = """
         t[s].used = true;  //@set
     }  //@set
 """
+C_SET = textwrap.indent(C_SET, " " * 20)  # match the code strings it is joined to
 C_SET_ROW = ("set", "C has no hash set, so these few lines build one. `slotOf` scrambles a key into a starting slot (multiply by a large odd constant, keep the well-mixed high bits). `has` walks forward from there until it finds the key or an empty slot; `add` walks the same way and claims the slot. With the table at most half full, each call is O(1) on average.")
 
 

@@ -4,45 +4,56 @@
  "question": [
   {
    "md": "Seats are numbered 0 to n (that's **n + 1 seats**), and `seats` lists the n taken ones, all different.\nReturn the one free seat.\n\n- **The range includes 0 and n.** For `[0, 1]` the free seat is 2; for `[1]` it's 0.\n- **Exactly one seat is free**, and all listed seats are distinct and valid.\n- **Size:** n up to 10⁵, so the total of all seat numbers, n(n + 1)/2, is about 5 × 10⁹, more than a\n  32-bit `int` holds."
+  },
+  {
+   "md": "**Edge cases to keep in mind**\n\n- The free seat may be 0 or `n`.\n- Exactly one seat is free; all taken seats are distinct.\n- The sum `n(n + 1)/2` reaches 5 × 10⁹ for `n = 10⁵`, past 32 bits."
   }
  ],
  "think": [
   {
-   "md": "Take `seats = [3, 0, 1, 5, 2]` (n = 5, seats 0 … 5). By hand you'd tick off seats 0, 1, 2, 3 and 5 and\nsee that 4 is unticked.\n\nBut there's a shortcut that needs no ticking: you know the full set {0, 1, 2, 3, 4, 5}, and you know\neverything except one of them. If you **add** them all up, 0 + 1 + … + 5 = 15, and add the taken seats,\n3 + 0 + 1 + 5 + 2 = 11, the difference 15 − 11 = 4 is the free seat."
+   "md": "**Two cancellation tricks.** The full set of seats `0 … n` is known; the input is that set minus one seat.\n\n- **Sum:** `0 + 1 + … + n = n(n + 1)/2`. Subtract the taken seats and the free one is left: for `[3, 0, 1, 5, 2]`,\n  `15 − 11 = 4`.\n- **XOR:** `x ^ x = 0` and order doesn't matter. XOR all of `0 … n` with all taken seats: every taken seat\n  appears twice and cancels, leaving the free seat. No overflow risk at all."
   },
   {
-   "panels": [
-    {
-     "type": "row",
-     "cells": [
-      0,
-      1,
-      2,
-      3,
-      4,
-      5
-     ],
-     "states": {
-      "4": "answer"
-     },
-     "label": "all seats 0 … 5"
-    },
-    {
-     "type": "row",
-     "cells": [
-      3,
-      0,
-      1,
-      5,
-      2
-     ],
-     "label": "taken"
-    }
-   ],
-   "caption": "Everything cancels except seat 4."
+   "md": "**XOR trace** (start with `n = 5`, then XOR each index `i` and seat):"
   },
   {
-   "md": "Any operation where \"a number combined with itself cancels\" works. Subtraction is one; **XOR** is\nanother (x ^ x = 0) and has the bonus of never overflowing."
+   "table": {
+    "head": [
+     "i",
+     "seat",
+     "running XOR"
+    ],
+    "rows": [
+     [
+      "0",
+      "3",
+      "110 (6)"
+     ],
+     [
+      "1",
+      "0",
+      "111 (7)"
+     ],
+     [
+      "2",
+      "1",
+      "100 (4)"
+     ],
+     [
+      "3",
+      "5",
+      "010 (2)"
+     ],
+     [
+      "4",
+      "2",
+      "100 (4)"
+     ]
+    ]
+   }
+  },
+  {
+   "md": "Result: **4**."
   }
  ],
  "approaches": [
@@ -53,12 +64,11 @@
    "space": "O(1)",
    "idea": [
     {
-     "md": "Check seats 0, 1, …, n in turn; the first one that doesn't appear in the list is free."
+     "md": "For each seat `0 … n`, scan the list for it; return the first one not found."
     }
    ],
    "build": [
-    "For `s` from 0 to n, scan the list for `s`.",
-    "Return the first `s` not found."
+    "For each seat number, search the list."
    ],
    "code": {
     "python": "class Solution:\n    def missingSeat(self, seats: List[int]) -> int:\n        for s in range(len(seats) + 1):\n            if s not in seats:\n                return s\n        return -1\n",
@@ -68,7 +78,7 @@
    },
    "lines": [
     {
-     "text": "Every seat number from 0 to n inclusive.",
+     "text": "Every seat number from 0 to n.",
      "at": {
       "python": [
        [
@@ -97,7 +107,7 @@
      }
     },
     {
-     "text": "Look for it in the list; the first seat not found is free.",
+     "text": "The first seat not in the list is free.",
      "at": {
       "python": [
        [
@@ -126,7 +136,7 @@
      }
     },
     {
-     "text": "Unreachable with valid input.",
+     "text": "Unreachable: exactly one seat is free.",
      "at": {
       "python": [
        [
@@ -267,7 +277,7 @@
    },
    "limits": [
     {
-     "md": "n + 1 scans, each answering a single membership question. A flag array answers them all after one pass."
+     "md": "Each search rescans the list. A flag array, a sum or an XOR finds the gap in one pass."
     }
    ],
    "slow": true
@@ -279,13 +289,13 @@
    "space": "O(n)",
    "idea": [
     {
-     "md": "Make n + 1 flags, set one for each taken seat, then return the seat whose flag is unset."
+     "md": "Flag taken seats in a boolean array of size `n + 1`; the unflagged index is the answer."
     }
    ],
    "build": [
-    "Make `taken` with n + 1 falses.",
-    "Set `taken[s]` for each seat.",
-    "Return the index that's still false."
+    "Flag array.",
+    "Mark taken seats.",
+    "Find the unflagged one."
    ],
    "code": {
     "python": "class Solution:\n    def missingSeat(self, seats: List[int]) -> int:\n        taken = [False] * (len(seats) + 1)\n        for s in seats:\n            taken[s] = True\n        return taken.index(False)\n",
@@ -295,7 +305,7 @@
    },
    "lines": [
     {
-     "text": "One flag per seat 0 … n; each taken seat sets its own.",
+     "text": "Mark every taken seat.",
      "at": {
       "python": [
        [
@@ -324,7 +334,7 @@
      }
     },
     {
-     "text": "Exactly one flag stays unset: the free seat.",
+     "text": "The one seat never marked.",
      "at": {
       "python": [
        [
@@ -358,7 +368,7 @@
    ],
    "complexity": [
     {
-     "md": "**Time O(n).** **Space O(n)** for the flags."
+     "md": "**Time O(n).** **Space O(n).**"
     }
    ],
    "walk": {
@@ -565,7 +575,7 @@
    },
    "limits": [
     {
-     "md": "We store n + 1 flags to recover a single number. Arithmetic can recover it with one running total."
+     "md": "Extra O(n) memory; arithmetic finds the answer with none."
     }
    ]
   },
@@ -576,13 +586,12 @@
    "space": "O(1)",
    "idea": [
     {
-     "md": "0 + 1 + … + n = n(n + 1)/2. Subtracting the sum of the taken seats leaves exactly the free seat. Use 64-bit arithmetic: the totals reach about 5 × 10⁹."
+     "md": "The full total `n(n + 1)/2` minus the sum of the taken seats is the free seat."
     }
    ],
    "build": [
-    "Compute `n(n + 1)/2` as a 64-bit number.",
-    "Subtract every taken seat.",
-    "Return what's left."
+    "Total of `0 … n`.",
+    "Subtract the input's sum."
    ],
    "code": {
     "python": "class Solution:\n    def missingSeat(self, seats: List[int]) -> int:\n        n = len(seats)\n        return n * (n + 1) // 2 - sum(seats)\n",
@@ -592,7 +601,7 @@
    },
    "lines": [
     {
-     "text": "The sum of every seat 0 … n by Gauss's formula, in 64 bits (about 5 × 10⁹ for n = 10⁵).",
+     "text": "Sum of all seats `0 … n` (64-bit).",
      "at": {
       "java": [
        [
@@ -615,7 +624,7 @@
      }
     },
     {
-     "text": "Remove each taken seat; only the free seat's number remains, which fits back in an `int`.",
+     "text": "Removing every taken seat leaves the free one.",
      "at": {
       "python": [
        [
@@ -839,7 +848,7 @@
    },
    "limits": [
     {
-     "md": "Correct, but in fixed-width languages it depends on choosing a wide enough type. Forget the 64-bit `n` and `n * (n + 1)` silently overflows. XOR needs no wide type at all."
+     "md": "The total needs 64 bits for large `n`; XOR avoids any overflow."
     }
    ]
   },
@@ -850,13 +859,13 @@
    "space": "O(1)",
    "idea": [
     {
-     "md": "XOR has three useful properties: `x ^ x = 0`, `x ^ 0 = x`, and the order doesn't matter. XOR all\nseat numbers 0 … n together with all taken seats: every taken seat appears twice and cancels, the\nfree seat appears once and remains.\n\nA compact way to include 0 … n: in the loop, XOR in both the index `i` (0 … n − 1) and `seats[i]`,\nthen XOR in `n` at the end."
+     "md": "Start with `x = n`, then XOR in every index `i` and every seat. Indices `0 … n − 1` plus the starting `n`\ncover all of `0 … n`; every taken seat appears once among them and once among the seats, so it cancels.\nThe free seat appears only once and survives."
     }
    ],
    "build": [
-    "`x = 0`.",
-    "For each index i: `x ^= i ^ seats[i]`.",
-    "`x ^= n`, then return `x`."
+    "`x = n`.",
+    "XOR each index and each seat.",
+    "Return `x`."
    ],
    "code": {
     "python": "class Solution:\n    def missingSeat(self, seats: List[int]) -> int:\n        x = len(seats)\n        for i, s in enumerate(seats):\n            x ^= i ^ s\n        return x\n",
@@ -866,7 +875,7 @@
    },
    "lines": [
     {
-     "text": "Start with n: the one seat number the indices 0 … n − 1 below don't cover. Starting there is the same as XOR-ing it in at the end.",
+     "text": "Include `n`, the one seat number that isn't also an index.",
      "at": {
       "python": [
        [
@@ -895,7 +904,7 @@
      }
     },
     {
-     "text": "Fold in every index (seat numbers 0 … n − 1) and every taken seat. Each taken seat meets its matching index somewhere in the stream and they cancel.",
+     "text": "XOR in index `i` (one of `0 … n − 1`) and seat `s`; equal numbers cancel.",
      "at": {
       "python": [
        [
@@ -924,7 +933,7 @@
      }
     },
     {
-     "text": "Only the free seat appeared an odd number of times (once), so it's what remains. XOR never carries, so nothing can overflow.",
+     "text": "Only the free seat appears an odd number of times.",
      "at": {
       "python": [
        [
@@ -955,7 +964,7 @@
    ],
    "complexity": [
     {
-     "md": "**Time O(n).** **Space O(1).** No overflow concerns."
+     "md": "**Time O(n).** **Space O(1)**, and no overflow."
     }
    ],
    "walk": {
@@ -1131,7 +1140,7 @@
  ],
  "takeaways": [
   {
-   "md": "- When you know the full set and one element is missing, **cancel** everything that's present:\n  expected sum − actual sum, or XOR of both.\n- XOR is the overflow-free cancellation: `x ^ x = 0`, `x ^ 0 = x`, order irrelevant.\n- Check sums against your integer width; n(n + 1)/2 overflows 32 bits from n ≈ 65,536."
+   "md": "- **One missing number from a known range:** sum difference or XOR.\n- XOR cancels pairs with no overflow risk.\n- **Pitfall:** 32-bit overflow in `n(n + 1)/2`."
   }
  ]
 }

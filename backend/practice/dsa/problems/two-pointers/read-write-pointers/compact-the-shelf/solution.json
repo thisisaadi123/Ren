@@ -1,0 +1,729 @@
+{
+ "version": 1,
+ "summary": "Read every slot; copy each item to the next free position from the left (a write pointer), keeping their order.\nWhen the read is done, everything from the write pointer to the end becomes empty (0). O(n), in place.",
+ "question": [
+  {
+   "md": "Slide every item (non-zero) to the left end, keeping their order, so all empty slots (0) end up on the right.\n\n- **Items keep their relative order.**\n- **Up to 10⁵ slots**; items can be negative."
+  },
+  {
+   "md": "**Edge cases to keep in mind**\n\n- No empty slots, or all empty: unchanged.\n- Negative values are items, not empties; only `0` is empty.\n- The items' order must be preserved (so sorting is not allowed)."
+  }
+ ],
+ "think": [
+  {
+   "md": "**The read/write idea.** One pointer, `read`, visits every element once. A second pointer, `write`, marks the end of\nthe part we're keeping, which always sits at the **front** of the array. Each kept element is copied to `a[write]`\nand `write` moves on; a dropped element is simply not copied.\n\n**Why it's safe to overwrite in place.** `write` never gets ahead of `read` (it moves at most once per element read),\nso every write lands on a slot that has already been read. Nothing unread is ever lost.\n\n**Invariant.** After reading the first `r` elements, `a[0 .. write)` holds exactly the elements that should be kept\namong those `r`, in their original order."
+  },
+  {
+   "md": "**Two phases.** First move every item to the front with the read/write pass; then everything from `write` to the\nend must be empty, so fill those slots with 0. For `[0, 5, 0, 0, 3, 9, 0, 2]`:"
+  },
+  {
+   "table": {
+    "head": [
+     "read",
+     "value",
+     "decision",
+     "write after",
+     "items placed"
+    ],
+    "rows": [
+     [
+      "0",
+      "0",
+      "empty: skip",
+      "0",
+      "[]"
+     ],
+     [
+      "1",
+      "5",
+      "keep → a[0]",
+      "1",
+      "[5]"
+     ],
+     [
+      "2",
+      "0",
+      "empty: skip",
+      "1",
+      "[5]"
+     ],
+     [
+      "3",
+      "0",
+      "empty: skip",
+      "1",
+      "[5]"
+     ],
+     [
+      "4",
+      "3",
+      "keep → a[1]",
+      "2",
+      "[5, 3]"
+     ],
+     [
+      "5",
+      "9",
+      "keep → a[2]",
+      "3",
+      "[5, 3, 9]"
+     ],
+     [
+      "6",
+      "0",
+      "empty: skip",
+      "3",
+      "[5, 3, 9]"
+     ],
+     [
+      "7",
+      "2",
+      "keep → a[3]",
+      "4",
+      "[5, 3, 9, 2]"
+     ]
+    ]
+   }
+  },
+  {
+   "md": "After the pass, `4` items sit at the front; filling slots `4 … 7` with 0 gives\n**`[5, 3, 9, 2, 0, 0, 0, 0]`**.\n\n**Why bubbling is slow.** Swapping each empty slot rightward one step at a time needs many passes: 5\npasses for this small shelf, and up to `n` passes of `n` steps in general."
+  }
+ ],
+ "approaches": [
+  {
+   "title": "Bubble the empties right",
+   "kind": "brute",
+   "time": "O(n²)",
+   "space": "O(1)",
+   "idea": [
+    {
+     "md": "Repeatedly sweep the shelf, swapping an empty slot with the item to its right, until a full sweep makes no swap. Each item drifts left one step per sweep."
+    }
+   ],
+   "build": [
+    "Repeat sweeps while something changed.",
+    "Swap empty-then-item neighbours.",
+    "Stop after a sweep with no swaps."
+   ],
+   "code": {
+    "python": "class Solution:\n    def compactShelf(self, slots: List[int]) -> List[int]:\n        a, changed = slots[:], True\n        while changed:\n            changed = False\n            for i in range(len(a) - 1):\n                if a[i] == 0 and a[i + 1] != 0:\n                    a[i], a[i + 1] = a[i + 1], a[i]\n                    changed = True\n        return a\n",
+    "java": "class Solution {\n    public int[] compactShelf(int[] slots) {\n        int[] a = slots.clone();\n        boolean changed = true;\n        while (changed) {\n            changed = false;\n            for (int i = 0; i + 1 < a.length; i++)\n                if (a[i] == 0 && a[i + 1] != 0) { a[i] = a[i + 1]; a[i + 1] = 0; changed = true; }\n        }\n        return a;\n    }\n}\n",
+    "cpp": "class Solution {\npublic:\n    vector<int> compactShelf(vector<int>& slots) {\n        vector<int> a = slots;\n        bool changed = true;\n        while (changed) {\n            changed = false;\n            for (size_t i = 0; i + 1 < a.size(); i++)\n                if (a[i] == 0 && a[i + 1] != 0) { swap(a[i], a[i + 1]); changed = true; }\n        }\n        return a;\n    }\n};\n",
+    "c": "int* compactShelf(int* slots, int slotsSize, int* returnSize) {\n    int* a = malloc(slotsSize * sizeof(int));\n    memcpy(a, slots, slotsSize * sizeof(int));\n    int changed = 1;\n    while (changed) {\n        changed = 0;\n        for (int i = 0; i + 1 < slotsSize; i++)\n            if (a[i] == 0 && a[i + 1] != 0) { a[i] = a[i + 1]; a[i + 1] = 0; changed = 1; }\n    }\n    *returnSize = slotsSize;\n    return a;\n}\n"
+   },
+   "lines": [
+    {
+     "text": "A working copy and a flag to keep sweeping.",
+     "at": {
+      "python": [
+       [
+        3,
+        3
+       ]
+      ],
+      "java": [
+       [
+        3,
+        4
+       ]
+      ],
+      "cpp": [
+       [
+        4,
+        5
+       ]
+      ],
+      "c": [
+       [
+        2,
+        4
+       ]
+      ]
+     }
+    },
+    {
+     "text": "One left-to-right sweep over neighbouring pairs.",
+     "at": {
+      "python": [
+       [
+        4,
+        6
+       ]
+      ],
+      "java": [
+       [
+        5,
+        7
+       ]
+      ],
+      "cpp": [
+       [
+        6,
+        8
+       ]
+      ],
+      "c": [
+       [
+        5,
+        7
+       ]
+      ]
+     }
+    },
+    {
+     "text": "An empty slot followed by an item: swap them so the item moves left.",
+     "at": {
+      "python": [
+       [
+        7,
+        9
+       ]
+      ],
+      "java": [
+       [
+        8,
+        8
+       ]
+      ],
+      "cpp": [
+       [
+        9,
+        9
+       ]
+      ],
+      "c": [
+       [
+        8,
+        8
+       ]
+      ]
+     }
+    },
+    {
+     "text": "The compacted shelf.",
+     "at": {
+      "python": [
+       [
+        10,
+        10
+       ]
+      ],
+      "java": [
+       [
+        10,
+        10
+       ]
+      ],
+      "cpp": [
+       [
+        11,
+        11
+       ]
+      ],
+      "c": [
+       [
+        10,
+        11
+       ]
+      ]
+     }
+    }
+   ],
+   "complexity": [
+    {
+     "md": "**Time O(n²):** up to `n` sweeps of `n` steps. **Space O(1)** besides the copy."
+    }
+   ],
+   "walk": {
+    "steps": [
+     {
+      "text": "One pass of swapping empties rightward.",
+      "panels": [
+       {
+        "type": "row",
+        "cells": [
+         5,
+         0,
+         0,
+         3,
+         9,
+         0,
+         2,
+         0
+        ]
+       }
+      ]
+     },
+     {
+      "text": "One pass of swapping empties rightward.",
+      "panels": [
+       {
+        "type": "row",
+        "cells": [
+         5,
+         0,
+         3,
+         9,
+         0,
+         2,
+         0,
+         0
+        ]
+       }
+      ]
+     },
+     {
+      "text": "One pass of swapping empties rightward.",
+      "panels": [
+       {
+        "type": "row",
+        "cells": [
+         5,
+         3,
+         9,
+         0,
+         2,
+         0,
+         0,
+         0
+        ]
+       }
+      ]
+     },
+     {
+      "text": "One pass of swapping empties rightward.",
+      "panels": [
+       {
+        "type": "row",
+        "cells": [
+         5,
+         3,
+         9,
+         2,
+         0,
+         0,
+         0,
+         0
+        ]
+       }
+      ]
+     },
+     {
+      "text": "One pass of swapping empties rightward.",
+      "panels": [
+       {
+        "type": "row",
+        "cells": [
+         5,
+         3,
+         9,
+         2,
+         0,
+         0,
+         0,
+         0
+        ]
+       }
+      ]
+     },
+     {
+      "text": "Done: [5, 3, 9, 2, 0, 0, 0, 0].",
+      "panels": [],
+      "result": "[5, 3, 9, 2, 0, 0, 0, 0]"
+     }
+    ],
+    "title": "Bubble each empty slot to the right by swapping it with the item next to it, pass after pass."
+   },
+   "limits": [
+    {
+     "md": "Items move one step per sweep. The write pointer moves each item straight to its final slot in one pass."
+    }
+   ],
+   "slow": true
+  },
+  {
+   "title": "Write pointer, then fill with empties",
+   "kind": "best",
+   "time": "O(n)",
+   "space": "O(1)",
+   "idea": [
+    {
+     "md": "Copy each item to `a[write]` and advance `write`; then set every slot from `write` to the end to 0.\n\n**Why the order is kept.** Items are written in the order they're read, to positions `0, 1, 2, …`."
+    }
+   ],
+   "build": [
+    "Read/write pass over the items.",
+    "Fill the rest with zeros."
+   ],
+   "code": {
+    "python": "class Solution:\n    def compactShelf(self, slots: List[int]) -> List[int]:\n        a, write = slots[:], 0\n        for x in slots:\n            if x != 0:\n                a[write] = x\n                write += 1\n        for i in range(write, len(a)):\n            a[i] = 0\n        return a\n",
+    "java": "class Solution {\n    public int[] compactShelf(int[] slots) {\n        int[] a = slots.clone();\n        int write = 0;\n        for (int x : slots) if (x != 0) a[write++] = x;\n        for (int i = write; i < a.length; i++) a[i] = 0;\n        return a;\n    }\n}\n",
+    "cpp": "class Solution {\npublic:\n    vector<int> compactShelf(vector<int>& slots) {\n        vector<int> a = slots;\n        int write = 0;\n        for (int x : slots) if (x != 0) a[write++] = x;\n        for (int i = write; i < (int) a.size(); i++) a[i] = 0;\n        return a;\n    }\n};\n",
+    "c": "int* compactShelf(int* slots, int slotsSize, int* returnSize) {\n    int* a = malloc(slotsSize * sizeof(int));\n    int write = 0;\n    for (int i = 0; i < slotsSize; i++) if (slots[i] != 0) a[write++] = slots[i];\n    for (int i = write; i < slotsSize; i++) a[i] = 0;\n    *returnSize = slotsSize;\n    return a;\n}\n"
+   },
+   "lines": [
+    {
+     "text": "A working copy and the next free slot at the front.",
+     "at": {
+      "python": [
+       [
+        3,
+        3
+       ]
+      ],
+      "java": [
+       [
+        3,
+        4
+       ]
+      ],
+      "cpp": [
+       [
+        4,
+        5
+       ]
+      ],
+      "c": [
+       [
+        2,
+        3
+       ]
+      ]
+     }
+    },
+    {
+     "text": "Each item goes to the next free slot; empty slots are skipped.",
+     "at": {
+      "python": [
+       [
+        4,
+        7
+       ]
+      ],
+      "java": [
+       [
+        5,
+        5
+       ]
+      ],
+      "cpp": [
+       [
+        6,
+        6
+       ]
+      ],
+      "c": [
+       [
+        4,
+        4
+       ]
+      ]
+     }
+    },
+    {
+     "text": "Everything after the last item must be empty.",
+     "at": {
+      "python": [
+       [
+        8,
+        9
+       ]
+      ],
+      "java": [
+       [
+        6,
+        6
+       ]
+      ],
+      "cpp": [
+       [
+        7,
+        7
+       ]
+      ],
+      "c": [
+       [
+        5,
+        5
+       ]
+      ]
+     }
+    },
+    {
+     "text": "The compacted shelf.",
+     "at": {
+      "python": [
+       [
+        10,
+        10
+       ]
+      ],
+      "java": [
+       [
+        7,
+        7
+       ]
+      ],
+      "cpp": [
+       [
+        8,
+        8
+       ]
+      ],
+      "c": [
+       [
+        6,
+        7
+       ]
+      ]
+     }
+    }
+   ],
+   "complexity": [
+    {
+     "md": "**Time O(n).** **Space O(1)** besides the output copy."
+    }
+   ],
+   "walk": {
+    "steps": [
+     {
+      "text": "Read 0: empty, skip it.",
+      "panels": [
+       {
+        "type": "row",
+        "cells": [
+         0,
+         5,
+         0,
+         0,
+         3,
+         9,
+         0,
+         2
+        ],
+        "pointers": {
+         "read": 0,
+         "write": 0
+        }
+       }
+      ]
+     },
+     {
+      "text": "Read 5: an item, write it at 0.",
+      "panels": [
+       {
+        "type": "row",
+        "cells": [
+         5,
+         5,
+         0,
+         0,
+         3,
+         9,
+         0,
+         2
+        ],
+        "states": {
+         "0": "found"
+        },
+        "pointers": {
+         "read": 1,
+         "write": 0
+        }
+       }
+      ]
+     },
+     {
+      "text": "Read 0: empty, skip it.",
+      "panels": [
+       {
+        "type": "row",
+        "cells": [
+         5,
+         5,
+         0,
+         0,
+         3,
+         9,
+         0,
+         2
+        ],
+        "states": {
+         "0": "found"
+        },
+        "pointers": {
+         "read": 2,
+         "write": 1
+        }
+       }
+      ]
+     },
+     {
+      "text": "Read 0: empty, skip it.",
+      "panels": [
+       {
+        "type": "row",
+        "cells": [
+         5,
+         5,
+         0,
+         0,
+         3,
+         9,
+         0,
+         2
+        ],
+        "states": {
+         "0": "found"
+        },
+        "pointers": {
+         "read": 3,
+         "write": 1
+        }
+       }
+      ]
+     },
+     {
+      "text": "Read 3: an item, write it at 1.",
+      "panels": [
+       {
+        "type": "row",
+        "cells": [
+         5,
+         3,
+         0,
+         0,
+         3,
+         9,
+         0,
+         2
+        ],
+        "states": {
+         "0": "found",
+         "1": "found"
+        },
+        "pointers": {
+         "read": 4,
+         "write": 1
+        }
+       }
+      ]
+     },
+     {
+      "text": "Read 9: an item, write it at 2.",
+      "panels": [
+       {
+        "type": "row",
+        "cells": [
+         5,
+         3,
+         9,
+         0,
+         3,
+         9,
+         0,
+         2
+        ],
+        "states": {
+         "0": "found",
+         "1": "found",
+         "2": "found"
+        },
+        "pointers": {
+         "read": 5,
+         "write": 2
+        }
+       }
+      ]
+     },
+     {
+      "text": "Read 0: empty, skip it.",
+      "panels": [
+       {
+        "type": "row",
+        "cells": [
+         5,
+         3,
+         9,
+         0,
+         3,
+         9,
+         0,
+         2
+        ],
+        "states": {
+         "0": "found",
+         "1": "found",
+         "2": "found"
+        },
+        "pointers": {
+         "read": 6,
+         "write": 3
+        }
+       }
+      ]
+     },
+     {
+      "text": "Read 2: an item, write it at 3.",
+      "panels": [
+       {
+        "type": "row",
+        "cells": [
+         5,
+         3,
+         9,
+         2,
+         3,
+         9,
+         0,
+         2
+        ],
+        "states": {
+         "0": "found",
+         "1": "found",
+         "2": "found",
+         "3": "found"
+        },
+        "pointers": {
+         "read": 7,
+         "write": 3
+        }
+       }
+      ]
+     },
+     {
+      "text": "Fill positions 4.. with 0: [5, 3, 9, 2, 0, 0, 0, 0].",
+      "panels": [
+       {
+        "type": "row",
+        "cells": [
+         5,
+         3,
+         9,
+         2,
+         0,
+         0,
+         0,
+         0
+        ],
+        "states": {
+         "0": "found",
+         "1": "found",
+         "2": "found",
+         "3": "found"
+        }
+       }
+      ],
+      "result": "[5, 3, 9, 2, 0, 0, 0, 0]"
+     }
+    ],
+    "title": "Read every slot; write each item at the next free position on the left. Then fill the rest with empties."
+   }
+  }
+ ],
+ "takeaways": [
+  {
+   "md": "- **Move items to one side, keeping order:** read/write pass, then fill the rest.\n- Each element moves at most once.\n- **Pitfall:** swapping in a way that reorders the items (e.g. with a pointer from the right)."
+  }
+ ]
+}

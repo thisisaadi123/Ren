@@ -1,0 +1,551 @@
+{
+ "version": 1,
+ "summary": "Count plays per song with a hash map in one pass, then sort the **different** songs by play count (descending)\nand id (ascending) and take the first k. O(n + d log d) for d different songs.",
+ "question": [
+  {
+   "md": "`plays` lists song ids, one per play. Return the `k` most-played songs, most played first; ties go to the\nsmaller id.\n\n- **Ids reach 10⁹**, so they can't index an array directly.\n- **Up to 10⁵ plays**; the number of different songs `d` can be anything up to that."
+  },
+  {
+   "md": "**Edge cases to keep in mind**\n\n- Song ids up to 10⁹: count with a hash map, not an array.\n- Ties in play count: smaller id first.\n- `k` can equal the number of different songs."
+  }
+ ],
+ "think": [
+  {
+   "md": "**Beating O(n log n) by not comparing.** Comparison sorts need about `n log n` comparisons in the worst case. When the\nvalues are small integers, or we only need partial order information, we can skip comparisons entirely:\n\n- **Counting sort:** count how many times each possible value appears, then write the values out in order. O(n + R)\n  for a value range of size `R`.\n- **Bucket sort / bucketing:** drop values into ranges (\"buckets\") whose order is known; often only a little\n  information per bucket is needed."
+  },
+  {
+   "md": "**Count, then rank only the distinct songs.** There may be many plays but far fewer songs; sorting the songs by\n`(−plays, id)` puts them in the required order. For `[7, 3, 7, 9, 3, 7, 12, 9, 3, 1]`, `k = 3`:"
+  },
+  {
+   "table": {
+    "head": [
+     "song",
+     "plays",
+     "rank"
+    ],
+    "rows": [
+     [
+      "3",
+      "3",
+      "1"
+     ],
+     [
+      "7",
+      "3",
+      "2"
+     ],
+     [
+      "9",
+      "2",
+      "3"
+     ],
+     [
+      "1",
+      "1",
+      "4"
+     ],
+     [
+      "12",
+      "1",
+      "5"
+     ]
+    ]
+   }
+  },
+  {
+   "md": "Top 3: **[3, 7, 9]**."
+  }
+ ],
+ "approaches": [
+  {
+   "title": "Rescan the log for each song",
+   "kind": "brute",
+   "time": "O(n·d)",
+   "space": "O(d)",
+   "idea": [
+    {
+     "md": "For each distinct song, count its plays by rescanning the log, then sort the songs by `(−count, id)`."
+    }
+   ],
+   "build": [
+    "Distinct songs.",
+    "Count each by scanning.",
+    "Sort and take `k`."
+   ],
+   "code": {
+    "python": "class Solution:\n    def mostPlayed(self, plays: List[int], k: int) -> List[int]:\n        songs = set(plays)\n        counts = {s: sum(1 for p in plays if p == s) for s in songs}\n        ranked = sorted(songs, key=lambda s: (-counts[s], s))\n        return ranked[:k]\n",
+    "java": "class Solution {\n    public int[] mostPlayed(int[] plays, int k) {\n        Set<Integer> songs = new HashSet<>();\n        for (int p : plays) songs.add(p);\n        Map<Integer, Integer> counts = new HashMap<>();\n        for (int s : songs) {\n            int c = 0;\n            for (int p : plays) if (p == s) c++;\n            counts.put(s, c);\n        }\n        List<Integer> ranked = new ArrayList<>(songs);\n        ranked.sort((a, b) -> !counts.get(a).equals(counts.get(b)) ? counts.get(b) - counts.get(a) : Integer.compare(a, b));\n        int[] out = new int[k];\n        for (int i = 0; i < k; i++) out[i] = ranked.get(i);\n        return out;\n    }\n}\n",
+    "cpp": "class Solution {\npublic:\n    vector<int> mostPlayed(vector<int>& plays, int k) {\n        set<int> distinct(plays.begin(), plays.end());\n        vector<pair<int, int>> ranked;\n        for (int s : distinct) ranked.push_back({-(int) count(plays.begin(), plays.end(), s), s});\n        sort(ranked.begin(), ranked.end());\n        vector<int> out;\n        for (int i = 0; i < k; i++) out.push_back(ranked[i].second);\n        return out;\n    }\n};\n",
+    "c": "typedef struct { int song, plays; } Pair;\n\nstatic int by_rank(const void* x, const void* y) {\n    const Pair *a = x, *b = y;\n    if (a->plays != b->plays) return b->plays - a->plays;\n    return (a->song > b->song) - (a->song < b->song);\n}\n\nint* mostPlayed(int* plays, int playsSize, int k, int* returnSize) {\n    Pair* songs = malloc(playsSize * sizeof(Pair));\n    int d = 0;\n    for (int i = 0; i < playsSize; i++) {\n        int seen = 0;\n        for (int j = 0; j < d && !seen; j++) seen = songs[j].song == plays[i];\n        if (!seen) songs[d++] = (Pair){plays[i], 0};\n    }\n    for (int j = 0; j < d; j++)\n        for (int i = 0; i < playsSize; i++) songs[j].plays += plays[i] == songs[j].song;\n    qsort(songs, d, sizeof(Pair), by_rank);\n    int* out = malloc(k * sizeof(int));\n    for (int i = 0; i < k; i++) out[i] = songs[i].song;\n    free(songs);\n    *returnSize = k;\n    return out;\n}\n"
+   },
+   "lines": [
+    {
+     "text": "The different song ids.",
+     "at": {
+      "python": [
+       [
+        3,
+        3
+       ]
+      ],
+      "java": [
+       [
+        3,
+        4
+       ]
+      ],
+      "cpp": [
+       [
+        4,
+        4
+       ]
+      ],
+      "c": [
+       [
+        10,
+        15
+       ]
+      ]
+     },
+     "notes": {
+      "c": "Without a hash set, finding distinct ids is itself a quadratic scan."
+     }
+    },
+    {
+     "text": "Count each song with a full pass over the log.",
+     "at": {
+      "python": [
+       [
+        4,
+        4
+       ]
+      ],
+      "java": [
+       [
+        5,
+        9
+       ]
+      ],
+      "cpp": [
+       [
+        5,
+        6
+       ]
+      ],
+      "c": [
+       [
+        17,
+        18
+       ]
+      ]
+     }
+    },
+    {
+     "text": "More plays first; equal plays by smaller id.",
+     "at": {
+      "python": [
+       [
+        5,
+        5
+       ]
+      ],
+      "java": [
+       [
+        11,
+        12
+       ]
+      ],
+      "cpp": [
+       [
+        7,
+        7
+       ]
+      ],
+      "c": [
+       [
+        3,
+        7
+       ],
+       [
+        19,
+        19
+       ]
+      ]
+     }
+    },
+    {
+     "text": "The first k.",
+     "at": {
+      "python": [
+       [
+        6,
+        6
+       ]
+      ],
+      "java": [
+       [
+        13,
+        15
+       ]
+      ],
+      "cpp": [
+       [
+        8,
+        10
+       ]
+      ],
+      "c": [
+       [
+        20,
+        24
+       ]
+      ]
+     }
+    }
+   ],
+   "complexity": [
+    {
+     "md": "**Time O(d · n + d log d)** for `d` distinct songs. **Space O(d).**"
+    }
+   ],
+   "walk": {
+    "steps": [
+     {
+      "text": "Song 1: scan all 10 plays, count 1.",
+      "panels": [
+       {
+        "type": "row",
+        "cells": [
+         7,
+         3,
+         7,
+         9,
+         3,
+         7,
+         12,
+         9,
+         3,
+         1
+        ],
+        "states": {
+         "9": "found"
+        }
+       }
+      ]
+     },
+     {
+      "text": "Song 3: scan all 10 plays, count 3.",
+      "panels": [
+       {
+        "type": "row",
+        "cells": [
+         7,
+         3,
+         7,
+         9,
+         3,
+         7,
+         12,
+         9,
+         3,
+         1
+        ],
+        "states": {
+         "1": "found",
+         "4": "found",
+         "8": "found"
+        }
+       }
+      ]
+     },
+     {
+      "text": "Song 7: scan all 10 plays, count 3.",
+      "panels": [
+       {
+        "type": "row",
+        "cells": [
+         7,
+         3,
+         7,
+         9,
+         3,
+         7,
+         12,
+         9,
+         3,
+         1
+        ],
+        "states": {
+         "0": "found",
+         "2": "found",
+         "5": "found"
+        }
+       }
+      ]
+     },
+     {
+      "text": "Song 9: scan all 10 plays, count 2.",
+      "panels": [
+       {
+        "type": "row",
+        "cells": [
+         7,
+         3,
+         7,
+         9,
+         3,
+         7,
+         12,
+         9,
+         3,
+         1
+        ],
+        "states": {
+         "3": "found",
+         "7": "found"
+        }
+       }
+      ]
+     },
+     {
+      "text": "Song 12: scan all 10 plays, count 1.",
+      "panels": [
+       {
+        "type": "row",
+        "cells": [
+         7,
+         3,
+         7,
+         9,
+         3,
+         7,
+         12,
+         9,
+         3,
+         1
+        ],
+        "states": {
+         "6": "found"
+        }
+       }
+      ]
+     },
+     {
+      "text": "Ranked by plays (ties by smaller id): [3, 7, 9, 1, 12]. Top 3: [3, 7, 9].",
+      "panels": [],
+      "result": "[3, 7, 9]"
+     }
+    ],
+    "title": "For each different song, scan the whole log to count its plays; then pick the top k."
+   },
+   "limits": [
+    {
+     "md": "Each song rescans the whole log. One pass with a hash map counts everything."
+    }
+   ],
+   "slow": true
+  },
+  {
+   "title": "Hash-map counts, sort the distinct songs",
+   "kind": "best",
+   "time": "O(n + d log d)",
+   "space": "O(d)",
+   "idea": [
+    {
+     "md": "Count plays in a hash map, sort the distinct songs by `(−count, id)`, and return the first `k`."
+    }
+   ],
+   "build": [
+    "Hash-map counts.",
+    "Sort distinct songs.",
+    "Take `k`."
+   ],
+   "code": {
+    "python": "from collections import Counter\n\nclass Solution:\n    def mostPlayed(self, plays: List[int], k: int) -> List[int]:\n        count = Counter(plays)\n        ranked = sorted(count, key=lambda s: (-count[s], s))\n        return ranked[:k]\n",
+    "java": "class Solution {\n    public int[] mostPlayed(int[] plays, int k) {\n        Map<Integer, Integer> count = new HashMap<>();\n        for (int p : plays) count.merge(p, 1, Integer::sum);\n        List<Integer> ranked = new ArrayList<>(count.keySet());\n        ranked.sort((a, b) -> !count.get(a).equals(count.get(b)) ? count.get(b) - count.get(a) : Integer.compare(a, b));\n        int[] out = new int[k];\n        for (int i = 0; i < k; i++) out[i] = ranked.get(i);\n        return out;\n    }\n}\n",
+    "cpp": "class Solution {\npublic:\n    vector<int> mostPlayed(vector<int>& plays, int k) {\n        unordered_map<int, int> count;\n        for (int p : plays) count[p]++;\n        vector<pair<int, int>> ranked;\n        for (auto& [song, c] : count) ranked.push_back({-c, song});\n        sort(ranked.begin(), ranked.end());\n        vector<int> out;\n        for (int i = 0; i < k; i++) out.push_back(ranked[i].second);\n        return out;\n    }\n};\n",
+    "c": "typedef struct { int song, plays; } Pair;\n\nstatic int by_rank(const void* x, const void* y) {\n    const Pair *a = x, *b = y;\n    if (a->plays != b->plays) return b->plays - a->plays;\n    return (a->song > b->song) - (a->song < b->song);\n}\n\nint* mostPlayed(int* plays, int playsSize, int k, int* returnSize) {\n    int cap = 1;\n    while (cap < 2 * playsSize) cap <<= 1;\n    int* keys = malloc(cap * sizeof(int));\n    int* hits = calloc(cap, sizeof(int));\n    for (int i = 0; i < playsSize; i++) {\n        unsigned h = (unsigned) plays[i] * 2654435761u & (cap - 1);\n        while (hits[h] && keys[h] != plays[i]) h = (h + 1) & (cap - 1);\n        keys[h] = plays[i];\n        hits[h]++;\n    }\n    Pair* songs = malloc(playsSize * sizeof(Pair));\n    int d = 0;\n    for (int h = 0; h < cap; h++) if (hits[h]) songs[d++] = (Pair){keys[h], hits[h]};\n    qsort(songs, d, sizeof(Pair), by_rank);\n    int* out = malloc(k * sizeof(int));\n    for (int i = 0; i < k; i++) out[i] = songs[i].song;\n    free(keys); free(hits); free(songs);\n    *returnSize = k;\n    return out;\n}\n"
+   },
+   "lines": [
+    {
+     "text": "C has no hash map: an open-addressing table, at least twice the number of plays, so it stays at most half full.",
+     "at": {
+      "c": [
+       [
+        10,
+        13
+       ]
+      ]
+     }
+    },
+    {
+     "text": "One pass: each play adds 1 to its song's counter.",
+     "at": {
+      "python": [
+       [
+        5,
+        5
+       ]
+      ],
+      "java": [
+       [
+        3,
+        4
+       ]
+      ],
+      "cpp": [
+       [
+        4,
+        5
+       ]
+      ],
+      "c": [
+       [
+        14,
+        18
+       ]
+      ]
+     },
+     "notes": {
+      "c": "Hash the id, then step forward past slots holding other songs until finding this song's slot or an empty one."
+     }
+    },
+    {
+     "text": "Sort only the d different songs: more plays first, then smaller id.",
+     "at": {
+      "python": [
+       [
+        6,
+        6
+       ]
+      ],
+      "java": [
+       [
+        5,
+        6
+       ]
+      ],
+      "cpp": [
+       [
+        6,
+        8
+       ]
+      ],
+      "c": [
+       [
+        3,
+        7
+       ],
+       [
+        20,
+        23
+       ]
+      ]
+     }
+    },
+    {
+     "text": "The first k.",
+     "at": {
+      "python": [
+       [
+        7,
+        7
+       ]
+      ],
+      "java": [
+       [
+        7,
+        9
+       ]
+      ],
+      "cpp": [
+       [
+        9,
+        11
+       ]
+      ],
+      "c": [
+       [
+        24,
+        28
+       ]
+      ]
+     }
+    }
+   ],
+   "complexity": [
+    {
+     "md": "**Time O(n + d log d).** **Space O(d).**"
+    }
+   ],
+   "walk": {
+    "steps": [
+     {
+      "text": "Count in one pass.",
+      "panels": [
+       {
+        "type": "row",
+        "cells": [
+         7,
+         3,
+         7,
+         9,
+         3,
+         7,
+         12,
+         9,
+         3,
+         1
+        ],
+        "label": "plays"
+       },
+       {
+        "type": "row",
+        "cells": [
+         "1×1",
+         "3×3",
+         "7×3",
+         "9×2",
+         "12×1"
+        ],
+        "label": "song × plays"
+       }
+      ]
+     },
+     {
+      "text": "Sort the 5 songs by plays descending, then id: [3, 7, 9, 1, 12].",
+      "panels": [
+       {
+        "type": "row",
+        "cells": [
+         3,
+         7,
+         9,
+         1,
+         12
+        ],
+        "states": {
+         "0": "found",
+         "1": "found",
+         "2": "found"
+        },
+        "label": "ranked"
+       }
+      ]
+     },
+     {
+      "text": "Take the first 3.",
+      "panels": [],
+      "result": "[3, 7, 9]"
+     }
+    ],
+    "title": "One pass with a hash map counts every song. Then sort only the different songs by (more plays first, smaller id first)."
+   }
+  }
+ ],
+ "takeaways": [
+  {
+   "md": "- **Top-k by frequency:** count with a map, then sort (or bucket by count) only the distinct items.\n- Encode tie rules in the key tuple.\n- **Pitfall:** sorting all `n` plays instead of the `d` distinct songs."
+  }
+ ]
+}

@@ -1,0 +1,797 @@
+{
+ "version": 1,
+ "summary": "Scan from the right with a stack that stays decreasing. When a value pops smaller values, each popped value\nhas a bigger value (the popper) to its left, so it can serve as the third moment; remember the largest such\nvalue as `mid`. Any later value, further left, below `mid` is the first moment. O(n).",
+ "question": [
+  {
+   "md": "Find indexes `i < j < k` with `values[i] < values[k] < values[j]`: a low, then a high, then something strictly in\nbetween. Return whether they exist.\n\n- **The order is fixed:** low first, high in the middle, the in-between value last.\n- **Strict inequalities:** equal values don't count.\n- **Up to 10⁵ values**, so trying all triples (~10¹⁵) or all pairs (~10¹⁰) is out."
+  }
+ ],
+ "think": [
+  {
+   "md": "Values `[2, 4, 3, 6, 5, 1, 7]`. Moments 0, 1, 2 work: 2 < 3 <\n4. A sorted list like `[1, 2, 3]` never works (the last value is never below the middle one)."
+  },
+  {
+   "panels": [
+    {
+     "type": "row",
+     "cells": [
+      2,
+      4,
+      3,
+      6,
+      5,
+      1,
+      7
+     ],
+     "states": {
+      "0": "found",
+      "1": "active",
+      "2": "mark"
+     }
+    }
+   ]
+  },
+  {
+   "md": "For a fixed high `j`, the best low is simply the smallest value before `j`, which gives an O(n²) method. To do\nbetter, scan from the right and think about the in-between value: a value `x` is usable as the third moment\nonce we've seen **something bigger to its left**. Scanning leftwards, that's exactly when a bigger value pops\n`x` from a decreasing stack. Among usable third moments, the largest is the easiest to beat, so keep only it\n(`mid`). Then any value further left that's below `mid` is a valid low."
+  }
+ ],
+ "approaches": [
+  {
+   "title": "Try every triple",
+   "kind": "brute",
+   "time": "O(n³)",
+   "space": "O(1)",
+   "idea": [
+    {
+     "md": "Check every `i < j < k` for `values[i] < values[k] < values[j]`."
+    }
+   ],
+   "build": [
+    "Three nested loops.",
+    "Return true at the first match, false at the end."
+   ],
+   "code": {
+    "python": "class Solution:\n    def hasLowHighBetween(self, values: List[int]) -> bool:\n        n = len(values)\n        for i in range(n):\n            for j in range(i + 1, n):\n                for k in range(j + 1, n):\n                    if values[i] < values[k] < values[j]:\n                        return True\n        return False\n",
+    "java": "class Solution {\n    public boolean hasLowHighBetween(int[] values) {\n        int n = values.length;\n        for (int i = 0; i < n; i++)\n            for (int j = i + 1; j < n; j++)\n                for (int k = j + 1; k < n; k++)\n                    if (values[i] < values[k] && values[k] < values[j]) return true;\n        return false;\n    }\n}\n",
+    "cpp": "class Solution {\npublic:\n    bool hasLowHighBetween(vector<int>& values) {\n        int n = values.size();\n        for (int i = 0; i < n; i++)\n            for (int j = i + 1; j < n; j++)\n                for (int k = j + 1; k < n; k++)\n                    if (values[i] < values[k] && values[k] < values[j]) return true;\n        return false;\n    }\n};\n",
+    "c": "bool hasLowHighBetween(int* values, int valuesSize) {\n    int n = valuesSize;\n    for (int i = 0; i < n; i++)\n        for (int j = i + 1; j < n; j++)\n            for (int k = j + 1; k < n; k++)\n                if (values[i] < values[k] && values[k] < values[j]) return true;\n    return false;\n}\n"
+   },
+   "lines": [
+    {
+     "text": "Number of values.",
+     "at": {
+      "python": [
+       [
+        3,
+        3
+       ]
+      ],
+      "java": [
+       [
+        3,
+        3
+       ]
+      ],
+      "cpp": [
+       [
+        4,
+        4
+       ]
+      ],
+      "c": [
+       [
+        2,
+        2
+       ]
+      ]
+     }
+    },
+    {
+     "text": "Every ordered triple of moments.",
+     "at": {
+      "python": [
+       [
+        4,
+        6
+       ]
+      ],
+      "java": [
+       [
+        4,
+        6
+       ]
+      ],
+      "cpp": [
+       [
+        5,
+        7
+       ]
+      ],
+      "c": [
+       [
+        3,
+        5
+       ]
+      ]
+     }
+    },
+    {
+     "text": "Low, high, in between.",
+     "at": {
+      "python": [
+       [
+        7,
+        8
+       ]
+      ],
+      "java": [
+       [
+        7,
+        7
+       ]
+      ],
+      "cpp": [
+       [
+        8,
+        8
+       ]
+      ],
+      "c": [
+       [
+        6,
+        6
+       ]
+      ]
+     }
+    },
+    {
+     "text": "No triple works.",
+     "at": {
+      "python": [
+       [
+        9,
+        9
+       ]
+      ],
+      "java": [
+       [
+        8,
+        8
+       ]
+      ],
+      "cpp": [
+       [
+        9,
+        9
+       ]
+      ],
+      "c": [
+       [
+        7,
+        7
+       ]
+      ]
+     }
+    }
+   ],
+   "complexity": [
+    {
+     "md": "**Time O(n³).** **Space O(1).**"
+    }
+   ],
+   "limits": [
+    {
+     "md": "~10¹⁵ triples for 10⁵ values. For a fixed high, only the lowest earlier value matters as the low, which removes a loop."
+    }
+   ],
+   "slow": true
+  },
+  {
+   "title": "Fix the high, use the lowest value before it",
+   "kind": "better",
+   "time": "O(n²)",
+   "space": "O(1)",
+   "idea": [
+    {
+     "md": "Walk `j` left to right, keeping `low` = the smallest value before `j`. For each `j` with `low < values[j]`, scan `k > j` for a value strictly between `low` and `values[j]`."
+    }
+   ],
+   "build": [
+    "`low = values[0]`.",
+    "For each `j ≥ 1`: if `values[j] > low`, scan later values for one in `(low, values[j])`.",
+    "Update `low` with `values[j]`."
+   ],
+   "code": {
+    "python": "class Solution:\n    def hasLowHighBetween(self, values: List[int]) -> bool:\n        low = values[0]\n        for j in range(1, len(values)):\n            if values[j] > low:\n                for k in range(j + 1, len(values)):\n                    if low < values[k] < values[j]:\n                        return True\n            low = min(low, values[j])\n        return False\n",
+    "java": "class Solution {\n    public boolean hasLowHighBetween(int[] values) {\n        int low = values[0];\n        for (int j = 1; j < values.length; j++) {\n            if (values[j] > low)\n                for (int k = j + 1; k < values.length; k++)\n                    if (low < values[k] && values[k] < values[j]) return true;\n            low = Math.min(low, values[j]);\n        }\n        return false;\n    }\n}\n",
+    "cpp": "class Solution {\npublic:\n    bool hasLowHighBetween(vector<int>& values) {\n        int low = values[0];\n        for (size_t j = 1; j < values.size(); j++) {\n            if (values[j] > low)\n                for (size_t k = j + 1; k < values.size(); k++)\n                    if (low < values[k] && values[k] < values[j]) return true;\n            low = min(low, values[j]);\n        }\n        return false;\n    }\n};\n",
+    "c": "bool hasLowHighBetween(int* values, int valuesSize) {\n    int low = values[0];\n    for (int j = 1; j < valuesSize; j++) {\n        if (values[j] > low)\n            for (int k = j + 1; k < valuesSize; k++)\n                if (low < values[k] && values[k] < values[j]) return true;\n        if (values[j] < low) low = values[j];\n    }\n    return false;\n}\n"
+   },
+   "lines": [
+    {
+     "text": "The lowest value seen so far, the best possible first moment.",
+     "at": {
+      "python": [
+       [
+        3,
+        3
+       ]
+      ],
+      "java": [
+       [
+        3,
+        3
+       ]
+      ],
+      "cpp": [
+       [
+        4,
+        4
+       ]
+      ],
+      "c": [
+       [
+        2,
+        2
+       ]
+      ]
+     }
+    },
+    {
+     "text": "Try `j` as the high; it must beat the low, or nothing fits in between.",
+     "at": {
+      "python": [
+       [
+        4,
+        5
+       ]
+      ],
+      "java": [
+       [
+        4,
+        5
+       ]
+      ],
+      "cpp": [
+       [
+        5,
+        6
+       ]
+      ],
+      "c": [
+       [
+        3,
+        4
+       ]
+      ]
+     }
+    },
+    {
+     "text": "Look for a later value strictly between the low and the high.",
+     "at": {
+      "python": [
+       [
+        6,
+        8
+       ]
+      ],
+      "java": [
+       [
+        6,
+        7
+       ]
+      ],
+      "cpp": [
+       [
+        7,
+        8
+       ]
+      ],
+      "c": [
+       [
+        5,
+        6
+       ]
+      ]
+     }
+    },
+    {
+     "text": "`values[j]` becomes a candidate low for later highs.",
+     "at": {
+      "python": [
+       [
+        9,
+        9
+       ]
+      ],
+      "java": [
+       [
+        8,
+        8
+       ]
+      ],
+      "cpp": [
+       [
+        9,
+        9
+       ]
+      ],
+      "c": [
+       [
+        7,
+        7
+       ]
+      ]
+     }
+    },
+    {
+     "text": "No high had a usable in-between value.",
+     "at": {
+      "python": [
+       [
+        10,
+        10
+       ]
+      ],
+      "java": [
+       [
+        10,
+        10
+       ]
+      ],
+      "cpp": [
+       [
+        11,
+        11
+       ]
+      ],
+      "c": [
+       [
+        9,
+        9
+       ]
+      ]
+     }
+    }
+   ],
+   "complexity": [
+    {
+     "md": "**Time O(n²).** **Space O(1).**"
+    }
+   ],
+   "walk": {
+    "steps": [
+     {
+      "text": "j = 1 (4): lowest before it is 2. values[2] = 3 lies strictly between 2 and 4: found.",
+      "panels": [
+       {
+        "type": "row",
+        "cells": [
+         2,
+         4,
+         3,
+         6,
+         5,
+         1,
+         7
+        ],
+        "states": {
+         "1": "active",
+         "2": "found",
+         "0": "mark"
+        }
+       },
+       {
+        "type": "vars",
+        "items": {
+         "low before j": 2
+        }
+       }
+      ]
+     },
+     {
+      "text": "Moments 0, 1, 2 work: 2 < 3 < 4.",
+      "panels": [],
+      "result": "true"
+     }
+    ],
+    "title": "Fix the middle moment j. The best first moment is the lowest value before j; look for a later value strictly between that low and values[j]."
+   },
+   "limits": [
+    {
+     "md": "The inner scan still costs O(n) per high. Scanning from the right with a stack summarises every usable third moment in a single number, `mid`."
+    }
+   ],
+   "slow": true
+  },
+  {
+   "title": "Right-to-left stack with the best in-between value",
+   "kind": "best",
+   "time": "O(n)",
+   "space": "O(n)",
+   "idea": [
+    {
+     "md": "Scan from the right with `mid = −∞` and a stack. For each value `v`: if `v < mid`, return true. Otherwise pop every stack value smaller than `v`, setting `mid` to the popped value (it has the bigger `v` to its left, and pops come out in increasing order, so the last popped is the largest). Push `v`."
+    }
+   ],
+   "build": [
+    "`mid = −∞`, empty stack.",
+    "From the right: `v < mid` → true.",
+    "Pop values smaller than `v` into `mid`.",
+    "Push `v`. False at the end."
+   ],
+   "code": {
+    "python": "class Solution:\n    def hasLowHighBetween(self, values: List[int]) -> bool:\n        mid = float(\"-inf\")\n        stack = []\n        for v in reversed(values):\n            if v < mid:\n                return True\n            while stack and stack[-1] < v:\n                mid = stack.pop()\n            stack.append(v)\n        return False\n",
+    "java": "class Solution {\n    public boolean hasLowHighBetween(int[] values) {\n        long mid = Long.MIN_VALUE;\n        int[] stack = new int[values.length];\n        int top = 0;\n        for (int i = values.length - 1; i >= 0; i--) {\n            if (values[i] < mid) return true;\n            while (top > 0 && stack[top - 1] < values[i]) mid = stack[--top];\n            stack[top++] = values[i];\n        }\n        return false;\n    }\n}\n",
+    "cpp": "class Solution {\npublic:\n    bool hasLowHighBetween(vector<int>& values) {\n        long long mid = LLONG_MIN;\n        vector<int> stack;\n        for (int i = (int) values.size() - 1; i >= 0; i--) {\n            if (values[i] < mid) return true;\n            while (!stack.empty() && stack.back() < values[i]) {\n                mid = stack.back();\n                stack.pop_back();\n            }\n            stack.push_back(values[i]);\n        }\n        return false;\n    }\n};\n",
+    "c": "bool hasLowHighBetween(int* values, int valuesSize) {\n    long long mid = LLONG_MIN;\n    int* stack = malloc(valuesSize * sizeof(int));\n    int top = 0;\n    bool found = false;\n    for (int i = valuesSize - 1; i >= 0 && !found; i--) {\n        if (values[i] < mid) { found = true; break; }\n        while (top > 0 && stack[top - 1] < values[i]) mid = stack[--top];\n        stack[top++] = values[i];\n    }\n    free(stack);\n    return found;\n}\n"
+   },
+   "lines": [
+    {
+     "text": "`mid` = the largest value known to have something bigger to its left, which is the best in-between candidate. It starts below everything.",
+     "at": {
+      "python": [
+       [
+        3,
+        4
+       ]
+      ],
+      "java": [
+       [
+        3,
+        5
+       ]
+      ],
+      "cpp": [
+       [
+        4,
+        5
+       ]
+      ],
+      "c": [
+       [
+        2,
+        5
+       ]
+      ]
+     },
+     "notes": {
+      "java": "A `long` minimum, so no `int` value compares below it at the start.",
+      "cpp": "A 64-bit minimum, so no `int` value compares below it at the start.",
+      "c": "A 64-bit minimum, so no `int` value compares below it at the start."
+     }
+    },
+    {
+     "text": "Right to left: every value seen so far lies to the right of the current one.",
+     "at": {
+      "python": [
+       [
+        5,
+        5
+       ]
+      ],
+      "java": [
+       [
+        6,
+        6
+       ]
+      ],
+      "cpp": [
+       [
+        6,
+        6
+       ]
+      ],
+      "c": [
+       [
+        6,
+        6
+       ]
+      ]
+     }
+    },
+    {
+     "text": "The current value is below `mid`, so it's the low, `mid` is the in-between value, and whatever popped `mid` is the high between them.",
+     "at": {
+      "python": [
+       [
+        6,
+        7
+       ]
+      ],
+      "java": [
+       [
+        7,
+        7
+       ]
+      ],
+      "cpp": [
+       [
+        7,
+        7
+       ]
+      ],
+      "c": [
+       [
+        7,
+        7
+       ]
+      ]
+     }
+    },
+    {
+     "text": "Smaller values on the stack now have a bigger value (`v`) on their left: each is a valid in-between candidate. The stack is decreasing, so they pop in increasing order and the last one is the largest. `mid` never shrinks: every value on the stack is at least `mid` (a smaller one would have returned true), so anything popped is too.",
+     "at": {
+      "python": [
+       [
+        8,
+        9
+       ]
+      ],
+      "java": [
+       [
+        8,
+        8
+       ]
+      ],
+      "cpp": [
+       [
+        8,
+        10
+       ]
+      ],
+      "c": [
+       [
+        8,
+        8
+       ]
+      ]
+     }
+    },
+    {
+     "text": "`v` becomes a candidate high for values further left.",
+     "at": {
+      "python": [
+       [
+        10,
+        10
+       ]
+      ],
+      "java": [
+       [
+        9,
+        9
+       ]
+      ],
+      "cpp": [
+       [
+        12,
+        12
+       ]
+      ],
+      "c": [
+       [
+        9,
+        9
+       ]
+      ]
+     }
+    },
+    {
+     "text": "No low ever went below `mid`.",
+     "at": {
+      "python": [
+       [
+        11,
+        11
+       ]
+      ],
+      "java": [
+       [
+        11,
+        11
+       ]
+      ],
+      "cpp": [
+       [
+        14,
+        14
+       ]
+      ],
+      "c": [
+       [
+        11,
+        12
+       ]
+      ]
+     }
+    }
+   ],
+   "complexity": [
+    {
+     "md": "**Time O(n):** each value is pushed and popped at most once. **Space O(n)** for the stack."
+    }
+   ],
+   "walk": {
+    "steps": [
+     {
+      "text": "values[6] = 7: pops nothing. Push it.",
+      "panels": [
+       {
+        "type": "row",
+        "cells": [
+         2,
+         4,
+         3,
+         6,
+         5,
+         1,
+         7
+        ],
+        "states": {
+         "6": "active"
+        }
+       },
+       {
+        "type": "row",
+        "cells": [
+         7
+        ],
+        "label": "stack"
+       },
+       {
+        "type": "vars",
+        "items": {
+         "mid": "−∞"
+        }
+       }
+      ]
+     },
+     {
+      "text": "values[5] = 1: pops nothing. Push it.",
+      "panels": [
+       {
+        "type": "row",
+        "cells": [
+         2,
+         4,
+         3,
+         6,
+         5,
+         1,
+         7
+        ],
+        "states": {
+         "5": "active"
+        }
+       },
+       {
+        "type": "row",
+        "cells": [
+         7,
+         1
+        ],
+        "label": "stack"
+       },
+       {
+        "type": "vars",
+        "items": {
+         "mid": "−∞"
+        }
+       }
+      ]
+     },
+     {
+      "text": "values[4] = 5: pops [1], which now have a bigger value (5) to their left; mid = 1. Push it.",
+      "panels": [
+       {
+        "type": "row",
+        "cells": [
+         2,
+         4,
+         3,
+         6,
+         5,
+         1,
+         7
+        ],
+        "states": {
+         "4": "active"
+        }
+       },
+       {
+        "type": "row",
+        "cells": [
+         7,
+         5
+        ],
+        "label": "stack"
+       },
+       {
+        "type": "vars",
+        "items": {
+         "mid": 1
+        }
+       }
+      ]
+     },
+     {
+      "text": "values[3] = 6: pops [5], which now have a bigger value (6) to their left; mid = 5. Push it.",
+      "panels": [
+       {
+        "type": "row",
+        "cells": [
+         2,
+         4,
+         3,
+         6,
+         5,
+         1,
+         7
+        ],
+        "states": {
+         "3": "active"
+        }
+       },
+       {
+        "type": "row",
+        "cells": [
+         7,
+         6
+        ],
+        "label": "stack"
+       },
+       {
+        "type": "vars",
+        "items": {
+         "mid": 5
+        }
+       }
+      ]
+     },
+     {
+      "text": "values[2] = 3 < mid 5: it's the low, mid is the 'in between', and the value that popped mid is the high. True.",
+      "panels": [
+       {
+        "type": "row",
+        "cells": [
+         2,
+         4,
+         3,
+         6,
+         5,
+         1,
+         7
+        ],
+        "states": {
+         "2": "found"
+        }
+       },
+       {
+        "type": "row",
+        "cells": [
+         7,
+         6
+        ],
+        "label": "stack"
+       },
+       {
+        "type": "vars",
+        "items": {
+         "mid": 5
+        }
+       }
+      ],
+      "result": "true"
+     }
+    ],
+    "title": "Scan from the right. The stack holds candidates for the high, decreasing; 'mid' is the biggest value ever popped. A popped value has a bigger value to its left, so it is a valid third moment. Any later (further left) value below mid completes the pattern."
+   }
+  }
+ ],
+ "takeaways": [
+  {
+   "md": "- For a three-part pattern, pick the part that's hardest to choose and summarise the rest in one number.\n- Scanning right to left, **being popped** means \"something bigger exists to my left\", which is exactly the\n  condition for the in-between value.\n- Keep the best candidate (largest `mid`), since it's the easiest for a low to beat."
+  }
+ ]
+}

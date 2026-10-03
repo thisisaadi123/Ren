@@ -1,0 +1,332 @@
+{
+ "version": 1,
+ "summary": "A repaint changes all tiles of one colour together, so tiles that share a colour in `s` must share a colour in\n`t`: the map `s-colour → t-colour` must be consistent. If it is, the recolouring can always be carried out, as\nlong as at least one colour is unused in `t` to act as a temporary colour (cycles like a → b, b → a need it).\nIf `s == t`, no steps are needed. O(n).",
+ "question": [
+  {
+   "md": "One step repaints **every** tile of colour `x` with colour `y`. Can `s` be turned into `t` with `m` colours\navailable?\n\n- **Repaints are all-or-nothing:** two tiles with the same colour can never be separated.\n- **Swapping two colours** needs a third, temporary colour."
+  },
+  {
+   "md": "**Edge cases to keep in mind**\n\n- `s = t`: always possible with zero steps.\n- Two tiles with the same colour in `s` but different colours in `t`: impossible, they're always repainted together.\n- Every one of the `m` colours used in `t`, with `s ≠ t`: impossible (no free colour to work with)."
+  }
+ ],
+ "think": [
+  {
+   "md": "**First requirement: one target per colour.** A step repaints *every* tile of a colour, so tiles that share a\ncolour in `s` always share a colour afterwards. So each colour of `s` must go to a single colour of `t`: the pairs\n`(s[i], t[i])` must define a function. For `s = \"abca\"`, `t = \"bbcb\"`: a→b, b→b, c→c,\nconsistent.\n\n**Second requirement: a free colour, unless nothing changes.** If `t` uses all `m` colours, then (since it's the\nimage of the function) so does `s`, and every step merges two colour classes, permanently reducing the number of\ncolours present. But `t` needs all `m`, so no step may happen at all, meaning `s` must already equal `t`.\n\n**Why a free colour is enough.** Think of the function as arrows `x → f(x)`. Repaint along chains from the far\nend first, so a colour is never overwritten while some tile still needs it. A cycle (like `a → b → a`) needs one\ntemporary colour; a colour missing from `t` can be freed and used for that. For example, `s = \"ab\"`, `t = \"ba\"`,\n`m = 3`:"
+  },
+  {
+   "table": {
+    "head": [
+     "sign",
+     "step"
+    ],
+    "rows": [
+     [
+      "ab",
+      "start"
+     ],
+     [
+      "cb",
+      "a → c (c is free: not in the target)"
+     ],
+     [
+      "ca",
+      "b → a (a is now free)"
+     ],
+     [
+      "ba",
+      "c → b"
+     ]
+    ]
+   }
+  },
+  {
+   "md": "With `m = 2` there's no spare colour and this swap is impossible."
+  }
+ ],
+ "approaches": [
+  {
+   "title": "Consistent mapping plus a spare colour",
+   "kind": "best",
+   "time": "O(n)",
+   "space": "O(1)",
+   "idea": [
+    {
+     "md": "Return true if `s = t`. Otherwise check that the colour mapping is consistent, and that `t` uses fewer than\n`m` colours.\n\nSearching over repaint sequences directly would explode; the two conditions capture exactly what's\npossible (see the reasoning above)."
+    }
+   ],
+   "build": [
+    "Equal signs: true.",
+    "Build the mapping from `s`-colour to `t`-colour; a conflict means false.",
+    "Require a colour unused by `t`."
+   ],
+   "code": {
+    "python": "class Solution:\n    def canRepaint(self, s: str, t: str, m: int) -> bool:\n        if s == t:\n            return True\n        paint = {}\n        for x, y in zip(s, t):\n            if paint.setdefault(x, y) != y:\n                return False\n        return len(set(t)) < m\n",
+    "java": "class Solution {\n    public boolean canRepaint(String s, String t, int m) {\n        if (s.equals(t)) return true;\n        int[] paint = new int[26];\n        Arrays.fill(paint, -1);\n        for (int i = 0; i < s.length(); i++) {\n            int x = s.charAt(i) - 'a', y = t.charAt(i) - 'a';\n            if (paint[x] == -1) paint[x] = y;\n            else if (paint[x] != y) return false;\n        }\n        boolean[] used = new boolean[26];\n        int distinct = 0;\n        for (char c : t.toCharArray()) if (!used[c - 'a']) { used[c - 'a'] = true; distinct++; }\n        return distinct < m;\n    }\n}\n",
+    "cpp": "class Solution {\npublic:\n    bool canRepaint(string& s, string& t, int m) {\n        if (s == t) return true;\n        int paint[26];\n        fill(paint, paint + 26, -1);\n        for (size_t i = 0; i < s.size(); i++) {\n            int x = s[i] - 'a', y = t[i] - 'a';\n            if (paint[x] == -1) paint[x] = y;\n            else if (paint[x] != y) return false;\n        }\n        set<char> used(t.begin(), t.end());\n        return (int) used.size() < m;\n    }\n};\n",
+    "c": "bool canRepaint(char* s, char* t, int m) {\n    if (strcmp(s, t) == 0) return true;\n    int paint[26];\n    for (int x = 0; x < 26; x++) paint[x] = -1;\n    for (int i = 0; s[i]; i++) {\n        int x = s[i] - 'a', y = t[i] - 'a';\n        if (paint[x] == -1) paint[x] = y;\n        else if (paint[x] != y) return false;\n    }\n    int used[26] = {0}, distinct = 0;\n    for (int i = 0; t[i]; i++) if (!used[t[i] - 'a']) { used[t[i] - 'a'] = 1; distinct++; }\n    return distinct < m;\n}\n"
+   },
+   "lines": [
+    {
+     "text": "Nothing to change: zero steps.",
+     "at": {
+      "python": [
+       [
+        3,
+        4
+       ]
+      ],
+      "java": [
+       [
+        3,
+        3
+       ]
+      ],
+      "cpp": [
+       [
+        4,
+        4
+       ]
+      ],
+      "c": [
+       [
+        2,
+        2
+       ]
+      ]
+     }
+    },
+    {
+     "text": "Each colour of `s` must always go to the same colour of `t`; a second, different target makes it impossible.",
+     "at": {
+      "python": [
+       [
+        5,
+        8
+       ]
+      ],
+      "java": [
+       [
+        4,
+        9
+       ]
+      ],
+      "cpp": [
+       [
+        5,
+        10
+       ]
+      ],
+      "c": [
+       [
+        3,
+        8
+       ]
+      ]
+     }
+    },
+    {
+     "text": "With `s ≠ t`, at least one colour must be free (unused in `t`) to break cycles; if `t` uses all `m` colours, the number of colours can only shrink.",
+     "at": {
+      "python": [
+       [
+        9,
+        9
+       ]
+      ],
+      "java": [
+       [
+        11,
+        14
+       ]
+      ],
+      "cpp": [
+       [
+        12,
+        13
+       ]
+      ],
+      "c": [
+       [
+        10,
+        12
+       ]
+      ]
+     }
+    }
+   ],
+   "complexity": [
+    {
+     "md": "**Time O(n).** **Space O(m):** at most 26 entries."
+    }
+   ],
+   "walk": {
+    "steps": [
+     {
+      "text": "Tile 0: 'a' must become 'b'.",
+      "panels": [
+       {
+        "type": "row",
+        "cells": [
+         "a",
+         "b",
+         "c",
+         "a"
+        ],
+        "states": {
+         "0": "active"
+        },
+        "label": "s"
+       },
+       {
+        "type": "row",
+        "cells": [
+         "b",
+         "b",
+         "c",
+         "b"
+        ],
+        "states": {
+         "0": "active"
+        },
+        "label": "t"
+       },
+       {
+        "type": "vars",
+        "items": {
+         "a": "b"
+        }
+       }
+      ]
+     },
+     {
+      "text": "Tile 1: 'b' must become 'b'.",
+      "panels": [
+       {
+        "type": "row",
+        "cells": [
+         "a",
+         "b",
+         "c",
+         "a"
+        ],
+        "states": {
+         "1": "active"
+        },
+        "label": "s"
+       },
+       {
+        "type": "row",
+        "cells": [
+         "b",
+         "b",
+         "c",
+         "b"
+        ],
+        "states": {
+         "1": "active"
+        },
+        "label": "t"
+       },
+       {
+        "type": "vars",
+        "items": {
+         "a": "b",
+         "b": "b"
+        }
+       }
+      ]
+     },
+     {
+      "text": "Tile 2: 'c' must become 'c'.",
+      "panels": [
+       {
+        "type": "row",
+        "cells": [
+         "a",
+         "b",
+         "c",
+         "a"
+        ],
+        "states": {
+         "2": "active"
+        },
+        "label": "s"
+       },
+       {
+        "type": "row",
+        "cells": [
+         "b",
+         "b",
+         "c",
+         "b"
+        ],
+        "states": {
+         "2": "active"
+        },
+        "label": "t"
+       },
+       {
+        "type": "vars",
+        "items": {
+         "a": "b",
+         "b": "b",
+         "c": "c"
+        }
+       }
+      ]
+     },
+     {
+      "text": "Tile 3: 'a' must become 'b'.",
+      "panels": [
+       {
+        "type": "row",
+        "cells": [
+         "a",
+         "b",
+         "c",
+         "a"
+        ],
+        "states": {
+         "3": "active"
+        },
+        "label": "s"
+       },
+       {
+        "type": "row",
+        "cells": [
+         "b",
+         "b",
+         "c",
+         "b"
+        ],
+        "states": {
+         "3": "active"
+        },
+        "label": "t"
+       },
+       {
+        "type": "vars",
+        "items": {
+         "a": "b",
+         "b": "b",
+         "c": "c"
+        }
+       }
+      ]
+     },
+     {
+      "text": "The target uses 2 of the 3 colours, so a spare colour exists: true.",
+      "panels": [],
+      "result": "true"
+     }
+    ],
+    "title": "Each colour in s must become exactly one colour in t. Then we need one spare colour to break cycles like a→b→a."
+   }
+  }
+ ],
+ "takeaways": [
+  {
+   "md": "- **\"Recolour all of x\" operations** → the mapping must be a function; check it with one map.\n- **Cycles in a mapping need a temporary slot** (like swapping two variables).\n- **Pitfall:** forgetting the `s = t` case, which needs no free colour."
+  }
+ ]
+}

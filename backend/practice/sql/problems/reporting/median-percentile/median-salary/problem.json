@@ -1,0 +1,49 @@
+{
+  "id": "median-salary",
+  "title": "Median Salary by Department",
+  "topic": "reporting",
+  "pattern": "median-percentile",
+  "difficulty": "hard",
+  "statement": "The **median** is the middle salary once a department's salaries are sorted; with an even number of people, it's the\naverage of the two in the middle.\n\nReturn `dept_id` and `median` (rounded to 2 decimal places) for every department with employees, in any order.\nEmployees without a department are left out.",
+  "notes": "In SQLite, `(cnt + 1) / 2` is whole-number division: for 4 people it's 2, and `(cnt + 2) / 2` is 3.",
+  "tables": [
+    {
+      "name": "employees",
+      "columns": [
+        [
+          "id",
+          "INTEGER",
+          "pk"
+        ],
+        [
+          "name",
+          "TEXT"
+        ],
+        [
+          "dept_id",
+          "INTEGER",
+          "fk departments.id"
+        ],
+        [
+          "manager_id",
+          "INTEGER",
+          "fk employees.id"
+        ],
+        [
+          "salary",
+          "INTEGER"
+        ],
+        [
+          "hired_on",
+          "TEXT"
+        ]
+      ]
+    }
+  ],
+  "ordered": false,
+  "reference": "WITH ranked AS (\n  SELECT dept_id, salary,\n         ROW_NUMBER() OVER (PARTITION BY dept_id ORDER BY salary) AS rn,\n         COUNT(*) OVER (PARTITION BY dept_id) AS cnt\n  FROM employees\n  WHERE dept_id IS NOT NULL\n)\nSELECT dept_id, ROUND(AVG(salary), 2) AS median\nFROM ranked\nWHERE rn IN ((cnt + 1) / 2, (cnt + 2) / 2)\nGROUP BY dept_id",
+  "wrong": [
+    "SELECT dept_id, ROUND(AVG(salary), 2) AS median FROM employees WHERE dept_id IS NOT NULL GROUP BY dept_id",
+    "WITH ranked AS (SELECT dept_id, salary, ROW_NUMBER() OVER (PARTITION BY dept_id ORDER BY salary) AS rn, COUNT(*) OVER (PARTITION BY dept_id) AS cnt FROM employees WHERE dept_id IS NOT NULL) SELECT dept_id, ROUND(AVG(salary), 2) AS median FROM ranked WHERE rn = (cnt + 1) / 2 GROUP BY dept_id"
+  ]
+}

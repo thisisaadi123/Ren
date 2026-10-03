@@ -4,50 +4,71 @@
  "question": [
   {
    "md": "Return the smallest positive integer that isn't in `nums`.\n\n- **Junk is allowed:** zeros, negatives and huge values (up to 2³¹ − 1) appear and must simply be\n  ignored.\n- **Duplicates are allowed** and change nothing.\n- **The hard part is the requirement:** O(n) time **and** O(1) extra space. A hash set gives O(n) time\n  but O(n) space; sorting gives O(1) space but O(n log n) time.\n- **Overflow trap:** values reach `−2³¹`, whose absolute value doesn't fit in a 32-bit `int`. Code\n  that calls `abs` on raw input in Java, C++ or C must avoid that."
+  },
+  {
+   "md": "**Edge cases to keep in mind**\n\n- All of `1 … n` present: the answer is `n + 1`.\n- Only junk (zeros, negatives, huge values): the answer is 1.\n- Values span the full 32-bit range, so negating an arbitrary value could overflow; clean them first."
   }
  ],
  "think": [
   {
-   "md": "Take `nums = [5, 3, −2, 1, 9, 2]` (n = 6). Counting up: 1 ✓, 2 ✓, 3 ✓, **4** ✗. The answer is 4.\n\nThe key observation: **the answer is at most n + 1.** With n numbers, the best they can do is cover\n1, 2, …, n exactly, and then the answer is n + 1. If anything is missing from 1 … n, the answer is\nsmaller. So:\n\n- values ≤ 0 or > n (like −2 and 9 here) can never change the answer;\n- only the n values 1 … n matter, and there are exactly n slots, one per value: value `v` ↔ slot `v − 1`."
+   "md": "**The answer is at most `n + 1`.** With `n` numbers, the best case is that they're exactly `1 … n`, making the\nanswer `n + 1`. Anything missing from `1 … n` makes the answer smaller. So only values in `1 … n` matter, and\neverything else is junk."
   },
   {
-   "panels": [
-    {
-     "type": "row",
-     "cells": [
-      5,
-      3,
-      -2,
-      1,
-      9,
-      2
-     ],
-     "states": {
-      "2": "dim",
-      "4": "dim"
-     },
-     "slots": true
-    },
-    {
-     "type": "row",
-     "cells": [
-      1,
-      2,
-      3,
-      null,
-      5,
-      null
-     ],
-     "states": {
-      "3": "answer"
-     },
-     "label": "values 1 … 6 present?"
-    }
-   ],
-   "caption": "−2 and 9 are junk. Of 1 … 6, the first one missing is 4."
+   "md": "**The array as its own checklist.** When the values are numbers `1 … n` and the array has `n` slots, slot `v − 1` can\nserve as the checkbox for value `v`. To tick it, change slot `v − 1` in a way that is **reversible** and that doesn't\ndestroy the value stored there:\n\n- **Flip its sign** (values are positive, so the original is `|x|`);\n- **Add `n`** (the original is `(x − 1) mod n + 1`, and the number of additions counts how often `v` appeared).\n\nReading a slot's value always uses the decoding (`abs`, or the `mod`), so earlier ticks never confuse later reads.\nThat's O(n) time with O(1) extra space, and a final pass can restore the input."
   },
   {
-   "md": "That turns the problem into \"mark which of 1 … n appear, then find the first unmarked one\". With an\nextra array that's easy. To meet O(1) space, the **input array itself** must hold the marks, which is\nwhat the last two approaches do."
+   "md": "**Clean, then mark.** First replace every junk value (≤ 0 or > n) with `n + 1`, a positive value that will be\nignored. Now all values are positive, so signs are free to use as marks. For `[5, 3, -2, 1, 9, 2]` (n = 6) the cleaned array\nis `[5, 3, 7, 1, 7, 2]`:"
+  },
+  {
+   "table": {
+    "head": [
+     "i",
+     "|value|",
+     "action",
+     "array after"
+    ],
+    "rows": [
+     [
+      "0",
+      "5",
+      "tick slot 4",
+      "5 3 7 1 -7 2"
+     ],
+     [
+      "1",
+      "3",
+      "tick slot 2",
+      "5 3 -7 1 -7 2"
+     ],
+     [
+      "2",
+      "7",
+      "out of range: ignore",
+      "5 3 -7 1 -7 2"
+     ],
+     [
+      "3",
+      "1",
+      "tick slot 0",
+      "-5 3 -7 1 -7 2"
+     ],
+     [
+      "4",
+      "7",
+      "out of range: ignore",
+      "-5 3 -7 1 -7 2"
+     ],
+     [
+      "5",
+      "2",
+      "tick slot 1",
+      "-5 -3 -7 1 -7 2"
+     ]
+    ]
+   }
+  },
+  {
+   "md": "The first slot still positive is index 3, so the answer is **4**."
   }
  ],
  "approaches": [
@@ -58,13 +79,12 @@
    "space": "O(1)",
    "idea": [
     {
-     "md": "Check 1, 2, 3, … in turn; for each, scan the whole list. The first one not found is the answer. At most n + 1 candidates are needed."
+     "md": "Try 1, 2, 3, … and scan the whole array for each, stopping at the first number not found."
     }
    ],
    "build": [
-    "Start at `k = 1`.",
-    "While `k` is in the list (by scanning), increase `k`.",
-    "Return `k`."
+    "`k = 1`.",
+    "While `k` is in the array, `k += 1`."
    ],
    "code": {
     "python": "class Solution:\n    def firstMissing(self, nums: List[int]) -> int:\n        k = 1\n        while k in nums:\n            k += 1\n        return k\n",
@@ -74,7 +94,7 @@
    },
    "lines": [
     {
-     "text": "Candidates start at 1, the smallest positive integer.",
+     "text": "The first candidate.",
      "at": {
       "python": [
        [
@@ -103,7 +123,7 @@
      }
     },
     {
-     "text": "Look for the candidate in the whole list; if it's there, try the next one.",
+     "text": "Each candidate is searched for in the whole array.",
      "at": {
       "python": [
        [
@@ -132,7 +152,7 @@
      }
     },
     {
-     "text": "The first candidate not found. It's at most n + 1, so the loop always ends.",
+     "text": "The first candidate not present.",
      "at": {
       "python": [
        [
@@ -163,7 +183,7 @@
    ],
    "complexity": [
     {
-     "md": "**Time O(n²):** up to n + 1 scans of n values. **Space O(1).**"
+     "md": "**Time O(n²):** up to `n + 1` scans of `n`. **Space O(1).**"
     }
    ],
    "walk": {
@@ -259,7 +279,7 @@
    },
    "limits": [
     {
-     "md": "Each membership test is a scan. Since only 1 … n + 1 matter, a table of n + 1 flags answers them in O(1)."
+     "md": "Every candidate rescans the array. One pass can record which of `1 … n + 1` are present."
     }
    ],
    "slow": true
@@ -271,13 +291,13 @@
    "space": "O(n)",
    "idea": [
     {
-     "md": "Make n + 2 flags. Set the flag for every value in 1 … n + 1, ignoring everything else. The first unset flag from 1 upward is the answer."
+     "md": "Flags for `1 … n + 1`: mark each value in range, then find the first unmarked number."
     }
    ],
    "build": [
-    "Make `seen` of size n + 2.",
-    "For each value `v` with `1 ≤ v ≤ n + 1`, set `seen[v]`.",
-    "Return the first `k ≥ 1` with `seen[k]` unset."
+    "Flags of size `n + 2`.",
+    "Mark values in range.",
+    "First unmarked."
    ],
    "code": {
     "python": "class Solution:\n    def firstMissing(self, nums: List[int]) -> int:\n        n = len(nums)\n        seen = [False] * (n + 2)\n        for v in nums:\n            if 1 <= v <= n + 1:\n                seen[v] = True\n        k = 1\n        while seen[k]:\n            k += 1\n        return k\n",
@@ -287,7 +307,7 @@
    },
    "lines": [
     {
-     "text": "One flag per possible answer 1 … n + 1 (index 0 unused, and one spare so the search below always stops).",
+     "text": "Room for 1 … n + 1.",
      "at": {
       "python": [
        [
@@ -316,7 +336,7 @@
      }
     },
     {
-     "text": "Only values in 1 … n + 1 can block an answer; junk is skipped, which also keeps the index in range.",
+     "text": "Only values in range can affect the answer.",
      "at": {
       "python": [
        [
@@ -345,7 +365,7 @@
      }
     },
     {
-     "text": "The first unflagged value from 1 upward. n values can fill at most n of the n + 1 flags, so an empty one always exists and the loop stops by index n + 1.",
+     "text": "The first unmarked number (at most n + 1).",
      "at": {
       "python": [
        [
@@ -379,7 +399,7 @@
    ],
    "complexity": [
     {
-     "md": "**Time O(n).** **Space O(n)** for the flags, which the problem doesn't allow."
+     "md": "**Time O(n).** **Space O(n)**, which the problem forbids."
     }
    ],
    "walk": {
@@ -621,7 +641,7 @@
    },
    "limits": [
     {
-     "md": "The flags are a second array of size n. The input already has n slots, one for each value that matters, so the marks can live there."
+     "md": "Uses O(n) extra space. The input array's own slots can hold the marks."
     }
    ]
   },
@@ -632,13 +652,12 @@
    "space": "O(1)",
    "idea": [
     {
-     "md": "Rearrange the array so that, whenever value `v` (1 ≤ v ≤ n) is present, slot `v − 1` holds it. For\neach slot, keep swapping its value into the value's home slot until the value is out of range, or\nits home already holds the same value (a duplicate). Then the first slot `i` not holding `i + 1`\ngives the answer `i + 1`; if every slot is right, the answer is n + 1."
+     "md": "Cyclic sort: swap each value `v` in `1 … n` into slot `v − 1` until every slot holds its own number or\njunk. Then the first slot `i` without `i + 1` gives the answer.\n\n**Why it's O(n).** Every swap puts at least one value into its final slot, and a value in its final slot\nis never moved again, so there are at most `n` swaps in total."
     }
    ],
    "build": [
-    "For each i: while `1 ≤ nums[i] ≤ n` and `nums[nums[i] − 1] != nums[i]`, swap `nums[i]` with `nums[nums[i] − 1]`.",
-    "Scan for the first i with `nums[i] != i + 1`; return `i + 1`.",
-    "If none, return n + 1."
+    "For each slot, swap its value into place while possible.",
+    "Find the first slot without its own number."
    ],
    "code": {
     "python": "class Solution:\n    def firstMissing(self, nums: List[int]) -> int:\n        n = len(nums)\n        for i in range(n):\n            while 1 <= nums[i] <= n and nums[nums[i] - 1] != nums[i]:\n                j = nums[i] - 1\n                nums[i], nums[j] = nums[j], nums[i]\n        for i in range(n):\n            if nums[i] != i + 1:\n                return i + 1\n        return n + 1\n",
@@ -648,7 +667,7 @@
    },
    "lines": [
     {
-     "text": "Keep working on slot `i` while its value belongs somewhere in 1 … n **and** its home doesn't already hold that value. The second condition stops endless swapping between two equal values.",
+     "text": "Visit every slot.",
      "at": {
       "python": [
        [
@@ -682,7 +701,7 @@
      }
     },
     {
-     "text": "Send the value home; whatever was there comes back to slot `i` and gets the same treatment.",
+     "text": "While this slot holds a value in range that isn't already in its home slot, swap it home. The duplicate check stops endless swapping between equal values.",
      "at": {
       "python": [
        [
@@ -714,7 +733,7 @@
      }
     },
     {
-     "text": "Now every present value 1 … n sits at its home. The first slot without its own number names the missing value.",
+     "text": "The first slot that doesn't hold its own number.",
      "at": {
       "python": [
        [
@@ -743,7 +762,7 @@
      }
     },
     {
-     "text": "Every slot holds its own number: 1 … n are all present, so the answer is n + 1.",
+     "text": "Every slot holds its number: the answer is `n + 1`.",
      "at": {
       "python": [
        [
@@ -774,7 +793,7 @@
    ],
    "complexity": [
     {
-     "md": "**Time O(n):** every swap puts one value in its final home, and a value at home is never moved\nagain, so there are at most n swaps in total, however the `while` loops are distributed.\n\n**Space O(1)** extra, but the array is rearranged."
+     "md": "**Time O(n).** **Space O(1).**"
     }
    ],
    "walk": {
@@ -1059,7 +1078,7 @@
    },
    "limits": [
     {
-     "md": "It meets both requirements, but the swap loop is the trickiest code in this problem: the guard\nmust compare values (not indices) to avoid infinite loops on duplicates, and the O(n) bound needs\nthe \"each swap finalises one value\" argument. Sign marking gets the same bounds with three\nstraight passes and no swaps."
+     "md": "Correct and O(1) space, but it rearranges the input heavily. Sign marks record the same information with simple writes."
     }
    ]
   },
@@ -1070,13 +1089,13 @@
    "space": "O(1)",
    "idea": [
     {
-     "md": "Three passes over the array:\n\n1. **Clean:** replace every value outside 1 … n with n + 1. Now everything is positive, and n + 1\n   means \"ignore\".\n2. **Mark:** for each value, read `v = abs(x)`. If `v ≤ n`, make slot `v − 1` negative (if it isn't\n   already): \"value v is present\". The slot keeps its own value as its absolute value.\n3. **Find:** the first slot that's still positive is `i`, and `i + 1` is missing. If none is\n   positive, the answer is n + 1.\n\nCleaning first is what makes signs safe to use as marks: no original value is negative, and no\n`abs(−2³¹)` overflow can happen."
+     "md": "Replace junk with `n + 1`. For each value `v = |x| ≤ n`, make slot `v − 1` negative. The first slot that\nstays positive is the answer's index; if none, the answer is `n + 1`.\n\n**Why cleaning first matters.** It makes every value positive, so a negative sign can only mean \"ticked\",\nand it removes values like −2³¹ whose negation would overflow."
     }
    ],
    "build": [
-    "Replace each value `≤ 0` or `> n` with `n + 1`.",
-    "For each slot: `v = abs(nums[i])`; if `v ≤ n`, set `nums[v − 1] = −abs(nums[v − 1])`.",
-    "Return `i + 1` for the first `nums[i] > 0`, else `n + 1`."
+    "Replace junk with `n + 1`.",
+    "Negate slot `|x| − 1` for in-range values.",
+    "First positive slot → answer."
    ],
    "code": {
     "python": "class Solution:\n    def firstMissing(self, nums: List[int]) -> int:\n        n = len(nums)\n        for i in range(n):\n            if nums[i] <= 0 or nums[i] > n:\n                nums[i] = n + 1\n        for i in range(n):\n            v = abs(nums[i])\n            if v <= n:\n                nums[v - 1] = -abs(nums[v - 1])\n        for i in range(n):\n            if nums[i] > 0:\n                return i + 1\n        return n + 1\n",
@@ -1086,7 +1105,7 @@
    },
    "lines": [
     {
-     "text": "Junk can't change the answer, so overwrite it with the harmless value n + 1. After this pass every value is between 1 and n + 1, so later `abs` calls are safe (no `abs(−2³¹)`).",
+     "text": "Junk can't affect the answer; `n + 1` is positive and out of range, so it will simply be ignored.",
      "at": {
       "python": [
        [
@@ -1115,7 +1134,7 @@
      }
     },
     {
-     "text": "A value `v` in 1 … n marks its slot by making it negative. Using `−abs(…)` rather than plain negation keeps an already-marked slot marked when a duplicate comes along. The slot's own value is still readable as `abs`.",
+     "text": "Tick each present number's slot; `abs` decodes values whose slots were already ticked.",
      "at": {
       "python": [
        [
@@ -1144,7 +1163,7 @@
      }
     },
     {
-     "text": "A slot that never got marked means its value `i + 1` never appeared.",
+     "text": "The first unticked slot `i` means `i + 1` never appeared.",
      "at": {
       "python": [
        [
@@ -1173,7 +1192,7 @@
      }
     },
     {
-     "text": "All of 1 … n appeared, so n + 1 is the first missing.",
+     "text": "Every number `1 … n` is present.",
      "at": {
       "python": [
        [
@@ -1204,7 +1223,7 @@
    ],
    "complexity": [
     {
-     "md": "**Time O(n):** three passes. **Space O(1)** extra; the input is modified (it can be cleaned up afterwards if needed)."
+     "md": "**Time O(n):** three passes. **Space O(1).**"
     }
    ],
    "walk": {
@@ -1399,7 +1418,7 @@
  ],
  "takeaways": [
   {
-   "md": "- **Bound the answer** first: the smallest missing positive of n numbers is in `1 … n + 1`.\n- With values that matter limited to `1 … n`, the array's own slots can store \"present\" marks: a\n  minus sign, or the value parked at its home index (cyclic sort).\n- Normalise junk before marking (here to n + 1) so marks can't collide with real data, and watch out for\n  `abs(INT_MIN)`."
+   "md": "- **Smallest missing positive:** the answer is in `1 … n + 1`, so index marking applies.\n- Clean out-of-range values first so signs can be used as marks.\n- **Pitfall:** negating raw input values (overflow at −2³¹, and existing negatives look \"ticked\")."
   }
  ]
 }

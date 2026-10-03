@@ -1,0 +1,815 @@
+{
+ "version": 1,
+ "summary": "Allocate `k` slots once and keep two numbers: `head` (where the front item is) and `size`. The back slot is\n`(head + size − 1) mod k` and the next free slot is `(head + size) mod k`, so indices wrap around the end of\nthe array. Enqueue writes a slot, dequeue advances `head`: nothing ever shifts, and every operation is O(1).",
+ "question": [
+  {
+   "md": "Implement a bounded FIFO buffer of capacity `k` with `enqueue`, `dequeue`, `front`, `rear`, `isEmpty` and\n`isFull`. Failed operations report `false` (or −1 for reading an empty buffer) and change nothing.\n\n- **Full and empty must be told apart**, even though in both cases the front and back 'meet' in a circular\n  layout.\n- **`rear` is the most recently added item still in the buffer.**\n- **Up to 10⁵ calls with `k ≤ 1000`.**"
+  }
+ ],
+ "think": [
+  {
+   "md": "Capacity 3: enqueue 1, 2, 3; a fourth enqueue fails. Dequeue removes 1. Now 4 fits, and it can go into the\nslot 0 just vacated. The items are 2, 3, 4 in queue order, but in the array they sit as `[4, 2, 3]` with the\nfront at index 1. That's the 'ring': the array's end wraps to its start."
+  },
+  {
+   "panels": [
+    {
+     "type": "row",
+     "cells": [
+      4,
+      2,
+      3
+     ],
+     "states": {
+      "1": "active",
+      "0": "found"
+     },
+     "label": "slots"
+    }
+   ],
+   "caption": "Front at slot 1 (2), back at slot 0 (4)."
+  },
+  {
+   "md": "With `head` and `size`, every position is arithmetic: the i-th item of the queue is at `(head + i) mod k`.\nKeeping `size` (instead of a separate tail index) also settles full vs empty: `size == k` versus `size == 0`."
+  }
+ ],
+ "approaches": [
+  {
+   "title": "List with shifting",
+   "kind": "brute",
+   "time": "O(k) per dequeue",
+   "space": "O(k)",
+   "idea": [
+    {
+     "md": "Keep the items in a list in queue order. Enqueue appends (if fewer than `k`); dequeue removes index 0, shifting everything left."
+    }
+   ],
+   "build": [
+    "A list and the capacity.",
+    "`enqueue`: append unless full.",
+    "`dequeue`: remove the first element unless empty.",
+    "`front` / `rear`: first / last element, or −1."
+   ],
+   "code": {
+    "python": "class RingBuffer:\n    def __init__(self, k: int):\n        self.items = []\n        self.k = k\n\n    def enqueue(self, x: int) -> bool:\n        if len(self.items) == self.k:\n            return False\n        self.items.append(x)\n        return True\n\n    def dequeue(self) -> bool:\n        if not self.items:\n            return False\n        self.items.pop(0)\n        return True\n\n    def front(self) -> int:\n        return self.items[0] if self.items else -1\n\n    def rear(self) -> int:\n        return self.items[-1] if self.items else -1\n\n    def isEmpty(self) -> bool:\n        return not self.items\n\n    def isFull(self) -> bool:\n        return len(self.items) == self.k\n",
+    "java": "class RingBuffer {\n    private final List<Integer> items = new ArrayList<>();\n    private final int k;\n\n    public RingBuffer(int k) {\n        this.k = k;\n    }\n\n    public boolean enqueue(int x) {\n        if (items.size() == k) return false;\n        items.add(x);\n        return true;\n    }\n\n    public boolean dequeue() {\n        if (items.isEmpty()) return false;\n        items.remove(0);\n        return true;\n    }\n\n    public int front() {\n        return items.isEmpty() ? -1 : items.get(0);\n    }\n\n    public int rear() {\n        return items.isEmpty() ? -1 : items.get(items.size() - 1);\n    }\n\n    public boolean isEmpty() {\n        return items.isEmpty();\n    }\n\n    public boolean isFull() {\n        return items.size() == k;\n    }\n}\n",
+    "cpp": "class RingBuffer {\n    vector<int> items;\n    int k;\n\npublic:\n    RingBuffer(int k) : k(k) {\n    }\n\n    bool enqueue(int x) {\n        if ((int) items.size() == k) return false;\n        items.push_back(x);\n        return true;\n    }\n\n    bool dequeue() {\n        if (items.empty()) return false;\n        items.erase(items.begin());\n        return true;\n    }\n\n    int front() {\n        return items.empty() ? -1 : items.front();\n    }\n\n    int rear() {\n        return items.empty() ? -1 : items.back();\n    }\n\n    bool isEmpty() {\n        return items.empty();\n    }\n\n    bool isFull() {\n        return (int) items.size() == k;\n    }\n};\n"
+   },
+   "lines": [
+    {
+     "text": "Items in queue order, and the capacity.",
+     "at": {
+      "python": [
+       [
+        3,
+        4
+       ]
+      ],
+      "java": [
+       [
+        2,
+        3
+       ],
+       [
+        6,
+        6
+       ]
+      ],
+      "cpp": [
+       [
+        2,
+        3
+       ],
+       [
+        6,
+        6
+       ]
+      ]
+     }
+    },
+    {
+     "text": "Refuse when full; otherwise append at the back.",
+     "at": {
+      "python": [
+       [
+        7,
+        10
+       ]
+      ],
+      "java": [
+       [
+        10,
+        12
+       ]
+      ],
+      "cpp": [
+       [
+        10,
+        12
+       ]
+      ]
+     }
+    },
+    {
+     "text": "Refuse when empty; otherwise remove the front, which shifts every remaining item one place left.",
+     "at": {
+      "python": [
+       [
+        13,
+        16
+       ]
+      ],
+      "java": [
+       [
+        16,
+        18
+       ]
+      ],
+      "cpp": [
+       [
+        16,
+        18
+       ]
+      ]
+     }
+    },
+    {
+     "text": "Front and back are the ends of the list; −1 when empty.",
+     "at": {
+      "python": [
+       [
+        19,
+        19
+       ],
+       [
+        22,
+        22
+       ]
+      ],
+      "java": [
+       [
+        22,
+        22
+       ],
+       [
+        26,
+        26
+       ]
+      ],
+      "cpp": [
+       [
+        22,
+        22
+       ],
+       [
+        26,
+        26
+       ]
+      ]
+     }
+    },
+    {
+     "text": "Empty and full come straight from the length.",
+     "at": {
+      "python": [
+       [
+        25,
+        25
+       ],
+       [
+        28,
+        28
+       ]
+      ],
+      "java": [
+       [
+        30,
+        30
+       ],
+       [
+        34,
+        34
+       ]
+      ],
+      "cpp": [
+       [
+        30,
+        30
+       ],
+       [
+        34,
+        34
+       ]
+      ]
+     }
+    }
+   ],
+   "complexity": [
+    {
+     "md": "**Time:** `dequeue` O(k) for the shift; everything else O(1). **Space O(k).**"
+    }
+   ],
+   "walk": {
+    "steps": [
+     {
+      "text": "enqueue(1): added at the back → true.",
+      "panels": [
+       {
+        "type": "row",
+        "cells": [
+         1
+        ],
+        "label": "list (front → back)"
+       }
+      ]
+     },
+     {
+      "text": "enqueue(2): added at the back → true.",
+      "panels": [
+       {
+        "type": "row",
+        "cells": [
+         1,
+         2
+        ],
+        "label": "list (front → back)"
+       }
+      ]
+     },
+     {
+      "text": "enqueue(3): added at the back → true.",
+      "panels": [
+       {
+        "type": "row",
+        "cells": [
+         1,
+         2,
+         3
+        ],
+        "label": "list (front → back)"
+       }
+      ]
+     },
+     {
+      "text": "enqueue(4): full → false.",
+      "panels": [
+       {
+        "type": "row",
+        "cells": [
+         1,
+         2,
+         3
+        ],
+        "label": "list (front → back)"
+       }
+      ]
+     },
+     {
+      "text": "rear(): 3.",
+      "panels": [
+       {
+        "type": "row",
+        "cells": [
+         1,
+         2,
+         3
+        ],
+        "label": "list (front → back)"
+       }
+      ]
+     },
+     {
+      "text": "isFull(): true.",
+      "panels": [
+       {
+        "type": "row",
+        "cells": [
+         1,
+         2,
+         3
+        ],
+        "label": "list (front → back)"
+       }
+      ]
+     },
+     {
+      "text": "dequeue(): remove the front and shift the other 2 item(s) left → true.",
+      "panels": [
+       {
+        "type": "row",
+        "cells": [
+         2,
+         3
+        ],
+        "label": "list (front → back)"
+       }
+      ]
+     },
+     {
+      "text": "enqueue(4): added at the back → true.",
+      "panels": [
+       {
+        "type": "row",
+        "cells": [
+         2,
+         3,
+         4
+        ],
+        "label": "list (front → back)"
+       }
+      ]
+     },
+     {
+      "text": "rear(): 4.",
+      "panels": [
+       {
+        "type": "row",
+        "cells": [
+         2,
+         3,
+         4
+        ],
+        "label": "list (front → back)"
+       }
+      ]
+     },
+     {
+      "text": "front(): 2.",
+      "panels": [
+       {
+        "type": "row",
+        "cells": [
+         2,
+         3,
+         4
+        ],
+        "label": "list (front → back)"
+       }
+      ]
+     },
+     {
+      "text": "Every dequeue shifted the whole list.",
+      "panels": [],
+      "result": "done"
+     }
+    ],
+    "title": "A list that grows at the back and shifts everything left when the front leaves. Capacity 3."
+   },
+   "limits": [
+    {
+     "md": "A real ring buffer exists to avoid moving data: audio samples stream in and out constantly. Shifting on every dequeue (and growing the list) defeats the purpose. Fixed slots with a moving head index make every operation O(1)."
+    }
+   ]
+  },
+  {
+   "title": "Fixed array, head index and size",
+   "kind": "best",
+   "time": "O(1)",
+   "space": "O(k)",
+   "idea": [
+    {
+     "md": "Allocate `k` slots. Track `head` (the front item's slot) and `size`. Enqueue writes at `(head + size) % k`; dequeue sets `head = (head + 1) % k`; rear reads `(head + size − 1) % k`. Empty is `size == 0`, full is `size == k`."
+    }
+   ],
+   "build": [
+    "Array of `k` slots, `head = 0`, `size = 0`.",
+    "`enqueue`: if not full, write the next free slot and grow `size`.",
+    "`dequeue`: if not empty, advance `head` and shrink `size`.",
+    "`front`/`rear`: read by index, or −1."
+   ],
+   "code": {
+    "python": "class RingBuffer:\n    def __init__(self, k: int):\n        self.buf = [0] * k\n        self.k = k\n        self.head = 0\n        self.size = 0\n\n    def enqueue(self, x: int) -> bool:\n        if self.size == self.k:\n            return False\n        self.buf[(self.head + self.size) % self.k] = x\n        self.size += 1\n        return True\n\n    def dequeue(self) -> bool:\n        if self.size == 0:\n            return False\n        self.head = (self.head + 1) % self.k\n        self.size -= 1\n        return True\n\n    def front(self) -> int:\n        return self.buf[self.head] if self.size else -1\n\n    def rear(self) -> int:\n        return self.buf[(self.head + self.size - 1) % self.k] if self.size else -1\n\n    def isEmpty(self) -> bool:\n        return self.size == 0\n\n    def isFull(self) -> bool:\n        return self.size == self.k\n",
+    "java": "class RingBuffer {\n    private final int[] buf;\n    private int head = 0, size = 0;\n\n    public RingBuffer(int k) {\n        buf = new int[k];\n    }\n\n    public boolean enqueue(int x) {\n        if (size == buf.length) return false;\n        buf[(head + size) % buf.length] = x;\n        size++;\n        return true;\n    }\n\n    public boolean dequeue() {\n        if (size == 0) return false;\n        head = (head + 1) % buf.length;\n        size--;\n        return true;\n    }\n\n    public int front() {\n        return size == 0 ? -1 : buf[head];\n    }\n\n    public int rear() {\n        return size == 0 ? -1 : buf[(head + size - 1) % buf.length];\n    }\n\n    public boolean isEmpty() {\n        return size == 0;\n    }\n\n    public boolean isFull() {\n        return size == buf.length;\n    }\n}\n",
+    "cpp": "class RingBuffer {\n    vector<int> buf;\n    int head = 0, size = 0;\n\npublic:\n    RingBuffer(int k) : buf(k) {\n    }\n\n    bool enqueue(int x) {\n        if (size == (int) buf.size()) return false;\n        buf[(head + size) % buf.size()] = x;\n        size++;\n        return true;\n    }\n\n    bool dequeue() {\n        if (size == 0) return false;\n        head = (head + 1) % buf.size();\n        size--;\n        return true;\n    }\n\n    int front() {\n        return size == 0 ? -1 : buf[head];\n    }\n\n    int rear() {\n        return size == 0 ? -1 : buf[(head + size - 1) % buf.size()];\n    }\n\n    bool isEmpty() {\n        return size == 0;\n    }\n\n    bool isFull() {\n        return size == (int) buf.size();\n    }\n};\n"
+   },
+   "lines": [
+    {
+     "text": "`k` slots allocated once; `head` = slot of the front item; `size` = items stored.",
+     "at": {
+      "python": [
+       [
+        3,
+        6
+       ]
+      ],
+      "java": [
+       [
+        2,
+        3
+       ],
+       [
+        6,
+        6
+       ]
+      ],
+      "cpp": [
+       [
+        2,
+        3
+       ],
+       [
+        6,
+        6
+       ]
+      ]
+     }
+    },
+    {
+     "text": "Full → refuse. Otherwise the first free slot is `size` steps after `head`, wrapping with `% k`.",
+     "at": {
+      "python": [
+       [
+        9,
+        13
+       ]
+      ],
+      "java": [
+       [
+        10,
+        13
+       ]
+      ],
+      "cpp": [
+       [
+        10,
+        13
+       ]
+      ]
+     }
+    },
+    {
+     "text": "Empty → refuse. Otherwise the front slot is simply abandoned: advance `head` (wrapping) and shrink `size`. No data moves.",
+     "at": {
+      "python": [
+       [
+        16,
+        20
+       ]
+      ],
+      "java": [
+       [
+        17,
+        20
+       ]
+      ],
+      "cpp": [
+       [
+        17,
+        20
+       ]
+      ]
+     }
+    },
+    {
+     "text": "The item at `head`, or −1.",
+     "at": {
+      "python": [
+       [
+        23,
+        23
+       ]
+      ],
+      "java": [
+       [
+        24,
+        24
+       ]
+      ],
+      "cpp": [
+       [
+        24,
+        24
+       ]
+      ]
+     }
+    },
+    {
+     "text": "The last stored item is `size − 1` steps after `head`, wrapping. (`head + size − 1` is never negative when `size ≥ 1`.)",
+     "at": {
+      "python": [
+       [
+        26,
+        26
+       ]
+      ],
+      "java": [
+       [
+        28,
+        28
+       ]
+      ],
+      "cpp": [
+       [
+        28,
+        28
+       ]
+      ]
+     }
+    },
+    {
+     "text": "Counting items makes empty (`0`) and full (`k`) unambiguous, which a head/tail pair alone can't do.",
+     "at": {
+      "python": [
+       [
+        29,
+        29
+       ],
+       [
+        32,
+        32
+       ]
+      ],
+      "java": [
+       [
+        32,
+        32
+       ],
+       [
+        36,
+        36
+       ]
+      ],
+      "cpp": [
+       [
+        32,
+        32
+       ],
+       [
+        36,
+        36
+       ]
+      ]
+     }
+    }
+   ],
+   "complexity": [
+    {
+     "md": "**Time O(1)** for every operation. **Space O(k)**, allocated once."
+    }
+   ],
+   "walk": {
+    "steps": [
+     {
+      "text": "enqueue(1): write slot (head + size) mod k = 0; size 1 → true.",
+      "panels": [
+       {
+        "type": "row",
+        "cells": [
+         1,
+         "·",
+         "·"
+        ],
+        "states": {
+         "0": "found"
+        },
+        "label": "slots"
+       },
+       {
+        "type": "vars",
+        "items": {
+         "head": 0,
+         "size": 1
+        }
+       }
+      ]
+     },
+     {
+      "text": "enqueue(2): write slot (head + size) mod k = 1; size 2 → true.",
+      "panels": [
+       {
+        "type": "row",
+        "cells": [
+         1,
+         2,
+         "·"
+        ],
+        "states": {
+         "0": "active",
+         "1": "found"
+        },
+        "label": "slots"
+       },
+       {
+        "type": "vars",
+        "items": {
+         "head": 0,
+         "size": 2
+        }
+       }
+      ]
+     },
+     {
+      "text": "enqueue(3): write slot (head + size) mod k = 2; size 3 → true.",
+      "panels": [
+       {
+        "type": "row",
+        "cells": [
+         1,
+         2,
+         3
+        ],
+        "states": {
+         "0": "active",
+         "2": "found"
+        },
+        "label": "slots"
+       },
+       {
+        "type": "vars",
+        "items": {
+         "head": 0,
+         "size": 3
+        }
+       }
+      ]
+     },
+     {
+      "text": "enqueue(4): size = 3 = capacity → false.",
+      "panels": [
+       {
+        "type": "row",
+        "cells": [
+         1,
+         2,
+         3
+        ],
+        "states": {
+         "0": "active",
+         "2": "found"
+        },
+        "label": "slots"
+       },
+       {
+        "type": "vars",
+        "items": {
+         "head": 0,
+         "size": 3
+        }
+       }
+      ]
+     },
+     {
+      "text": "rear(): slot (head + size − 1) mod k = 2 → 3.",
+      "panels": [
+       {
+        "type": "row",
+        "cells": [
+         1,
+         2,
+         3
+        ],
+        "states": {
+         "0": "active",
+         "2": "found"
+        },
+        "label": "slots"
+       },
+       {
+        "type": "vars",
+        "items": {
+         "head": 0,
+         "size": 3
+        }
+       }
+      ]
+     },
+     {
+      "text": "isFull(): size 3 == 3 → true.",
+      "panels": [
+       {
+        "type": "row",
+        "cells": [
+         1,
+         2,
+         3
+        ],
+        "states": {
+         "0": "active",
+         "2": "found"
+        },
+        "label": "slots"
+       },
+       {
+        "type": "vars",
+        "items": {
+         "head": 0,
+         "size": 3
+        }
+       }
+      ]
+     },
+     {
+      "text": "dequeue(): just advance head to 1 (nothing moves); size 2 → true.",
+      "panels": [
+       {
+        "type": "row",
+        "cells": [
+         "·",
+         2,
+         3
+        ],
+        "states": {
+         "1": "active",
+         "2": "found"
+        },
+        "label": "slots"
+       },
+       {
+        "type": "vars",
+        "items": {
+         "head": 1,
+         "size": 2
+        }
+       }
+      ]
+     },
+     {
+      "text": "enqueue(4): write slot (head + size) mod k = 0; size 3 → true.",
+      "panels": [
+       {
+        "type": "row",
+        "cells": [
+         4,
+         2,
+         3
+        ],
+        "states": {
+         "1": "active",
+         "0": "found"
+        },
+        "label": "slots"
+       },
+       {
+        "type": "vars",
+        "items": {
+         "head": 1,
+         "size": 3
+        }
+       }
+      ]
+     },
+     {
+      "text": "rear(): slot (head + size − 1) mod k = 0 → 4.",
+      "panels": [
+       {
+        "type": "row",
+        "cells": [
+         4,
+         2,
+         3
+        ],
+        "states": {
+         "1": "active",
+         "0": "found"
+        },
+        "label": "slots"
+       },
+       {
+        "type": "vars",
+        "items": {
+         "head": 1,
+         "size": 3
+        }
+       }
+      ]
+     },
+     {
+      "text": "front(): slot 1 → 2.",
+      "panels": [
+       {
+        "type": "row",
+        "cells": [
+         4,
+         2,
+         3
+        ],
+        "states": {
+         "1": "active",
+         "0": "found"
+        },
+        "label": "slots"
+       },
+       {
+        "type": "vars",
+        "items": {
+         "head": 1,
+         "size": 3
+        }
+       }
+      ]
+     },
+     {
+      "text": "Every operation is O(1): the data never moves, only the head index and the count change.",
+      "panels": [],
+      "result": "done"
+     }
+    ],
+    "title": "A fixed array of 3 slots, the index of the front item, and the count. The back is at (head + size − 1) mod k; indices wrap around."
+   }
+  }
+ ],
+ "takeaways": [
+  {
+   "md": "- **Circular buffer = fixed array + head + size**, with `% k` for wrap-around.\n- Store the size (or waste one slot) to tell full from empty.\n- Dequeuing moves an index, never the data."
+  }
+ ]
+}

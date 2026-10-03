@@ -1,0 +1,790 @@
+{
+ "version": 1,
+ "summary": "Sort, then move two pointers inward: when the pair sum is below the target, only a bigger left value can get\ncloser, and when it's above, only a smaller right value can. Track the best sum (closer, or equally close and\nsmaller). O(n log n).",
+ "question": [
+  {
+   "md": "Return the sum of two different elements that is closest to `target`; on a tie, the smaller sum.\n\n- **Values up to ±10⁹ and target up to ±2 × 10⁹**: distances need 64-bit arithmetic.\n- **Up to 10⁵ elements.**"
+  },
+  {
+   "md": "**Edge cases to keep in mind**\n\n- Ties: if two sums are equally close, return the **smaller** sum.\n- An exact match can stop the search immediately.\n- Values and target are large: sums and distances need 64 bits."
+  }
+ ],
+ "think": [
+  {
+   "md": "**Restating it.** Among all pairs, the sum with the smallest distance to `target`, preferring the smaller sum on\nties."
+  },
+  {
+   "md": "**Why moving inward is safe: every step rules out a whole row of pairs.** Picture all pairs `(i, j)` with `i < j`\nas a triangle. With the pointers at the two ends we look at one pair, and the comparison proves that one of its two\nelements **can't be part of a better answer with any partner still between the pointers**. So we drop that element:\na whole row (or column) of the triangle disappears in O(1). After at most `n − 1` steps every pair has been either\nchecked or ruled out, which is why one pass is enough."
+  },
+  {
+   "md": "**Which side is finished?** After sorting, with `s = a[i] + a[j]`:\n\n- `s < target`: every other partner of `a[i]` between the pointers is at most `a[j]`, so those sums are at most\n  `s`: even further below the target (or equal to `s`). `a[i]` has nothing better left; drop it.\n- `s > target`: symmetric, drop `a[j]`.\n- `s = target`: distance 0 can't be beaten."
+  },
+  {
+   "md": "**Trace for target 5** on sorted `[-9, -4, 3, 6, 8, 15]`:"
+  },
+  {
+   "table": {
+    "head": [
+     "i",
+     "j",
+     "sum",
+     "distance",
+     "best so far",
+     "decision"
+    ],
+    "rows": [
+     [
+      "0",
+      "5",
+      "-9 + 15 = 6",
+      "1",
+      "6",
+      "above target: drop 15"
+     ],
+     [
+      "0",
+      "4",
+      "-9 + 8 = -1",
+      "6",
+      "6",
+      "below target: drop -9"
+     ],
+     [
+      "1",
+      "4",
+      "-4 + 8 = 4",
+      "1",
+      "4",
+      "below target: drop -4"
+     ],
+     [
+      "2",
+      "4",
+      "3 + 8 = 11",
+      "6",
+      "4",
+      "above target: drop 8"
+     ],
+     [
+      "2",
+      "3",
+      "3 + 6 = 9",
+      "4",
+      "4",
+      "above target: drop 6"
+     ]
+    ]
+   }
+  },
+  {
+   "md": "Answer **4**."
+  }
+ ],
+ "approaches": [
+  {
+   "title": "Every pair",
+   "kind": "brute",
+   "time": "O(n²)",
+   "space": "O(1)",
+   "idea": [
+    {
+     "md": "Check every pair and keep the sum that's closest, using `(distance, sum)` as the comparison key so ties prefer the smaller sum."
+    }
+   ],
+   "build": [
+    "Two nested loops.",
+    "Compare by `(distance, sum)`.",
+    "Keep the best."
+   ],
+   "code": {
+    "python": "class Solution:\n    def closestPairSum(self, nums: List[int], target: int) -> int:\n        best = None\n        for i in range(len(nums)):\n            for j in range(i + 1, len(nums)):\n                s = nums[i] + nums[j]\n                if best is None or (abs(s - target), s) < (abs(best - target), best):\n                    best = s\n        return best\n",
+    "java": "class Solution {\n    public int closestPairSum(int[] nums, int target) {\n        long best = Long.MAX_VALUE / 4;\n        for (int i = 0; i < nums.length; i++)\n            for (int j = i + 1; j < nums.length; j++) {\n                long s = (long) nums[i] + nums[j];\n                long d = Math.abs(s - target), bd = Math.abs(best - target);\n                if (d < bd || (d == bd && s < best)) best = s;\n            }\n        return (int) best;\n    }\n}\n",
+    "cpp": "class Solution {\npublic:\n    int closestPairSum(vector<int>& nums, int target) {\n        long long best = LLONG_MAX / 4;\n        for (size_t i = 0; i < nums.size(); i++)\n            for (size_t j = i + 1; j < nums.size(); j++) {\n                long long s = (long long) nums[i] + nums[j];\n                long long d = llabs(s - target), bd = llabs(best - target);\n                if (d < bd || (d == bd && s < best)) best = s;\n            }\n        return (int) best;\n    }\n};\n",
+    "c": "int closestPairSum(int* nums, int numsSize, int target) {\n    long long best = LLONG_MAX / 4;\n    for (int i = 0; i < numsSize; i++)\n        for (int j = i + 1; j < numsSize; j++) {\n            long long s = (long long) nums[i] + nums[j];\n            long long d = llabs(s - target), bd = llabs(best - target);\n            if (d < bd || (d == bd && s < best)) best = s;\n        }\n    return (int) best;\n}\n"
+   },
+   "lines": [
+    {
+     "text": "No pair seen yet.",
+     "at": {
+      "python": [
+       [
+        3,
+        3
+       ]
+      ],
+      "java": [
+       [
+        3,
+        3
+       ]
+      ],
+      "cpp": [
+       [
+        4,
+        4
+       ]
+      ],
+      "c": [
+       [
+        2,
+        2
+       ]
+      ]
+     },
+     "notes": {
+      "java": "A huge sentinel, far from any target.",
+      "cpp": "A huge sentinel, far from any target.",
+      "c": "A huge sentinel, far from any target."
+     }
+    },
+    {
+     "text": "Every pair of different positions.",
+     "at": {
+      "python": [
+       [
+        4,
+        5
+       ]
+      ],
+      "java": [
+       [
+        4,
+        5
+       ]
+      ],
+      "cpp": [
+       [
+        5,
+        6
+       ]
+      ],
+      "c": [
+       [
+        3,
+        4
+       ]
+      ]
+     }
+    },
+    {
+     "text": "Closer to the target wins; on equal distance, the smaller sum wins. Java and C compute in 64 bits.",
+     "at": {
+      "python": [
+       [
+        6,
+        8
+       ]
+      ],
+      "java": [
+       [
+        6,
+        8
+       ]
+      ],
+      "cpp": [
+       [
+        7,
+        9
+       ]
+      ],
+      "c": [
+       [
+        5,
+        7
+       ]
+      ]
+     }
+    },
+    {
+     "text": "The best sum.",
+     "at": {
+      "python": [
+       [
+        9,
+        9
+       ]
+      ],
+      "java": [
+       [
+        10,
+        10
+       ]
+      ],
+      "cpp": [
+       [
+        11,
+        11
+       ]
+      ],
+      "c": [
+       [
+        9,
+        9
+       ]
+      ]
+     }
+    }
+   ],
+   "complexity": [
+    {
+     "md": "**Time O(n²).** **Space O(1).**"
+    }
+   ],
+   "walk": {
+    "steps": [
+     {
+      "text": "After pairs starting at position 0: best sum 4.",
+      "panels": [
+       {
+        "type": "row",
+        "cells": [
+         8,
+         -4,
+         15,
+         3,
+         -9,
+         6
+        ],
+        "states": {
+         "0": "active"
+        }
+       },
+       {
+        "type": "vars",
+        "items": {
+         "best": 4
+        }
+       }
+      ]
+     },
+     {
+      "text": "After pairs starting at position 1: best sum 4.",
+      "panels": [
+       {
+        "type": "row",
+        "cells": [
+         8,
+         -4,
+         15,
+         3,
+         -9,
+         6
+        ],
+        "states": {
+         "1": "active"
+        }
+       },
+       {
+        "type": "vars",
+        "items": {
+         "best": 4
+        }
+       }
+      ]
+     },
+     {
+      "text": "After pairs starting at position 2: best sum 4.",
+      "panels": [
+       {
+        "type": "row",
+        "cells": [
+         8,
+         -4,
+         15,
+         3,
+         -9,
+         6
+        ],
+        "states": {
+         "2": "active"
+        }
+       },
+       {
+        "type": "vars",
+        "items": {
+         "best": 4
+        }
+       }
+      ]
+     },
+     {
+      "text": "After pairs starting at position 3: best sum 4.",
+      "panels": [
+       {
+        "type": "row",
+        "cells": [
+         8,
+         -4,
+         15,
+         3,
+         -9,
+         6
+        ],
+        "states": {
+         "3": "active"
+        }
+       },
+       {
+        "type": "vars",
+        "items": {
+         "best": 4
+        }
+       }
+      ]
+     },
+     {
+      "text": "After pairs starting at position 4: best sum 4.",
+      "panels": [
+       {
+        "type": "row",
+        "cells": [
+         8,
+         -4,
+         15,
+         3,
+         -9,
+         6
+        ],
+        "states": {
+         "4": "active"
+        }
+       },
+       {
+        "type": "vars",
+        "items": {
+         "best": 4
+        }
+       }
+      ]
+     },
+     {
+      "text": "After pairs starting at position 5: best sum 4.",
+      "panels": [
+       {
+        "type": "row",
+        "cells": [
+         8,
+         -4,
+         15,
+         3,
+         -9,
+         6
+        ],
+        "states": {
+         "5": "active"
+        }
+       },
+       {
+        "type": "vars",
+        "items": {
+         "best": 4
+        }
+       }
+      ]
+     },
+     {
+      "text": "Closest: 4.",
+      "panels": [],
+      "result": "4"
+     }
+    ],
+    "title": "Try every pair, keeping the sum closest to the target (smaller sum on a tie)."
+   },
+   "limits": [
+    {
+     "md": "Quadratic. After sorting, each comparison with the target rules out one element entirely."
+    }
+   ],
+   "slow": true
+  },
+  {
+   "title": "Sort and squeeze",
+   "kind": "best",
+   "time": "O(n log n)",
+   "space": "O(n)",
+   "idea": [
+    {
+     "md": "Sort, then squeeze from both ends: record each pair's sum if it's better, then move `i` right when the sum\nis below the target, `j` left when above, and stop on an exact hit.\n\n**Invariant.** The best pair is either already recorded or lies between the pointers, because every\ndropped element had no better partner left (argument above)."
+    }
+   ],
+   "build": [
+    "Sort a copy.",
+    "Pointers at both ends.",
+    "Record if better, then move toward the target.",
+    "Stop on exact."
+   ],
+   "code": {
+    "python": "class Solution:\n    def closestPairSum(self, nums: List[int], target: int) -> int:\n        a = sorted(nums)\n        i, j, best = 0, len(a) - 1, None\n        while i < j:\n            s = a[i] + a[j]\n            if best is None or (abs(s - target), s) < (abs(best - target), best):\n                best = s\n            if s < target:\n                i += 1\n            elif s > target:\n                j -= 1\n            else:\n                return s\n        return best\n",
+    "java": "class Solution {\n    public int closestPairSum(int[] nums, int target) {\n        int[] a = nums.clone();\n        Arrays.sort(a);\n        int i = 0, j = a.length - 1;\n        long best = Long.MAX_VALUE / 4;\n        while (i < j) {\n            long s = (long) a[i] + a[j];\n            long d = Math.abs(s - target), bd = Math.abs(best - target);\n            if (d < bd || (d == bd && s < best)) best = s;\n            if (s < target) i++;\n            else if (s > target) j--;\n            else return (int) s;\n        }\n        return (int) best;\n    }\n}\n",
+    "cpp": "class Solution {\npublic:\n    int closestPairSum(vector<int>& nums, int target) {\n        vector<int> a = nums;\n        sort(a.begin(), a.end());\n        int i = 0, j = (int) a.size() - 1;\n        long long best = LLONG_MAX / 4;\n        while (i < j) {\n            long long s = (long long) a[i] + a[j];\n            long long d = llabs(s - target), bd = llabs(best - target);\n            if (d < bd || (d == bd && s < best)) best = s;\n            if (s < target) i++;\n            else if (s > target) j--;\n            else return (int) s;\n        }\n        return (int) best;\n    }\n};\n",
+    "c": "static int cmp_int(const void* x, const void* y) {\n    int a = *(const int*) x, b = *(const int*) y;\n    return (a > b) - (a < b);\n}\n\nint closestPairSum(int* nums, int numsSize, int target) {\n    int* a = malloc(numsSize * sizeof(int));\n    memcpy(a, nums, numsSize * sizeof(int));\n    qsort(a, numsSize, sizeof(int), cmp_int);\n    int i = 0, j = numsSize - 1;\n    long long best = LLONG_MAX / 4;\n    while (i < j) {\n        long long s = (long long) a[i] + a[j];\n        long long d = llabs(s - target), bd = llabs(best - target);\n        if (d < bd || (d == bd && s < best)) best = s;\n        if (s < target) i++;\n        else if (s > target) j--;\n        else break;\n    }\n    free(a);\n    return (int) best;\n}\n"
+   },
+   "lines": [
+    {
+     "text": "Sorting puts the smallest and largest values at the ends.",
+     "at": {
+      "python": [
+       [
+        3,
+        3
+       ]
+      ],
+      "java": [
+       [
+        3,
+        4
+       ]
+      ],
+      "cpp": [
+       [
+        4,
+        5
+       ]
+      ],
+      "c": [
+       [
+        1,
+        4
+       ],
+       [
+        7,
+        9
+       ]
+      ]
+     }
+    },
+    {
+     "text": "Pointers at both ends; no best yet.",
+     "at": {
+      "python": [
+       [
+        4,
+        4
+       ]
+      ],
+      "java": [
+       [
+        5,
+        6
+       ]
+      ],
+      "cpp": [
+       [
+        6,
+        7
+       ]
+      ],
+      "c": [
+       [
+        10,
+        11
+       ]
+      ]
+     }
+    },
+    {
+     "text": "While two different elements remain.",
+     "at": {
+      "python": [
+       [
+        5,
+        6
+       ]
+      ],
+      "java": [
+       [
+        7,
+        8
+       ]
+      ],
+      "cpp": [
+       [
+        8,
+        9
+       ]
+      ],
+      "c": [
+       [
+        12,
+        13
+       ]
+      ]
+     }
+    },
+    {
+     "text": "Keep this sum if it's closer, or equally close and smaller.",
+     "at": {
+      "python": [
+       [
+        7,
+        8
+       ]
+      ],
+      "java": [
+       [
+        9,
+        10
+       ]
+      ],
+      "cpp": [
+       [
+        10,
+        11
+       ]
+      ],
+      "c": [
+       [
+        14,
+        15
+       ]
+      ]
+     }
+    },
+    {
+     "text": "Below the target, the small end can't do better: move it right. Above, move the large end left. An exact hit can't be beaten.",
+     "at": {
+      "python": [
+       [
+        9,
+        14
+       ]
+      ],
+      "java": [
+       [
+        11,
+        13
+       ]
+      ],
+      "cpp": [
+       [
+        12,
+        14
+       ]
+      ],
+      "c": [
+       [
+        16,
+        18
+       ]
+      ]
+     }
+    },
+    {
+     "text": "The best sum.",
+     "at": {
+      "python": [
+       [
+        15,
+        15
+       ]
+      ],
+      "java": [
+       [
+        15,
+        15
+       ]
+      ],
+      "cpp": [
+       [
+        16,
+        16
+       ]
+      ],
+      "c": [
+       [
+        20,
+        21
+       ]
+      ]
+     }
+    }
+   ],
+   "complexity": [
+    {
+     "md": "**Time O(n log n)** for the sort, O(n) for the squeeze. **Space O(n)** for the sorted copy."
+    }
+   ],
+   "walk": {
+    "steps": [
+     {
+      "text": "Sorted: [-9, -4, 3, 6, 8, 15].",
+      "panels": [
+       {
+        "type": "row",
+        "cells": [
+         -9,
+         -4,
+         3,
+         6,
+         8,
+         15
+        ]
+       }
+      ]
+     },
+     {
+      "text": "-9 + 15 = 6 (distance 1). Above: move j left.",
+      "panels": [
+       {
+        "type": "row",
+        "cells": [
+         -9,
+         -4,
+         3,
+         6,
+         8,
+         15
+        ],
+        "states": {
+         "0": "active",
+         "5": "active"
+        },
+        "pointers": {
+         "i": 0,
+         "j": 5
+        }
+       },
+       {
+        "type": "vars",
+        "items": {
+         "best": 6
+        }
+       }
+      ]
+     },
+     {
+      "text": "-9 + 8 = -1 (distance 6). Below the target: move i right.",
+      "panels": [
+       {
+        "type": "row",
+        "cells": [
+         -9,
+         -4,
+         3,
+         6,
+         8,
+         15
+        ],
+        "states": {
+         "0": "active",
+         "4": "active"
+        },
+        "pointers": {
+         "i": 0,
+         "j": 4
+        }
+       },
+       {
+        "type": "vars",
+        "items": {
+         "best": 6
+        }
+       }
+      ]
+     },
+     {
+      "text": "-4 + 8 = 4 (distance 1). Below the target: move i right.",
+      "panels": [
+       {
+        "type": "row",
+        "cells": [
+         -9,
+         -4,
+         3,
+         6,
+         8,
+         15
+        ],
+        "states": {
+         "1": "active",
+         "4": "active"
+        },
+        "pointers": {
+         "i": 1,
+         "j": 4
+        }
+       },
+       {
+        "type": "vars",
+        "items": {
+         "best": 4
+        }
+       }
+      ]
+     },
+     {
+      "text": "3 + 8 = 11 (distance 6). Above: move j left.",
+      "panels": [
+       {
+        "type": "row",
+        "cells": [
+         -9,
+         -4,
+         3,
+         6,
+         8,
+         15
+        ],
+        "states": {
+         "2": "active",
+         "4": "active"
+        },
+        "pointers": {
+         "i": 2,
+         "j": 4
+        }
+       },
+       {
+        "type": "vars",
+        "items": {
+         "best": 4
+        }
+       }
+      ]
+     },
+     {
+      "text": "3 + 6 = 9 (distance 4). Above: move j left.",
+      "panels": [
+       {
+        "type": "row",
+        "cells": [
+         -9,
+         -4,
+         3,
+         6,
+         8,
+         15
+        ],
+        "states": {
+         "2": "active",
+         "3": "active"
+        },
+        "pointers": {
+         "i": 2,
+         "j": 3
+        }
+       },
+       {
+        "type": "vars",
+        "items": {
+         "best": 4
+        }
+       }
+      ]
+     },
+     {
+      "text": "Closest: 4.",
+      "panels": [],
+      "result": "4"
+     }
+    ],
+    "title": "Sort, then squeeze from both ends: below the target, raise the sum; above it, lower it."
+   }
+  }
+ ],
+ "takeaways": [
+  {
+   "md": "- **Closest pair sum:** sort, squeeze toward the target, record on every step.\n- Express tie rules as a tuple key `(distance, value)`.\n- **Pitfall:** stopping as soon as the distance grows; it can shrink again later."
+  }
+ ]
+}

@@ -1,0 +1,702 @@
+{
+ "version": 1,
+ "summary": "This is next permutation with wrap-around: find the rightmost value smaller than its right neighbour (the\npivot), swap it with the rightmost larger value after it, then reverse everything after the pivot. If there\nis no pivot, the list is the last arrangement, and reversing all of it gives the first. O(n), in place.",
+ "question": [
+  {
+   "md": "Among all arrangements of the values, in dictionary order, return the one right **after** `values`. If\n`values` is the last arrangement (fully descending), return the first (fully ascending).\n\n- **Repeated values** count once per distinct arrangement: `[1, 1, 5]` → `[1, 5, 1]`.\n- **Wrap-around:** `[3, 2, 1]` → `[1, 2, 3]`.\n- **Up to 10⁵ values**, so the change must be computed directly, not by listing arrangements.\n- The same algorithm as **Next Badge Number** (on digits) and the mirror of **One Step Back**."
+  },
+  {
+   "md": "**Edge cases to keep in mind**\n\n- Fully descending (the last arrangement): wrap to fully ascending.\n- Repeated values: equal values must not be swapped with each other.\n- One element: unchanged."
+  }
+ ],
+ "think": [
+  {
+   "md": "**The next arrangement, step by step.** To get the next larger arrangement, change as little as possible, as far to\nthe right as possible.\n\n1. **Find the pivot.** Scan from the right while values don't increase (`a[i] ≥ a[i+1]`). That tail is already the\n   *largest* arrangement of its values, so nothing inside it can grow. The pivot is the first index `i` from the right\n   with `a[i] < a[i+1]`; if there is none, the whole sequence is the last arrangement.\n2. **Swap.** Replace `a[i]` with the smallest tail value that's larger than it. Because the tail is non-increasing,\n   that's the **rightmost** tail value greater than `a[i]`.\n3. **Reverse the tail.** After the swap the tail is still non-increasing; reversing it makes it non-decreasing, its\n   *smallest* arrangement, so the result is the very next one.\n\nAll three steps are linear, so the whole thing is O(n) with O(1) extra space. Duplicates are handled by the `≥`/`≤`\ncomparisons, which skip equal values."
+  },
+  {
+   "md": "**On `[1, 5, 8, 4, 7, 6, 5, 3, 1]`:**"
+  },
+  {
+   "table": {
+    "head": [
+     "step",
+     "values"
+    ],
+    "rows": [
+     [
+      "input",
+      "1 5 8 4 7 6 5 3 1"
+     ],
+     [
+      "pivot at index 3 (value 4); tail [7, 6, 5, 3, 1] is non-increasing",
+      "—"
+     ],
+     [
+      "swap with index 6 (value 5), the rightmost tail value > 4",
+      "1 5 8 5 7 6 4 3 1"
+     ],
+     [
+      "reverse the tail after index 3",
+      "1 5 8 5 1 3 4 6 7"
+     ]
+    ]
+   }
+  },
+  {
+   "md": "Next arrangement: **[1, 5, 8, 5, 1, 3, 4, 6, 7]**."
+  }
+ ],
+ "approaches": [
+  {
+   "title": "Generate arrangements in order",
+   "kind": "brute",
+   "time": "O(n! · n)",
+   "space": "O(n)",
+   "idea": [
+    {
+     "md": "Generate arrangements of the values in dictionary order (smallest value first at each position) and return the first one larger than the input; if none, return the sorted values."
+    }
+   ],
+   "build": [
+    "Count the values.",
+    "Depth-first generation in increasing order.",
+    "Stop at the first arrangement larger than the input."
+   ],
+   "code": {
+    "python": "class Solution:\n    def nextArrangement(self, values: List[int]) -> List[int]:\n        count = [0] * 101\n        for v in values:\n            count[v] += 1\n        buf = []\n        def build():\n            if len(buf) == len(values):\n                return list(buf) if buf > values else None\n            for v in range(101):\n                if count[v]:\n                    count[v] -= 1\n                    buf.append(v)\n                    found = build()\n                    buf.pop()\n                    count[v] += 1\n                    if found:\n                        return found\n            return None\n        return build() or sorted(values)\n",
+    "java": "class Solution {\n    private int[] count = new int[101], buf, target;\n\n    public int[] nextArrangement(int[] values) {\n        target = values;\n        buf = new int[values.length];\n        for (int v : values) count[v]++;\n        if (build(0)) return buf;\n        int[] out = values.clone();\n        Arrays.sort(out);\n        return out;\n    }\n\n    private boolean build(int pos) {\n        if (pos == buf.length) return Arrays.compare(buf, target) > 0;\n        for (int v = 0; v <= 100; v++) {\n            if (count[v] == 0) continue;\n            count[v]--;\n            buf[pos] = v;\n            boolean found = build(pos + 1);\n            count[v]++;\n            if (found) return true;\n        }\n        return false;\n    }\n}\n",
+    "cpp": "class Solution {\n    int count[101] = {0};\n    vector<int> buf, target;\n\n    bool build(size_t pos) {\n        if (pos == buf.size()) return buf > target;\n        for (int v = 0; v <= 100; v++) {\n            if (!count[v]) continue;\n            count[v]--;\n            buf[pos] = v;\n            bool found = build(pos + 1);\n            count[v]++;\n            if (found) return true;\n        }\n        return false;\n    }\n\npublic:\n    vector<int> nextArrangement(vector<int>& values) {\n        target = values;\n        buf.assign(values.size(), 0);\n        for (int v : values) count[v]++;\n        if (build(0)) return buf;\n        vector<int> out = values;\n        sort(out.begin(), out.end());\n        return out;\n    }\n};\n",
+    "c": "static int count[101];\nstatic int* buf;\nstatic int* target;\nstatic int len;\n\nstatic bool build(int pos) {\n    if (pos == len) {\n        for (int i = 0; i < len; i++) if (buf[i] != target[i]) return buf[i] > target[i];\n        return false;\n    }\n    for (int v = 0; v <= 100; v++) {\n        if (!count[v]) continue;\n        count[v]--;\n        buf[pos] = v;\n        bool found = build(pos + 1);\n        count[v]++;\n        if (found) return true;\n    }\n    return false;\n}\n\nint* nextArrangement(int* values, int valuesSize, int* returnSize) {\n    len = valuesSize;\n    target = values;\n    buf = malloc(len * sizeof(int));\n    memset(count, 0, sizeof count);\n    for (int i = 0; i < len; i++) count[values[i]]++;\n    *returnSize = len;\n    if (build(0)) return buf;\n    int k = 0;\n    for (int v = 0; v <= 100; v++) for (int c = 0; c < count[v]; c++) buf[k++] = v;\n    return buf;\n}\n"
+   },
+   "lines": [
+    {
+     "text": "Copies of each value still available to place (values are 0 … 100).",
+     "at": {
+      "python": [
+       [
+        3,
+        5
+       ]
+      ],
+      "java": [
+       [
+        5,
+        7
+       ]
+      ],
+      "cpp": [
+       [
+        20,
+        22
+       ]
+      ],
+      "c": [
+       [
+        23,
+        27
+       ]
+      ]
+     }
+    },
+    {
+     "text": "Fill positions left to right, smallest value first, so arrangements come out in increasing order; return at the first one larger than the input.",
+     "at": {
+      "python": [
+       [
+        7,
+        19
+       ]
+      ],
+      "java": [
+       [
+        14,
+        22
+       ],
+       [
+        24,
+        24
+       ]
+      ],
+      "cpp": [
+       [
+        5,
+        13
+       ],
+       [
+        15,
+        15
+       ]
+      ],
+      "c": [
+       [
+        6,
+        17
+       ],
+       [
+        19,
+        19
+       ]
+      ]
+     }
+    },
+    {
+     "text": "Nothing larger means the input is the last arrangement: wrap to the first, the values in ascending order.",
+     "at": {
+      "python": [
+       [
+        20,
+        20
+       ]
+      ],
+      "java": [
+       [
+        8,
+        11
+       ]
+      ],
+      "cpp": [
+       [
+        23,
+        26
+       ]
+      ],
+      "c": [
+       [
+        28,
+        32
+       ]
+      ]
+     }
+    }
+   ],
+   "complexity": [
+    {
+     "md": "**Time O(n! · n)** in the worst case. **Space O(n)** for the recursion."
+    }
+   ],
+   "walk": {
+    "steps": [
+     {
+      "text": "A small case, [1, 3, 2]: its distinct arrangements in dictionary order.",
+      "panels": [
+       {
+        "type": "row",
+        "cells": [
+         1,
+         3,
+         2
+        ]
+       }
+      ]
+     },
+     {
+      "text": "[1, 2, 3]: not larger.",
+      "panels": [
+       {
+        "type": "row",
+        "cells": [
+         1,
+         2,
+         3
+        ],
+        "states": {
+         "0": "dim",
+         "1": "dim",
+         "2": "dim"
+        }
+       }
+      ]
+     },
+     {
+      "text": "[1, 3, 2]: not larger.",
+      "panels": [
+       {
+        "type": "row",
+        "cells": [
+         1,
+         3,
+         2
+        ],
+        "states": {
+         "0": "dim",
+         "1": "dim",
+         "2": "dim"
+        }
+       }
+      ]
+     },
+     {
+      "text": "[2, 1, 3] > [1, 3, 2]: this is the next arrangement.",
+      "panels": [
+       {
+        "type": "row",
+        "cells": [
+         2,
+         1,
+         3
+        ],
+        "states": {
+         "0": "answer",
+         "1": "answer",
+         "2": "answer"
+        }
+       }
+      ],
+      "result": "[2, 1, 3]"
+     }
+    ],
+    "title": "Generate arrangements in increasing order; the first one larger than the input is next. None larger → wrap to the smallest."
+   },
+   "limits": [
+    {
+     "md": "Only usable for a handful of values (the checker runs it on tiny inputs). The pivot-swap-reverse rule jumps straight to the answer."
+    }
+   ],
+   "slow": 24
+  },
+  {
+   "title": "Next permutation with wrap-around",
+   "kind": "best",
+   "time": "O(n)",
+   "space": "O(1)",
+   "idea": [
+    {
+     "md": "Pivot, swap, reverse, as above. If there's no pivot, reversing the whole array gives the ascending order,\nwhich is exactly the wrap-around."
+    }
+   ],
+   "build": [
+    "Find the pivot from the right.",
+    "If found, swap with the rightmost larger tail value.",
+    "Reverse everything after the pivot (the whole array if none)."
+   ],
+   "code": {
+    "python": "class Solution:\n    def nextArrangement(self, values: List[int]) -> List[int]:\n        a = values\n        i = len(a) - 2\n        while i >= 0 and a[i] >= a[i + 1]:\n            i -= 1\n        if i >= 0:\n            j = len(a) - 1\n            while a[j] <= a[i]:\n                j -= 1\n            a[i], a[j] = a[j], a[i]\n        a[i + 1:] = reversed(a[i + 1:])\n        return a\n",
+    "java": "class Solution {\n    public int[] nextArrangement(int[] values) {\n        int[] a = values;\n        int n = a.length, i = n - 2;\n        while (i >= 0 && a[i] >= a[i + 1]) i--;\n        if (i >= 0) {\n            int j = n - 1;\n            while (a[j] <= a[i]) j--;\n            int t = a[i]; a[i] = a[j]; a[j] = t;\n        }\n        for (int x = i + 1, y = n - 1; x < y; x++, y--) { int t = a[x]; a[x] = a[y]; a[y] = t; }\n        return a;\n    }\n}\n",
+    "cpp": "class Solution {\npublic:\n    vector<int> nextArrangement(vector<int>& values) {\n        vector<int>& a = values;\n        int n = a.size(), i = n - 2;\n        while (i >= 0 && a[i] >= a[i + 1]) i--;\n        if (i >= 0) {\n            int j = n - 1;\n            while (a[j] <= a[i]) j--;\n            swap(a[i], a[j]);\n        }\n        reverse(a.begin() + i + 1, a.end());\n        return a;\n    }\n};\n",
+    "c": "int* nextArrangement(int* values, int valuesSize, int* returnSize) {\n    int* a = values;\n    int n = valuesSize, i = n - 2;\n    while (i >= 0 && a[i] >= a[i + 1]) i--;\n    if (i >= 0) {\n        int j = n - 1;\n        while (a[j] <= a[i]) j--;\n        int t = a[i]; a[i] = a[j]; a[j] = t;\n    }\n    for (int x = i + 1, y = n - 1; x < y; x++, y--) { int t = a[x]; a[x] = a[y]; a[y] = t; }\n    *returnSize = n;\n    return a;\n}\n"
+   },
+   "lines": [
+    {
+     "text": "Rearrange the input in place: O(1) extra space.",
+     "at": {
+      "python": [
+       [
+        3,
+        3
+       ]
+      ],
+      "java": [
+       [
+        3,
+        3
+       ]
+      ],
+      "cpp": [
+       [
+        4,
+        4
+       ]
+      ],
+      "c": [
+       [
+        2,
+        2
+       ]
+      ]
+     }
+    },
+    {
+     "text": "From the right, skip the non-increasing tail; stop at the first value smaller than its neighbour.",
+     "at": {
+      "python": [
+       [
+        4,
+        6
+       ]
+      ],
+      "java": [
+       [
+        4,
+        5
+       ]
+      ],
+      "cpp": [
+       [
+        5,
+        6
+       ]
+      ],
+      "c": [
+       [
+        3,
+        4
+       ]
+      ]
+     }
+    },
+    {
+     "text": "Only when a pivot exists: swap it with the rightmost (= smallest) larger value in the tail.",
+     "at": {
+      "python": [
+       [
+        7,
+        11
+       ]
+      ],
+      "java": [
+       [
+        6,
+        9
+       ]
+      ],
+      "cpp": [
+       [
+        7,
+        10
+       ]
+      ],
+      "c": [
+       [
+        5,
+        8
+       ]
+      ]
+     }
+    },
+    {
+     "text": "Reverse the tail into ascending order. With no pivot, `i + 1` is 0 and the whole list is reversed: last arrangement → first.",
+     "at": {
+      "python": [
+       [
+        12,
+        12
+       ]
+      ],
+      "java": [
+       [
+        11,
+        11
+       ]
+      ],
+      "cpp": [
+       [
+        12,
+        12
+       ]
+      ],
+      "c": [
+       [
+        10,
+        10
+       ]
+      ]
+     }
+    },
+    {
+     "text": "The next arrangement.",
+     "at": {
+      "python": [
+       [
+        13,
+        13
+       ]
+      ],
+      "java": [
+       [
+        12,
+        12
+       ]
+      ],
+      "cpp": [
+       [
+        13,
+        13
+       ]
+      ],
+      "c": [
+       [
+        11,
+        12
+       ]
+      ]
+     }
+    }
+   ],
+   "complexity": [
+    {
+     "md": "**Time O(n).** **Space O(1).**"
+    }
+   ],
+   "walk": {
+    "steps": [
+     {
+      "text": "Scan from the right while each value is ≥ the one after it: that tail is already as large as it can be.",
+      "panels": [
+       {
+        "type": "row",
+        "cells": [
+         1,
+         5,
+         8,
+         4,
+         7,
+         6,
+         5,
+         3,
+         1
+        ],
+        "slots": true
+       }
+      ]
+     },
+     {
+      "text": "3 ≥ 1: still descending, keep going left.",
+      "panels": [
+       {
+        "type": "row",
+        "cells": [
+         1,
+         5,
+         8,
+         4,
+         7,
+         6,
+         5,
+         3,
+         1
+        ],
+        "states": {
+         "8": "dim",
+         "7": "active"
+        },
+        "slots": true
+       }
+      ]
+     },
+     {
+      "text": "5 ≥ 3: still descending, keep going left.",
+      "panels": [
+       {
+        "type": "row",
+        "cells": [
+         1,
+         5,
+         8,
+         4,
+         7,
+         6,
+         5,
+         3,
+         1
+        ],
+        "states": {
+         "7": "dim",
+         "8": "dim",
+         "6": "active"
+        },
+        "slots": true
+       }
+      ]
+     },
+     {
+      "text": "6 ≥ 5: still descending, keep going left.",
+      "panels": [
+       {
+        "type": "row",
+        "cells": [
+         1,
+         5,
+         8,
+         4,
+         7,
+         6,
+         5,
+         3,
+         1
+        ],
+        "states": {
+         "6": "dim",
+         "7": "dim",
+         "8": "dim",
+         "5": "active"
+        },
+        "slots": true
+       }
+      ]
+     },
+     {
+      "text": "7 ≥ 6: still descending, keep going left.",
+      "panels": [
+       {
+        "type": "row",
+        "cells": [
+         1,
+         5,
+         8,
+         4,
+         7,
+         6,
+         5,
+         3,
+         1
+        ],
+        "states": {
+         "5": "dim",
+         "6": "dim",
+         "7": "dim",
+         "8": "dim",
+         "4": "active"
+        },
+        "slots": true
+       }
+      ]
+     },
+     {
+      "text": "4 < 7: index 3 is the pivot. Everything after it is descending.",
+      "panels": [
+       {
+        "type": "row",
+        "cells": [
+         1,
+         5,
+         8,
+         4,
+         7,
+         6,
+         5,
+         3,
+         1
+        ],
+        "states": {
+         "4": "found",
+         "5": "found",
+         "6": "found",
+         "7": "found",
+         "8": "found",
+         "3": "mark"
+        },
+        "pointers": {
+         "pivot": 3
+        },
+        "slots": true
+       }
+      ]
+     },
+     {
+      "text": "The rightmost value in the tail that is bigger than 4 is 5 (index 6). Swap them.",
+      "panels": [
+       {
+        "type": "row",
+        "cells": [
+         1,
+         5,
+         8,
+         4,
+         7,
+         6,
+         5,
+         3,
+         1
+        ],
+        "states": {
+         "3": "mark",
+         "6": "answer"
+        },
+        "pointers": {
+         "pivot": 3,
+         "j": 6
+        },
+        "slots": true
+       }
+      ]
+     },
+     {
+      "text": "After the swap the tail is still descending: [7, 6, 4, 3, 1].",
+      "panels": [
+       {
+        "type": "row",
+        "cells": [
+         1,
+         5,
+         8,
+         5,
+         7,
+         6,
+         4,
+         3,
+         1
+        ],
+        "states": {
+         "4": "found",
+         "5": "found",
+         "6": "found",
+         "7": "found",
+         "8": "found",
+         "3": "new"
+        },
+        "slots": true
+       }
+      ]
+     },
+     {
+      "text": "Now reverse the suffix to make it as small as possible.",
+      "panels": [
+       {
+        "type": "row",
+        "cells": [
+         1,
+         5,
+         8,
+         5,
+         1,
+         3,
+         4,
+         6,
+         7
+        ],
+        "states": {
+         "4": "new",
+         "5": "new",
+         "6": "new",
+         "7": "new",
+         "8": "new"
+        },
+        "slots": true
+       }
+      ],
+      "result": "[1, 5, 8, 5, 1, 3, 4, 6, 7]"
+     },
+     {
+      "text": "If the input had been fully descending (no pivot), reversing the whole list would give the first arrangement.",
+      "panels": [
+       {
+        "type": "row",
+        "cells": [
+         3,
+         2,
+         1
+        ],
+        "label": "e.g. [3, 2, 1]"
+       },
+       {
+        "type": "row",
+        "cells": [
+         1,
+         2,
+         3
+        ],
+        "label": "→ [1, 2, 3]"
+       }
+      ]
+     }
+    ],
+    "title": "Pivot, swap with the rightmost larger value, reverse the tail. With no pivot, reverse everything (wrap around)."
+   }
+  }
+ ],
+ "takeaways": [
+  {
+   "md": "- **Next permutation:** rightmost ascent, swap with the rightmost larger value, reverse the tail.\n- The tail after the pivot is non-increasing, which is why \"rightmost larger\" is the smallest larger.\n- **Pitfall:** `>` instead of `≥` when finding the pivot (breaks with duplicates)."
+  }
+ ]
+}

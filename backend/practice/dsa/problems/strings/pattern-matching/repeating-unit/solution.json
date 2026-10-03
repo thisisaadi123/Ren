@@ -1,0 +1,987 @@
+{
+ "version": 1,
+ "summary": "If `s` has a border (a proper prefix that's also a suffix) of length `b`, then `s` repeats with period `n − b`;\nthe longest border gives the smallest period. The prefix function's last value is that border. If the period\ndivides `n`, it's the block length; otherwise no shorter block tiles `s` exactly, and the answer is `n`. O(n).",
+ "question": [
+  {
+   "md": "Return the length of the shortest block `u` such that `s` is `u` repeated a whole number of times (`s.length`\nif nothing shorter works).\n\n- **Up to 10⁵ letters.**"
+  },
+  {
+   "md": "**Edge cases to keep in mind**\n\n- One letter, or no repetition at all: the answer is `n`.\n- A string with a period that doesn't divide its length (`abcab`, period 3, length 5) isn't a repetition:\n  the answer is `n`.\n- All letters equal: the answer is 1."
+  }
+ ],
+ "think": [
+  {
+   "md": "**When does block length `p` work?** `s` is a block of length `p` repeated exactly when `p` divides `n` and every\ncharacter equals the one `p` places earlier: `s[i] = s[i − p]` for all `i ≥ p`. The second condition says `s`\nhas *period* `p`.\n\n**Trying divisors of `n = 12` in increasing order:**"
+  },
+  {
+   "table": {
+    "head": [
+     "p",
+     "block",
+     "check"
+    ],
+    "rows": [
+     [
+      "1",
+      "a",
+      "fails at 1: b ≠ a"
+     ],
+     [
+      "2",
+      "ab",
+      "fails at 2: c ≠ a"
+     ],
+     [
+      "3",
+      "abc",
+      "works"
+     ]
+    ]
+   }
+  },
+  {
+   "md": "**Borders and the prefix function.** A *border* of a string is a proper prefix that is also a suffix: `ab` is a border\nof `abab`, and `a` is a border of `aba`. The **prefix function** `pi[i]` is the length of the longest border of the\nfirst `i + 1` characters. It is computed left to right: to extend a border of length `k` by the next character, check\n`t[i] == t[k]`; if not, the next shorter candidate is the border of the border, `pi[k − 1]`, and so on until a match\nor `k = 0`."
+  },
+  {
+   "md": "**Period and border are two views of the same thing.** `s[i] = s[i − p]` for all `i ≥ p` means `s` without its\nfirst `p` letters equals `s` without its last `p` letters: a border of length `n − p`. So the **longest** border\ngives the **smallest** period: `p = n − pi[n − 1]`. For `\"abcabcabcabc\"`:"
+  },
+  {
+   "table": {
+    "head": [
+     "i",
+     "0",
+     "1",
+     "2",
+     "3",
+     "4",
+     "5",
+     "6",
+     "7",
+     "8",
+     "9",
+     "10",
+     "11"
+    ],
+    "rows": [
+     [
+      "char",
+      "a",
+      "b",
+      "c",
+      "a",
+      "b",
+      "c",
+      "a",
+      "b",
+      "c",
+      "a",
+      "b",
+      "c"
+     ],
+     [
+      "pi",
+      "0",
+      "0",
+      "0",
+      "1",
+      "2",
+      "3",
+      "4",
+      "5",
+      "6",
+      "7",
+      "8",
+      "9"
+     ]
+    ]
+   }
+  },
+  {
+   "md": "`pi[n − 1] = 9`, so the smallest period is 12 − 9 = 3, which divides 12: the\nanswer is **3**.\n\n**If the smallest period doesn't divide `n`, the answer is `n`.** Suppose the smallest period `p` doesn't divide\n`n`, but some larger `q < n` divides `n` and is also a period. Then `q ≤ n/2` and `p < q`, so `p + q ≤ n`, and a\nclassic fact about periods (Fine and Wilf) says `gcd(p, q)` is also a period. It's at most `p`, so by minimality\nit equals `p`, which means `p` divides `q` and therefore `n`, a contradiction."
+  }
+ ],
+ "approaches": [
+  {
+   "title": "Try the divisors of n",
+   "kind": "better",
+   "time": "O(n · d(n))",
+   "space": "O(1)",
+   "idea": [
+    {
+     "md": "Only divisors of `n` can be block lengths. Try them from smallest to largest; for each, check that every\ncharacter equals the one a block earlier. The first that passes is the answer, and `n` itself always\npasses."
+    }
+   ],
+   "build": [
+    "Loop `p = 1, 2, …`, skipping non-divisors.",
+    "Check `s[i] = s[i − p]` for all `i ≥ p`.",
+    "Return the first `p` that passes, else `n`."
+   ],
+   "code": {
+    "python": "class Solution:\n    def shortestUnit(self, s: str) -> int:\n        n = len(s)\n        for p in range(1, n + 1):\n            if n % p == 0 and s[p:] == s[:n - p]:\n                return p\n        return n\n",
+    "java": "class Solution {\n    public int shortestUnit(String s) {\n        int n = s.length();\n        for (int p = 1; p < n; p++) {\n            if (n % p != 0) continue;\n            int i = p;\n            while (i < n && s.charAt(i) == s.charAt(i - p)) i++;\n            if (i == n) return p;\n        }\n        return n;\n    }\n}\n",
+    "cpp": "class Solution {\npublic:\n    int shortestUnit(string& s) {\n        int n = s.size();\n        for (int p = 1; p < n; p++) {\n            if (n % p != 0) continue;\n            int i = p;\n            while (i < n && s[i] == s[i - p]) i++;\n            if (i == n) return p;\n        }\n        return n;\n    }\n};\n",
+    "c": "int shortestUnit(char* s) {\n    int n = strlen(s);\n    for (int p = 1; p < n; p++) {\n        if (n % p != 0) continue;\n        int i = p;\n        while (i < n && s[i] == s[i - p]) i++;\n        if (i == n) return p;\n    }\n    return n;\n}\n"
+   },
+   "lines": [
+    {
+     "text": "Block lengths must divide `n`; trying them smallest first means the first success is the answer.",
+     "at": {
+      "python": [
+       [
+        3,
+        4
+       ]
+      ],
+      "java": [
+       [
+        3,
+        5
+       ]
+      ],
+      "cpp": [
+       [
+        4,
+        6
+       ]
+      ],
+      "c": [
+       [
+        2,
+        4
+       ]
+      ]
+     }
+    },
+    {
+     "text": "Every character must equal the one exactly one block earlier. Python compares `s[p:]` with `s[:n−p]`, which is the same test done as a fast slice comparison.",
+     "at": {
+      "python": [
+       [
+        5,
+        6
+       ]
+      ],
+      "java": [
+       [
+        6,
+        8
+       ]
+      ],
+      "cpp": [
+       [
+        7,
+        9
+       ]
+      ],
+      "c": [
+       [
+        5,
+        7
+       ]
+      ]
+     },
+     "notes": {
+      "python": "Comparing `s[p:]` with `s[:n−p]` is the same check, done by fast slice comparison."
+     }
+    },
+    {
+     "text": "No shorter block works: the whole string is the block.",
+     "at": {
+      "python": [
+       [
+        7,
+        7
+       ]
+      ],
+      "java": [
+       [
+        10,
+        10
+       ]
+      ],
+      "cpp": [
+       [
+        11,
+        11
+       ]
+      ],
+      "c": [
+       [
+        9,
+        9
+       ]
+      ]
+     }
+    }
+   ],
+   "complexity": [
+    {
+     "md": "**Time O(n · d(n))**, where `d(n)` (the number of divisors) is at most 128 for `n ≤ 10⁵`: fast in practice. **Space O(1).**"
+    }
+   ],
+   "walk": {
+    "steps": [
+     {
+      "text": "p = 1: s[1] = 'b' but s[0] = 'a'.",
+      "panels": [
+       {
+        "type": "row",
+        "cells": [
+         "a",
+         "b",
+         "c",
+         "a",
+         "b",
+         "c",
+         "a",
+         "b",
+         "c",
+         "a",
+         "b",
+         "c"
+        ],
+        "states": {
+         "1": "mark",
+         "0": "mark"
+        }
+       }
+      ]
+     },
+     {
+      "text": "p = 2: s[2] = 'c' but s[0] = 'a'.",
+      "panels": [
+       {
+        "type": "row",
+        "cells": [
+         "a",
+         "b",
+         "c",
+         "a",
+         "b",
+         "c",
+         "a",
+         "b",
+         "c",
+         "a",
+         "b",
+         "c"
+        ],
+        "states": {
+         "2": "mark",
+         "0": "mark"
+        }
+       }
+      ]
+     },
+     {
+      "text": "p = 3: every s[i] equals s[i − p]. Found it.",
+      "panels": [
+       {
+        "type": "row",
+        "cells": [
+         "a",
+         "b",
+         "c",
+         "a",
+         "b",
+         "c",
+         "a",
+         "b",
+         "c",
+         "a",
+         "b",
+         "c"
+        ],
+        "states": {
+         "0": "found",
+         "1": "found",
+         "2": "found"
+        }
+       }
+      ]
+     },
+     {
+      "text": "Shortest block: 3.",
+      "panels": [],
+      "result": "3"
+     }
+    ],
+    "title": "Try each divisor p of n as the block length: the string is p-periodic when every character equals the one p positions earlier."
+   },
+   "limits": [
+    {
+     "md": "Each divisor is checked from scratch. The prefix function produces the smallest period directly in one pass, without trying candidates."
+    }
+   ]
+  },
+  {
+   "title": "Smallest period from the prefix function",
+   "kind": "best",
+   "time": "O(n)",
+   "space": "O(n)",
+   "idea": [
+    {
+     "md": "Compute the prefix function. `p = n − pi[n − 1]` is the smallest period. If `p` divides `n`, `s` is `n / p`\ncopies of `s[0..p)`; otherwise no proper block works and the answer is `n`."
+    }
+   ],
+   "build": [
+    "Prefix function of `s`.",
+    "Smallest period from the longest border.",
+    "Check divisibility."
+   ],
+   "code": {
+    "python": "class Solution:\n    def shortestUnit(self, s: str) -> int:\n        n = len(s)\n        fail, k = [0] * n, 0\n        for i in range(1, n):\n            while k and s[i] != s[k]:\n                k = fail[k - 1]\n            if s[i] == s[k]:\n                k += 1\n            fail[i] = k\n        p = n - fail[-1]\n        return p if n % p == 0 else n\n",
+    "java": "class Solution {\n    public int shortestUnit(String s) {\n        int n = s.length();\n        int[] fail = new int[n];\n        for (int i = 1, k = 0; i < n; i++) {\n            while (k > 0 && s.charAt(i) != s.charAt(k)) k = fail[k - 1];\n            if (s.charAt(i) == s.charAt(k)) k++;\n            fail[i] = k;\n        }\n        int p = n - fail[n - 1];\n        return n % p == 0 ? p : n;\n    }\n}\n",
+    "cpp": "class Solution {\npublic:\n    int shortestUnit(string& s) {\n        int n = s.size();\n        vector<int> fail(n, 0);\n        for (int i = 1, k = 0; i < n; i++) {\n            while (k > 0 && s[i] != s[k]) k = fail[k - 1];\n            if (s[i] == s[k]) k++;\n            fail[i] = k;\n        }\n        int p = n - fail[n - 1];\n        return n % p == 0 ? p : n;\n    }\n};\n",
+    "c": "int shortestUnit(char* s) {\n    int n = strlen(s);\n    int* fail = calloc(n, sizeof(int));\n    for (int i = 1, k = 0; i < n; i++) {\n        while (k > 0 && s[i] != s[k]) k = fail[k - 1];\n        if (s[i] == s[k]) k++;\n        fail[i] = k;\n    }\n    int p = n - fail[n - 1];\n    free(fail);\n    return n % p == 0 ? p : n;\n}\n"
+   },
+   "lines": [
+    {
+     "text": "The prefix function of the whole string; only its last value is needed.",
+     "at": {
+      "python": [
+       [
+        3,
+        10
+       ]
+      ],
+      "java": [
+       [
+        3,
+        8
+       ]
+      ],
+      "cpp": [
+       [
+        4,
+        9
+       ]
+      ],
+      "c": [
+       [
+        2,
+        7
+       ]
+      ]
+     }
+    },
+    {
+     "text": "The longest border has length `pi[n−1]`, so shifting `s` by `n − pi[n−1]` lines it up with itself: that's the smallest period.",
+     "at": {
+      "python": [
+       [
+        11,
+        11
+       ]
+      ],
+      "java": [
+       [
+        10,
+        10
+       ]
+      ],
+      "cpp": [
+       [
+        11,
+        11
+       ]
+      ],
+      "c": [
+       [
+        9,
+        10
+       ]
+      ]
+     }
+    },
+    {
+     "text": "A period that divides `n` tiles the string exactly. Otherwise no proper block works (see the proof above), so the answer is `n`.",
+     "at": {
+      "python": [
+       [
+        12,
+        12
+       ]
+      ],
+      "java": [
+       [
+        11,
+        11
+       ]
+      ],
+      "cpp": [
+       [
+        12,
+        12
+       ]
+      ],
+      "c": [
+       [
+        11,
+        11
+       ]
+      ]
+     }
+    }
+   ],
+   "complexity": [
+    {
+     "md": "**Time O(n).** **Space O(n)** for the table."
+    }
+   ],
+   "walk": {
+    "steps": [
+     {
+      "text": "Position 1 ('b'): the longest proper prefix of 'ab' that is also its suffix has length 0.",
+      "panels": [
+       {
+        "type": "row",
+        "cells": [
+         "a",
+         "b",
+         "c",
+         "a",
+         "b",
+         "c",
+         "a",
+         "b",
+         "c",
+         "a",
+         "b",
+         "c"
+        ],
+        "label": "s"
+       },
+       {
+        "type": "row",
+        "cells": [
+         0,
+         0,
+         "·",
+         "·",
+         "·",
+         "·",
+         "·",
+         "·",
+         "·",
+         "·",
+         "·",
+         "·"
+        ],
+        "label": "prefix fn"
+       }
+      ]
+     },
+     {
+      "text": "Position 2 ('c'): the longest proper prefix of 'abc' that is also its suffix has length 0.",
+      "panels": [
+       {
+        "type": "row",
+        "cells": [
+         "a",
+         "b",
+         "c",
+         "a",
+         "b",
+         "c",
+         "a",
+         "b",
+         "c",
+         "a",
+         "b",
+         "c"
+        ],
+        "label": "s"
+       },
+       {
+        "type": "row",
+        "cells": [
+         0,
+         0,
+         0,
+         "·",
+         "·",
+         "·",
+         "·",
+         "·",
+         "·",
+         "·",
+         "·",
+         "·"
+        ],
+        "label": "prefix fn"
+       }
+      ]
+     },
+     {
+      "text": "Position 3 ('a'): the longest proper prefix of 'abca' that is also its suffix has length 1.",
+      "panels": [
+       {
+        "type": "row",
+        "cells": [
+         "a",
+         "b",
+         "c",
+         "a",
+         "b",
+         "c",
+         "a",
+         "b",
+         "c",
+         "a",
+         "b",
+         "c"
+        ],
+        "states": {
+         "0": "found",
+         "3": "active"
+        },
+        "label": "s"
+       },
+       {
+        "type": "row",
+        "cells": [
+         0,
+         0,
+         0,
+         1,
+         "·",
+         "·",
+         "·",
+         "·",
+         "·",
+         "·",
+         "·",
+         "·"
+        ],
+        "label": "prefix fn"
+       }
+      ]
+     },
+     {
+      "text": "Position 4 ('b'): the longest proper prefix of 'abcab' that is also its suffix has length 2.",
+      "panels": [
+       {
+        "type": "row",
+        "cells": [
+         "a",
+         "b",
+         "c",
+         "a",
+         "b",
+         "c",
+         "a",
+         "b",
+         "c",
+         "a",
+         "b",
+         "c"
+        ],
+        "states": {
+         "0": "found",
+         "1": "found",
+         "3": "active",
+         "4": "active"
+        },
+        "label": "s"
+       },
+       {
+        "type": "row",
+        "cells": [
+         0,
+         0,
+         0,
+         1,
+         2,
+         "·",
+         "·",
+         "·",
+         "·",
+         "·",
+         "·",
+         "·"
+        ],
+        "label": "prefix fn"
+       }
+      ]
+     },
+     {
+      "text": "Position 5 ('c'): the longest proper prefix of 'abcabc' that is also its suffix has length 3.",
+      "panels": [
+       {
+        "type": "row",
+        "cells": [
+         "a",
+         "b",
+         "c",
+         "a",
+         "b",
+         "c",
+         "a",
+         "b",
+         "c",
+         "a",
+         "b",
+         "c"
+        ],
+        "states": {
+         "0": "found",
+         "1": "found",
+         "2": "found",
+         "3": "active",
+         "4": "active",
+         "5": "active"
+        },
+        "label": "s"
+       },
+       {
+        "type": "row",
+        "cells": [
+         0,
+         0,
+         0,
+         1,
+         2,
+         3,
+         "·",
+         "·",
+         "·",
+         "·",
+         "·",
+         "·"
+        ],
+        "label": "prefix fn"
+       }
+      ]
+     },
+     {
+      "text": "Position 6 ('a'): the longest proper prefix of 'abcabca' that is also its suffix has length 4.",
+      "panels": [
+       {
+        "type": "row",
+        "cells": [
+         "a",
+         "b",
+         "c",
+         "a",
+         "b",
+         "c",
+         "a",
+         "b",
+         "c",
+         "a",
+         "b",
+         "c"
+        ],
+        "states": {
+         "0": "found",
+         "1": "found",
+         "2": "found",
+         "3": "active",
+         "4": "active",
+         "5": "active",
+         "6": "active"
+        },
+        "label": "s"
+       },
+       {
+        "type": "row",
+        "cells": [
+         0,
+         0,
+         0,
+         1,
+         2,
+         3,
+         4,
+         "·",
+         "·",
+         "·",
+         "·",
+         "·"
+        ],
+        "label": "prefix fn"
+       }
+      ]
+     },
+     {
+      "text": "Position 7 ('b'): the longest proper prefix of 'abcabcab' that is also its suffix has length 5.",
+      "panels": [
+       {
+        "type": "row",
+        "cells": [
+         "a",
+         "b",
+         "c",
+         "a",
+         "b",
+         "c",
+         "a",
+         "b",
+         "c",
+         "a",
+         "b",
+         "c"
+        ],
+        "states": {
+         "0": "found",
+         "1": "found",
+         "2": "found",
+         "3": "active",
+         "4": "active",
+         "5": "active",
+         "6": "active",
+         "7": "active"
+        },
+        "label": "s"
+       },
+       {
+        "type": "row",
+        "cells": [
+         0,
+         0,
+         0,
+         1,
+         2,
+         3,
+         4,
+         5,
+         "·",
+         "·",
+         "·",
+         "·"
+        ],
+        "label": "prefix fn"
+       }
+      ]
+     },
+     {
+      "text": "Position 8 ('c'): the longest proper prefix of 'abcabcabc' that is also its suffix has length 6.",
+      "panels": [
+       {
+        "type": "row",
+        "cells": [
+         "a",
+         "b",
+         "c",
+         "a",
+         "b",
+         "c",
+         "a",
+         "b",
+         "c",
+         "a",
+         "b",
+         "c"
+        ],
+        "states": {
+         "0": "found",
+         "1": "found",
+         "2": "found",
+         "3": "active",
+         "4": "active",
+         "5": "active",
+         "6": "active",
+         "7": "active",
+         "8": "active"
+        },
+        "label": "s"
+       },
+       {
+        "type": "row",
+        "cells": [
+         0,
+         0,
+         0,
+         1,
+         2,
+         3,
+         4,
+         5,
+         6,
+         "·",
+         "·",
+         "·"
+        ],
+        "label": "prefix fn"
+       }
+      ]
+     },
+     {
+      "text": "Position 9 ('a'): the longest proper prefix of 'abcabcabca' that is also its suffix has length 7.",
+      "panels": [
+       {
+        "type": "row",
+        "cells": [
+         "a",
+         "b",
+         "c",
+         "a",
+         "b",
+         "c",
+         "a",
+         "b",
+         "c",
+         "a",
+         "b",
+         "c"
+        ],
+        "states": {
+         "0": "found",
+         "1": "found",
+         "2": "found",
+         "3": "active",
+         "4": "active",
+         "5": "active",
+         "6": "active",
+         "7": "active",
+         "8": "active",
+         "9": "active"
+        },
+        "label": "s"
+       },
+       {
+        "type": "row",
+        "cells": [
+         0,
+         0,
+         0,
+         1,
+         2,
+         3,
+         4,
+         5,
+         6,
+         7,
+         "·",
+         "·"
+        ],
+        "label": "prefix fn"
+       }
+      ]
+     },
+     {
+      "text": "Position 10 ('b'): the longest proper prefix of 'abcabcabcab' that is also its suffix has length 8.",
+      "panels": [
+       {
+        "type": "row",
+        "cells": [
+         "a",
+         "b",
+         "c",
+         "a",
+         "b",
+         "c",
+         "a",
+         "b",
+         "c",
+         "a",
+         "b",
+         "c"
+        ],
+        "states": {
+         "0": "found",
+         "1": "found",
+         "2": "found",
+         "3": "active",
+         "4": "active",
+         "5": "active",
+         "6": "active",
+         "7": "active",
+         "8": "active",
+         "9": "active",
+         "10": "active"
+        },
+        "label": "s"
+       },
+       {
+        "type": "row",
+        "cells": [
+         0,
+         0,
+         0,
+         1,
+         2,
+         3,
+         4,
+         5,
+         6,
+         7,
+         8,
+         "·"
+        ],
+        "label": "prefix fn"
+       }
+      ]
+     },
+     {
+      "text": "Position 11 ('c'): the longest proper prefix of 'abcabcabcabc' that is also its suffix has length 9.",
+      "panels": [
+       {
+        "type": "row",
+        "cells": [
+         "a",
+         "b",
+         "c",
+         "a",
+         "b",
+         "c",
+         "a",
+         "b",
+         "c",
+         "a",
+         "b",
+         "c"
+        ],
+        "states": {
+         "0": "found",
+         "1": "found",
+         "2": "found",
+         "3": "active",
+         "4": "active",
+         "5": "active",
+         "6": "active",
+         "7": "active",
+         "8": "active",
+         "9": "active",
+         "10": "active",
+         "11": "active"
+        },
+        "label": "s"
+       },
+       {
+        "type": "row",
+        "cells": [
+         0,
+         0,
+         0,
+         1,
+         2,
+         3,
+         4,
+         5,
+         6,
+         7,
+         8,
+         9
+        ],
+        "label": "prefix fn"
+       }
+      ]
+     },
+     {
+      "text": "Longest border b = 9, so the period is 12 − 9 = 3. 12 % 3 = 0, so the answer is 3.",
+      "panels": [],
+      "result": "3"
+     }
+    ],
+    "title": "The longest border b of s (proper prefix = suffix) means s has period n − b. If that period divides n, it's the shortest block; otherwise no shorter block tiles s."
+   }
+  }
+ ],
+ "takeaways": [
+  {
+   "md": "- **Border ↔ period:** a border of length `b` means period `n − b`; smallest period = `n − pi[n − 1]`.\n- A period tiles the string only if it divides the length.\n- **Pitfall:** returning the period without checking divisibility (`abcab` would wrongly give 3).\n- **Related:** \"is `s` a repetition?\" is the same test; so is checking whether `s` occurs inside `s + s` starting\n  before position `n`."
+  }
+ ]
+}

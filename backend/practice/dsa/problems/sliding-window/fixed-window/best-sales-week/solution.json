@@ -1,0 +1,794 @@
+{
+ "version": 1,
+ "summary": "Neighbouring windows share all but two days. Keep a running total: start with the first `k` days, then for each\nstep add the day entering and subtract the day leaving, tracking the maximum. O(n) time, O(1) space; the total\nfits easily in 64 bits.",
+ "question": [
+  {
+   "md": "Return the largest total of any `k` consecutive values in `sales` (values can be negative).\n\n- **n up to 10⁵**, `k` up to `n`.\n- The answer is returned as a 64-bit integer."
+  },
+  {
+   "md": "**Edge cases to keep in mind**\n\n- `k = n`: there is exactly one window, the whole array.\n- Every value negative: the answer is negative too. Starting the best at 0 would wrongly report 0.\n- `k = 1`: the answer is simply the largest single value."
+  }
+ ],
+ "think": [
+  {
+   "md": "**Restating it.** Slide a frame of width `k` over the array. It sits at `n − k + 1` positions; for each one, add up\nwhat is inside, and report the largest of those sums.\n\n**Doing it by hand.** With `sales = [3, -2, 5, -1, 4, -6, 2, 3]` and `k = 3` there are 6 frames:"
+  },
+  {
+   "table": {
+    "head": [
+     "start",
+     "days",
+     "total"
+    ],
+    "rows": [
+     [
+      "0",
+      "[3, -2, 5]",
+      "6"
+     ],
+     [
+      "1",
+      "[-2, 5, -1]",
+      "2"
+     ],
+     [
+      "2",
+      "[5, -1, 4]",
+      "8"
+     ],
+     [
+      "3",
+      "[-1, 4, -6]",
+      "-3"
+     ],
+     [
+      "4",
+      "[4, -6, 2]",
+      "0"
+     ],
+     [
+      "5",
+      "[-6, 2, 3]",
+      "-1"
+     ]
+    ]
+   }
+  },
+  {
+   "md": "The best frame starts at day 2 with total **8**.\n\n**Spotting the waste.** Look at two neighbouring rows of the table. Frame 0 is `[3, -2, 5]` and frame 1 is\n`[-2, 5, -1]`: they share `[-2, 5]`. Adding the shared part again is pure repetition. Going from one frame\nto the next, exactly one value leaves on the left and one value enters on the right:\n\n`total(next) = total(current) − value leaving + value entering`\n\nFor example 6 − (3) + (-1) = 2. That is O(1) work per frame instead of O(k).\n\n**Why negatives don't break anything here.** In \"variable size\" window problems, negative numbers are dangerous\nbecause growing a window might lower its sum, so you can't tell when to stop growing. Here the size is fixed, so\nnothing is decided by growing or shrinking: we visit every frame and simply compare. The running total is exact\nwhatever the signs."
+  },
+  {
+   "panels": [
+    {
+     "type": "row",
+     "cells": [
+      3,
+      -2,
+      5,
+      -1,
+      4,
+      -6,
+      2,
+      3
+     ],
+     "states": {
+      "2": "active",
+      "3": "active",
+      "4": "active"
+     },
+     "pointers": {
+      "L": 2,
+      "R": 4
+     },
+     "label": "best frame"
+    }
+   ]
+  }
+ ],
+ "approaches": [
+  {
+   "title": "Sum every window",
+   "kind": "brute",
+   "time": "O(n · k)",
+   "space": "O(1)",
+   "idea": [
+    {
+     "md": "Treat every start `i` from `0` to `n − k` separately: add the `k` values `sales[i..i+k−1]` with a small\ninner loop and keep the largest total.\n\nThis is the direct translation of the question, which makes it a good correctness reference: anything\nfaster must produce the same numbers. It's also how you'd confirm the hand-made table above."
+    }
+   ],
+   "build": [
+    "Loop over starts.",
+    "Inner sum.",
+    "Keep the best."
+   ],
+   "code": {
+    "python": "class Solution:\n    def bestWeek(self, sales: List[int], k: int) -> int:\n        best = None\n        for i in range(len(sales) - k + 1):\n            total = sum(sales[i:i + k])\n            if best is None or total > best:\n                best = total\n        return best\n",
+    "java": "class Solution {\n    public long bestWeek(int[] sales, int k) {\n        long best = Long.MIN_VALUE;\n        for (int i = 0; i + k <= sales.length; i++) {\n            long total = 0;\n            for (int j = i; j < i + k; j++) total += sales[j];\n            best = Math.max(best, total);\n        }\n        return best;\n    }\n}\n",
+    "cpp": "class Solution {\npublic:\n    long long bestWeek(vector<int>& sales, int k) {\n        long long best = LLONG_MIN;\n        for (int i = 0; i + k <= (int) sales.size(); i++) {\n            long long total = 0;\n            for (int j = i; j < i + k; j++) total += sales[j];\n            best = max(best, total);\n        }\n        return best;\n    }\n};\n",
+    "c": "long long bestWeek(int* sales, int salesSize, int k) {\n    long long best = LLONG_MIN;\n    for (int i = 0; i + k <= salesSize; i++) {\n        long long total = 0;\n        for (int j = i; j < i + k; j++) total += sales[j];\n        if (total > best) best = total;\n    }\n    return best;\n}\n"
+   },
+   "lines": [
+    {
+     "text": "The best total seen so far. It starts at the smallest possible value (or `None`), not 0: if every day lost money, the right answer is negative, and starting at 0 would report a total no window has.",
+     "at": {
+      "python": [
+       [
+        3,
+        3
+       ]
+      ],
+      "java": [
+       [
+        3,
+        3
+       ]
+      ],
+      "cpp": [
+       [
+        4,
+        4
+       ]
+      ],
+      "c": [
+       [
+        2,
+        2
+       ]
+      ]
+     }
+    },
+    {
+     "text": "The window can start at `0 … n − k`; starting later would run past the end. That's `n − k + 1` windows. Every index is tried as the left end of the window. Nothing learned from one start is reused for the next, which is exactly the waste the better approaches remove.",
+     "at": {
+      "python": [
+       [
+        4,
+        4
+       ]
+      ],
+      "java": [
+       [
+        4,
+        4
+       ]
+      ],
+      "cpp": [
+       [
+        5,
+        5
+       ]
+      ],
+      "c": [
+       [
+        3,
+        3
+       ]
+      ]
+     }
+    },
+    {
+     "text": "Add the `k` values of this window from scratch. This inner loop is the costly part: `k` additions per window, most of them repeated from the previous window.",
+     "at": {
+      "python": [
+       [
+        5,
+        5
+       ]
+      ],
+      "java": [
+       [
+        5,
+        6
+       ]
+      ],
+      "cpp": [
+       [
+        6,
+        7
+       ]
+      ],
+      "c": [
+       [
+        4,
+        5
+       ]
+      ]
+     }
+    },
+    {
+     "text": "Keep the larger of the stored best and this window's total.",
+     "at": {
+      "python": [
+       [
+        6,
+        7
+       ]
+      ],
+      "java": [
+       [
+        7,
+        7
+       ]
+      ],
+      "cpp": [
+       [
+        8,
+        8
+       ]
+      ],
+      "c": [
+       [
+        6,
+        6
+       ]
+      ]
+     }
+    },
+    {
+     "text": "After all windows are checked, `best` holds the largest total.",
+     "at": {
+      "python": [
+       [
+        8,
+        8
+       ]
+      ],
+      "java": [
+       [
+        9,
+        9
+       ]
+      ],
+      "cpp": [
+       [
+        10,
+        10
+       ]
+      ],
+      "c": [
+       [
+        8,
+        8
+       ]
+      ]
+     }
+    }
+   ],
+   "complexity": [
+    {
+     "md": "**Time O(n · k).** There are `n − k + 1` starts and each costs `k` additions, so the work is\n`(n − k + 1) · k`. That product is largest when `k ≈ n/2`: about `n²/4`, which is 2.5 × 10⁹ for `n = 10⁵`.\n\n**Space O(1).** Only the running total and the best."
+    }
+   ],
+   "walk": {
+    "steps": [
+     {
+      "text": "Days 0..2: 3 + -2 + 5 = 6.",
+      "panels": [
+       {
+        "type": "row",
+        "cells": [
+         3,
+         -2,
+         5,
+         -1,
+         4,
+         -6,
+         2,
+         3
+        ],
+        "states": {
+         "0": "active",
+         "1": "active",
+         "2": "active"
+        }
+       }
+      ]
+     },
+     {
+      "text": "Days 1..3: -2 + 5 + -1 = 2.",
+      "panels": [
+       {
+        "type": "row",
+        "cells": [
+         3,
+         -2,
+         5,
+         -1,
+         4,
+         -6,
+         2,
+         3
+        ],
+        "states": {
+         "1": "active",
+         "2": "active",
+         "3": "active"
+        }
+       }
+      ]
+     },
+     {
+      "text": "Days 2..4: 5 + -1 + 4 = 8.",
+      "panels": [
+       {
+        "type": "row",
+        "cells": [
+         3,
+         -2,
+         5,
+         -1,
+         4,
+         -6,
+         2,
+         3
+        ],
+        "states": {
+         "2": "active",
+         "3": "active",
+         "4": "active"
+        }
+       }
+      ]
+     },
+     {
+      "text": "Days 3..5: -1 + 4 + -6 = -3.",
+      "panels": [
+       {
+        "type": "row",
+        "cells": [
+         3,
+         -2,
+         5,
+         -1,
+         4,
+         -6,
+         2,
+         3
+        ],
+        "states": {
+         "3": "active",
+         "4": "active",
+         "5": "active"
+        }
+       }
+      ]
+     },
+     {
+      "text": "Days 4..6: 4 + -6 + 2 = 0.",
+      "panels": [
+       {
+        "type": "row",
+        "cells": [
+         3,
+         -2,
+         5,
+         -1,
+         4,
+         -6,
+         2,
+         3
+        ],
+        "states": {
+         "4": "active",
+         "5": "active",
+         "6": "active"
+        }
+       }
+      ]
+     },
+     {
+      "text": "Days 5..7: -6 + 2 + 3 = -1.",
+      "panels": [
+       {
+        "type": "row",
+        "cells": [
+         3,
+         -2,
+         5,
+         -1,
+         4,
+         -6,
+         2,
+         3
+        ],
+        "states": {
+         "5": "active",
+         "6": "active",
+         "7": "active"
+        }
+       }
+      ]
+     },
+     {
+      "text": "Largest: 8.",
+      "panels": [],
+      "result": "8"
+     }
+    ],
+    "title": "Add up every window of k days from scratch."
+   },
+   "limits": [
+    {
+     "md": "**Repeated work.** Windows `i` and `i + 1` share `k − 1` days, yet both are summed in full. With `n = 10⁵` and `k = 5 × 10⁴`, that's about 2.5 × 10⁹ additions, far beyond a one-second limit. Since only one value enters and one leaves per step, the total can be updated in O(1) instead."
+    }
+   ],
+   "slow": true
+  },
+  {
+   "title": "Running total",
+   "kind": "best",
+   "time": "O(n)",
+   "space": "O(1)",
+   "idea": [
+    {
+     "md": "Compute the first frame's total once. Then move the frame one step at a time, and update the total with\nthe value entering on the right and the value leaving on the left.\n\n**The invariant.** After processing index `i` (for `i ≥ k − 1`), `total` equals the sum of\n`sales[i − k + 1 .. i]`, the frame ending at `i`. It holds for the first frame by construction, and each\nupdate keeps it true because exactly one element enters and one leaves.\n\n**Why the answer is right.** Every frame ends at some `i` in `k − 1 .. n − 1`, and at that moment `total`\nis exactly its sum and gets compared with `best`. So the largest frame sum is seen."
+    }
+   ],
+   "build": [
+    "Add up `sales[0..k−1]`; this is the first frame, and also the best so far (not 0: totals may be negative).",
+    "For `i` from `k` to `n − 1`: `total += sales[i] − sales[i − k]`. Now `total` is the frame ending at `i`.",
+    "After each update, `best = max(best, total)`.",
+    "Return `best` as a 64-bit value."
+   ],
+   "code": {
+    "python": "class Solution:\n    def bestWeek(self, sales: List[int], k: int) -> int:\n        total = sum(sales[:k])\n        best = total\n        for i in range(k, len(sales)):\n            total += sales[i] - sales[i - k]\n            best = max(best, total)\n        return best\n",
+    "java": "class Solution {\n    public long bestWeek(int[] sales, int k) {\n        long total = 0;\n        for (int i = 0; i < k; i++) total += sales[i];\n        long best = total;\n        for (int i = k; i < sales.length; i++) {\n            total += sales[i] - sales[i - k];\n            best = Math.max(best, total);\n        }\n        return best;\n    }\n}\n",
+    "cpp": "class Solution {\npublic:\n    long long bestWeek(vector<int>& sales, int k) {\n        long long total = 0;\n        for (int i = 0; i < k; i++) total += sales[i];\n        long long best = total;\n        for (int i = k; i < (int) sales.size(); i++) {\n            total += sales[i] - sales[i - k];\n            best = max(best, total);\n        }\n        return best;\n    }\n};\n",
+    "c": "long long bestWeek(int* sales, int salesSize, int k) {\n    long long total = 0;\n    for (int i = 0; i < k; i++) total += sales[i];\n    long long best = total;\n    for (int i = k; i < salesSize; i++) {\n        total += sales[i] - sales[i - k];\n        if (total > best) best = total;\n    }\n    return best;\n}\n"
+   },
+   "lines": [
+    {
+     "text": "Sum the first `k` days once. This is window `0 … k − 1`, and it's also the best so far. Every later window will be derived from it.",
+     "at": {
+      "python": [
+       [
+        3,
+        4
+       ]
+      ],
+      "java": [
+       [
+        3,
+        5
+       ]
+      ],
+      "cpp": [
+       [
+        4,
+        6
+       ]
+      ],
+      "c": [
+       [
+        2,
+        4
+       ]
+      ]
+     }
+    },
+    {
+     "text": "Move the window one day to the right: day `i` enters and day `i − k` leaves. After this line, `total` is the sum of days `i − k + 1 … i`. It's one addition and one subtraction, regardless of `k`.",
+     "at": {
+      "python": [
+       [
+        5,
+        6
+       ]
+      ],
+      "java": [
+       [
+        6,
+        7
+       ]
+      ],
+      "cpp": [
+       [
+        7,
+        8
+       ]
+      ],
+      "c": [
+       [
+        5,
+        6
+       ]
+      ]
+     }
+    },
+    {
+     "text": "Compare the new window with the best. Every window is compared exactly once, right after its total is formed.",
+     "at": {
+      "python": [
+       [
+        7,
+        7
+       ]
+      ],
+      "java": [
+       [
+        8,
+        8
+       ]
+      ],
+      "cpp": [
+       [
+        9,
+        9
+       ]
+      ],
+      "c": [
+       [
+        7,
+        7
+       ]
+      ]
+     }
+    },
+    {
+     "text": "The largest window total. It's accumulated in 64 bits because the return type is `long`.",
+     "at": {
+      "python": [
+       [
+        8,
+        8
+       ]
+      ],
+      "java": [
+       [
+        10,
+        10
+       ]
+      ],
+      "cpp": [
+       [
+        11,
+        11
+       ]
+      ],
+      "c": [
+       [
+        9,
+        9
+       ]
+      ]
+     }
+    }
+   ],
+   "complexity": [
+    {
+     "md": "**Time O(n).** `k` additions for the first frame plus one O(1) update for each of the other `n − k`\nframes: `n` operations in total, regardless of `k`.\n\n**Space O(1).**\n\n**Range check.** A frame sum is at most `10⁵ · 10⁴ = 10⁹` in size, which fits in 32 bits, but the return\ntype is `long`, so the code accumulates in 64 bits anyway."
+    }
+   ],
+   "walk": {
+    "steps": [
+     {
+      "text": "First window 0..2: computed directly, 6.",
+      "panels": [
+       {
+        "type": "row",
+        "cells": [
+         3,
+         -2,
+         5,
+         -1,
+         4,
+         -6,
+         2,
+         3
+        ],
+        "states": {
+         "0": "active",
+         "1": "active",
+         "2": "active"
+        },
+        "pointers": {
+         "L": 0,
+         "R": 2
+        },
+        "label": "sales"
+       },
+       {
+        "type": "vars",
+        "items": {
+         "window": 6,
+         "best": 6
+        }
+       }
+      ]
+     },
+     {
+      "text": "Slide: -1 enters, 3 leaves, so 6 + -1 − 3 = 2.",
+      "panels": [
+       {
+        "type": "row",
+        "cells": [
+         3,
+         -2,
+         5,
+         -1,
+         4,
+         -6,
+         2,
+         3
+        ],
+        "states": {
+         "1": "active",
+         "2": "active",
+         "3": "found",
+         "0": "dim"
+        },
+        "pointers": {
+         "L": 1,
+         "R": 3
+        },
+        "label": "sales"
+       },
+       {
+        "type": "vars",
+        "items": {
+         "window": 2,
+         "best": 6
+        }
+       }
+      ]
+     },
+     {
+      "text": "Slide: 4 enters, -2 leaves, so 2 + 4 − -2 = 8. New best.",
+      "panels": [
+       {
+        "type": "row",
+        "cells": [
+         3,
+         -2,
+         5,
+         -1,
+         4,
+         -6,
+         2,
+         3
+        ],
+        "states": {
+         "2": "active",
+         "3": "active",
+         "4": "found",
+         "1": "dim"
+        },
+        "pointers": {
+         "L": 2,
+         "R": 4
+        },
+        "label": "sales"
+       },
+       {
+        "type": "vars",
+        "items": {
+         "window": 8,
+         "best": 8
+        }
+       }
+      ]
+     },
+     {
+      "text": "Slide: -6 enters, 5 leaves, so 8 + -6 − 5 = -3.",
+      "panels": [
+       {
+        "type": "row",
+        "cells": [
+         3,
+         -2,
+         5,
+         -1,
+         4,
+         -6,
+         2,
+         3
+        ],
+        "states": {
+         "3": "active",
+         "4": "active",
+         "5": "found",
+         "2": "dim"
+        },
+        "pointers": {
+         "L": 3,
+         "R": 5
+        },
+        "label": "sales"
+       },
+       {
+        "type": "vars",
+        "items": {
+         "window": -3,
+         "best": 8
+        }
+       }
+      ]
+     },
+     {
+      "text": "Slide: 2 enters, -1 leaves, so -3 + 2 − -1 = 0.",
+      "panels": [
+       {
+        "type": "row",
+        "cells": [
+         3,
+         -2,
+         5,
+         -1,
+         4,
+         -6,
+         2,
+         3
+        ],
+        "states": {
+         "4": "active",
+         "5": "active",
+         "6": "found",
+         "3": "dim"
+        },
+        "pointers": {
+         "L": 4,
+         "R": 6
+        },
+        "label": "sales"
+       },
+       {
+        "type": "vars",
+        "items": {
+         "window": 0,
+         "best": 8
+        }
+       }
+      ]
+     },
+     {
+      "text": "Slide: 3 enters, 4 leaves, so 0 + 3 − 4 = -1.",
+      "panels": [
+       {
+        "type": "row",
+        "cells": [
+         3,
+         -2,
+         5,
+         -1,
+         4,
+         -6,
+         2,
+         3
+        ],
+        "states": {
+         "5": "active",
+         "6": "active",
+         "7": "found",
+         "4": "dim"
+        },
+        "pointers": {
+         "L": 5,
+         "R": 7
+        },
+        "label": "sales"
+       },
+       {
+        "type": "vars",
+        "items": {
+         "window": -1,
+         "best": 8
+        }
+       }
+      ]
+     },
+     {
+      "text": "Largest total: 8.",
+      "panels": [],
+      "result": "8"
+     }
+    ],
+    "title": "Sum the first window once; every later window is the previous total plus the day entering minus the day leaving."
+   }
+  }
+ ],
+ "takeaways": [
+  {
+   "md": "- **Recognise it:** \"every block of exactly `k` consecutive items\", with an aggregate (sum, count, number of\n  matches) that you can update when one item enters and one leaves.\n- **Template:** build the first window, then loop `i = k..n−1` doing `+ a[i] − a[i−k]`, and evaluate after each\n  update.\n- **Pitfalls:** starting `best` at 0 when values can be negative; an off-by-one that skips the first window or\n  the last one (there are `n − k + 1` windows).\n- **Related:** the same running-sum idea answers averages (divide by `k`), counts of a property (add 0/1 flags)\n  and \"is any window good enough\" checks."
+  }
+ ]
+}

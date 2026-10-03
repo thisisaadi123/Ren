@@ -4,41 +4,59 @@
  "question": [
   {
    "md": "You get a hand of numbers. Decide whether you could lay them out as a run where each card is\nexactly one more than the card before it.\n\n- **Order doesn't matter.** `[7, 5, 6]` is a straight: rearranged it's 5, 6, 7.\n- **Every card must be used**, so a gap anywhere breaks it: `[2, 4, 3, 6]` is missing a 5.\n- **Repeats break it** too: a straight goes up by exactly one at each step, so no two cards can\n  be equal. `[1, 2, 2]` is not a straight.\n- **One card** is always a straight (there's nothing to compare).\n- **Negative cards** are allowed: `[−1, 0, 1]` is a straight.\n- **Size and range:** up to 10⁵ cards between −10⁹ and 10⁹. The gap between the largest and\n  smallest card can be 2 × 10⁹, past the 32-bit `int` limit, so compute it with 64-bit integers in\n  Java, C++ and C."
+  },
+  {
+   "md": "**Edge cases to keep in mind**\n\n- One card is always a straight.\n- Duplicates break a straight even when the span is right (`5, 6, 6, 8`).\n- Values span ±10⁹, so `max − min` can reach 2 × 10⁹."
   }
  ],
  "think": [
   {
-   "md": "Take the hand `[9, 6, 8, 5, 7]`. If you lay it out by hand you'd pick the smallest card, 5, and\nthen look for 6, then 7, 8, 9. Once you know the smallest card and how many cards there are, the\nwhole straight is **forced**: it must be 5, 6, 7, 8, 9."
+   "md": "**The straight is forced.** Once the smallest card `lo` and the number of cards `n` are known, the straight must\nbe exactly `lo, lo + 1, …, lo + n − 1`. So two conditions are equivalent to being a straight:\n\n1. the span is right: `max − min = n − 1`;\n2. no card repeats.\n\nIf both hold, the `n` distinct cards fit into `n` slots of the span, so every slot is filled exactly once."
   },
   {
-   "panels": [
-    {
-     "type": "row",
-     "cells": [
-      9,
-      6,
-      8,
-      5,
-      7
+   "table": {
+    "head": [
+     "hand",
+     "min",
+     "max",
+     "max − min",
+     "n − 1",
+     "duplicates?",
+     "straight?"
+    ],
+    "rows": [
+     [
+      "[9, 6, 8, 5, 7]",
+      "5",
+      "9",
+      "4",
+      "4",
+      "no",
+      "yes"
      ],
-     "label": "hand"
-    },
-    {
-     "type": "row",
-     "cells": [
-      5,
-      6,
-      7,
-      8,
-      9
+     [
+      "[5, 6, 6, 8]",
+      "5",
+      "8",
+      "3",
+      "3",
+      "yes",
+      "no"
      ],
-     "label": "the only possible straight"
-    }
-   ],
-   "caption": "With 5 cards and a smallest card of 5, the only straight is 5 … 9."
+     [
+      "[5, 6, 8, 9]",
+      "5",
+      "9",
+      "4",
+      "3",
+      "no",
+      "no"
+     ]
+    ]
+   }
   },
   {
-   "md": "That gives two simple conditions, and together they're exactly right:\n\n1. **The span fits:** `max − min == n − 1`. Five cards from 5 to 9 have span 4.\n2. **No repeats.** If the span is n − 1, there are exactly n possible values, and n cards with\n   no repeats must use each of them once. With a repeat, something is missing: `[4, 7, 5, 4]` has\n   span 3 = n − 1, but the 4 is doubled, so the 6 is missing.\n\nCondition 1 alone isn't enough (`[4, 7, 5, 4]` passes it), and condition 2 alone isn't either\n(`[1, 5]` has no repeats). Both are needed. The approaches below check them with less and less\nwork."
+   "md": "**Checking duplicates without a hash set.** Once the span is exactly `n − 1`, every card `c` maps to slot\n`c − min` in `0 … n − 1`, so a boolean array of size `n` detects repeats."
   }
  ],
  "approaches": [
@@ -49,14 +67,13 @@
    "space": "O(1)",
    "idea": [
     {
-     "md": "Find the smallest card `lo`. The straight must contain `lo + 1, lo + 2, …, lo + n − 1`.\nFor each of those values, scan the hand; if any is missing, it's not a straight.\n\nWhy does this catch repeats? If all n values `lo … lo + n − 1` are found among n cards,\neach card is one of those values and each value is used, so no value can be used twice\n(a repeat would leave too few cards to cover all n values)."
+     "md": "Find the smallest card, then search the hand for each of `min + 1, …, min + n − 1`."
     }
    ],
    "build": [
-    "Find the minimum card `lo`.",
-    "For `t` from 1 to n − 1, scan the hand for `lo + t`.",
-    "If some value is never found, return false.",
-    "If every value was found, return true."
+    "Minimum.",
+    "Search for each required card.",
+    "True if all are found."
    ],
    "code": {
     "python": "class Solution:\n    def isStraight(self, cards: List[int]) -> bool:\n        lo = min(cards)\n        for t in range(1, len(cards)):\n            if lo + t not in cards:\n                return False\n        return True\n",
@@ -188,7 +205,7 @@
    ],
    "complexity": [
     {
-     "md": "**Time O(n²):** up to n − 1 scans of n cards. **Space O(1).**"
+     "md": "**Time O(n²).** **Space O(1).**"
     }
    ],
    "walk": {
@@ -357,7 +374,7 @@
    },
    "limits": [
     {
-     "md": "Every \"is this value in the hand?\" question is answered by a full scan, about 10¹⁰ steps\nfor 10⁵ cards. Sorting answers all of them at once."
+     "md": "Each required card is a linear search. Sorting, or checking the span with slot marks, avoids that."
     }
    ],
    "slow": true
@@ -369,13 +386,12 @@
    "space": "O(n)",
    "idea": [
     {
-     "md": "Sort a copy of the hand. A straight sorted is `lo, lo + 1, lo + 2, …`, so every adjacent\npair must differ by exactly 1. A difference of 0 is a repeat; a difference of 2 or more is\na gap. Either fails."
+     "md": "Sort the hand; it's a straight exactly when every neighbour difference is 1."
     }
    ],
    "build": [
-    "Sort a copy of the cards.",
-    "For each adjacent pair, if `s[i + 1] − s[i]` isn't 1, return false.",
-    "Otherwise return true."
+    "Sort.",
+    "Check each neighbour difference."
    ],
    "code": {
     "python": "class Solution:\n    def isStraight(self, cards: List[int]) -> bool:\n        s = sorted(cards)\n        for i in range(len(s) - 1):\n            if s[i + 1] - s[i] != 1:\n                return False\n        return True\n",
@@ -493,7 +509,7 @@
    ],
    "complexity": [
     {
-     "md": "**Time O(n log n)** for the sort; the scan is O(n). **Space O(n)** for the sorted copy."
+     "md": "**Time O(n log n).** **Space O(n)** for the copy."
     }
    ],
    "walk": {
@@ -661,7 +677,7 @@
    },
    "limits": [
     {
-     "md": "Sorting puts every card in order, but the question only needs two facts: the span, and\nwhether anything repeats. Both can be found without ordering anything."
+     "md": "Sorting is more than needed: the straight is fully determined by its minimum and length."
     }
    ]
   },
@@ -672,15 +688,13 @@
    "space": "O(n)",
    "idea": [
     {
-     "md": "1. One pass finds `min` and `max`. If `max − min != n − 1`, the hand can't be a straight\n   (too wide means a gap; too narrow means repeats).\n2. Now every card lies in `min … min + n − 1`, so card `c` has a natural slot\n   `c − min` between 0 and n − 1. Mark slots in a boolean array; a slot marked twice is a\n   repeat.\n\nThe span check is what makes the array small: without it, slots could reach 2 × 10⁹. And\nno hash set is needed, because the slots are plain array indices."
+     "md": "Compute `min` and `max`. If `max − min ≠ n − 1`, return false. Otherwise mark slot `c − min` for each card;\na slot marked twice means a duplicate. If no duplicate appears, it's a straight."
     }
    ],
    "build": [
-    "Find `lo = min(cards)` and `hi = max(cards)`.",
-    "If `hi − lo != n − 1` (in 64 bits), return false.",
-    "Make a boolean array `seen` of size n.",
-    "For each card: if `seen[c − lo]` is already true, return false; otherwise set it.",
-    "Return true."
+    "Min and max.",
+    "Check the span.",
+    "Mark slots; reject a repeat."
    ],
    "code": {
     "python": "class Solution:\n    def isStraight(self, cards: List[int]) -> bool:\n        n = len(cards)\n        lo, hi = min(cards), max(cards)\n        if hi - lo != n - 1:\n            return False\n        seen = [False] * n\n        for c in cards:\n            if seen[c - lo]:\n                return False\n            seen[c - lo] = True\n        return True\n",
@@ -819,7 +833,7 @@
    ],
    "complexity": [
     {
-     "md": "**Time O(n):** two passes over the cards, O(1) work each.\n\n**Space O(n)** for the flags. (A hash set would also work, but array slots are simpler and\nhave no hashing cost.)"
+     "md": "**Time O(n).** **Space O(n)** for the slot marks."
     }
    ],
    "walk": {
@@ -1081,7 +1095,7 @@
  ],
  "takeaways": [
   {
-   "md": "- A run of consecutive values is pinned down by its **minimum and its length**. Check the span\n  (`max − min == n − 1`) plus \"no repeats\", rather than sorting.\n- When values are known to lie in a small range `[lo, lo + n)`, a plain array indexed by\n  `value − lo` replaces a hash set.\n- Spans and differences of 32-bit values can overflow: compute them in 64 bits."
+   "md": "- **\"Can it be rearranged into consecutive values?\"** ⇔ span `= n − 1` and no duplicates.\n- A known span turns values into slots for O(1) duplicate checks.\n- **Pitfall:** checking only the span (misses duplicates)."
   }
  ]
 }

@@ -1,0 +1,1491 @@
+{
+ "version": 1,
+ "summary": "A streak is a run of consecutive day numbers, in any order in the input. Put the days in a hash set and only\ncount from days whose previous day is absent (streak starts); walk forward from each start. Every day is\nvisited a constant number of times: O(n).",
+ "question": [
+  {
+   "md": "Return the length of the longest run of **consecutive day numbers** that all appear in `days`.\n\n- **Order in the input doesn't matter:** `[100, 4, 200, 1, 3, 2]` contains 1, 2, 3, 4: length 4.\n- **Repeats don't extend a streak:** practising twice on day 5 is still one day.\n- **Empty input** gives 0.\n- **Day numbers are ±10⁹**, so they can't index an array.\n- The same idea as **Longest Chain With a Step** with step 1."
+  },
+  {
+   "md": "**Edge cases to keep in mind**\n\n- No days at all: the answer is 0.\n- Repeated days don't extend a streak.\n- Negative day numbers are fine; only consecutiveness matters."
+  }
+ ],
+ "think": [
+  {
+   "md": "**Why sort first?** Sorting puts related values next to each other: the closest pair becomes a pair of neighbours,\nequal values form blocks, consecutive numbers form runs. A question about *all pairs* (O(n²)) becomes a question about\n*neighbours* (O(n)) after an O(n log n) sort. And when the values are bounded, counting into buckets can replace the\nsort entirely."
+  },
+  {
+   "md": "**Two ways to see runs.** After sorting, a streak is a block where each value is the previous plus one\n(duplicates skipped). Without sorting, a hash set answers \"is `d + 1` present?\" in O(1).\n\n**Avoid re-walking.** Walking forward from every day would re-count the same streak from each of its members\n(O(n²) in the worst case). Only walk from a **streak start**: a day `d` whose `d − 1` is absent. Then every day is\nvisited by exactly one walk. For `[100, 4, 200, 1, 3, 2, 101, 102, 50]`:"
+  },
+  {
+   "table": {
+    "head": [
+     "day (distinct)",
+     "decision",
+     "streak length"
+    ],
+    "rows": [
+     [
+      "1",
+      "start: walk to 4",
+      "4"
+     ],
+     [
+      "2",
+      "1 is present: not a start, skip",
+      "—"
+     ],
+     [
+      "3",
+      "2 is present: not a start, skip",
+      "—"
+     ],
+     [
+      "4",
+      "3 is present: not a start, skip",
+      "—"
+     ],
+     [
+      "50",
+      "start: walk to 50",
+      "1"
+     ],
+     [
+      "100",
+      "start: walk to 102",
+      "3"
+     ],
+     [
+      "101",
+      "100 is present: not a start, skip",
+      "—"
+     ],
+     [
+      "102",
+      "101 is present: not a start, skip",
+      "—"
+     ],
+     [
+      "200",
+      "start: walk to 200",
+      "1"
+     ]
+    ]
+   }
+  },
+  {
+   "md": "Longest streak **4**."
+  }
+ ],
+ "approaches": [
+  {
+   "title": "Extend from every day by scanning",
+   "kind": "brute",
+   "time": "O(n³)",
+   "space": "O(1)",
+   "idea": [
+    {
+     "md": "From every day, count upward while the next day appears in the list (searching the list each time)."
+    }
+   ],
+   "build": [
+    "For each day, extend while `d + length` is in the list.",
+    "Track the longest."
+   ],
+   "code": {
+    "python": "class Solution:\n    def longestStreak(self, days: List[int]) -> int:\n        best = 0\n        for d in days:\n            length = 1\n            while d + length in days:\n                length += 1\n            best = max(best, length)\n        return best\n",
+    "java": "class Solution {\n    public int longestStreak(int[] days) {\n        int best = 0;\n        for (int d : days) {\n            int length = 1;\n            while (contains(days, (long) d + length)) length++;\n            best = Math.max(best, length);\n        }\n        return best;\n    }\n\n    private boolean contains(int[] days, long x) {\n        for (int d : days) if (d == x) return true;\n        return false;\n    }\n}\n",
+    "cpp": "class Solution {\npublic:\n    int longestStreak(vector<int>& days) {\n        auto contains = [&](long long x) {\n            for (int d : days) if (d == x) return true;\n            return false;\n        };\n        int best = 0;\n        for (int d : days) {\n            int length = 1;\n            while (contains((long long) d + length)) length++;\n            best = max(best, length);\n        }\n        return best;\n    }\n};\n",
+    "c": "static bool contains(const int* days, int n, long long x) {\n    for (int i = 0; i < n; i++) if (days[i] == x) return true;\n    return false;\n}\n\nint longestStreak(int* days, int daysSize) {\n    int best = 0;\n    for (int i = 0; i < daysSize; i++) {\n        int length = 1;\n        while (contains(days, daysSize, (long long) days[i] + length)) length++;\n        if (length > best) best = length;\n    }\n    return best;\n}\n"
+   },
+   "lines": [
+    {
+     "text": "Linear search for a day number (64-bit, since `d + length` can pass 2³¹ − 1 near 10⁹).",
+     "at": {
+      "java": [
+       [
+        12,
+        15
+       ]
+      ],
+      "cpp": [
+       [
+        4,
+        7
+       ]
+      ],
+      "c": [
+       [
+        1,
+        4
+       ]
+      ]
+     }
+    },
+    {
+     "text": "Every day gets a turn as a streak start.",
+     "at": {
+      "python": [
+       [
+        4,
+        5
+       ]
+      ],
+      "java": [
+       [
+        4,
+        5
+       ]
+      ],
+      "cpp": [
+       [
+        9,
+        10
+       ]
+      ],
+      "c": [
+       [
+        8,
+        9
+       ]
+      ]
+     }
+    },
+    {
+     "text": "Keep finding the next day.",
+     "at": {
+      "python": [
+       [
+        6,
+        7
+       ]
+      ],
+      "java": [
+       [
+        6,
+        6
+       ]
+      ],
+      "cpp": [
+       [
+        11,
+        11
+       ]
+      ],
+      "c": [
+       [
+        10,
+        10
+       ]
+      ]
+     }
+    },
+    {
+     "text": "Longest streak; 0 when there are no days.",
+     "at": {
+      "python": [
+       [
+        8,
+        9
+       ]
+      ],
+      "java": [
+       [
+        7,
+        7
+       ],
+       [
+        9,
+        9
+       ]
+      ],
+      "cpp": [
+       [
+        12,
+        12
+       ],
+       [
+        14,
+        14
+       ]
+      ],
+      "c": [
+       [
+        11,
+        11
+       ],
+       [
+        13,
+        13
+       ]
+      ]
+     }
+    }
+   ],
+   "complexity": [
+    {
+     "md": "**Time O(n³)** worst case: walks of length O(n), each step a linear search. **Space O(1).**"
+    }
+   ],
+   "walk": {
+    "steps": [
+     {
+      "text": "From 100: 100 → 101 → 102 (then 103 is missing): length 3.",
+      "panels": [
+       {
+        "type": "row",
+        "cells": [
+         100,
+         4,
+         200,
+         1,
+         3,
+         2,
+         101,
+         102,
+         50
+        ],
+        "states": {
+         "0": "answer",
+         "6": "found",
+         "7": "found"
+        },
+        "slots": true
+       },
+       {
+        "type": "vars",
+        "items": {
+         "best": 3
+        }
+       }
+      ]
+     },
+     {
+      "text": "From 4: 4 (then 5 is missing): length 1.",
+      "panels": [
+       {
+        "type": "row",
+        "cells": [
+         100,
+         4,
+         200,
+         1,
+         3,
+         2,
+         101,
+         102,
+         50
+        ],
+        "states": {
+         "1": "answer"
+        },
+        "slots": true
+       },
+       {
+        "type": "vars",
+        "items": {
+         "best": 3
+        }
+       }
+      ]
+     },
+     {
+      "text": "From 200: 200 (then 201 is missing): length 1.",
+      "panels": [
+       {
+        "type": "row",
+        "cells": [
+         100,
+         4,
+         200,
+         1,
+         3,
+         2,
+         101,
+         102,
+         50
+        ],
+        "states": {
+         "2": "answer"
+        },
+        "slots": true
+       },
+       {
+        "type": "vars",
+        "items": {
+         "best": 3
+        }
+       }
+      ]
+     },
+     {
+      "text": "From 1: 1 → 2 → 3 → 4 (then 5 is missing): length 4.",
+      "panels": [
+       {
+        "type": "row",
+        "cells": [
+         100,
+         4,
+         200,
+         1,
+         3,
+         2,
+         101,
+         102,
+         50
+        ],
+        "states": {
+         "3": "answer",
+         "5": "found",
+         "4": "found",
+         "1": "found"
+        },
+        "slots": true
+       },
+       {
+        "type": "vars",
+        "items": {
+         "best": 4
+        }
+       }
+      ]
+     },
+     {
+      "text": "From 3: 3 → 4 (then 5 is missing): length 2.",
+      "panels": [
+       {
+        "type": "row",
+        "cells": [
+         100,
+         4,
+         200,
+         1,
+         3,
+         2,
+         101,
+         102,
+         50
+        ],
+        "states": {
+         "4": "answer",
+         "1": "found"
+        },
+        "slots": true
+       },
+       {
+        "type": "vars",
+        "items": {
+         "best": 4
+        }
+       }
+      ]
+     },
+     {
+      "text": "From 2: 2 → 3 → 4 (then 5 is missing): length 3.",
+      "panels": [
+       {
+        "type": "row",
+        "cells": [
+         100,
+         4,
+         200,
+         1,
+         3,
+         2,
+         101,
+         102,
+         50
+        ],
+        "states": {
+         "5": "answer",
+         "4": "found",
+         "1": "found"
+        },
+        "slots": true
+       },
+       {
+        "type": "vars",
+        "items": {
+         "best": 4
+        }
+       }
+      ]
+     },
+     {
+      "text": "From 101: 101 → 102 (then 103 is missing): length 2.",
+      "panels": [
+       {
+        "type": "row",
+        "cells": [
+         100,
+         4,
+         200,
+         1,
+         3,
+         2,
+         101,
+         102,
+         50
+        ],
+        "states": {
+         "6": "answer",
+         "7": "found"
+        },
+        "slots": true
+       },
+       {
+        "type": "vars",
+        "items": {
+         "best": 4
+        }
+       }
+      ]
+     },
+     {
+      "text": "From 102: 102 (then 103 is missing): length 1.",
+      "panels": [
+       {
+        "type": "row",
+        "cells": [
+         100,
+         4,
+         200,
+         1,
+         3,
+         2,
+         101,
+         102,
+         50
+        ],
+        "states": {
+         "7": "answer"
+        },
+        "slots": true
+       },
+       {
+        "type": "vars",
+        "items": {
+         "best": 4
+        }
+       }
+      ]
+     },
+     {
+      "text": "From 50: 50 (then 51 is missing): length 1.",
+      "panels": [
+       {
+        "type": "row",
+        "cells": [
+         100,
+         4,
+         200,
+         1,
+         3,
+         2,
+         101,
+         102,
+         50
+        ],
+        "states": {
+         "8": "answer"
+        },
+        "slots": true
+       },
+       {
+        "type": "vars",
+        "items": {
+         "best": 4
+        }
+       }
+      ],
+      "result": "4"
+     }
+    ],
+    "title": "From every day, extend the streak forward by scanning the list for the next day."
+   },
+   "limits": [
+    {
+     "md": "Linear searches, and every member of a streak walks it again."
+    }
+   ],
+   "slow": 900
+  },
+  {
+   "title": "Sort, then scan",
+   "kind": "better",
+   "time": "O(n log n)",
+   "space": "O(n)",
+   "idea": [
+    {
+     "md": "Sort; walk once, extending the current streak when a value is the previous plus one, skipping duplicates, and restarting otherwise."
+    }
+   ],
+   "build": [
+    "Handle the empty list.",
+    "Sort.",
+    "Extend, skip duplicates, or restart."
+   ],
+   "code": {
+    "python": "class Solution:\n    def longestStreak(self, days: List[int]) -> int:\n        if not days:\n            return 0\n        s = sorted(days)\n        current = best = 1\n        for i in range(1, len(s)):\n            if s[i] == s[i - 1]:\n                continue\n            current = current + 1 if s[i] == s[i - 1] + 1 else 1\n            best = max(best, current)\n        return best\n",
+    "java": "class Solution {\n    public int longestStreak(int[] days) {\n        if (days.length == 0) return 0;\n        int[] s = days.clone();\n        Arrays.sort(s);\n        int current = 1, best = 1;\n        for (int i = 1; i < s.length; i++) {\n            if (s[i] == s[i - 1]) continue;\n            current = (s[i] == s[i - 1] + 1) ? current + 1 : 1;\n            best = Math.max(best, current);\n        }\n        return best;\n    }\n}\n",
+    "cpp": "class Solution {\npublic:\n    int longestStreak(vector<int>& days) {\n        if (days.empty()) return 0;\n        vector<int> s = days;\n        sort(s.begin(), s.end());\n        int current = 1, best = 1;\n        for (size_t i = 1; i < s.size(); i++) {\n            if (s[i] == s[i - 1]) continue;\n            current = (s[i] == s[i - 1] + 1) ? current + 1 : 1;\n            best = max(best, current);\n        }\n        return best;\n    }\n};\n",
+    "c": "static int cmpInt(const void* a, const void* b) {\n    int p = *(const int*) a, q = *(const int*) b;\n    return (p > q) - (p < q);\n}\n\nint longestStreak(int* days, int daysSize) {\n    if (daysSize == 0) return 0;\n    int* s = malloc(daysSize * sizeof(int));\n    memcpy(s, days, daysSize * sizeof(int));\n    qsort(s, daysSize, sizeof(int), cmpInt);\n    int current = 1, best = 1;\n    for (int i = 1; i < daysSize; i++) {\n        if (s[i] == s[i - 1]) continue;\n        current = (s[i] == s[i - 1] + 1) ? current + 1 : 1;\n        if (current > best) best = current;\n    }\n    free(s);\n    return best;\n}\n"
+   },
+   "lines": [
+    {
+     "text": "No days, no streak.",
+     "at": {
+      "python": [
+       [
+        3,
+        4
+       ]
+      ],
+      "java": [
+       [
+        3,
+        3
+       ]
+      ],
+      "cpp": [
+       [
+        4,
+        4
+       ]
+      ],
+      "c": [
+       [
+        7,
+        7
+       ]
+      ]
+     }
+    },
+    {
+     "text": "Sorted copy: each streak's days become neighbours.",
+     "at": {
+      "python": [
+       [
+        5,
+        5
+       ]
+      ],
+      "java": [
+       [
+        4,
+        5
+       ]
+      ],
+      "cpp": [
+       [
+        5,
+        6
+       ]
+      ],
+      "c": [
+       [
+        1,
+        4
+       ],
+       [
+        8,
+        10
+       ]
+      ]
+     }
+    },
+    {
+     "text": "The first day alone is a streak of 1.",
+     "at": {
+      "python": [
+       [
+        6,
+        7
+       ]
+      ],
+      "java": [
+       [
+        6,
+        7
+       ]
+      ],
+      "cpp": [
+       [
+        7,
+        8
+       ]
+      ],
+      "c": [
+       [
+        11,
+        12
+       ]
+      ]
+     }
+    },
+    {
+     "text": "Same day again: doesn't extend or break the streak.",
+     "at": {
+      "python": [
+       [
+        8,
+        9
+       ]
+      ],
+      "java": [
+       [
+        8,
+        8
+       ]
+      ],
+      "cpp": [
+       [
+        9,
+        9
+       ]
+      ],
+      "c": [
+       [
+        13,
+        13
+       ]
+      ]
+     }
+    },
+    {
+     "text": "Exactly one more than the previous day extends the streak; any bigger jump starts over. `s[i − 1] + 1` stays within `int` because days are ≤ 10⁹.",
+     "at": {
+      "python": [
+       [
+        10,
+        11
+       ]
+      ],
+      "java": [
+       [
+        9,
+        10
+       ]
+      ],
+      "cpp": [
+       [
+        10,
+        11
+       ]
+      ],
+      "c": [
+       [
+        14,
+        15
+       ]
+      ]
+     }
+    },
+    {
+     "text": "Longest streak.",
+     "at": {
+      "python": [
+       [
+        12,
+        12
+       ]
+      ],
+      "java": [
+       [
+        12,
+        12
+       ]
+      ],
+      "cpp": [
+       [
+        13,
+        13
+       ]
+      ],
+      "c": [
+       [
+        17,
+        18
+       ]
+      ]
+     },
+     "notes": {
+      "c": "Free the copy."
+     }
+    }
+   ],
+   "complexity": [
+    {
+     "md": "**Time O(n log n).** **Space O(n)** for the sorted copy."
+    }
+   ],
+   "walk": {
+    "steps": [
+     {
+      "text": "Sorted: [1, 2, 3, 4, 50, 100, 101, 102, 200].",
+      "panels": [
+       {
+        "type": "row",
+        "cells": [
+         1,
+         2,
+         3,
+         4,
+         50,
+         100,
+         101,
+         102,
+         200
+        ],
+        "slots": true
+       }
+      ]
+     },
+     {
+      "text": "2: continues the streak → 2.",
+      "panels": [
+       {
+        "type": "row",
+        "cells": [
+         1,
+         2,
+         3,
+         4,
+         50,
+         100,
+         101,
+         102,
+         200
+        ],
+        "states": {
+         "1": "active"
+        },
+        "slots": true
+       },
+       {
+        "type": "vars",
+        "items": {
+         "current": 2,
+         "best": 2
+        }
+       }
+      ]
+     },
+     {
+      "text": "3: continues the streak → 3.",
+      "panels": [
+       {
+        "type": "row",
+        "cells": [
+         1,
+         2,
+         3,
+         4,
+         50,
+         100,
+         101,
+         102,
+         200
+        ],
+        "states": {
+         "2": "active"
+        },
+        "slots": true
+       },
+       {
+        "type": "vars",
+        "items": {
+         "current": 3,
+         "best": 3
+        }
+       }
+      ]
+     },
+     {
+      "text": "4: continues the streak → 4.",
+      "panels": [
+       {
+        "type": "row",
+        "cells": [
+         1,
+         2,
+         3,
+         4,
+         50,
+         100,
+         101,
+         102,
+         200
+        ],
+        "states": {
+         "3": "active"
+        },
+        "slots": true
+       },
+       {
+        "type": "vars",
+        "items": {
+         "current": 4,
+         "best": 4
+        }
+       }
+      ]
+     },
+     {
+      "text": "50: a gap: new streak of 1.",
+      "panels": [
+       {
+        "type": "row",
+        "cells": [
+         1,
+         2,
+         3,
+         4,
+         50,
+         100,
+         101,
+         102,
+         200
+        ],
+        "states": {
+         "4": "active"
+        },
+        "slots": true
+       },
+       {
+        "type": "vars",
+        "items": {
+         "current": 1,
+         "best": 4
+        }
+       }
+      ]
+     },
+     {
+      "text": "100: a gap: new streak of 1.",
+      "panels": [
+       {
+        "type": "row",
+        "cells": [
+         1,
+         2,
+         3,
+         4,
+         50,
+         100,
+         101,
+         102,
+         200
+        ],
+        "states": {
+         "5": "active"
+        },
+        "slots": true
+       },
+       {
+        "type": "vars",
+        "items": {
+         "current": 1,
+         "best": 4
+        }
+       }
+      ]
+     },
+     {
+      "text": "101: continues the streak → 2.",
+      "panels": [
+       {
+        "type": "row",
+        "cells": [
+         1,
+         2,
+         3,
+         4,
+         50,
+         100,
+         101,
+         102,
+         200
+        ],
+        "states": {
+         "6": "active"
+        },
+        "slots": true
+       },
+       {
+        "type": "vars",
+        "items": {
+         "current": 2,
+         "best": 4
+        }
+       }
+      ]
+     },
+     {
+      "text": "102: continues the streak → 3.",
+      "panels": [
+       {
+        "type": "row",
+        "cells": [
+         1,
+         2,
+         3,
+         4,
+         50,
+         100,
+         101,
+         102,
+         200
+        ],
+        "states": {
+         "7": "active"
+        },
+        "slots": true
+       },
+       {
+        "type": "vars",
+        "items": {
+         "current": 3,
+         "best": 4
+        }
+       }
+      ]
+     },
+     {
+      "text": "200: a gap: new streak of 1.",
+      "panels": [
+       {
+        "type": "row",
+        "cells": [
+         1,
+         2,
+         3,
+         4,
+         50,
+         100,
+         101,
+         102,
+         200
+        ],
+        "states": {
+         "8": "active"
+        },
+        "slots": true
+       },
+       {
+        "type": "vars",
+        "items": {
+         "current": 1,
+         "best": 4
+        }
+       }
+      ],
+      "result": "4"
+     }
+    ],
+    "title": "Sort; walk through, extending the current streak on +1, ignoring repeats, restarting otherwise."
+   },
+   "limits": [
+    {
+     "md": "The sort is the only O(n log n) part; a hash set gives O(1) lookups and O(n) overall."
+    }
+   ]
+  },
+  {
+   "title": "Hash set, counting from streak starts",
+   "kind": "best",
+   "time": "O(n)",
+   "space": "O(n)",
+   "idea": [
+    {
+     "md": "Put all days in a set. For each day `d` that starts a streak (`d − 1` not in the set), walk `d + 1, d + 2, …`\nwhile present, and record the length.\n\n**Why it's O(n).** The walks only start at streak starts, and the streaks are disjoint, so each day is\nvisited by at most one walk."
+    }
+   ],
+   "build": [
+    "Hash set of days.",
+    "Skip days that aren't streak starts.",
+    "Walk forward from each start."
+   ],
+   "code": {
+    "python": "class Solution:\n    def longestStreak(self, days: List[int]) -> int:\n        have = set(days)\n        best = 0\n        for d in have:\n            if d - 1 in have:\n                continue\n            end = d\n            while end + 1 in have:\n                end += 1\n            best = max(best, end - d + 1)\n        return best\n",
+    "java": "class Solution {\n    public int longestStreak(int[] days) {\n        Set<Long> have = new HashSet<>();\n        for (int d : days) have.add((long) d);\n        int best = 0;\n        for (long d : have) {\n            if (have.contains(d - 1)) continue;\n            long end = d;\n            while (have.contains(end + 1)) end++;\n            best = Math.max(best, (int) (end - d + 1));\n        }\n        return best;\n    }\n}\n",
+    "cpp": "class Solution {\npublic:\n    int longestStreak(vector<int>& days) {\n        unordered_set<long long> have(days.begin(), days.end());\n        int best = 0;\n        for (long long d : have) {\n            if (have.count(d - 1)) continue;\n            long long end = d;\n            while (have.count(end + 1)) end++;\n            best = max(best, (int) (end - d + 1));\n        }\n        return best;\n    }\n};\n",
+    "c": "// C has no built-in hash set, so here is a small one: open addressing with\n// linear probing over a power-of-two table. Keys are 64-bit.\ntypedef struct { long long key; bool used; } Slot;\n\nstatic unsigned slotOf(long long key, unsigned mask) {\n    unsigned long long h = (unsigned long long) key * 0x9E3779B97F4A7C15ULL;\n    return (unsigned) (h >> 32) & mask;\n}\n\nstatic bool has(const Slot* t, unsigned mask, long long key) {\n    for (unsigned s = slotOf(key, mask); t[s].used; s = (s + 1) & mask)\n        if (t[s].key == key) return true;\n    return false;\n}\n\nstatic void add(Slot* t, unsigned mask, long long key) {\n    unsigned s = slotOf(key, mask);\n    while (t[s].used && t[s].key != key) s = (s + 1) & mask;\n    t[s].key = key;\n    t[s].used = true;\n}\n\nint longestStreak(int* days, int daysSize) {\n    unsigned cap = 1;\n    while (cap < 2u * daysSize) cap <<= 1;\n    Slot* have = calloc(cap, sizeof(Slot));\n    for (int i = 0; i < daysSize; i++) add(have, cap - 1, days[i]);\n    int best = 0;\n    for (unsigned s = 0; s < cap; s++) {\n        if (!have[s].used) continue;\n        long long d = have[s].key;\n        if (has(have, cap - 1, d - 1)) continue;\n        long long end = d;\n        while (has(have, cap - 1, end + 1)) end++;\n        if (end - d + 1 > best) best = (int) (end - d + 1);\n    }\n    free(have);\n    return best;\n}\n"
+   },
+   "lines": [
+    {
+     "text": "C has no hash set, so these few lines build one. `slotOf` scrambles a key into a starting slot (multiply by a large odd constant, keep the well-mixed high bits). `has` walks forward from there until it finds the key or an empty slot; `add` walks the same way and claims the slot. With the table at most half full, each call is O(1) on average.",
+     "at": {
+      "c": [
+       [
+        3,
+        3
+       ],
+       [
+        5,
+        8
+       ],
+       [
+        10,
+        14
+       ],
+       [
+        16,
+        21
+       ]
+      ]
+     }
+    },
+    {
+     "text": "All distinct days in a hash set.",
+     "at": {
+      "python": [
+       [
+        3,
+        3
+       ]
+      ],
+      "java": [
+       [
+        3,
+        4
+       ]
+      ],
+      "cpp": [
+       [
+        4,
+        4
+       ]
+      ],
+      "c": [
+       [
+        24,
+        27
+       ]
+      ]
+     },
+     "notes": {
+      "java": "`Long` keys, so `d ± 1` near ±10⁹ can't overflow.",
+      "cpp": "`long long` keys, so `d ± 1` near ±10⁹ can't overflow.",
+      "c": "A table at least twice the number of days; repeats collapse into one entry."
+     }
+    },
+    {
+     "text": "Each distinct day once.",
+     "at": {
+      "python": [
+       [
+        5,
+        5
+       ]
+      ],
+      "java": [
+       [
+        6,
+        6
+       ]
+      ],
+      "cpp": [
+       [
+        6,
+        6
+       ]
+      ],
+      "c": [
+       [
+        29,
+        31
+       ]
+      ]
+     },
+     "notes": {
+      "c": "Walk the table's used slots: exactly the distinct days."
+     }
+    },
+    {
+     "text": "If the previous day is present, this day is in the middle of a streak that its first day will measure.",
+     "at": {
+      "python": [
+       [
+        6,
+        7
+       ]
+      ],
+      "java": [
+       [
+        7,
+        7
+       ]
+      ],
+      "cpp": [
+       [
+        7,
+        7
+       ]
+      ],
+      "c": [
+       [
+        32,
+        32
+       ]
+      ]
+     }
+    },
+    {
+     "text": "A streak start: count forward while the next day exists.",
+     "at": {
+      "python": [
+       [
+        8,
+        10
+       ]
+      ],
+      "java": [
+       [
+        8,
+        9
+       ]
+      ],
+      "cpp": [
+       [
+        8,
+        9
+       ]
+      ],
+      "c": [
+       [
+        33,
+        34
+       ]
+      ]
+     }
+    },
+    {
+     "text": "Longest streak; 0 for an empty list.",
+     "at": {
+      "python": [
+       [
+        11,
+        12
+       ]
+      ],
+      "java": [
+       [
+        10,
+        10
+       ],
+       [
+        12,
+        12
+       ]
+      ],
+      "cpp": [
+       [
+        10,
+        10
+       ],
+       [
+        12,
+        12
+       ]
+      ],
+      "c": [
+       [
+        35,
+        35
+       ],
+       [
+        37,
+        38
+       ]
+      ]
+     },
+     "notes": {
+      "c": "Free the table."
+     }
+    }
+   ],
+   "complexity": [
+    {
+     "md": "**Time O(n)** expected. **Space O(n).**"
+    }
+   ],
+   "walk": {
+    "steps": [
+     {
+      "text": "100 starts a streak: 100 … 102, length 3.",
+      "panels": [
+       {
+        "type": "row",
+        "cells": [
+         100,
+         4,
+         200,
+         1,
+         3,
+         2,
+         101,
+         102,
+         50
+        ],
+        "states": {
+         "0": "answer",
+         "6": "found",
+         "7": "found"
+        },
+        "slots": true
+       },
+       {
+        "type": "vars",
+        "items": {
+         "best": 3
+        }
+       }
+      ]
+     },
+     {
+      "text": "4: 3 is in the set, so 4 is not the start of a streak. Skip.",
+      "panels": [
+       {
+        "type": "row",
+        "cells": [
+         100,
+         4,
+         200,
+         1,
+         3,
+         2,
+         101,
+         102,
+         50
+        ],
+        "states": {
+         "1": "dim"
+        },
+        "slots": true
+       },
+       {
+        "type": "vars",
+        "items": {
+         "best": 3
+        }
+       }
+      ]
+     },
+     {
+      "text": "200 starts a streak: 200 … 200, length 1.",
+      "panels": [
+       {
+        "type": "row",
+        "cells": [
+         100,
+         4,
+         200,
+         1,
+         3,
+         2,
+         101,
+         102,
+         50
+        ],
+        "states": {
+         "2": "answer"
+        },
+        "slots": true
+       },
+       {
+        "type": "vars",
+        "items": {
+         "best": 3
+        }
+       }
+      ]
+     },
+     {
+      "text": "1 starts a streak: 1 … 4, length 4.",
+      "panels": [
+       {
+        "type": "row",
+        "cells": [
+         100,
+         4,
+         200,
+         1,
+         3,
+         2,
+         101,
+         102,
+         50
+        ],
+        "states": {
+         "3": "answer",
+         "5": "found",
+         "4": "found",
+         "1": "found"
+        },
+        "slots": true
+       },
+       {
+        "type": "vars",
+        "items": {
+         "best": 4
+        }
+       }
+      ]
+     },
+     {
+      "text": "3: 2 is in the set, so 3 is not the start of a streak. Skip.",
+      "panels": [
+       {
+        "type": "row",
+        "cells": [
+         100,
+         4,
+         200,
+         1,
+         3,
+         2,
+         101,
+         102,
+         50
+        ],
+        "states": {
+         "4": "dim"
+        },
+        "slots": true
+       },
+       {
+        "type": "vars",
+        "items": {
+         "best": 4
+        }
+       }
+      ]
+     },
+     {
+      "text": "2: 1 is in the set, so 2 is not the start of a streak. Skip.",
+      "panels": [
+       {
+        "type": "row",
+        "cells": [
+         100,
+         4,
+         200,
+         1,
+         3,
+         2,
+         101,
+         102,
+         50
+        ],
+        "states": {
+         "5": "dim"
+        },
+        "slots": true
+       },
+       {
+        "type": "vars",
+        "items": {
+         "best": 4
+        }
+       }
+      ]
+     },
+     {
+      "text": "101: 100 is in the set, so 101 is not the start of a streak. Skip.",
+      "panels": [
+       {
+        "type": "row",
+        "cells": [
+         100,
+         4,
+         200,
+         1,
+         3,
+         2,
+         101,
+         102,
+         50
+        ],
+        "states": {
+         "6": "dim"
+        },
+        "slots": true
+       },
+       {
+        "type": "vars",
+        "items": {
+         "best": 4
+        }
+       }
+      ]
+     },
+     {
+      "text": "102: 101 is in the set, so 102 is not the start of a streak. Skip.",
+      "panels": [
+       {
+        "type": "row",
+        "cells": [
+         100,
+         4,
+         200,
+         1,
+         3,
+         2,
+         101,
+         102,
+         50
+        ],
+        "states": {
+         "7": "dim"
+        },
+        "slots": true
+       },
+       {
+        "type": "vars",
+        "items": {
+         "best": 4
+        }
+       }
+      ]
+     },
+     {
+      "text": "50 starts a streak: 50 … 50, length 1.",
+      "panels": [
+       {
+        "type": "row",
+        "cells": [
+         100,
+         4,
+         200,
+         1,
+         3,
+         2,
+         101,
+         102,
+         50
+        ],
+        "states": {
+         "8": "answer"
+        },
+        "slots": true
+       },
+       {
+        "type": "vars",
+        "items": {
+         "best": 4
+        }
+       }
+      ],
+      "result": "4"
+     }
+    ],
+    "title": "Put the days in a hash set; only start counting at days whose previous day is missing."
+   }
+  }
+ ],
+ "takeaways": [
+  {
+   "md": "- **Longest consecutive run:** hash set, and only start counting at a run's first value.\n- Sorting gives the same answer in O(n log n) with simpler logic.\n- **Pitfall:** counting duplicates as part of a streak."
+  }
+ ]
+}

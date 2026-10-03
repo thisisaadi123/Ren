@@ -1,0 +1,881 @@
+{
+ "version": 1,
+ "summary": "Students who don't want the top tray just rotate to the back, so the queue's order never matters, only how\nmany want each kind. Go down the tray stack: if anyone still wants this tray, one of them takes it; the first\ntray nobody wants blocks everything. The students left over are hungry. O(n).",
+ "question": [
+  {
+   "md": "Students queue; trays are stacked. The front student takes the top tray if it's their kind, otherwise goes to the\nback. Stop when nobody in the queue wants the top tray. Return how many students go hungry.\n\n- **Trays can't be skipped**: the top tray must be taken before anyone sees the next one.\n- **There are exactly as many trays as students**, so if every tray gets taken, nobody is hungry.\n- **Up to 10⁵ students.**"
+  }
+ ],
+ "think": [
+  {
+   "md": "Queue `[1, 1, 0, 0, 1, 0]`, trays `[0, 1, 0, 0, 0, 1]` (top first). Three students want 0 and three want 1. The first four trays\n(0, 1, 0, 0) are taken, each by someone who eventually reaches the front. Then the top tray is 0, but nobody\nleft wants 0: lunch stops with **2** hungry."
+  },
+  {
+   "panels": [
+    {
+     "type": "row",
+     "cells": [
+      1,
+      1,
+      0,
+      0,
+      1,
+      0
+     ],
+     "label": "queue"
+    },
+    {
+     "type": "row",
+     "cells": [
+      0,
+      1,
+      0,
+      0,
+      0,
+      1
+     ],
+     "label": "trays (top first)"
+    }
+   ]
+  },
+  {
+   "md": "The rotation is the key: a student who doesn't want the top tray goes to the back, and the line keeps turning\nuntil someone who wants it reaches the front. So the top tray is taken **if and only if at least one waiting\nstudent wants its kind**; which student, and the queue's order, never matter. Two counters are enough."
+  }
+ ],
+ "approaches": [
+  {
+   "title": "Simulate the queue",
+   "kind": "brute",
+   "time": "O(n²)",
+   "space": "O(n)",
+   "idea": [
+    {
+     "md": "Run the canteen literally with a queue. Count consecutive students who passed on the current top tray; if that count reaches the queue's length, nobody wants it and the simulation stops."
+    }
+   ],
+   "build": [
+    "Queue of preferences, a pointer to the top tray, a 'passes in a row' counter.",
+    "Match → pop, advance the tray, reset the counter. No match → rotate, count the pass.",
+    "Stop when the counter equals the queue length (or the queue empties)."
+   ],
+   "code": {
+    "python": "from collections import deque\n\nclass Solution:\n    def hungryStudents(self, prefers: List[int], trays: List[int]) -> int:\n        q = deque(prefers)\n        top = passes = 0\n        while q and passes < len(q):\n            s = q.popleft()\n            if s == trays[top]:\n                top += 1\n                passes = 0\n            else:\n                q.append(s)\n                passes += 1\n        return len(q)\n",
+    "java": "class Solution {\n    public int hungryStudents(int[] prefers, int[] trays) {\n        ArrayDeque<Integer> q = new ArrayDeque<>();\n        for (int p : prefers) q.add(p);\n        int top = 0, passes = 0;\n        while (!q.isEmpty() && passes < q.size()) {\n            int s = q.poll();\n            if (s == trays[top]) { top++; passes = 0; }\n            else { q.add(s); passes++; }\n        }\n        return q.size();\n    }\n}\n",
+    "cpp": "class Solution {\npublic:\n    int hungryStudents(vector<int>& prefers, vector<int>& trays) {\n        deque<int> q(prefers.begin(), prefers.end());\n        int top = 0, passes = 0;\n        while (!q.empty() && passes < (int) q.size()) {\n            int s = q.front();\n            q.pop_front();\n            if (s == trays[top]) { top++; passes = 0; }\n            else { q.push_back(s); passes++; }\n        }\n        return q.size();\n    }\n};\n",
+    "c": "int hungryStudents(int* prefers, int prefersSize, int* trays, int traysSize) {\n    int n = prefersSize;\n    int* q = malloc(n * sizeof(int));\n    for (int i = 0; i < n; i++) q[i] = prefers[i];\n    int head = 0, size = n, top = 0, passes = 0;\n    while (size > 0 && passes < size) {\n        int s = q[head];\n        head = (head + 1) % n;\n        size--;\n        if (s == trays[top]) { top++; passes = 0; }\n        else { q[(head + size) % n] = s; size++; passes++; }\n    }\n    free(q);\n    return size;\n}\n"
+   },
+   "lines": [
+    {
+     "text": "The queue, the top tray's index, and how many students in a row have passed on it.",
+     "at": {
+      "python": [
+       [
+        5,
+        6
+       ]
+      ],
+      "java": [
+       [
+        3,
+        5
+       ]
+      ],
+      "cpp": [
+       [
+        4,
+        5
+       ]
+      ],
+      "c": [
+       [
+        2,
+        5
+       ]
+      ]
+     },
+     "notes": {
+      "c": "A circular buffer of `n` slots holds the queue."
+     }
+    },
+    {
+     "text": "Continue while someone might still want the top tray.",
+     "at": {
+      "python": [
+       [
+        7,
+        8
+       ]
+      ],
+      "java": [
+       [
+        6,
+        7
+       ]
+      ],
+      "cpp": [
+       [
+        6,
+        8
+       ]
+      ],
+      "c": [
+       [
+        6,
+        9
+       ]
+      ]
+     }
+    },
+    {
+     "text": "A match: the student leaves with the tray, a new tray is on top, and the pass count restarts.",
+     "at": {
+      "python": [
+       [
+        9,
+        11
+       ]
+      ],
+      "java": [
+       [
+        8,
+        8
+       ]
+      ],
+      "cpp": [
+       [
+        9,
+        9
+       ]
+      ],
+      "c": [
+       [
+        10,
+        10
+       ]
+      ]
+     }
+    },
+    {
+     "text": "No match: to the back of the line.",
+     "at": {
+      "python": [
+       [
+        12,
+        14
+       ]
+      ],
+      "java": [
+       [
+        9,
+        9
+       ]
+      ],
+      "cpp": [
+       [
+        10,
+        10
+       ]
+      ],
+      "c": [
+       [
+        11,
+        11
+       ]
+      ]
+     }
+    },
+    {
+     "text": "Everyone still queued goes hungry.",
+     "at": {
+      "python": [
+       [
+        15,
+        15
+       ]
+      ],
+      "java": [
+       [
+        11,
+        11
+       ]
+      ],
+      "cpp": [
+       [
+        12,
+        12
+       ]
+      ],
+      "c": [
+       [
+        13,
+        14
+       ]
+      ]
+     }
+    }
+   ],
+   "complexity": [
+    {
+     "md": "**Time O(n²)** in the worst case: each tray can take a full rotation of the queue to find its student. **Space O(n).**"
+    }
+   ],
+   "walk": {
+    "steps": [
+     {
+      "text": "Start.",
+      "panels": [
+       {
+        "type": "row",
+        "cells": [
+         1,
+         1,
+         0,
+         0,
+         1,
+         0
+        ],
+        "label": "queue (front first)"
+       },
+       {
+        "type": "row",
+        "cells": [
+         0,
+         1,
+         0,
+         0,
+         0,
+         1
+        ],
+        "label": "trays (top first)"
+       }
+      ]
+     },
+     {
+      "text": "Front student wants 1, the top tray is 0: back of the line (1 in a row).",
+      "panels": [
+       {
+        "type": "row",
+        "cells": [
+         1,
+         0,
+         0,
+         1,
+         0,
+         1
+        ],
+        "label": "queue (front first)"
+       },
+       {
+        "type": "row",
+        "cells": [
+         0,
+         1,
+         0,
+         0,
+         0,
+         1
+        ],
+        "label": "trays (top first)"
+       }
+      ]
+     },
+     {
+      "text": "Front student wants 1, the top tray is 0: back of the line (2 in a row).",
+      "panels": [
+       {
+        "type": "row",
+        "cells": [
+         0,
+         0,
+         1,
+         0,
+         1,
+         1
+        ],
+        "label": "queue (front first)"
+       },
+       {
+        "type": "row",
+        "cells": [
+         0,
+         1,
+         0,
+         0,
+         0,
+         1
+        ],
+        "label": "trays (top first)"
+       }
+      ]
+     },
+     {
+      "text": "Front student wants 0, the top tray is 0: takes it.",
+      "panels": [
+       {
+        "type": "row",
+        "cells": [
+         0,
+         1,
+         0,
+         1,
+         1
+        ],
+        "label": "queue (front first)"
+       },
+       {
+        "type": "row",
+        "cells": [
+         1,
+         0,
+         0,
+         0,
+         1
+        ],
+        "label": "trays (top first)"
+       }
+      ]
+     },
+     {
+      "text": "Front student wants 0, the top tray is 1: back of the line (1 in a row).",
+      "panels": [
+       {
+        "type": "row",
+        "cells": [
+         1,
+         0,
+         1,
+         1,
+         0
+        ],
+        "label": "queue (front first)"
+       },
+       {
+        "type": "row",
+        "cells": [
+         1,
+         0,
+         0,
+         0,
+         1
+        ],
+        "label": "trays (top first)"
+       }
+      ]
+     },
+     {
+      "text": "Front student wants 1, the top tray is 1: takes it.",
+      "panels": [
+       {
+        "type": "row",
+        "cells": [
+         0,
+         1,
+         1,
+         0
+        ],
+        "label": "queue (front first)"
+       },
+       {
+        "type": "row",
+        "cells": [
+         0,
+         0,
+         0,
+         1
+        ],
+        "label": "trays (top first)"
+       }
+      ]
+     },
+     {
+      "text": "Front student wants 0, the top tray is 0: takes it.",
+      "panels": [
+       {
+        "type": "row",
+        "cells": [
+         1,
+         1,
+         0
+        ],
+        "label": "queue (front first)"
+       },
+       {
+        "type": "row",
+        "cells": [
+         0,
+         0,
+         1
+        ],
+        "label": "trays (top first)"
+       }
+      ]
+     },
+     {
+      "text": "Front student wants 1, the top tray is 0: back of the line (1 in a row).",
+      "panels": [
+       {
+        "type": "row",
+        "cells": [
+         1,
+         0,
+         1
+        ],
+        "label": "queue (front first)"
+       },
+       {
+        "type": "row",
+        "cells": [
+         0,
+         0,
+         1
+        ],
+        "label": "trays (top first)"
+       }
+      ]
+     },
+     {
+      "text": "Front student wants 1, the top tray is 0: back of the line (2 in a row).",
+      "panels": [
+       {
+        "type": "row",
+        "cells": [
+         0,
+         1,
+         1
+        ],
+        "label": "queue (front first)"
+       },
+       {
+        "type": "row",
+        "cells": [
+         0,
+         0,
+         1
+        ],
+        "label": "trays (top first)"
+       }
+      ]
+     },
+     {
+      "text": "Front student wants 0, the top tray is 0: takes it.",
+      "panels": [
+       {
+        "type": "row",
+        "cells": [
+         1,
+         1
+        ],
+        "label": "queue (front first)"
+       },
+       {
+        "type": "row",
+        "cells": [
+         0,
+         1
+        ],
+        "label": "trays (top first)"
+       }
+      ]
+     },
+     {
+      "text": "Front student wants 1, the top tray is 0: back of the line (1 in a row).",
+      "panels": [
+       {
+        "type": "row",
+        "cells": [
+         1,
+         1
+        ],
+        "label": "queue (front first)"
+       },
+       {
+        "type": "row",
+        "cells": [
+         0,
+         1
+        ],
+        "label": "trays (top first)"
+       }
+      ]
+     },
+     {
+      "text": "Front student wants 1, the top tray is 0: back of the line (2 in a row).",
+      "panels": [
+       {
+        "type": "row",
+        "cells": [
+         1,
+         1
+        ],
+        "label": "queue (front first)"
+       },
+       {
+        "type": "row",
+        "cells": [
+         0,
+         1
+        ],
+        "label": "trays (top first)"
+       }
+      ]
+     },
+     {
+      "text": "Everyone left passed on the top tray: 2 hungry.",
+      "panels": [],
+      "result": "2"
+     }
+    ],
+    "title": "Simulate turn by turn. If every student left has looked at the top tray and passed, nobody wants it and lunch is over."
+   },
+   "limits": [
+    {
+     "md": "The rotations carry no information: they only bring a matching student to the front, if one exists. Counting students per kind answers 'does one exist?' in O(1)."
+    }
+   ],
+   "slow": true
+  },
+  {
+   "title": "Count preferences, walk the trays",
+   "kind": "best",
+   "time": "O(n)",
+   "space": "O(1)",
+   "idea": [
+    {
+     "md": "Count students wanting 0 and wanting 1. For each tray from the top: if its kind's count is 0, stop; otherwise decrement it. Return the sum of the counts."
+    }
+   ],
+   "build": [
+    "`want[0]`, `want[1]` = counts of each preference.",
+    "For each tray: stop if `want[tray] == 0`, else `want[tray]--`.",
+    "Return `want[0] + want[1]`."
+   ],
+   "code": {
+    "python": "class Solution:\n    def hungryStudents(self, prefers: List[int], trays: List[int]) -> int:\n        want = [prefers.count(0), prefers.count(1)]\n        for t in trays:\n            if want[t] == 0:\n                break\n            want[t] -= 1\n        return want[0] + want[1]\n",
+    "java": "class Solution {\n    public int hungryStudents(int[] prefers, int[] trays) {\n        int[] want = new int[2];\n        for (int p : prefers) want[p]++;\n        for (int t : trays) {\n            if (want[t] == 0) break;\n            want[t]--;\n        }\n        return want[0] + want[1];\n    }\n}\n",
+    "cpp": "class Solution {\npublic:\n    int hungryStudents(vector<int>& prefers, vector<int>& trays) {\n        int want[2] = {0, 0};\n        for (int p : prefers) want[p]++;\n        for (int t : trays) {\n            if (want[t] == 0) break;\n            want[t]--;\n        }\n        return want[0] + want[1];\n    }\n};\n",
+    "c": "int hungryStudents(int* prefers, int prefersSize, int* trays, int traysSize) {\n    int want[2] = {0, 0};\n    for (int i = 0; i < prefersSize; i++) want[prefers[i]]++;\n    for (int i = 0; i < traysSize; i++) {\n        if (want[trays[i]] == 0) break;\n        want[trays[i]]--;\n    }\n    return want[0] + want[1];\n}\n"
+   },
+   "lines": [
+    {
+     "text": "How many students want each kind; the order of the queue is irrelevant.",
+     "at": {
+      "python": [
+       [
+        3,
+        3
+       ]
+      ],
+      "java": [
+       [
+        3,
+        4
+       ]
+      ],
+      "cpp": [
+       [
+        4,
+        5
+       ]
+      ],
+      "c": [
+       [
+        2,
+        3
+       ]
+      ]
+     }
+    },
+    {
+     "text": "Trays from the top, in the only order they can be taken.",
+     "at": {
+      "python": [
+       [
+        4,
+        4
+       ]
+      ],
+      "java": [
+       [
+        5,
+        5
+       ]
+      ],
+      "cpp": [
+       [
+        6,
+        6
+       ]
+      ],
+      "c": [
+       [
+        4,
+        4
+       ]
+      ]
+     }
+    },
+    {
+     "text": "Nobody wants this tray: it never leaves the top, so lunch is over.",
+     "at": {
+      "python": [
+       [
+        5,
+        6
+       ]
+      ],
+      "java": [
+       [
+        6,
+        6
+       ]
+      ],
+      "cpp": [
+       [
+        7,
+        7
+       ]
+      ],
+      "c": [
+       [
+        5,
+        5
+       ]
+      ]
+     }
+    },
+    {
+     "text": "Someone wants it; the queue rotates until they get it.",
+     "at": {
+      "python": [
+       [
+        7,
+        7
+       ]
+      ],
+      "java": [
+       [
+        7,
+        7
+       ]
+      ],
+      "cpp": [
+       [
+        8,
+        8
+       ]
+      ],
+      "c": [
+       [
+        6,
+        6
+       ]
+      ]
+     }
+    },
+    {
+     "text": "Students who never got a tray.",
+     "at": {
+      "python": [
+       [
+        8,
+        8
+       ]
+      ],
+      "java": [
+       [
+        9,
+        9
+       ]
+      ],
+      "cpp": [
+       [
+        10,
+        10
+       ]
+      ],
+      "c": [
+       [
+        8,
+        8
+       ]
+      ]
+     }
+    }
+   ],
+   "complexity": [
+    {
+     "md": "**Time O(n).** **Space O(1).**"
+    }
+   ],
+   "walk": {
+    "steps": [
+     {
+      "text": "Students wanting 0: 3, wanting 1: 3.",
+      "panels": [
+       {
+        "type": "row",
+        "cells": [
+         0,
+         1,
+         0,
+         0,
+         0,
+         1
+        ],
+        "label": "trays"
+       },
+       {
+        "type": "vars",
+        "items": {
+         "want 0": 3,
+         "want 1": 3
+        }
+       }
+      ]
+     },
+     {
+      "text": "Tray 0 is 0: someone wants it, and the line will rotate until they reach the front. They take it.",
+      "panels": [
+       {
+        "type": "row",
+        "cells": [
+         0,
+         1,
+         0,
+         0,
+         0,
+         1
+        ],
+        "states": {
+         "0": "found"
+        }
+       },
+       {
+        "type": "vars",
+        "items": {
+         "want 0": 2,
+         "want 1": 3
+        }
+       }
+      ]
+     },
+     {
+      "text": "Tray 1 is 1: someone wants it, and the line will rotate until they reach the front. They take it.",
+      "panels": [
+       {
+        "type": "row",
+        "cells": [
+         0,
+         1,
+         0,
+         0,
+         0,
+         1
+        ],
+        "states": {
+         "1": "found"
+        }
+       },
+       {
+        "type": "vars",
+        "items": {
+         "want 0": 2,
+         "want 1": 2
+        }
+       }
+      ]
+     },
+     {
+      "text": "Tray 2 is 0: someone wants it, and the line will rotate until they reach the front. They take it.",
+      "panels": [
+       {
+        "type": "row",
+        "cells": [
+         0,
+         1,
+         0,
+         0,
+         0,
+         1
+        ],
+        "states": {
+         "2": "found"
+        }
+       },
+       {
+        "type": "vars",
+        "items": {
+         "want 0": 1,
+         "want 1": 2
+        }
+       }
+      ]
+     },
+     {
+      "text": "Tray 3 is 0: someone wants it, and the line will rotate until they reach the front. They take it.",
+      "panels": [
+       {
+        "type": "row",
+        "cells": [
+         0,
+         1,
+         0,
+         0,
+         0,
+         1
+        ],
+        "states": {
+         "3": "found"
+        }
+       },
+       {
+        "type": "vars",
+        "items": {
+         "want 0": 0,
+         "want 1": 2
+        }
+       }
+      ]
+     },
+     {
+      "text": "Tray 4 is 0, but nobody left wants 0. It blocks the stack for good.",
+      "panels": [
+       {
+        "type": "row",
+        "cells": [
+         0,
+         1,
+         0,
+         0,
+         0,
+         1
+        ],
+        "states": {
+         "4": "mark"
+        }
+       },
+       {
+        "type": "vars",
+        "items": {
+         "want 0": 0,
+         "want 1": 2
+        }
+       }
+      ]
+     },
+     {
+      "text": "Hungry: 0 + 2 = 2.",
+      "panels": [],
+      "result": "2"
+     }
+    ],
+    "title": "The queue can rotate freely, so only how many students want each kind matters. Go down the tray stack."
+   }
+  }
+ ],
+ "takeaways": [
+  {
+   "md": "- If a queue can rotate freely, its **order doesn't matter**, only its contents.\n- Look for the quantity a simulation really depends on (here, two counts) and track only that.\n- The stack of trays is the real constraint: its order is fixed."
+  }
+ ]
+}

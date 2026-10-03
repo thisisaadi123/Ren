@@ -1,0 +1,1437 @@
+{
+ "version": 1,
+ "summary": "The water above a column is decided by the **lower** of the tallest wall to its left and the tallest wall\nto its right, minus the column's own height. Running maxima from both ends give every column's answer in\nO(n). The two-pointer version notices that the lower side's limit is already known, and drops the arrays:\nO(n) time, O(1) space.",
+ "question": [
+  {
+   "md": "Columns of width 1 have heights `walls[i]`. After rain, water sits wherever it's held in by taller columns on\n**both** sides; anything over the ends runs off. Return the total water, in unit squares.\n\n- **Both sides matter:** water above column i can rise only as high as the shorter of its two\n  surrounding \"dam walls\".\n- **The ends hold nothing** (water runs off the edge), and a strictly rising or falling skyline holds\n  nothing.\n- **The total can be large:** up to 10⁵ columns × 10⁵ height ≈ 10¹⁰, more than 32 bits. Use 64-bit.\n- **Size:** up to 10⁵ columns, so the per-column scan in both directions (O(n²)) is too slow."
+  },
+  {
+   "md": "**Edge cases to keep in mind**\n\n- The first and last columns never hold water (it flows off the ends).\n- Strictly increasing or decreasing skylines hold nothing.\n- The total can reach about `10⁵ × 10⁵ = 10¹⁰`: use 64 bits."
+  }
+ ],
+ "think": [
+  {
+   "md": "**Two passes, one from each side.** Many \"everything except me\" or \"everything to my left/right\" questions split\ninto a part that depends only on what comes **before** an index and a part that depends only on what comes **after**\nit. A left-to-right pass accumulates the first part, a right-to-left pass accumulates the second, and each index\ncombines them in O(1). Two linear passes replace an O(n) scan per index."
+  },
+  {
+   "md": "**Water above one column.** Water above column `i` rises until it would spill over the lower of the two tallest\nwalls around it: level `min(tallest on the left, tallest on the right)`, including the column itself. The water is\nthat level minus the column's height. For `[3, 0, 2, 0, 4, 1, 0, 2]`:"
+  },
+  {
+   "table": {
+    "head": [
+     "i",
+     "height",
+     "tallest left (incl.)",
+     "tallest right (incl.)",
+     "water"
+    ],
+    "rows": [
+     [
+      "0",
+      "3",
+      "3",
+      "4",
+      "0"
+     ],
+     [
+      "1",
+      "0",
+      "3",
+      "4",
+      "3"
+     ],
+     [
+      "2",
+      "2",
+      "3",
+      "4",
+      "1"
+     ],
+     [
+      "3",
+      "0",
+      "3",
+      "4",
+      "3"
+     ],
+     [
+      "4",
+      "4",
+      "4",
+      "4",
+      "0"
+     ],
+     [
+      "5",
+      "1",
+      "4",
+      "2",
+      "1"
+     ],
+     [
+      "6",
+      "0",
+      "4",
+      "2",
+      "2"
+     ],
+     [
+      "7",
+      "2",
+      "4",
+      "2",
+      "0"
+     ]
+    ]
+   }
+  },
+  {
+   "md": "Total **10**.\n\n**Settling the lower side with two pointers.** Move inward from both ends, always on the side with the **lower**\ncurrent wall. Invariant: the wall under the pointer that stays put is at least as tall as every wall already\npassed on the moving side. So when the left wall is lower, the right side certainly has a wall at least as tall\nas the left maximum, and the left column's level is just the left maximum: its water is settled without knowing\nthe true right maximum."
+  },
+  {
+   "table": {
+    "head": [
+     "lo",
+     "hi",
+     "move",
+     "running max",
+     "water added",
+     "total"
+    ],
+    "rows": [
+     [
+      "0",
+      "7",
+      "right (2 ≤ 3)",
+      "right max 2",
+      "0",
+      "0"
+     ],
+     [
+      "0",
+      "6",
+      "right (0 ≤ 3)",
+      "right max 2",
+      "2",
+      "2"
+     ],
+     [
+      "0",
+      "5",
+      "right (1 ≤ 3)",
+      "right max 2",
+      "1",
+      "3"
+     ],
+     [
+      "0",
+      "4",
+      "left (3 < 4)",
+      "left max 3",
+      "0",
+      "3"
+     ],
+     [
+      "1",
+      "4",
+      "left (0 < 4)",
+      "left max 3",
+      "3",
+      "6"
+     ],
+     [
+      "2",
+      "4",
+      "left (2 < 4)",
+      "left max 3",
+      "1",
+      "7"
+     ],
+     [
+      "3",
+      "4",
+      "left (0 < 4)",
+      "left max 3",
+      "3",
+      "10"
+     ]
+    ]
+   }
+  }
+ ],
+ "approaches": [
+  {
+   "title": "Scan both ways for every column",
+   "kind": "brute",
+   "time": "O(n²)",
+   "space": "O(1)",
+   "idea": [
+    {
+     "md": "For each column, scan left and right for the tallest walls and add `min(left, right) − height`."
+    }
+   ],
+   "build": [
+    "For each column, find both maxima by scanning.",
+    "Add the water."
+   ],
+   "code": {
+    "python": "class Solution:\n    def trappedWater(self, walls: List[int]) -> int:\n        n = len(walls)\n        total = 0\n        for i in range(n):\n            left = max(walls[:i + 1])\n            right = max(walls[i:])\n            total += min(left, right) - walls[i]\n        return total\n",
+    "java": "class Solution {\n    public long trappedWater(int[] walls) {\n        int n = walls.length;\n        long total = 0;\n        for (int i = 0; i < n; i++) {\n            int left = 0, right = 0;\n            for (int k = 0; k <= i; k++) left = Math.max(left, walls[k]);\n            for (int k = i; k < n; k++) right = Math.max(right, walls[k]);\n            total += Math.min(left, right) - walls[i];\n        }\n        return total;\n    }\n}\n",
+    "cpp": "class Solution {\npublic:\n    long long trappedWater(vector<int>& walls) {\n        int n = walls.size();\n        long long total = 0;\n        for (int i = 0; i < n; i++) {\n            int left = 0, right = 0;\n            for (int k = 0; k <= i; k++) left = max(left, walls[k]);\n            for (int k = i; k < n; k++) right = max(right, walls[k]);\n            total += min(left, right) - walls[i];\n        }\n        return total;\n    }\n};\n",
+    "c": "long long trappedWater(int* walls, int wallsSize) {\n    int n = wallsSize;\n    long long total = 0;\n    for (int i = 0; i < n; i++) {\n        int left = 0, right = 0;\n        for (int k = 0; k <= i; k++) if (walls[k] > left) left = walls[k];\n        for (int k = i; k < n; k++) if (walls[k] > right) right = walls[k];\n        total += (left < right ? left : right) - walls[i];\n    }\n    return total;\n}\n"
+   },
+   "lines": [
+    {
+     "text": "Water is computed column by column.",
+     "at": {
+      "python": [
+       [
+        5,
+        5
+       ]
+      ],
+      "java": [
+       [
+        5,
+        5
+       ]
+      ],
+      "cpp": [
+       [
+        6,
+        6
+       ]
+      ],
+      "c": [
+       [
+        4,
+        4
+       ]
+      ]
+     }
+    },
+    {
+     "text": "Tallest wall at or left of i, and at or right of i. Including i itself makes `min − height` at least 0.",
+     "at": {
+      "python": [
+       [
+        6,
+        7
+       ]
+      ],
+      "java": [
+       [
+        6,
+        8
+       ]
+      ],
+      "cpp": [
+       [
+        7,
+        9
+       ]
+      ],
+      "c": [
+       [
+        5,
+        7
+       ]
+      ]
+     }
+    },
+    {
+     "text": "The lower dam decides the water level; subtract the column's own height.",
+     "at": {
+      "python": [
+       [
+        8,
+        8
+       ]
+      ],
+      "java": [
+       [
+        9,
+        9
+       ]
+      ],
+      "cpp": [
+       [
+        10,
+        10
+       ]
+      ],
+      "c": [
+       [
+        8,
+        8
+       ]
+      ]
+     }
+    },
+    {
+     "text": "Total water (64-bit).",
+     "at": {
+      "python": [
+       [
+        9,
+        9
+       ]
+      ],
+      "java": [
+       [
+        11,
+        11
+       ]
+      ],
+      "cpp": [
+       [
+        12,
+        12
+       ]
+      ],
+      "c": [
+       [
+        10,
+        10
+       ]
+      ]
+     }
+    }
+   ],
+   "complexity": [
+    {
+     "md": "**Time O(n²).** **Space O(1)** (Python's slices cost O(n))."
+    }
+   ],
+   "walk": {
+    "steps": [
+     {
+      "text": "Column 0 (height 3): tallest left 3, tallest right 4; water min(3, 4) − 3 = 0.",
+      "panels": [
+       {
+        "type": "row",
+        "cells": [
+         3,
+         0,
+         2,
+         0,
+         4,
+         1,
+         0,
+         2
+        ],
+        "states": {
+         "0": "active",
+         "1": "dim",
+         "2": "dim",
+         "3": "dim",
+         "4": "dim",
+         "5": "dim",
+         "6": "dim",
+         "7": "dim"
+        },
+        "slots": true
+       },
+       {
+        "type": "row",
+        "cells": [
+         0,
+         null,
+         null,
+         null,
+         null,
+         null,
+         null,
+         null
+        ],
+        "states": {
+         "0": "new"
+        },
+        "label": "water",
+        "slots": true
+       }
+      ]
+     },
+     {
+      "text": "Column 1 (height 0): tallest left 3, tallest right 4; water min(3, 4) − 0 = 3.",
+      "panels": [
+       {
+        "type": "row",
+        "cells": [
+         3,
+         0,
+         2,
+         0,
+         4,
+         1,
+         0,
+         2
+        ],
+        "states": {
+         "0": "found",
+         "1": "active",
+         "2": "dim",
+         "3": "dim",
+         "4": "dim",
+         "5": "dim",
+         "6": "dim",
+         "7": "dim"
+        },
+        "slots": true
+       },
+       {
+        "type": "row",
+        "cells": [
+         0,
+         3,
+         null,
+         null,
+         null,
+         null,
+         null,
+         null
+        ],
+        "states": {
+         "1": "new"
+        },
+        "label": "water",
+        "slots": true
+       }
+      ]
+     },
+     {
+      "text": "Column 2 (height 2): tallest left 3, tallest right 4; water min(3, 4) − 2 = 1.",
+      "panels": [
+       {
+        "type": "row",
+        "cells": [
+         3,
+         0,
+         2,
+         0,
+         4,
+         1,
+         0,
+         2
+        ],
+        "states": {
+         "0": "found",
+         "1": "dim",
+         "2": "active",
+         "3": "dim",
+         "4": "dim",
+         "5": "dim",
+         "6": "dim",
+         "7": "dim"
+        },
+        "slots": true
+       },
+       {
+        "type": "row",
+        "cells": [
+         0,
+         3,
+         1,
+         null,
+         null,
+         null,
+         null,
+         null
+        ],
+        "states": {
+         "2": "new"
+        },
+        "label": "water",
+        "slots": true
+       }
+      ]
+     },
+     {
+      "text": "Column 3 (height 0): tallest left 3, tallest right 4; water min(3, 4) − 0 = 3.",
+      "panels": [
+       {
+        "type": "row",
+        "cells": [
+         3,
+         0,
+         2,
+         0,
+         4,
+         1,
+         0,
+         2
+        ],
+        "states": {
+         "0": "found",
+         "1": "dim",
+         "2": "dim",
+         "3": "active",
+         "4": "dim",
+         "5": "dim",
+         "6": "dim",
+         "7": "dim"
+        },
+        "slots": true
+       },
+       {
+        "type": "row",
+        "cells": [
+         0,
+         3,
+         1,
+         3,
+         null,
+         null,
+         null,
+         null
+        ],
+        "states": {
+         "3": "new"
+        },
+        "label": "water",
+        "slots": true
+       }
+      ]
+     },
+     {
+      "text": "Column 4 (height 4): tallest left 4, tallest right 4; water min(4, 4) − 4 = 0.",
+      "panels": [
+       {
+        "type": "row",
+        "cells": [
+         3,
+         0,
+         2,
+         0,
+         4,
+         1,
+         0,
+         2
+        ],
+        "states": {
+         "0": "dim",
+         "1": "dim",
+         "2": "dim",
+         "3": "dim",
+         "4": "active",
+         "5": "dim",
+         "6": "dim",
+         "7": "dim"
+        },
+        "slots": true
+       },
+       {
+        "type": "row",
+        "cells": [
+         0,
+         3,
+         1,
+         3,
+         0,
+         null,
+         null,
+         null
+        ],
+        "states": {
+         "4": "new"
+        },
+        "label": "water",
+        "slots": true
+       }
+      ]
+     },
+     {
+      "text": "Column 5 (height 1): tallest left 4, tallest right 2; water min(4, 2) − 1 = 1.",
+      "panels": [
+       {
+        "type": "row",
+        "cells": [
+         3,
+         0,
+         2,
+         0,
+         4,
+         1,
+         0,
+         2
+        ],
+        "states": {
+         "0": "dim",
+         "1": "dim",
+         "2": "dim",
+         "3": "dim",
+         "4": "found",
+         "5": "active",
+         "6": "dim",
+         "7": "dim"
+        },
+        "slots": true
+       },
+       {
+        "type": "row",
+        "cells": [
+         0,
+         3,
+         1,
+         3,
+         0,
+         1,
+         null,
+         null
+        ],
+        "states": {
+         "5": "new"
+        },
+        "label": "water",
+        "slots": true
+       }
+      ]
+     },
+     {
+      "text": "Column 6 (height 0): tallest left 4, tallest right 2; water min(4, 2) − 0 = 2.",
+      "panels": [
+       {
+        "type": "row",
+        "cells": [
+         3,
+         0,
+         2,
+         0,
+         4,
+         1,
+         0,
+         2
+        ],
+        "states": {
+         "0": "dim",
+         "1": "dim",
+         "2": "dim",
+         "3": "dim",
+         "4": "found",
+         "5": "dim",
+         "6": "active",
+         "7": "dim"
+        },
+        "slots": true
+       },
+       {
+        "type": "row",
+        "cells": [
+         0,
+         3,
+         1,
+         3,
+         0,
+         1,
+         2,
+         null
+        ],
+        "states": {
+         "6": "new"
+        },
+        "label": "water",
+        "slots": true
+       }
+      ]
+     },
+     {
+      "text": "Column 7 (height 2): tallest left 4, tallest right 2; water min(4, 2) − 2 = 0.",
+      "panels": [
+       {
+        "type": "row",
+        "cells": [
+         3,
+         0,
+         2,
+         0,
+         4,
+         1,
+         0,
+         2
+        ],
+        "states": {
+         "0": "dim",
+         "1": "dim",
+         "2": "dim",
+         "3": "dim",
+         "4": "found",
+         "5": "dim",
+         "6": "dim",
+         "7": "active"
+        },
+        "slots": true
+       },
+       {
+        "type": "row",
+        "cells": [
+         0,
+         3,
+         1,
+         3,
+         0,
+         1,
+         2,
+         0
+        ],
+        "states": {
+         "7": "new"
+        },
+        "label": "water",
+        "slots": true
+       }
+      ]
+     },
+     {
+      "text": "Total 10.",
+      "panels": [
+       {
+        "type": "row",
+        "cells": [
+         0,
+         3,
+         1,
+         3,
+         0,
+         1,
+         2,
+         0
+        ],
+        "label": "water",
+        "slots": true
+       }
+      ],
+      "result": "10"
+     }
+    ],
+    "title": "For each column, find the tallest wall on its left and on its right by scanning. Water = the lower of the two − its own height."
+   },
+   "limits": [
+    {
+     "md": "Each column rescans both sides; the maxima are running maxima that two passes compute for all columns."
+    }
+   ],
+   "slow": true
+  },
+  {
+   "title": "Running maxima from both ends",
+   "kind": "better",
+   "time": "O(n)",
+   "space": "O(n)",
+   "idea": [
+    {
+     "md": "Precompute `left_max[i]` (left to right) and `right_max[i]` (right to left), then sum `min(left_max, right_max) − height`."
+    }
+   ],
+   "build": [
+    "Running maximum from the left.",
+    "Running maximum from the right.",
+    "Sum the water."
+   ],
+   "code": {
+    "python": "class Solution:\n    def trappedWater(self, walls: List[int]) -> int:\n        n = len(walls)\n        left_max = [0] * n\n        left_max[0] = walls[0]\n        for i in range(1, n):\n            left_max[i] = max(left_max[i - 1], walls[i])\n        right_max = [0] * n\n        right_max[-1] = walls[-1]\n        for i in range(n - 2, -1, -1):\n            right_max[i] = max(right_max[i + 1], walls[i])\n        return sum(min(left_max[i], right_max[i]) - walls[i] for i in range(n))\n",
+    "java": "class Solution {\n    public long trappedWater(int[] walls) {\n        int n = walls.length;\n        int[] leftMax = new int[n], rightMax = new int[n];\n        leftMax[0] = walls[0];\n        for (int i = 1; i < n; i++) leftMax[i] = Math.max(leftMax[i - 1], walls[i]);\n        rightMax[n - 1] = walls[n - 1];\n        for (int i = n - 2; i >= 0; i--) rightMax[i] = Math.max(rightMax[i + 1], walls[i]);\n        long total = 0;\n        for (int i = 0; i < n; i++) total += Math.min(leftMax[i], rightMax[i]) - walls[i];\n        return total;\n    }\n}\n",
+    "cpp": "class Solution {\npublic:\n    long long trappedWater(vector<int>& walls) {\n        int n = walls.size();\n        vector<int> leftMax(n), rightMax(n);\n        leftMax[0] = walls[0];\n        for (int i = 1; i < n; i++) leftMax[i] = max(leftMax[i - 1], walls[i]);\n        rightMax[n - 1] = walls[n - 1];\n        for (int i = n - 2; i >= 0; i--) rightMax[i] = max(rightMax[i + 1], walls[i]);\n        long long total = 0;\n        for (int i = 0; i < n; i++) total += min(leftMax[i], rightMax[i]) - walls[i];\n        return total;\n    }\n};\n",
+    "c": "long long trappedWater(int* walls, int wallsSize) {\n    int n = wallsSize;\n    int* leftMax = malloc(n * sizeof(int));\n    int* rightMax = malloc(n * sizeof(int));\n    leftMax[0] = walls[0];\n    for (int i = 1; i < n; i++) leftMax[i] = walls[i] > leftMax[i - 1] ? walls[i] : leftMax[i - 1];\n    rightMax[n - 1] = walls[n - 1];\n    for (int i = n - 2; i >= 0; i--) rightMax[i] = walls[i] > rightMax[i + 1] ? walls[i] : rightMax[i + 1];\n    long long total = 0;\n    for (int i = 0; i < n; i++) total += (leftMax[i] < rightMax[i] ? leftMax[i] : rightMax[i]) - walls[i];\n    free(leftMax);\n    free(rightMax);\n    return total;\n}\n"
+   },
+   "lines": [
+    {
+     "text": "Tallest wall from the start up to and including i, built incrementally.",
+     "at": {
+      "python": [
+       [
+        4,
+        7
+       ]
+      ],
+      "java": [
+       [
+        5,
+        6
+       ]
+      ],
+      "cpp": [
+       [
+        6,
+        7
+       ]
+      ],
+      "c": [
+       [
+        5,
+        6
+       ]
+      ]
+     }
+    },
+    {
+     "text": "Tallest wall from i to the end, built from the right.",
+     "at": {
+      "python": [
+       [
+        8,
+        11
+       ]
+      ],
+      "java": [
+       [
+        7,
+        8
+       ]
+      ],
+      "cpp": [
+       [
+        8,
+        9
+       ]
+      ],
+      "c": [
+       [
+        7,
+        8
+       ]
+      ]
+     }
+    },
+    {
+     "text": "Each column's water from the two maxima, added in 64 bits.",
+     "at": {
+      "python": [
+       [
+        12,
+        12
+       ]
+      ],
+      "java": [
+       [
+        9,
+        11
+       ]
+      ],
+      "cpp": [
+       [
+        10,
+        12
+       ]
+      ],
+      "c": [
+       [
+        9,
+        13
+       ]
+      ]
+     },
+     "notes": {
+      "c": "Free both helper arrays."
+     }
+    }
+   ],
+   "complexity": [
+    {
+     "md": "**Time O(n).** **Space O(n)** for the two arrays."
+    }
+   ],
+   "walk": {
+    "steps": [
+     {
+      "text": "leftMax[i] = tallest of columns 0 … i.",
+      "panels": [
+       {
+        "type": "row",
+        "cells": [
+         3,
+         0,
+         2,
+         0,
+         4,
+         1,
+         0,
+         2
+        ],
+        "label": "height",
+        "slots": true
+       },
+       {
+        "type": "row",
+        "cells": [
+         3,
+         3,
+         3,
+         3,
+         4,
+         4,
+         4,
+         4
+        ],
+        "label": "leftMax",
+        "slots": true
+       }
+      ]
+     },
+     {
+      "text": "rightMax[i] = tallest of columns i … n − 1.",
+      "panels": [
+       {
+        "type": "row",
+        "cells": [
+         3,
+         0,
+         2,
+         0,
+         4,
+         1,
+         0,
+         2
+        ],
+        "label": "height",
+        "slots": true
+       },
+       {
+        "type": "row",
+        "cells": [
+         3,
+         3,
+         3,
+         3,
+         4,
+         4,
+         4,
+         4
+        ],
+        "label": "leftMax",
+        "slots": true
+       },
+       {
+        "type": "row",
+        "cells": [
+         4,
+         4,
+         4,
+         4,
+         4,
+         2,
+         2,
+         2
+        ],
+        "label": "rightMax",
+        "slots": true
+       }
+      ]
+     },
+     {
+      "text": "water[i] = min(leftMax[i], rightMax[i]) − height[i].",
+      "panels": [
+       {
+        "type": "row",
+        "cells": [
+         3,
+         3,
+         3,
+         3,
+         4,
+         4,
+         4,
+         4
+        ],
+        "label": "leftMax",
+        "slots": true
+       },
+       {
+        "type": "row",
+        "cells": [
+         4,
+         4,
+         4,
+         4,
+         4,
+         2,
+         2,
+         2
+        ],
+        "label": "rightMax",
+        "slots": true
+       },
+       {
+        "type": "row",
+        "cells": [
+         0,
+         3,
+         1,
+         3,
+         0,
+         1,
+         2,
+         0
+        ],
+        "states": {
+         "1": "answer",
+         "2": "answer",
+         "3": "answer",
+         "5": "answer",
+         "6": "answer"
+        },
+        "label": "water",
+        "slots": true
+       }
+      ],
+      "result": "10"
+     }
+    ],
+    "title": "Precompute the running maximum from the left and from the right, then combine."
+   },
+   "limits": [
+    {
+     "md": "Two extra arrays. Two pointers settle each column using only the maximum on its own side."
+    }
+   ]
+  },
+  {
+   "title": "Two pointers, settle the lower side",
+   "kind": "best",
+   "time": "O(n)",
+   "space": "O(1)",
+   "idea": [
+    {
+     "md": "`lo` and `hi` at the ends, with running maxima on each side. If `walls[lo] < walls[hi]`, update the left\nmaximum, add `left_max − walls[lo]`, and move `lo`; otherwise do the same on the right.\n\n**Why it's correct.** By the invariant above, the moving side's own running maximum is the lower of the two\nbounding walls for that column, so it's exactly the column's water level."
+    }
+   ],
+   "build": [
+    "Pointers at both ends, maxima at 0.",
+    "Work on the lower side.",
+    "Update its maximum and add its water."
+   ],
+   "code": {
+    "python": "class Solution:\n    def trappedWater(self, walls: List[int]) -> int:\n        lo, hi = 0, len(walls) - 1\n        left_max = right_max = total = 0\n        while lo < hi:\n            if walls[lo] < walls[hi]:\n                left_max = max(left_max, walls[lo])\n                total += left_max - walls[lo]\n                lo += 1\n            else:\n                right_max = max(right_max, walls[hi])\n                total += right_max - walls[hi]\n                hi -= 1\n        return total\n",
+    "java": "class Solution {\n    public long trappedWater(int[] walls) {\n        int lo = 0, hi = walls.length - 1, leftMax = 0, rightMax = 0;\n        long total = 0;\n        while (lo < hi) {\n            if (walls[lo] < walls[hi]) {\n                leftMax = Math.max(leftMax, walls[lo]);\n                total += leftMax - walls[lo];\n                lo++;\n            } else {\n                rightMax = Math.max(rightMax, walls[hi]);\n                total += rightMax - walls[hi];\n                hi--;\n            }\n        }\n        return total;\n    }\n}\n",
+    "cpp": "class Solution {\npublic:\n    long long trappedWater(vector<int>& walls) {\n        int lo = 0, hi = walls.size() - 1, leftMax = 0, rightMax = 0;\n        long long total = 0;\n        while (lo < hi) {\n            if (walls[lo] < walls[hi]) {\n                leftMax = max(leftMax, walls[lo]);\n                total += leftMax - walls[lo];\n                lo++;\n            } else {\n                rightMax = max(rightMax, walls[hi]);\n                total += rightMax - walls[hi];\n                hi--;\n            }\n        }\n        return total;\n    }\n};\n",
+    "c": "long long trappedWater(int* walls, int wallsSize) {\n    int lo = 0, hi = wallsSize - 1, leftMax = 0, rightMax = 0;\n    long long total = 0;\n    while (lo < hi) {\n        if (walls[lo] < walls[hi]) {\n            if (walls[lo] > leftMax) leftMax = walls[lo];\n            total += leftMax - walls[lo];\n            lo++;\n        } else {\n            if (walls[hi] > rightMax) rightMax = walls[hi];\n            total += rightMax - walls[hi];\n            hi--;\n        }\n    }\n    return total;\n}\n"
+   },
+   "lines": [
+    {
+     "text": "One pointer per end and the tallest wall each side has seen so far.",
+     "at": {
+      "python": [
+       [
+        3,
+        4
+       ]
+      ],
+      "java": [
+       [
+        3,
+        4
+       ]
+      ],
+      "cpp": [
+       [
+        4,
+        5
+       ]
+      ],
+      "c": [
+       [
+        2,
+        3
+       ]
+      ]
+     }
+    },
+    {
+     "text": "Each step settles one column for good; stop when the pointers meet (the last column is a peak and holds nothing extra).",
+     "at": {
+      "python": [
+       [
+        5,
+        5
+       ]
+      ],
+      "java": [
+       [
+        5,
+        5
+       ]
+      ],
+      "cpp": [
+       [
+        6,
+        6
+       ]
+      ],
+      "c": [
+       [
+        4,
+        4
+       ]
+      ]
+     }
+    },
+    {
+     "text": "The left wall is the lower one. Every wall the left pointer has passed is lower than some wall the right pointer has seen, so the right side is guaranteed to be at least as tall as `leftMax`: the water here is `leftMax − height`.",
+     "at": {
+      "python": [
+       [
+        6,
+        9
+       ]
+      ],
+      "java": [
+       [
+        6,
+        9
+       ]
+      ],
+      "cpp": [
+       [
+        7,
+        10
+       ]
+      ],
+      "c": [
+       [
+        5,
+        8
+       ]
+      ]
+     }
+    },
+    {
+     "text": "Mirror case: the right side is the bottleneck, so `rightMax` decides this column's water.",
+     "at": {
+      "python": [
+       [
+        10,
+        13
+       ]
+      ],
+      "java": [
+       [
+        10,
+        13
+       ]
+      ],
+      "cpp": [
+       [
+        11,
+        14
+       ]
+      ],
+      "c": [
+       [
+        9,
+        12
+       ]
+      ]
+     }
+    },
+    {
+     "text": "Total water.",
+     "at": {
+      "python": [
+       [
+        14,
+        14
+       ]
+      ],
+      "java": [
+       [
+        16,
+        16
+       ]
+      ],
+      "cpp": [
+       [
+        17,
+        17
+       ]
+      ],
+      "c": [
+       [
+        15,
+        15
+       ]
+      ]
+     }
+    }
+   ],
+   "complexity": [
+    {
+     "md": "**Time O(n).** **Space O(1).**"
+    }
+   ],
+   "walk": {
+    "steps": [
+     {
+      "text": "Right wall 2 ≤ left wall 3: column 7 holds rightMax − height = 2 − 2 = 0.",
+      "panels": [
+       {
+        "type": "row",
+        "cells": [
+         3,
+         0,
+         2,
+         0,
+         4,
+         1,
+         0,
+         2
+        ],
+        "states": {
+         "7": "active",
+         "0": "mark"
+        },
+        "pointers": {
+         "lo": 0,
+         "hi": 7
+        },
+        "slots": true
+       },
+       {
+        "type": "vars",
+        "items": {
+         "leftMax": 0,
+         "rightMax": 2,
+         "total": 0
+        }
+       }
+      ]
+     },
+     {
+      "text": "Right wall 0 ≤ left wall 3: column 6 holds rightMax − height = 2 − 0 = 2.",
+      "panels": [
+       {
+        "type": "row",
+        "cells": [
+         3,
+         0,
+         2,
+         0,
+         4,
+         1,
+         0,
+         2
+        ],
+        "states": {
+         "6": "active",
+         "0": "mark"
+        },
+        "pointers": {
+         "lo": 0,
+         "hi": 6
+        },
+        "slots": true
+       },
+       {
+        "type": "vars",
+        "items": {
+         "leftMax": 0,
+         "rightMax": 2,
+         "total": 2
+        }
+       }
+      ]
+     },
+     {
+      "text": "Right wall 1 ≤ left wall 3: column 5 holds rightMax − height = 2 − 1 = 1.",
+      "panels": [
+       {
+        "type": "row",
+        "cells": [
+         3,
+         0,
+         2,
+         0,
+         4,
+         1,
+         0,
+         2
+        ],
+        "states": {
+         "5": "active",
+         "0": "mark"
+        },
+        "pointers": {
+         "lo": 0,
+         "hi": 5
+        },
+        "slots": true
+       },
+       {
+        "type": "vars",
+        "items": {
+         "leftMax": 0,
+         "rightMax": 2,
+         "total": 3
+        }
+       }
+      ]
+     },
+     {
+      "text": "Left wall 3 < right wall 4: something on the right is at least 4, so column 0 holds leftMax − height = 3 − 3 = 0.",
+      "panels": [
+       {
+        "type": "row",
+        "cells": [
+         3,
+         0,
+         2,
+         0,
+         4,
+         1,
+         0,
+         2
+        ],
+        "states": {
+         "0": "active",
+         "4": "mark"
+        },
+        "pointers": {
+         "lo": 0,
+         "hi": 4
+        },
+        "slots": true
+       },
+       {
+        "type": "vars",
+        "items": {
+         "leftMax": 3,
+         "rightMax": 2,
+         "total": 3
+        }
+       }
+      ]
+     },
+     {
+      "text": "Left wall 0 < right wall 4: something on the right is at least 4, so column 1 holds leftMax − height = 3 − 0 = 3.",
+      "panels": [
+       {
+        "type": "row",
+        "cells": [
+         3,
+         0,
+         2,
+         0,
+         4,
+         1,
+         0,
+         2
+        ],
+        "states": {
+         "1": "active",
+         "4": "mark"
+        },
+        "pointers": {
+         "lo": 1,
+         "hi": 4
+        },
+        "slots": true
+       },
+       {
+        "type": "vars",
+        "items": {
+         "leftMax": 3,
+         "rightMax": 2,
+         "total": 6
+        }
+       }
+      ]
+     },
+     {
+      "text": "Left wall 2 < right wall 4: something on the right is at least 4, so column 2 holds leftMax − height = 3 − 2 = 1.",
+      "panels": [
+       {
+        "type": "row",
+        "cells": [
+         3,
+         0,
+         2,
+         0,
+         4,
+         1,
+         0,
+         2
+        ],
+        "states": {
+         "2": "active",
+         "4": "mark"
+        },
+        "pointers": {
+         "lo": 2,
+         "hi": 4
+        },
+        "slots": true
+       },
+       {
+        "type": "vars",
+        "items": {
+         "leftMax": 3,
+         "rightMax": 2,
+         "total": 7
+        }
+       }
+      ]
+     },
+     {
+      "text": "Left wall 0 < right wall 4: something on the right is at least 4, so column 3 holds leftMax − height = 3 − 0 = 3.",
+      "panels": [
+       {
+        "type": "row",
+        "cells": [
+         3,
+         0,
+         2,
+         0,
+         4,
+         1,
+         0,
+         2
+        ],
+        "states": {
+         "3": "active",
+         "4": "mark"
+        },
+        "pointers": {
+         "lo": 3,
+         "hi": 4
+        },
+        "slots": true
+       },
+       {
+        "type": "vars",
+        "items": {
+         "leftMax": 3,
+         "rightMax": 2,
+         "total": 10
+        }
+       }
+      ]
+     },
+     {
+      "text": "Pointers met. Total 10.",
+      "panels": [
+       {
+        "type": "row",
+        "cells": [
+         3,
+         0,
+         2,
+         0,
+         4,
+         1,
+         0,
+         2
+        ],
+        "slots": true
+       }
+      ],
+      "result": "10"
+     }
+    ],
+    "title": "Two pointers. Always settle the side whose wall is lower: its water is decided by its own running max."
+   }
+  }
+ ],
+ "takeaways": [
+  {
+   "md": "- **Trapped water per column = min(max left, max right) − height.**\n- Two passes of running maxima, or two pointers that settle the lower side.\n- **Pitfall:** using the nearest taller wall instead of the tallest one."
+  }
+ ]
+}

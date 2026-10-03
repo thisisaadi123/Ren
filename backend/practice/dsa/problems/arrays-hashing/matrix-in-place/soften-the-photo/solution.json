@@ -1,0 +1,709 @@
+{
+ "version": 1,
+ "summary": "Each pixel becomes the rounded-down average of the in-bounds pixels of its 3 × 3 block, all computed from\nthe **original** photo. Reading from a copy is simplest; to avoid the copy, store each new value in the\nunused high bits of its cell and shift them down at the end.",
+ "question": [
+  {
+   "md": "Replace every pixel by the average (rounded down) of the pixels in the 3 × 3 block centred on it,\ncounting only pixels inside the photo.\n\n- **Different pixels average different counts:** a corner averages 4 pixels, an edge pixel 6, an inner\n  pixel 9. A 1 × 1 photo averages just itself.\n- **All averages use the original values**, never already-softened neighbours.\n- **Rounded down:** integer division.\n- **Values 0 … 255** fit in 8 bits, leaving plenty of spare bits in an `int`."
+  },
+  {
+   "md": "**Edge cases to keep in mind**\n\n- Edge pixels average fewer than 9 values (6 on an edge, 4 in a corner).\n- The average is rounded down.\n- A single pixel stays the same."
+  }
+ ],
+ "think": [
+  {
+   "md": "**Simultaneous updates.** Every cell's new value must be computed from the **old** values of its neighbours. Writing\nnew values straight into the grid breaks that: a neighbour processed later would read an already-updated cell. The\neasy fix is a copy of the grid. The in-place fix is to store **both** the old and the new value in the same cell, using\nspare bits:\n\n- old value in the low bits (read with a mask, `x & 1` or `x & 255`);\n- new value in the higher bits (written with `|=` and a shift);\n- one final pass shifts every cell right, keeping only the new value."
+  },
+  {
+   "md": "**The photo:**"
+  },
+  {
+   "table": {
+    "head": [
+     "r \\ c",
+     "0",
+     "1",
+     "2"
+    ],
+    "rows": [
+     [
+      "0",
+      "10",
+      "20",
+      "30"
+     ],
+     [
+      "1",
+      "40",
+      "250",
+      "60"
+     ],
+     [
+      "2",
+      "70",
+      "80",
+      "90"
+     ]
+    ]
+   }
+  },
+  {
+   "md": "**Each pixel's block (sum / count):**"
+  },
+  {
+   "table": {
+    "head": [
+     "r \\ c",
+     "0",
+     "1",
+     "2"
+    ],
+    "rows": [
+     [
+      "0",
+      "320 / 4",
+      "410 / 6",
+      "360 / 4"
+     ],
+     [
+      "1",
+      "470 / 6",
+      "650 / 9",
+      "530 / 6"
+     ],
+     [
+      "2",
+      "440 / 4",
+      "590 / 6",
+      "480 / 4"
+     ]
+    ]
+   }
+  },
+  {
+   "md": "**Softened (rounded down):**"
+  },
+  {
+   "table": {
+    "head": [
+     "r \\ c",
+     "0",
+     "1",
+     "2"
+    ],
+    "rows": [
+     [
+      "0",
+      "80",
+      "68",
+      "90"
+     ],
+     [
+      "1",
+      "78",
+      "72",
+      "88"
+     ],
+     [
+      "2",
+      "110",
+      "98",
+      "120"
+     ]
+    ]
+   }
+  },
+  {
+   "md": "**Why 8 bits are enough.** Values are 0 … 255, so they fit in the low 8 bits; the average does too, so it can be\nstored in bits 8 … 15 (`|= avg << 8`) while the old value stays readable as `x & 255`."
+  }
+ ],
+ "approaches": [
+  {
+   "title": "Average from a copy",
+   "kind": "better",
+   "time": "O(m · n)",
+   "space": "O(m · n)",
+   "idea": [
+    {
+     "md": "Compute every pixel's average from the original image into a new grid."
+    }
+   ],
+   "build": [
+    "New grid.",
+    "Average each 3 × 3 block (clipped at the edges)."
+   ],
+   "code": {
+    "python": "class Solution:\n    def soften(self, image: List[List[int]]) -> List[List[int]]:\n        m, n = len(image), len(image[0])\n        out = [[0] * n for _ in range(m)]\n        for r in range(m):\n            for c in range(n):\n                total = count = 0\n                for rr in range(max(0, r - 1), min(m, r + 2)):\n                    for cc in range(max(0, c - 1), min(n, c + 2)):\n                        total += image[rr][cc]\n                        count += 1\n                out[r][c] = total // count\n        return out\n",
+    "java": "class Solution {\n    public int[][] soften(int[][] image) {\n        int m = image.length, n = image[0].length;\n        int[][] out = new int[m][n];\n        for (int r = 0; r < m; r++) {\n            for (int c = 0; c < n; c++) {\n                int total = 0, count = 0;\n                for (int rr = Math.max(0, r - 1); rr <= Math.min(m - 1, r + 1); rr++)\n                    for (int cc = Math.max(0, c - 1); cc <= Math.min(n - 1, c + 1); cc++) {\n                        total += image[rr][cc];\n                        count++;\n                    }\n                out[r][c] = total / count;\n            }\n        }\n        return out;\n    }\n}\n",
+    "cpp": "class Solution {\npublic:\n    vector<vector<int>> soften(vector<vector<int>>& image) {\n        int m = image.size(), n = image[0].size();\n        vector<vector<int>> out(m, vector<int>(n));\n        for (int r = 0; r < m; r++) {\n            for (int c = 0; c < n; c++) {\n                int total = 0, count = 0;\n                for (int rr = max(0, r - 1); rr <= min(m - 1, r + 1); rr++)\n                    for (int cc = max(0, c - 1); cc <= min(n - 1, c + 1); cc++) {\n                        total += image[rr][cc];\n                        count++;\n                    }\n                out[r][c] = total / count;\n            }\n        }\n        return out;\n    }\n};\n",
+    "c": "int** soften(int** image, int imageSize, int* imageColSize, int* returnSize, int** returnColumnSizes) {\n    int m = imageSize, n = imageColSize[0];\n    int** out = malloc(m * sizeof(int*));\n    for (int r = 0; r < m; r++) out[r] = malloc(n * sizeof(int));\n    for (int r = 0; r < m; r++) {\n        for (int c = 0; c < n; c++) {\n            int total = 0, count = 0;\n            for (int rr = r > 0 ? r - 1 : 0; rr <= (r + 1 < m ? r + 1 : m - 1); rr++)\n                for (int cc = c > 0 ? c - 1 : 0; cc <= (c + 1 < n ? c + 1 : n - 1); cc++) {\n                    total += image[rr][cc];\n                    count++;\n                }\n            out[r][c] = total / count;\n        }\n    }\n    *returnSize = m;\n    *returnColumnSizes = malloc(m * sizeof(int));\n    for (int r = 0; r < m; r++) (*returnColumnSizes)[r] = n;\n    return out;\n}\n"
+   },
+   "lines": [
+    {
+     "text": "A fresh grid for the results, so the original stays readable.",
+     "at": {
+      "python": [
+       [
+        4,
+        4
+       ]
+      ],
+      "java": [
+       [
+        4,
+        4
+       ]
+      ],
+      "cpp": [
+       [
+        5,
+        5
+       ]
+      ],
+      "c": [
+       [
+        3,
+        4
+       ]
+      ]
+     }
+    },
+    {
+     "text": "Every pixel.",
+     "at": {
+      "python": [
+       [
+        5,
+        6
+       ]
+      ],
+      "java": [
+       [
+        5,
+        6
+       ]
+      ],
+      "cpp": [
+       [
+        6,
+        7
+       ]
+      ],
+      "c": [
+       [
+        5,
+        6
+       ]
+      ]
+     }
+    },
+    {
+     "text": "Add up the 3 × 3 block clipped to the photo, and count how many pixels it really has (4, 6 or 9; fewer for very thin photos).",
+     "at": {
+      "python": [
+       [
+        7,
+        11
+       ]
+      ],
+      "java": [
+       [
+        7,
+        12
+       ]
+      ],
+      "cpp": [
+       [
+        8,
+        13
+       ]
+      ],
+      "c": [
+       [
+        7,
+        12
+       ]
+      ]
+     }
+    },
+    {
+     "text": "Integer division rounds down, as required.",
+     "at": {
+      "python": [
+       [
+        12,
+        12
+       ]
+      ],
+      "java": [
+       [
+        13,
+        13
+       ]
+      ],
+      "cpp": [
+       [
+        14,
+        14
+       ]
+      ],
+      "c": [
+       [
+        13,
+        13
+       ]
+      ]
+     }
+    },
+    {
+     "text": "The softened photo.",
+     "at": {
+      "python": [
+       [
+        13,
+        13
+       ]
+      ],
+      "java": [
+       [
+        16,
+        16
+       ]
+      ],
+      "cpp": [
+       [
+        17,
+        17
+       ]
+      ],
+      "c": [
+       [
+        16,
+        19
+       ]
+      ]
+     },
+     "notes": {
+      "c": "Report the row count and each row's length."
+     }
+    }
+   ],
+   "complexity": [
+    {
+     "md": "**Time O(m · n)** (at most 9 values each). **Space O(m · n)** for the output."
+    }
+   ],
+   "walk": {
+    "steps": [
+     {
+      "text": "Pixel (0, 0): 4 pixels in its block sum to 320; 320 // 4 = 80.",
+      "panels": [
+       {
+        "type": "grid",
+        "cells": [
+         [
+          10,
+          20,
+          30
+         ],
+         [
+          40,
+          250,
+          60
+         ],
+         [
+          70,
+          80,
+          90
+         ]
+        ],
+        "states": {
+         "0,0": "active",
+         "0,1": "mark",
+         "1,0": "mark",
+         "1,1": "mark"
+        },
+        "label": "original"
+       }
+      ]
+     },
+     {
+      "text": "Pixel (0, 1): 6 pixels in its block sum to 410; 410 // 6 = 68.",
+      "panels": [
+       {
+        "type": "grid",
+        "cells": [
+         [
+          10,
+          20,
+          30
+         ],
+         [
+          40,
+          250,
+          60
+         ],
+         [
+          70,
+          80,
+          90
+         ]
+        ],
+        "states": {
+         "0,0": "mark",
+         "0,1": "active",
+         "0,2": "mark",
+         "1,0": "mark",
+         "1,1": "mark",
+         "1,2": "mark"
+        },
+        "label": "original"
+       }
+      ]
+     },
+     {
+      "text": "Pixel (1, 1): 9 pixels in its block sum to 650; 650 // 9 = 72.",
+      "panels": [
+       {
+        "type": "grid",
+        "cells": [
+         [
+          10,
+          20,
+          30
+         ],
+         [
+          40,
+          250,
+          60
+         ],
+         [
+          70,
+          80,
+          90
+         ]
+        ],
+        "states": {
+         "0,0": "mark",
+         "0,1": "mark",
+         "0,2": "mark",
+         "1,0": "mark",
+         "1,1": "active",
+         "1,2": "mark",
+         "2,0": "mark",
+         "2,1": "mark",
+         "2,2": "mark"
+        },
+        "label": "original"
+       }
+      ]
+     },
+     {
+      "text": "Pixel (2, 2): 4 pixels in its block sum to 480; 480 // 4 = 120.",
+      "panels": [
+       {
+        "type": "grid",
+        "cells": [
+         [
+          10,
+          20,
+          30
+         ],
+         [
+          40,
+          250,
+          60
+         ],
+         [
+          70,
+          80,
+          90
+         ]
+        ],
+        "states": {
+         "1,1": "mark",
+         "1,2": "mark",
+         "2,1": "mark",
+         "2,2": "active"
+        },
+        "label": "original"
+       }
+      ]
+     },
+     {
+      "text": "Every pixel computed from the original values.",
+      "panels": [
+       {
+        "type": "grid",
+        "cells": [
+         [
+          80,
+          68,
+          90
+         ],
+         [
+          78,
+          72,
+          88
+         ],
+         [
+          110,
+          98,
+          120
+         ]
+        ],
+        "label": "softened"
+       }
+      ],
+      "result": "[[80, 68, 90], [78, 72, 88], [110, 98, 120]]"
+     }
+    ],
+    "title": "Average each pixel's 3 × 3 block in the original photo, clipped at the edges."
+   },
+   "limits": [
+    {
+     "md": "Allocates a second grid. The unused high bits of each pixel can hold the new value."
+    }
+   ]
+  },
+  {
+   "title": "Pack the new value into the high bits",
+   "kind": "best",
+   "time": "O(m · n)",
+   "space": "O(1)",
+   "idea": [
+    {
+     "md": "Pass 1: for each pixel, average the old values (`& 255`) of its block and store the result in bits 8 … 15.\nPass 2: shift every pixel right by 8.\n\n**Why the averages use old values.** Writing to bits 8 … 15 never changes bits 0 … 7, and every read masks\nwith 255."
+    }
+   ],
+   "build": [
+    "Average old values (`& 255`).",
+    "Store in the high byte.",
+    "Shift right by 8."
+   ],
+   "code": {
+    "python": "class Solution:\n    def soften(self, image: List[List[int]]) -> List[List[int]]:\n        m, n = len(image), len(image[0])\n        for r in range(m):\n            for c in range(n):\n                total = count = 0\n                for rr in range(max(0, r - 1), min(m, r + 2)):\n                    for cc in range(max(0, c - 1), min(n, c + 2)):\n                        total += image[rr][cc] & 255\n                        count += 1\n                image[r][c] |= (total // count) << 8\n        for row in image:\n            for c in range(n):\n                row[c] >>= 8\n        return image\n",
+    "java": "class Solution {\n    public int[][] soften(int[][] image) {\n        int m = image.length, n = image[0].length;\n        for (int r = 0; r < m; r++) {\n            for (int c = 0; c < n; c++) {\n                int total = 0, count = 0;\n                for (int rr = Math.max(0, r - 1); rr <= Math.min(m - 1, r + 1); rr++)\n                    for (int cc = Math.max(0, c - 1); cc <= Math.min(n - 1, c + 1); cc++) {\n                        total += image[rr][cc] & 255;\n                        count++;\n                    }\n                image[r][c] |= (total / count) << 8;\n            }\n        }\n        for (int[] row : image)\n            for (int c = 0; c < n; c++) row[c] >>= 8;\n        return image;\n    }\n}\n",
+    "cpp": "class Solution {\npublic:\n    vector<vector<int>> soften(vector<vector<int>>& image) {\n        int m = image.size(), n = image[0].size();\n        for (int r = 0; r < m; r++) {\n            for (int c = 0; c < n; c++) {\n                int total = 0, count = 0;\n                for (int rr = max(0, r - 1); rr <= min(m - 1, r + 1); rr++)\n                    for (int cc = max(0, c - 1); cc <= min(n - 1, c + 1); cc++) {\n                        total += image[rr][cc] & 255;\n                        count++;\n                    }\n                image[r][c] |= (total / count) << 8;\n            }\n        }\n        for (auto& row : image)\n            for (int& x : row) x >>= 8;\n        return image;\n    }\n};\n",
+    "c": "int** soften(int** image, int imageSize, int* imageColSize, int* returnSize, int** returnColumnSizes) {\n    int m = imageSize, n = imageColSize[0];\n    for (int r = 0; r < m; r++) {\n        for (int c = 0; c < n; c++) {\n            int total = 0, count = 0;\n            for (int rr = r > 0 ? r - 1 : 0; rr <= (r + 1 < m ? r + 1 : m - 1); rr++)\n                for (int cc = c > 0 ? c - 1 : 0; cc <= (c + 1 < n ? c + 1 : n - 1); cc++) {\n                    total += image[rr][cc] & 255;\n                    count++;\n                }\n            image[r][c] |= (total / count) << 8;\n        }\n    }\n    for (int r = 0; r < m; r++)\n        for (int c = 0; c < n; c++) image[r][c] >>= 8;\n    *returnSize = m;\n    *returnColumnSizes = malloc(m * sizeof(int));\n    for (int r = 0; r < m; r++) (*returnColumnSizes)[r] = n;\n    return image;\n}\n"
+   },
+   "lines": [
+    {
+     "text": "One pass over the pixels.",
+     "at": {
+      "python": [
+       [
+        4,
+        5
+       ]
+      ],
+      "java": [
+       [
+        4,
+        5
+       ]
+      ],
+      "cpp": [
+       [
+        5,
+        6
+       ]
+      ],
+      "c": [
+       [
+        3,
+        4
+       ]
+      ]
+     }
+    },
+    {
+     "text": "`& 255` keeps only the low 8 bits: the **original** pixel, even for neighbours that already carry their new value above.",
+     "at": {
+      "python": [
+       [
+        6,
+        10
+       ]
+      ],
+      "java": [
+       [
+        6,
+        11
+       ]
+      ],
+      "cpp": [
+       [
+        7,
+        12
+       ]
+      ],
+      "c": [
+       [
+        5,
+        10
+       ]
+      ]
+     }
+    },
+    {
+     "text": "Store the average (also 0 … 255) in bits 8 … 15. The low 8 bits are left alone for pixels still to come.",
+     "at": {
+      "python": [
+       [
+        11,
+        11
+       ]
+      ],
+      "java": [
+       [
+        12,
+        12
+       ]
+      ],
+      "cpp": [
+       [
+        13,
+        13
+       ]
+      ],
+      "c": [
+       [
+        11,
+        11
+       ]
+      ]
+     }
+    },
+    {
+     "text": "Drop the old 8 bits; the new value moves down into place.",
+     "at": {
+      "python": [
+       [
+        12,
+        14
+       ]
+      ],
+      "java": [
+       [
+        15,
+        16
+       ]
+      ],
+      "cpp": [
+       [
+        16,
+        17
+       ]
+      ],
+      "c": [
+       [
+        14,
+        15
+       ]
+      ]
+     }
+    },
+    {
+     "text": "The softened photo, in place.",
+     "at": {
+      "python": [
+       [
+        15,
+        15
+       ]
+      ],
+      "java": [
+       [
+        17,
+        17
+       ]
+      ],
+      "cpp": [
+       [
+        18,
+        18
+       ]
+      ],
+      "c": [
+       [
+        16,
+        19
+       ]
+      ]
+     },
+     "notes": {
+      "c": "Only the column-size array is new memory."
+     }
+    }
+   ],
+   "complexity": [
+    {
+     "md": "**Time O(m · n).** **Space O(1).**"
+    }
+   ],
+   "walk": {
+    "steps": [
+     {
+      "text": "Pass 1: every average is computed from `value & 255` (the original 8 bits) and stored as `avg << 8`, i.e. avg × 256 added on top.",
+      "panels": [
+       {
+        "type": "grid",
+        "cells": [
+         [
+          20490,
+          17428,
+          23070
+         ],
+         [
+          20008,
+          18682,
+          22588
+         ],
+         [
+          28230,
+          25168,
+          30810
+         ]
+        ],
+        "label": "new × 256 + old"
+       }
+      ]
+     },
+     {
+      "text": "Pass 2: shift every cell right by 8 bits, leaving only the new value.",
+      "panels": [
+       {
+        "type": "grid",
+        "cells": [
+         [
+          80,
+          68,
+          90
+         ],
+         [
+          78,
+          72,
+          88
+         ],
+         [
+          110,
+          98,
+          120
+         ]
+        ],
+        "label": "softened"
+       }
+      ],
+      "result": "[[80, 68, 90], [78, 72, 88], [110, 98, 120]]"
+     }
+    ],
+    "title": "Pixels use 8 bits (0 … 255). Store each new value in bits 8 … 15 of the same cell; shift down at the end."
+   }
+  }
+ ],
+ "takeaways": [
+  {
+   "md": "- **Image filters in place:** pack the new value into unused high bits, then shift.\n- Clip the 3 × 3 block at the borders and divide by the real count.\n- **Pitfall:** reading neighbours without the mask after some cells already hold packed values."
+  }
+ ]
+}

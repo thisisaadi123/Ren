@@ -1,0 +1,1437 @@
+{
+ "version": 1,
+ "summary": "All fares are positive, so a longer ride always costs more and dropping a hop always helps. That makes the\ntwo-pointer window exact: add the next hop's fare; while the total exceeds the budget, remove hops from the\nleft. The longest window seen is the answer. O(n).",
+ "question": [
+  {
+   "md": "Return the largest number of consecutive hops (contiguous fares) whose total is at most `budget` (0 if no single\nhop is affordable).\n\n- **n up to 10⁵**, fares positive, budget up to 10⁹."
+  },
+  {
+   "md": "**Edge cases to keep in mind**\n\n- Every fare above the budget: the answer is 0 (the window becomes empty).\n- Budget at least the total of all fares: the answer is `n`.\n- `budget = 0`: no hop is affordable, since fares are at least 1."
+  }
+ ],
+ "think": [
+  {
+   "md": "**Why positivity matters.** All fares are at least 1. So adding a hop always raises the cost, and dropping a hop\nalways lowers it. Two consequences:\n\n1. If a ride fits the budget, every shorter ride inside it fits too (shrinking is safe).\n2. If a ride is over budget, every longer ride containing it is over budget too.\n\nPoint 2 is exactly the property that lets the left edge only move forward."
+  },
+  {
+   "md": "**Why the left edge never goes back.** If the window `[L, R]` breaks the rule, then every longer window `[L, R']` with\n`R' > R` contains it and breaks the rule too. So once a start `L` fails for some `R`, it fails for all later `R`, and\nwe can throw it away forever. That's what lets the left pointer only move forward, and makes the whole scan O(n)."
+  },
+  {
+   "md": "**Trace with `budget = 10`** (last column = cost of the window):"
+  },
+  {
+   "table": {
+    "head": [
+     "R",
+     "fare",
+     "L",
+     "window",
+     "length",
+     "best",
+     "cost"
+    ],
+    "rows": [
+     [
+      "0",
+      "4",
+      "0",
+      "4",
+      "1",
+      "1",
+      "4"
+     ],
+     [
+      "1",
+      "2",
+      "0",
+      "4 2",
+      "2",
+      "2",
+      "6"
+     ],
+     [
+      "2",
+      "6",
+      "1",
+      "2 6",
+      "2",
+      "2",
+      "8"
+     ],
+     [
+      "3",
+      "1",
+      "1",
+      "2 6 1",
+      "3",
+      "3",
+      "9"
+     ],
+     [
+      "4",
+      "1",
+      "1",
+      "2 6 1 1",
+      "4",
+      "4",
+      "10"
+     ],
+     [
+      "5",
+      "3",
+      "3",
+      "1 1 3",
+      "3",
+      "4",
+      "5"
+     ],
+     [
+      "6",
+      "5",
+      "3",
+      "1 1 3 5",
+      "4",
+      "4",
+      "10"
+     ],
+     [
+      "7",
+      "2",
+      "5",
+      "3 5 2",
+      "3",
+      "4",
+      "10"
+     ],
+     [
+      "8",
+      "2",
+      "6",
+      "5 2 2",
+      "3",
+      "4",
+      "9"
+     ]
+    ]
+   }
+  },
+  {
+   "md": "**What would break with refunds (negative fares)?** Then dropping a hop could *increase* the cost and adding one\ncould decrease it, so neither point holds, and the window method gives wrong answers. That variant needs prefix\nsums with a sorted structure instead."
+  }
+ ],
+ "approaches": [
+  {
+   "title": "Extend from every start",
+   "kind": "brute",
+   "time": "O(n²)",
+   "space": "O(1)",
+   "idea": [
+    {
+     "md": "From every stop, keep adding fares while the total stays within the budget; the number of hops taken is the best ride from that stop."
+    }
+   ],
+   "build": [
+    "Loop over starts.",
+    "Extend while affordable.",
+    "Keep the longest."
+   ],
+   "code": {
+    "python": "class Solution:\n    def longestRide(self, fares: List[int], budget: int) -> int:\n        n, best = len(fares), 0\n        for i in range(n):\n            total, j = 0, i\n            while j < n and total + fares[j] <= budget:\n                total += fares[j]\n                j += 1\n            best = max(best, j - i)\n        return best\n",
+    "java": "class Solution {\n    public int longestRide(int[] fares, int budget) {\n        int n = fares.length, best = 0;\n        for (int i = 0; i < n; i++) {\n            long total = 0;\n            int j = i;\n            while (j < n && total + fares[j] <= budget) total += fares[j++];\n            best = Math.max(best, j - i);\n        }\n        return best;\n    }\n}\n",
+    "cpp": "class Solution {\npublic:\n    int longestRide(vector<int>& fares, int budget) {\n        int n = fares.size(), best = 0;\n        for (int i = 0; i < n; i++) {\n            long long total = 0;\n            int j = i;\n            while (j < n && total + fares[j] <= budget) total += fares[j++];\n            best = max(best, j - i);\n        }\n        return best;\n    }\n};\n",
+    "c": "int longestRide(int* fares, int faresSize, int budget) {\n    int n = faresSize, best = 0;\n    for (int i = 0; i < n; i++) {\n        long long total = 0;\n        int j = i;\n        while (j < n && total + fares[j] <= budget) total += fares[j++];\n        if (j - i > best) best = j - i;\n    }\n    return best;\n}\n"
+   },
+   "lines": [
+    {
+     "text": "The longest affordable ride.",
+     "at": {
+      "python": [
+       [
+        3,
+        3
+       ]
+      ],
+      "java": [
+       [
+        3,
+        3
+       ]
+      ],
+      "cpp": [
+       [
+        4,
+        4
+       ]
+      ],
+      "c": [
+       [
+        2,
+        2
+       ]
+      ]
+     }
+    },
+    {
+     "text": "Each stop as the boarding point. Every index is tried as the left end of the window. Nothing learned from one start is reused for the next, which is exactly the waste the better approaches remove.",
+     "at": {
+      "python": [
+       [
+        4,
+        4
+       ]
+      ],
+      "java": [
+       [
+        4,
+        4
+       ]
+      ],
+      "cpp": [
+       [
+        5,
+        5
+       ]
+      ],
+      "c": [
+       [
+        3,
+        3
+       ]
+      ]
+     }
+    },
+    {
+     "text": "Keep riding while the next fare still fits in the budget. Fares are positive, so once a hop doesn't fit, no longer ride from here fits either.",
+     "at": {
+      "python": [
+       [
+        5,
+        8
+       ]
+      ],
+      "java": [
+       [
+        5,
+        7
+       ]
+      ],
+      "cpp": [
+       [
+        6,
+        8
+       ]
+      ],
+      "c": [
+       [
+        4,
+        6
+       ]
+      ]
+     }
+    },
+    {
+     "text": "The number of hops from this stop.",
+     "at": {
+      "python": [
+       [
+        9,
+        9
+       ]
+      ],
+      "java": [
+       [
+        8,
+        8
+       ]
+      ],
+      "cpp": [
+       [
+        9,
+        9
+       ]
+      ],
+      "c": [
+       [
+        7,
+        7
+       ]
+      ]
+     }
+    },
+    {
+     "text": "The longest ride.",
+     "at": {
+      "python": [
+       [
+        10,
+        10
+       ]
+      ],
+      "java": [
+       [
+        10,
+        10
+       ]
+      ],
+      "cpp": [
+       [
+        11,
+        11
+       ]
+      ],
+      "c": [
+       [
+        9,
+        9
+       ]
+      ]
+     }
+    }
+   ],
+   "complexity": [
+    {
+     "md": "**Time O(n²)** for a large budget. **Space O(1).**"
+    }
+   ],
+   "walk": {
+    "steps": [
+     {
+      "text": "Start 0: the window grows to 0..1 (length 2). Adding 6 at 2 would break the rule, so this start stops.",
+      "panels": [
+       {
+        "type": "row",
+        "cells": [
+         4,
+         2,
+         6,
+         1,
+         1,
+         3,
+         5,
+         2,
+         2
+        ],
+        "states": {
+         "0": "active",
+         "1": "active",
+         "2": "mark"
+        },
+        "pointers": {
+         "L": 0,
+         "R": 1
+        }
+       },
+       {
+        "type": "vars",
+        "items": {
+         "best": 2
+        }
+       }
+      ]
+     },
+     {
+      "text": "Start 1: the window grows to 1..4 (length 4). Adding 3 at 5 would break the rule, so this start stops.",
+      "panels": [
+       {
+        "type": "row",
+        "cells": [
+         4,
+         2,
+         6,
+         1,
+         1,
+         3,
+         5,
+         2,
+         2
+        ],
+        "states": {
+         "1": "active",
+         "2": "active",
+         "3": "active",
+         "4": "active",
+         "5": "mark"
+        },
+        "pointers": {
+         "L": 1,
+         "R": 4
+        }
+       },
+       {
+        "type": "vars",
+        "items": {
+         "best": 4
+        }
+       }
+      ]
+     },
+     {
+      "text": "Start 2: the window grows to 2..4 (length 3). Adding 3 at 5 would break the rule, so this start stops.",
+      "panels": [
+       {
+        "type": "row",
+        "cells": [
+         4,
+         2,
+         6,
+         1,
+         1,
+         3,
+         5,
+         2,
+         2
+        ],
+        "states": {
+         "2": "active",
+         "3": "active",
+         "4": "active",
+         "5": "mark"
+        },
+        "pointers": {
+         "L": 2,
+         "R": 4
+        }
+       },
+       {
+        "type": "vars",
+        "items": {
+         "best": 4
+        }
+       }
+      ]
+     },
+     {
+      "text": "Start 3: the window grows to 3..6 (length 4). Adding 2 at 7 would break the rule, so this start stops.",
+      "panels": [
+       {
+        "type": "row",
+        "cells": [
+         4,
+         2,
+         6,
+         1,
+         1,
+         3,
+         5,
+         2,
+         2
+        ],
+        "states": {
+         "3": "active",
+         "4": "active",
+         "5": "active",
+         "6": "active",
+         "7": "mark"
+        },
+        "pointers": {
+         "L": 3,
+         "R": 6
+        }
+       },
+       {
+        "type": "vars",
+        "items": {
+         "best": 4
+        }
+       }
+      ]
+     },
+     {
+      "text": "Start 4: the window grows to 4..6 (length 3). Adding 2 at 7 would break the rule, so this start stops.",
+      "panels": [
+       {
+        "type": "row",
+        "cells": [
+         4,
+         2,
+         6,
+         1,
+         1,
+         3,
+         5,
+         2,
+         2
+        ],
+        "states": {
+         "4": "active",
+         "5": "active",
+         "6": "active",
+         "7": "mark"
+        },
+        "pointers": {
+         "L": 4,
+         "R": 6
+        }
+       },
+       {
+        "type": "vars",
+        "items": {
+         "best": 4
+        }
+       }
+      ]
+     },
+     {
+      "text": "Start 5: the window grows to 5..7 (length 3). Adding 2 at 8 would break the rule, so this start stops.",
+      "panels": [
+       {
+        "type": "row",
+        "cells": [
+         4,
+         2,
+         6,
+         1,
+         1,
+         3,
+         5,
+         2,
+         2
+        ],
+        "states": {
+         "5": "active",
+         "6": "active",
+         "7": "active",
+         "8": "mark"
+        },
+        "pointers": {
+         "L": 5,
+         "R": 7
+        }
+       },
+       {
+        "type": "vars",
+        "items": {
+         "best": 4
+        }
+       }
+      ]
+     },
+     {
+      "text": "Starts 6..8 are checked the same way. The longest window starts at 1. In total about 34 cells were re-read, which grows like n²: the same cells are scanned again from every start.",
+      "panels": [
+       {
+        "type": "row",
+        "cells": [
+         4,
+         2,
+         6,
+         1,
+         1,
+         3,
+         5,
+         2,
+         2
+        ],
+        "states": {
+         "1": "found",
+         "2": "found",
+         "3": "found",
+         "4": "found"
+        },
+        "pointers": {
+         "L": 1,
+         "R": 4
+        }
+       },
+       {
+        "type": "vars",
+        "items": {
+         "best": 4
+        }
+       }
+      ]
+     },
+     {
+      "text": "Longest: 4.",
+      "panels": [],
+      "result": "4"
+     }
+    ],
+    "title": "From each stop, keep riding while the fares fit the budget."
+   },
+   "limits": [
+    {
+     "md": "Up to `n` hops from each of `n` stops: O(n²) for a big budget. Prefix sums let us binary-search the end; a window removes even the search."
+    }
+   ],
+   "slow": true
+  },
+  {
+   "title": "Prefix sums + binary search",
+   "kind": "better",
+   "time": "O(n log n)",
+   "space": "O(n)",
+   "idea": [
+    {
+     "md": "Prefix sums `pre[j]` = cost of the first `j` hops. A ride over hops `i..j−1` costs `pre[j] − pre[i]`.\nBecause fares are positive, `pre` is strictly increasing, so for a start `i` the furthest affordable end\nis the **largest `j` with `pre[j] ≤ pre[i] + budget`**, found by binary search.\n\nThis uses positivity in a different way (sorted prefixes instead of a moving window). It's a useful\nfallback when only the prefixes are monotone."
+    }
+   ],
+   "build": [
+    "Prefix sums.",
+    "Upper-bound search per start.",
+    "Keep the longest."
+   ],
+   "code": {
+    "python": "from bisect import bisect_right\n\n\nclass Solution:\n    def longestRide(self, fares: List[int], budget: int) -> int:\n        pre = [0]\n        for f in fares:\n            pre.append(pre[-1] + f)\n        best = 0\n        for i in range(len(fares)):\n            j = bisect_right(pre, pre[i] + budget) - 1\n            best = max(best, j - i)\n        return best\n",
+    "java": "class Solution {\n    public int longestRide(int[] fares, int budget) {\n        int n = fares.length, best = 0;\n        long[] pre = new long[n + 1];\n        for (int i = 0; i < n; i++) pre[i + 1] = pre[i] + fares[i];\n        for (int i = 0; i < n; i++) {\n            long cap = pre[i] + budget;\n            int lo = i, hi = n;\n            while (lo < hi) {\n                int mid = (lo + hi + 1) / 2;\n                if (pre[mid] <= cap) lo = mid; else hi = mid - 1;\n            }\n            best = Math.max(best, lo - i);\n        }\n        return best;\n    }\n}\n",
+    "cpp": "class Solution {\npublic:\n    int longestRide(vector<int>& fares, int budget) {\n        int n = fares.size(), best = 0;\n        vector<long long> pre(n + 1, 0);\n        for (int i = 0; i < n; i++) pre[i + 1] = pre[i] + fares[i];\n        for (int i = 0; i < n; i++) {\n            int j = upper_bound(pre.begin(), pre.end(), pre[i] + budget) - pre.begin() - 1;\n            best = max(best, j - i);\n        }\n        return best;\n    }\n};\n",
+    "c": "int longestRide(int* fares, int faresSize, int budget) {\n    int n = faresSize, best = 0;\n    long long* pre = malloc((n + 1) * sizeof(long long));\n    pre[0] = 0;\n    for (int i = 0; i < n; i++) pre[i + 1] = pre[i] + fares[i];\n    for (int i = 0; i < n; i++) {\n        long long cap = pre[i] + budget;\n        int lo = i, hi = n;\n        while (lo < hi) {\n            int mid = (lo + hi + 1) / 2;\n            if (pre[mid] <= cap) lo = mid; else hi = mid - 1;\n        }\n        if (lo - i > best) best = lo - i;\n    }\n    free(pre);\n    return best;\n}\n"
+   },
+   "lines": [
+    {
+     "text": "`pre[j]` is the cost of the first `j` hops, so hops `i … j − 1` cost `pre[j] − pre[i]`. Fares are positive, so `pre` strictly increases, which is what makes binary search valid.",
+     "at": {
+      "python": [
+       [
+        6,
+        8
+       ]
+      ],
+      "java": [
+       [
+        3,
+        5
+       ]
+      ],
+      "cpp": [
+       [
+        4,
+        6
+       ]
+      ],
+      "c": [
+       [
+        2,
+        5
+       ]
+      ]
+     }
+    },
+    {
+     "text": "For start `i`, find the last `j` with `pre[j] ≤ pre[i] + budget`. Then `j − i` hops is the longest ride from `i`. Searching in `[i, n]` guarantees at least 0 hops.",
+     "at": {
+      "python": [
+       [
+        9,
+        12
+       ]
+      ],
+      "java": [
+       [
+        6,
+        11
+       ],
+       [
+        13,
+        13
+       ]
+      ],
+      "cpp": [
+       [
+        7,
+        9
+       ]
+      ],
+      "c": [
+       [
+        6,
+        11
+       ],
+       [
+        13,
+        13
+       ]
+      ]
+     }
+    },
+    {
+     "text": "The longest ride over all starts.",
+     "at": {
+      "python": [
+       [
+        13,
+        13
+       ]
+      ],
+      "java": [
+       [
+        15,
+        15
+       ]
+      ],
+      "cpp": [
+       [
+        11,
+        11
+       ]
+      ],
+      "c": [
+       [
+        15,
+        16
+       ]
+      ]
+     }
+    }
+   ],
+   "complexity": [
+    {
+     "md": "**Time O(n log n):** one binary search per start. **Space O(n)** for the prefix sums."
+    }
+   ],
+   "walk": {
+    "steps": [
+     {
+      "text": "Start 0: the largest prefix ≤ 0 + 10 = 10 is pre[2] = 6, so 2 hop(s).",
+      "panels": [
+       {
+        "type": "row",
+        "cells": [
+         0,
+         4,
+         6,
+         12,
+         13,
+         14,
+         17,
+         22,
+         24,
+         26
+        ],
+        "states": {
+         "0": "active",
+         "2": "found"
+        },
+        "label": "prefix"
+       }
+      ]
+     },
+     {
+      "text": "Start 1: the largest prefix ≤ 4 + 10 = 14 is pre[5] = 14, so 4 hop(s).",
+      "panels": [
+       {
+        "type": "row",
+        "cells": [
+         0,
+         4,
+         6,
+         12,
+         13,
+         14,
+         17,
+         22,
+         24,
+         26
+        ],
+        "states": {
+         "1": "active",
+         "5": "found"
+        },
+        "label": "prefix"
+       }
+      ]
+     },
+     {
+      "text": "Start 2: the largest prefix ≤ 6 + 10 = 16 is pre[5] = 14, so 3 hop(s).",
+      "panels": [
+       {
+        "type": "row",
+        "cells": [
+         0,
+         4,
+         6,
+         12,
+         13,
+         14,
+         17,
+         22,
+         24,
+         26
+        ],
+        "states": {
+         "2": "active",
+         "5": "found"
+        },
+        "label": "prefix"
+       }
+      ]
+     },
+     {
+      "text": "Start 3: the largest prefix ≤ 12 + 10 = 22 is pre[7] = 22, so 4 hop(s).",
+      "panels": [
+       {
+        "type": "row",
+        "cells": [
+         0,
+         4,
+         6,
+         12,
+         13,
+         14,
+         17,
+         22,
+         24,
+         26
+        ],
+        "states": {
+         "3": "active",
+         "7": "found"
+        },
+        "label": "prefix"
+       }
+      ]
+     },
+     {
+      "text": "Start 4: the largest prefix ≤ 13 + 10 = 23 is pre[7] = 22, so 3 hop(s).",
+      "panels": [
+       {
+        "type": "row",
+        "cells": [
+         0,
+         4,
+         6,
+         12,
+         13,
+         14,
+         17,
+         22,
+         24,
+         26
+        ],
+        "states": {
+         "4": "active",
+         "7": "found"
+        },
+        "label": "prefix"
+       }
+      ]
+     },
+     {
+      "text": "Start 5: the largest prefix ≤ 14 + 10 = 24 is pre[8] = 24, so 3 hop(s).",
+      "panels": [
+       {
+        "type": "row",
+        "cells": [
+         0,
+         4,
+         6,
+         12,
+         13,
+         14,
+         17,
+         22,
+         24,
+         26
+        ],
+        "states": {
+         "5": "active",
+         "8": "found"
+        },
+        "label": "prefix"
+       }
+      ]
+     },
+     {
+      "text": "Start 6: the largest prefix ≤ 17 + 10 = 27 is pre[9] = 26, so 3 hop(s).",
+      "panels": [
+       {
+        "type": "row",
+        "cells": [
+         0,
+         4,
+         6,
+         12,
+         13,
+         14,
+         17,
+         22,
+         24,
+         26
+        ],
+        "states": {
+         "6": "active",
+         "9": "found"
+        },
+        "label": "prefix"
+       }
+      ]
+     },
+     {
+      "text": "Start 7: the largest prefix ≤ 22 + 10 = 32 is pre[9] = 26, so 2 hop(s).",
+      "panels": [
+       {
+        "type": "row",
+        "cells": [
+         0,
+         4,
+         6,
+         12,
+         13,
+         14,
+         17,
+         22,
+         24,
+         26
+        ],
+        "states": {
+         "7": "active",
+         "9": "found"
+        },
+        "label": "prefix"
+       }
+      ]
+     },
+     {
+      "text": "Start 8: the largest prefix ≤ 24 + 10 = 34 is pre[9] = 26, so 1 hop(s).",
+      "panels": [
+       {
+        "type": "row",
+        "cells": [
+         0,
+         4,
+         6,
+         12,
+         13,
+         14,
+         17,
+         22,
+         24,
+         26
+        ],
+        "states": {
+         "8": "active",
+         "9": "found"
+        },
+        "label": "prefix"
+       }
+      ]
+     },
+     {
+      "text": "Longest: 4.",
+      "panels": [],
+      "result": "4"
+     }
+    ],
+    "title": "Prefix sums are increasing (fares are positive), so for each start the furthest affordable end can be binary-searched."
+   },
+   "limits": [
+    {
+     "md": "One binary search per start: O(n log n). It ignores that the best end only moves right as the start moves right, which the two-pointer window exploits."
+    }
+   ]
+  },
+  {
+   "title": "Two-pointer window",
+   "kind": "best",
+   "time": "O(n)",
+   "space": "O(1)",
+   "idea": [
+    {
+     "md": "Grow the ride one hop at a time with `R`, keeping its cost. While the cost exceeds the budget, drop hops\nfrom the front with `L`. Then the ride `L..R` is the longest affordable ride ending at hop `R`.\n\n**Invariant.** After the while loop, `cost(L..R) ≤ budget`, and `L` is the smallest start with that\nproperty (all smaller starts were dropped because they were over budget for some earlier or equal `R`,\nand stay over budget).\n\nIf a single fare exceeds the budget, `L` moves to `R + 1` and the window is empty: length 0, which is\nexactly right."
+    }
+   ],
+   "build": [
+    "`L = 0`, `total = 0`, `best = 0`.",
+    "For each `R`: `total += fares[R]`.",
+    "While `total > budget`: `total −= fares[L]`; `L += 1`.",
+    "`best = max(best, R − L + 1)`."
+   ],
+   "code": {
+    "python": "class Solution:\n    def longestRide(self, fares: List[int], budget: int) -> int:\n        left = total = best = 0\n        for i, f in enumerate(fares):\n            total += f\n            while total > budget:\n                total -= fares[left]\n                left += 1\n            best = max(best, i - left + 1)\n        return best\n",
+    "java": "class Solution {\n    public int longestRide(int[] fares, int budget) {\n        int left = 0, best = 0;\n        long total = 0;\n        for (int i = 0; i < fares.length; i++) {\n            total += fares[i];\n            while (total > budget) total -= fares[left++];\n            best = Math.max(best, i - left + 1);\n        }\n        return best;\n    }\n}\n",
+    "cpp": "class Solution {\npublic:\n    int longestRide(vector<int>& fares, int budget) {\n        int left = 0, best = 0;\n        long long total = 0;\n        for (int i = 0; i < (int) fares.size(); i++) {\n            total += fares[i];\n            while (total > budget) total -= fares[left++];\n            best = max(best, i - left + 1);\n        }\n        return best;\n    }\n};\n",
+    "c": "int longestRide(int* fares, int faresSize, int budget) {\n    int left = 0, best = 0;\n    long long total = 0;\n    for (int i = 0; i < faresSize; i++) {\n        total += fares[i];\n        while (total > budget) total -= fares[left++];\n        if (i - left + 1 > best) best = i - left + 1;\n    }\n    return best;\n}\n"
+   },
+   "lines": [
+    {
+     "text": "An empty ride with zero cost.",
+     "at": {
+      "python": [
+       [
+        3,
+        3
+       ]
+      ],
+      "java": [
+       [
+        3,
+        4
+       ]
+      ],
+      "cpp": [
+       [
+        4,
+        5
+       ]
+      ],
+      "c": [
+       [
+        2,
+        3
+       ]
+      ]
+     }
+    },
+    {
+     "text": "Bring the next element into the window on the right. The window may now break the rule; the next lines repair it. The cost rises by this hop's fare.",
+     "at": {
+      "python": [
+       [
+        4,
+        5
+       ]
+      ],
+      "java": [
+       [
+        5,
+        6
+       ]
+      ],
+      "cpp": [
+       [
+        6,
+        7
+       ]
+      ],
+      "c": [
+       [
+        4,
+        5
+       ]
+      ]
+     }
+    },
+    {
+     "text": "Over budget: give up hops from the front until the ride fits. If this single hop costs more than the budget, the window empties completely (`L = R + 1`).",
+     "at": {
+      "python": [
+       [
+        6,
+        8
+       ]
+      ],
+      "java": [
+       [
+        7,
+        7
+       ]
+      ],
+      "cpp": [
+       [
+        8,
+        8
+       ]
+      ],
+      "c": [
+       [
+        6,
+        6
+       ]
+      ]
+     }
+    },
+    {
+     "text": "After the repair, `L … R` is the longest valid window that ends at `R` (no earlier start works). Comparing its length with the best covers every possible right end. An empty window contributes 0, which is the right answer when nothing is affordable.",
+     "at": {
+      "python": [
+       [
+        9,
+        9
+       ]
+      ],
+      "java": [
+       [
+        8,
+        8
+       ]
+      ],
+      "cpp": [
+       [
+        9,
+        9
+       ]
+      ],
+      "c": [
+       [
+        7,
+        7
+       ]
+      ]
+     }
+    },
+    {
+     "text": "The longest affordable ride.",
+     "at": {
+      "python": [
+       [
+        10,
+        10
+       ]
+      ],
+      "java": [
+       [
+        10,
+        10
+       ]
+      ],
+      "cpp": [
+       [
+        11,
+        11
+       ]
+      ],
+      "c": [
+       [
+        9,
+        9
+       ]
+      ]
+     }
+    }
+   ],
+   "complexity": [
+    {
+     "md": "**Time O(n):** each hop enters once and leaves at most once. **Space O(1).**"
+    }
+   ],
+   "walk": {
+    "steps": [
+     {
+      "text": "R adds 4 at 0; the rule still holds, so the window just grows to 0..0. New best: 1.",
+      "panels": [
+       {
+        "type": "row",
+        "cells": [
+         4,
+         2,
+         6,
+         1,
+         1,
+         3,
+         5,
+         2,
+         2
+        ],
+        "states": {
+         "0": "found"
+        },
+        "pointers": {
+         "L": 0,
+         "R": 0
+        }
+       },
+       {
+        "type": "vars",
+        "items": {
+         "best": 1,
+         "cost": 4
+        }
+       }
+      ]
+     },
+     {
+      "text": "R adds 2 at 1; the rule still holds, so the window just grows to 0..1. New best: 2.",
+      "panels": [
+       {
+        "type": "row",
+        "cells": [
+         4,
+         2,
+         6,
+         1,
+         1,
+         3,
+         5,
+         2,
+         2
+        ],
+        "states": {
+         "0": "found",
+         "1": "found"
+        },
+        "pointers": {
+         "L": 0,
+         "R": 1
+        }
+       },
+       {
+        "type": "vars",
+        "items": {
+         "best": 2,
+         "cost": 6
+        }
+       }
+      ]
+     },
+     {
+      "text": "R adds 6 at 2. That breaks the rule (cost 12). L moves past 0..0 until it holds again: window 1..2.",
+      "panels": [
+       {
+        "type": "row",
+        "cells": [
+         4,
+         2,
+         6,
+         1,
+         1,
+         3,
+         5,
+         2,
+         2
+        ],
+        "states": {
+         "1": "active",
+         "2": "active",
+         "0": "dim"
+        },
+        "pointers": {
+         "L": 1,
+         "R": 2
+        }
+       },
+       {
+        "type": "vars",
+        "items": {
+         "best": 2,
+         "cost": 8
+        }
+       }
+      ]
+     },
+     {
+      "text": "R adds 1 at 3; the rule still holds, so the window just grows to 1..3. New best: 3.",
+      "panels": [
+       {
+        "type": "row",
+        "cells": [
+         4,
+         2,
+         6,
+         1,
+         1,
+         3,
+         5,
+         2,
+         2
+        ],
+        "states": {
+         "1": "found",
+         "2": "found",
+         "3": "found"
+        },
+        "pointers": {
+         "L": 1,
+         "R": 3
+        }
+       },
+       {
+        "type": "vars",
+        "items": {
+         "best": 3,
+         "cost": 9
+        }
+       }
+      ]
+     },
+     {
+      "text": "R adds 1 at 4; the rule still holds, so the window just grows to 1..4. New best: 4.",
+      "panels": [
+       {
+        "type": "row",
+        "cells": [
+         4,
+         2,
+         6,
+         1,
+         1,
+         3,
+         5,
+         2,
+         2
+        ],
+        "states": {
+         "1": "found",
+         "2": "found",
+         "3": "found",
+         "4": "found"
+        },
+        "pointers": {
+         "L": 1,
+         "R": 4
+        }
+       },
+       {
+        "type": "vars",
+        "items": {
+         "best": 4,
+         "cost": 10
+        }
+       }
+      ]
+     },
+     {
+      "text": "R adds 3 at 5. That breaks the rule (cost 13). L moves past 1..2 until it holds again: window 3..5.",
+      "panels": [
+       {
+        "type": "row",
+        "cells": [
+         4,
+         2,
+         6,
+         1,
+         1,
+         3,
+         5,
+         2,
+         2
+        ],
+        "states": {
+         "3": "active",
+         "4": "active",
+         "5": "active",
+         "1": "dim",
+         "2": "dim"
+        },
+        "pointers": {
+         "L": 3,
+         "R": 5
+        }
+       },
+       {
+        "type": "vars",
+        "items": {
+         "best": 4,
+         "cost": 5
+        }
+       }
+      ]
+     },
+     {
+      "text": "R adds 5 at 6; the rule still holds, so the window just grows to 3..6.",
+      "panels": [
+       {
+        "type": "row",
+        "cells": [
+         4,
+         2,
+         6,
+         1,
+         1,
+         3,
+         5,
+         2,
+         2
+        ],
+        "states": {
+         "3": "active",
+         "4": "active",
+         "5": "active",
+         "6": "active"
+        },
+        "pointers": {
+         "L": 3,
+         "R": 6
+        }
+       },
+       {
+        "type": "vars",
+        "items": {
+         "best": 4,
+         "cost": 10
+        }
+       }
+      ]
+     },
+     {
+      "text": "R adds 2 at 7. That breaks the rule (cost 12). L moves past 3..4 until it holds again: window 5..7.",
+      "panels": [
+       {
+        "type": "row",
+        "cells": [
+         4,
+         2,
+         6,
+         1,
+         1,
+         3,
+         5,
+         2,
+         2
+        ],
+        "states": {
+         "5": "active",
+         "6": "active",
+         "7": "active",
+         "3": "dim",
+         "4": "dim"
+        },
+        "pointers": {
+         "L": 5,
+         "R": 7
+        }
+       },
+       {
+        "type": "vars",
+        "items": {
+         "best": 4,
+         "cost": 10
+        }
+       }
+      ]
+     },
+     {
+      "text": "R adds 2 at 8. That breaks the rule (cost 12). L moves past 5..5 until it holds again: window 6..8.",
+      "panels": [
+       {
+        "type": "row",
+        "cells": [
+         4,
+         2,
+         6,
+         1,
+         1,
+         3,
+         5,
+         2,
+         2
+        ],
+        "states": {
+         "6": "active",
+         "7": "active",
+         "8": "active",
+         "5": "dim"
+        },
+        "pointers": {
+         "L": 6,
+         "R": 8
+        }
+       },
+       {
+        "type": "vars",
+        "items": {
+         "best": 4,
+         "cost": 9
+        }
+       }
+      ]
+     },
+     {
+      "text": "R visited each index once and L only ever moved right, so the pointers made at most 18 moves in total: O(n).",
+      "panels": []
+     },
+     {
+      "text": "Longest: 4.",
+      "panels": [],
+      "result": "4"
+     }
+    ],
+    "title": "Grow the ride on the right; while it costs more than the budget, drop hops from the left."
+   }
+  }
+ ],
+ "takeaways": [
+  {
+   "md": "- **Positive values + \"sum ≤ budget\"** → shrinkable window, O(n).\n- **Prefix sums + binary search** is the O(n log n) alternative that only needs monotone prefixes.\n- With negative values neither works; recognise that before reaching for a window."
+  }
+ ]
+}

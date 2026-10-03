@@ -1,0 +1,675 @@
+{
+ "version": 1,
+ "summary": "Read the sample pair once to build a 26-entry table `coded letter → plain letter`. If exactly 25 coded letters\nare known, the missing one must map to the only plain letter not yet used. Then decode the message through the\ntable, writing `?` for unknown letters. O(n + m).",
+ "question": [
+  {
+   "md": "The cipher is a one-to-one letter substitution; spaces stay. From one sample sentence in both forms, decode a new\nmessage: known letters are translated, unknown ones become `?`.\n\n- **The 25-letter rule:** knowing 25 pairs pins down the 26th, since each plain letter is used exactly once.\n- **Up to 10⁵ characters** in each string."
+  },
+  {
+   "md": "**Edge cases to keep in mind**\n\n- A coded letter that never appears in the sample decodes to `?`.\n- With exactly 25 coded letters learned, the 26th is forced: it must stand for the only unused plain letter.\n- Spaces stay spaces; they aren't letters of the cipher."
+  }
+ ],
+ "think": [
+  {
+   "md": "**What the sample tells us.** Each aligned pair `(plain[i], coded[i])` reveals that `coded[i]` stands for\n`plain[i]`, and since the cipher is fixed, that holds everywhere. So one pass over the sample builds a\n**decoding table** from coded letters to plain letters.\n\nFrom `\"the cab\"` ↔ `\"xli gef\"`: x→t, l→h, i→e, g→c, e→a, f→b.\n\n**Decoding `\"fex lev\"`:**"
+  },
+  {
+   "table": {
+    "head": [
+     "coded",
+     "plain",
+     "why"
+    ],
+    "rows": [
+     [
+      "f",
+      "b",
+      "learned from the sample"
+     ],
+     [
+      "e",
+      "a",
+      "learned from the sample"
+     ],
+     [
+      "x",
+      "t",
+      "learned from the sample"
+     ],
+     [
+      " ",
+      " ",
+      "space"
+     ],
+     [
+      "l",
+      "h",
+      "learned from the sample"
+     ],
+     [
+      "e",
+      "a",
+      "learned from the sample"
+     ],
+     [
+      "v",
+      "?",
+      "never seen"
+     ]
+    ]
+   }
+  },
+  {
+   "md": "Result **`bat ha?`**.\n\n**The 25-letter rule.** The cipher is one-to-one on 26 letters. If 25 coded letters are known, they use 25\ndifferent plain letters, so the remaining coded letter must map to the remaining plain letter. With 24 or fewer\nknown, at least two pairings remain possible, so nothing more can be deduced."
+  }
+ ],
+ "approaches": [
+  {
+   "title": "Search the sample for every letter",
+   "kind": "brute",
+   "time": "O(m · n)",
+   "space": "O(1)",
+   "idea": [
+    {
+     "md": "For each letter of the message, search the coded sample for it; if found, output the plain letter at the\nsame position. Handle the 25-letter case by finding the missing coded and plain letters up front."
+    }
+   ],
+   "build": [
+    "Prepare the forced pair if 25 letters are known.",
+    "For each message letter, search the sample.",
+    "Emit the plain letter, `?`, or a space."
+   ],
+   "code": {
+    "python": "class Solution:\n    def crackCipher(self, plain: str, coded: str, message: str) -> str:\n        letters = \"abcdefghijklmnopqrstuvwxyz\"\n        known = set(coded) - {\" \"}\n        spare_c = spare_p = None\n        if len(known) == 25:\n            spare_c = next(x for x in letters if x not in known)\n            spare_p = next(x for x in letters if x not in set(plain))\n        out = []\n        for c in message:\n            at = coded.find(c)\n            if c == \" \":\n                out.append(\" \")\n            elif at >= 0:\n                out.append(plain[at])\n            else:\n                out.append(spare_p if c == spare_c else \"?\")\n        return \"\".join(out)\n",
+    "java": "class Solution {\n    public String crackCipher(String plain, String coded, String message) {\n        boolean[] seenC = new boolean[26], seenP = new boolean[26];\n        int known = 0;\n        for (int i = 0; i < coded.length(); i++) {\n            char c = coded.charAt(i);\n            if (c == ' ') continue;\n            if (!seenC[c - 'a']) { seenC[c - 'a'] = true; known++; }\n            seenP[plain.charAt(i) - 'a'] = true;\n        }\n        char spareC = 0, spareP = 0;\n        if (known == 25)\n            for (int x = 0; x < 26; x++) { if (!seenC[x]) spareC = (char) ('a' + x); if (!seenP[x]) spareP = (char) ('a' + x); }\n        StringBuilder out = new StringBuilder();\n        for (char c : message.toCharArray()) {\n            int at = coded.indexOf(c);\n            if (c == ' ') out.append(' ');\n            else if (at >= 0) out.append(plain.charAt(at));\n            else out.append(c == spareC ? spareP : '?');\n        }\n        return out.toString();\n    }\n}\n",
+    "cpp": "class Solution {\npublic:\n    string crackCipher(string& plain, string& coded, string& message) {\n        bool seenC[26] = {}, seenP[26] = {};\n        int known = 0;\n        for (size_t i = 0; i < coded.size(); i++) {\n            if (coded[i] == ' ') continue;\n            if (!seenC[coded[i] - 'a']) { seenC[coded[i] - 'a'] = true; known++; }\n            seenP[plain[i] - 'a'] = true;\n        }\n        char spareC = 0, spareP = 0;\n        if (known == 25)\n            for (int x = 0; x < 26; x++) { if (!seenC[x]) spareC = 'a' + x; if (!seenP[x]) spareP = 'a' + x; }\n        string out;\n        for (char c : message) {\n            size_t at = coded.find(c);\n            if (c == ' ') out += ' ';\n            else if (at != string::npos) out += plain[at];\n            else out += c == spareC ? spareP : '?';\n        }\n        return out;\n    }\n};\n",
+    "c": "char* crackCipher(char* plain, char* coded, char* message) {\n    int seenC[26] = {0}, seenP[26] = {0}, known = 0;\n    for (int i = 0; coded[i]; i++) {\n        if (coded[i] == ' ') continue;\n        if (!seenC[coded[i] - 'a']) { seenC[coded[i] - 'a'] = 1; known++; }\n        seenP[plain[i] - 'a'] = 1;\n    }\n    char spareC = 0, spareP = 0;\n    if (known == 25)\n        for (int x = 0; x < 26; x++) { if (!seenC[x]) spareC = 'a' + x; if (!seenP[x]) spareP = 'a' + x; }\n    int m = strlen(message);\n    char* out = malloc(m + 1);\n    for (int k = 0; k < m; k++) {\n        char c = message[k];\n        char* at = strchr(coded, c);\n        if (c == ' ') out[k] = ' ';\n        else if (at) out[k] = plain[at - coded];\n        else out[k] = c == spareC ? spareP : '?';\n    }\n    out[m] = '\\0';\n    return out;\n}\n"
+   },
+   "lines": [
+    {
+     "text": "If the sample reveals exactly 25 coded letters, pair the missing coded letter with the unused plain letter.",
+     "at": {
+      "python": [
+       [
+        3,
+        8
+       ]
+      ],
+      "java": [
+       [
+        3,
+        9
+       ],
+       [
+        11,
+        13
+       ]
+      ],
+      "cpp": [
+       [
+        4,
+        9
+       ],
+       [
+        11,
+        13
+       ]
+      ],
+      "c": [
+       [
+        2,
+        6
+       ],
+       [
+        8,
+        10
+       ]
+      ]
+     }
+    },
+    {
+     "text": "Decode the message one character at a time.",
+     "at": {
+      "python": [
+       [
+        9,
+        10
+       ]
+      ],
+      "java": [
+       [
+        14,
+        15
+       ]
+      ],
+      "cpp": [
+       [
+        14,
+        15
+       ]
+      ],
+      "c": [
+       [
+        11,
+        14
+       ]
+      ]
+     }
+    },
+    {
+     "text": "Look for this letter in the coded sample; the plain sample at the same position is its meaning.",
+     "at": {
+      "python": [
+       [
+        11,
+        11
+       ]
+      ],
+      "java": [
+       [
+        16,
+        16
+       ]
+      ],
+      "cpp": [
+       [
+        16,
+        16
+       ]
+      ],
+      "c": [
+       [
+        15,
+        15
+       ]
+      ]
+     }
+    },
+    {
+     "text": "A space stays a space; a found letter is decoded; an unknown letter becomes `?` unless it's the forced 26th.",
+     "at": {
+      "python": [
+       [
+        12,
+        17
+       ]
+      ],
+      "java": [
+       [
+        17,
+        19
+       ]
+      ],
+      "cpp": [
+       [
+        17,
+        19
+       ]
+      ],
+      "c": [
+       [
+        16,
+        18
+       ]
+      ]
+     }
+    },
+    {
+     "text": "The decoded message.",
+     "at": {
+      "python": [
+       [
+        18,
+        18
+       ]
+      ],
+      "java": [
+       [
+        21,
+        21
+       ]
+      ],
+      "cpp": [
+       [
+        21,
+        21
+       ]
+      ],
+      "c": [
+       [
+        20,
+        21
+       ]
+      ]
+     }
+    }
+   ],
+   "complexity": [
+    {
+     "md": "**Time O(|message| · |sample|):** up to 10¹⁰ steps. **Space O(1)** besides the output."
+    }
+   ],
+   "walk": {
+    "steps": [
+     {
+      "text": "'f': found at position 6 of the coded sentence; the plain letter there is 'b'.",
+      "panels": [
+       {
+        "type": "row",
+        "cells": [
+         "x",
+         "l",
+         "i",
+         " ",
+         "g",
+         "e",
+         "f"
+        ],
+        "states": {
+         "6": "found"
+        },
+        "label": "coded"
+       },
+       {
+        "type": "row",
+        "cells": [
+         "t",
+         "h",
+         "e",
+         " ",
+         "c",
+         "a",
+         "b"
+        ],
+        "states": {
+         "6": "found"
+        },
+        "label": "plain"
+       }
+      ]
+     },
+     {
+      "text": "'e': found at position 5 of the coded sentence; the plain letter there is 'a'.",
+      "panels": [
+       {
+        "type": "row",
+        "cells": [
+         "x",
+         "l",
+         "i",
+         " ",
+         "g",
+         "e",
+         "f"
+        ],
+        "states": {
+         "5": "found"
+        },
+        "label": "coded"
+       },
+       {
+        "type": "row",
+        "cells": [
+         "t",
+         "h",
+         "e",
+         " ",
+         "c",
+         "a",
+         "b"
+        ],
+        "states": {
+         "5": "found"
+        },
+        "label": "plain"
+       }
+      ]
+     },
+     {
+      "text": "'x': found at position 0 of the coded sentence; the plain letter there is 't'.",
+      "panels": [
+       {
+        "type": "row",
+        "cells": [
+         "x",
+         "l",
+         "i",
+         " ",
+         "g",
+         "e",
+         "f"
+        ],
+        "states": {
+         "0": "found"
+        },
+        "label": "coded"
+       },
+       {
+        "type": "row",
+        "cells": [
+         "t",
+         "h",
+         "e",
+         " ",
+         "c",
+         "a",
+         "b"
+        ],
+        "states": {
+         "0": "found"
+        },
+        "label": "plain"
+       }
+      ]
+     },
+     {
+      "text": "'l': found at position 1 of the coded sentence; the plain letter there is 'h'.",
+      "panels": [
+       {
+        "type": "row",
+        "cells": [
+         "x",
+         "l",
+         "i",
+         " ",
+         "g",
+         "e",
+         "f"
+        ],
+        "states": {
+         "1": "found"
+        },
+        "label": "coded"
+       },
+       {
+        "type": "row",
+        "cells": [
+         "t",
+         "h",
+         "e",
+         " ",
+         "c",
+         "a",
+         "b"
+        ],
+        "states": {
+         "1": "found"
+        },
+        "label": "plain"
+       }
+      ]
+     },
+     {
+      "text": "'e': found at position 5 of the coded sentence; the plain letter there is 'a'.",
+      "panels": [
+       {
+        "type": "row",
+        "cells": [
+         "x",
+         "l",
+         "i",
+         " ",
+         "g",
+         "e",
+         "f"
+        ],
+        "states": {
+         "5": "found"
+        },
+        "label": "coded"
+       },
+       {
+        "type": "row",
+        "cells": [
+         "t",
+         "h",
+         "e",
+         " ",
+         "c",
+         "a",
+         "b"
+        ],
+        "states": {
+         "5": "found"
+        },
+        "label": "plain"
+       }
+      ]
+     },
+     {
+      "text": "'v': never appears in the coded sentence: '?'.",
+      "panels": [
+       {
+        "type": "row",
+        "cells": [
+         "x",
+         "l",
+         "i",
+         " ",
+         "g",
+         "e",
+         "f"
+        ],
+        "label": "coded"
+       },
+       {
+        "type": "row",
+        "cells": [
+         "t",
+         "h",
+         "e",
+         " ",
+         "c",
+         "a",
+         "b"
+        ],
+        "label": "plain"
+       }
+      ]
+     },
+     {
+      "text": "Decoded: 'bat ha?'.",
+      "panels": [],
+      "result": "bat ha?"
+     }
+    ],
+    "title": "For each message letter, search the coded sentence for that letter and read the plain letter at the same spot."
+   },
+   "limits": [
+    {
+     "md": "The same search is repeated for every message letter. A table built once answers each lookup in O(1)."
+    }
+   ],
+   "slow": true
+  },
+  {
+   "title": "Decoding table",
+   "kind": "best",
+   "time": "O(n + m)",
+   "space": "O(1)",
+   "idea": [
+    {
+     "md": "Build `back[coded] = plain` from the aligned sample. If it has exactly 25 entries, add the forced pair.\nMap spaces to spaces. Then translate the message with one table lookup per character, using `?` for missing\nletters."
+    }
+   ],
+   "build": [
+    "Fill the table from the sample.",
+    "Apply the 25-letter rule.",
+    "Translate the message."
+   ],
+   "code": {
+    "python": "class Solution:\n    def crackCipher(self, plain: str, coded: str, message: str) -> str:\n        back = {}\n        for p, c in zip(plain, coded):\n            if c != \" \":\n                back[c] = p\n        if len(back) == 25:\n            letters = \"abcdefghijklmnopqrstuvwxyz\"\n            missing = next(x for x in letters if x not in back)\n            used = set(back.values())\n            back[missing] = next(x for x in letters if x not in used)\n        back[\" \"] = \" \"\n        return \"\".join(back.get(c, \"?\") for c in message)\n",
+    "java": "class Solution {\n    public String crackCipher(String plain, String coded, String message) {\n        char[] back = new char[26];\n        boolean[] used = new boolean[26];\n        int known = 0;\n        for (int i = 0; i < coded.length(); i++) {\n            char c = coded.charAt(i);\n            if (c == ' ') continue;\n            if (back[c - 'a'] == 0) known++;\n            back[c - 'a'] = plain.charAt(i);\n            used[plain.charAt(i) - 'a'] = true;\n        }\n        if (known == 25) {\n            int spare = 0;\n            while (used[spare]) spare++;\n            for (int x = 0; x < 26; x++) if (back[x] == 0) back[x] = (char) ('a' + spare);\n        }\n        StringBuilder out = new StringBuilder();\n        for (char c : message.toCharArray()) out.append(c == ' ' ? ' ' : (back[c - 'a'] != 0 ? back[c - 'a'] : '?'));\n        return out.toString();\n    }\n}\n",
+    "cpp": "class Solution {\npublic:\n    string crackCipher(string& plain, string& coded, string& message) {\n        char back[26] = {};\n        bool used[26] = {};\n        int known = 0;\n        for (size_t i = 0; i < coded.size(); i++) {\n            if (coded[i] == ' ') continue;\n            if (!back[coded[i] - 'a']) known++;\n            back[coded[i] - 'a'] = plain[i];\n            used[plain[i] - 'a'] = true;\n        }\n        if (known == 25) {\n            int spare = 0;\n            while (used[spare]) spare++;\n            for (int x = 0; x < 26; x++) if (!back[x]) back[x] = 'a' + spare;\n        }\n        string out;\n        for (char c : message) out += c == ' ' ? ' ' : (back[c - 'a'] ? back[c - 'a'] : '?');\n        return out;\n    }\n};\n",
+    "c": "char* crackCipher(char* plain, char* coded, char* message) {\n    char back[26] = {0};\n    int used[26] = {0}, known = 0;\n    for (int i = 0; coded[i]; i++) {\n        if (coded[i] == ' ') continue;\n        if (!back[coded[i] - 'a']) known++;\n        back[coded[i] - 'a'] = plain[i];\n        used[plain[i] - 'a'] = 1;\n    }\n    if (known == 25) {\n        int spare = 0;\n        while (used[spare]) spare++;\n        for (int x = 0; x < 26; x++) if (!back[x]) back[x] = 'a' + spare;\n    }\n    int m = strlen(message);\n    char* out = malloc(m + 1);\n    for (int k = 0; k < m; k++) out[k] = message[k] == ' ' ? ' ' : (back[message[k] - 'a'] ? back[message[k] - 'a'] : '?');\n    out[m] = '\\0';\n    return out;\n}\n"
+   },
+   "lines": [
+    {
+     "text": "Each aligned pair of letters is one entry of the decoding table; spaces are skipped.",
+     "at": {
+      "python": [
+       [
+        3,
+        6
+       ]
+      ],
+      "java": [
+       [
+        3,
+        11
+       ]
+      ],
+      "cpp": [
+       [
+        4,
+        11
+       ]
+      ],
+      "c": [
+       [
+        2,
+        8
+       ]
+      ]
+     }
+    },
+    {
+     "text": "With 25 entries, the missing coded letter must stand for the one plain letter not yet used.",
+     "at": {
+      "python": [
+       [
+        7,
+        11
+       ]
+      ],
+      "java": [
+       [
+        13,
+        16
+       ]
+      ],
+      "cpp": [
+       [
+        13,
+        16
+       ]
+      ],
+      "c": [
+       [
+        10,
+        13
+       ]
+      ]
+     }
+    },
+    {
+     "text": "Translate every character with the table; missing letters become `?`, spaces stay.",
+     "at": {
+      "python": [
+       [
+        12,
+        13
+       ]
+      ],
+      "java": [
+       [
+        18,
+        20
+       ]
+      ],
+      "cpp": [
+       [
+        18,
+        20
+       ]
+      ],
+      "c": [
+       [
+        15,
+        19
+       ]
+      ]
+     }
+    }
+   ],
+   "complexity": [
+    {
+     "md": "**Time O(|sample| + |message|).** **Space O(1):** at most 27 table entries."
+    }
+   ],
+   "walk": {
+    "steps": [
+     {
+      "text": "Table from the sample: e→a, f→b, g→c, i→e, l→h, x→t.",
+      "panels": [
+       {
+        "type": "row",
+        "cells": [
+         "x",
+         "l",
+         "i",
+         " ",
+         "g",
+         "e",
+         "f"
+        ],
+        "label": "coded"
+       },
+       {
+        "type": "row",
+        "cells": [
+         "t",
+         "h",
+         "e",
+         " ",
+         "c",
+         "a",
+         "b"
+        ],
+        "label": "plain"
+       }
+      ]
+     },
+     {
+      "text": "6 coded letters are known (not 25, so no letter can be deduced). Translate, writing '?' for unknown letters: 'bat ha?'.",
+      "panels": [
+       {
+        "type": "row",
+        "cells": [
+         "f",
+         "e",
+         "x",
+         " ",
+         "l",
+         "e",
+         "v"
+        ],
+        "label": "message"
+       },
+       {
+        "type": "row",
+        "cells": [
+         "b",
+         "a",
+         "t",
+         " ",
+         "h",
+         "a",
+         "?"
+        ],
+        "label": "decoded"
+       }
+      ],
+      "result": "bat ha?"
+     }
+    ],
+    "title": "Build the decoding table once: coded letter → plain letter. Then translate the message letter by letter."
+   }
+  }
+ ],
+ "takeaways": [
+  {
+   "md": "- **Fixed substitutions → build the mapping once, then translate.**\n- **One-to-one maps on a finite alphabet:** knowing all but one pair forces the last.\n- **Pitfall:** applying the 25-letter rule with fewer known letters, where it doesn't follow."
+  }
+ ]
+}

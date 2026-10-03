@@ -4,51 +4,75 @@
  "question": [
   {
    "md": "You get a list of gift prices and a budget. Exactly two **different** gifts add up to the budget\nexactly, and you return their positions (indices), smaller one first.\n\nThe details that matter:\n\n- **Indices, not prices.** You return where the gifts sit in the list, so any trick that\n  rearranges the list has to remember the original positions.\n- **Two different gifts.** One gift can't be bought twice. With `prices = [3, 2, 4]` and budget 6,\n  the gift at index 0 costs 3, and 3 + 3 = 6, but that would be the same gift twice. The answer is\n  `[1, 2]` (2 + 4).\n- **Equal prices are fine.** Two *different* gifts may cost the same: `[5, 5]` with budget 10 is\n  `[0, 1]`.\n- **Prices can be negative** (coupons), so you can't throw a price away just because it's bigger\n  than the budget: 15 + (−6) = 9.\n- **Exactly one answer exists**, so you can stop the moment you find a pair.\n- **Size:** up to 10⁵ prices. Checking every pair is about 5 × 10⁹ checks, far too slow.\n  You need something close to one pass.\n- **Big numbers:** prices go to ±10⁹ and the budget to ±2 × 10⁹. In Java, C++ and C,\n  `budget − price` can reach 3 × 10⁹, past the 32-bit `int` limit (about 2.1 × 10⁹), so that\n  arithmetic needs 64-bit integers."
+  },
+  {
+   "md": "**Edge cases to keep in mind**\n\n- Negative prices (coupons) are allowed, so sums can be anything, and sorting tricks must keep track of indices.\n- Two gifts with the same price can be the pair (`[4, 4]` with budget 8).\n- The answer must be two **different** gifts and in index order `i < j`."
   }
  ],
  "think": [
   {
-   "md": "Take `prices = [3, 8, 11, 2, 15, 7]` and `budget = 9`, and solve it by hand.\n\nYou'd probably pick a gift and ask \"what would go with this?\" For the 3, the partner must cost\n9 − 3 = **6**. Is there a 6? You scan the list: no. For the 8 you need a **1**: no. For the 11 you\nneed **−2**: no. For the 2 you need a **7**: yes, at index 5."
+   "md": "**The complement idea.** When a pair has to satisfy an equation like `x + y = target`, choosing `x` *forces* `y`: it\nmust be exactly `target − x`. So instead of trying every partner, **store what you've seen** in a hash map and **look\nup the one value you need**. One pass, O(1) expected per lookup, O(n) total. Looking up *before* storing the current\nelement guarantees an element never pairs with itself."
   },
   {
-   "panels": [
-    {
-     "type": "row",
-     "cells": [
-      3,
-      8,
-      11,
-      2,
-      15,
-      7
-     ],
-     "states": {
-      "3": "answer",
-      "5": "answer"
-     },
-     "slots": true
-    },
-    {
-     "type": "row",
-     "cells": [
-      6,
-      1,
-      -2,
-      7,
-      -6,
-      2
-     ],
-     "states": {
-      "3": "answer",
-      "5": "answer"
-     },
-     "label": "partner needed (9 − price)"
-    }
-   ],
-   "caption": "Every price has exactly one partner value. The answer is the pair where a price's partner is also in the list."
+   "md": "**Hash-map trace** for budget 9 on `[3, 8, 11, 2, 15, 7]` (the map stores price → index of the gifts seen so far):"
   },
   {
-   "md": "Two things stand out:\n\n1. **The partner is fixed.** You never search for \"some gift that works\". You search for one exact\n   value, `budget − price`. That turns the problem into a lookup problem.\n2. **The slow part is the scan.** Each \"is there a 6?\" scans the whole list, and n scans of n items\n   is O(n²). The rest of this solution is about making that question cheap: first by sorting,\n   then with a hash map.\n\nAlso notice the order: if you only ever look *backwards* (at gifts you've already passed), the 7\nat index 5 finds the 2 at index 3. You never need to look ahead, because the second gift of the\npair will find the first."
+   "table": {
+    "head": [
+     "j",
+     "price",
+     "partner needed",
+     "partner seen?",
+     "map before storing"
+    ],
+    "rows": [
+     [
+      "0",
+      "3",
+      "6",
+      "no",
+      "{}"
+     ],
+     [
+      "1",
+      "8",
+      "1",
+      "no",
+      "{3: 0}"
+     ],
+     [
+      "2",
+      "11",
+      "-2",
+      "no",
+      "{3: 0, 8: 1}"
+     ],
+     [
+      "3",
+      "2",
+      "7",
+      "no",
+      "{3: 0, 8: 1, 11: 2}"
+     ],
+     [
+      "4",
+      "15",
+      "-6",
+      "no",
+      "{3: 0, 8: 1, 11: 2, 2: 3}"
+     ],
+     [
+      "5",
+      "7",
+      "2",
+      "yes, at 3",
+      "{3: 0, 8: 1, 11: 2, 2: 3, 15: 4}"
+     ]
+    ]
+   }
+  },
+  {
+   "md": "Answer **[3, 5]**."
   }
  ],
  "approaches": [
@@ -59,14 +83,12 @@
    "space": "O(1)",
    "idea": [
     {
-     "md": "Try every pair of different gifts `(i, j)` with `i < j` and return the first pair whose\nprices add up to the budget. Starting `j` at `i + 1` does two things at once: it never pairs\na gift with itself, and it never checks a pair twice (`(2, 5)` and `(5, 2)` are the same\npair)."
+     "md": "Try every pair `i < j` and return the one that sums to the budget."
     }
    ],
    "build": [
-    "Loop `i` over every index: the first gift.",
-    "Inside it, loop `j` from `i + 1` to the end: the second gift, always after the first.",
-    "If `prices[i] + prices[j] == budget`, return `[i, j]`. It's already in order because `i < j`.",
-    "After the loops, return an empty list. The problem promises an answer, so this line never runs, but the compiler or reader still wants every path to return."
+    "Two nested loops.",
+    "Return the first exact pair."
    ],
    "code": {
     "python": "class Solution:\n    def pickTwo(self, prices: List[int], budget: int) -> List[int]:\n        n = len(prices)\n        for i in range(n):\n            for j in range(i + 1, n):\n                if prices[i] + prices[j] == budget:\n                    return [i, j]\n        return []\n",
@@ -294,7 +316,7 @@
    ],
    "complexity": [
     {
-     "md": "**Time O(n²).** For `i = 0` the inner loop runs n − 1 times, for `i = 1` it runs n − 2\ntimes, and so on: (n − 1) + (n − 2) + … + 1 = n(n − 1)/2 pair checks in the worst case.\nWith n = 10⁵ that's about 5 × 10⁹ checks.\n\n**Space O(1).** Just two loop counters (and the two-number answer)."
+     "md": "**Time O(n²):** about 5 × 10⁹ pairs for `n = 10⁵`. **Space O(1).**"
     }
    ],
    "walk": {
@@ -435,7 +457,7 @@
    },
    "limits": [
     {
-     "md": "It's correct, but it re-asks the same question over and over: \"is there a 6 somewhere after\nme?\" is answered by scanning, every time. At 10⁵ prices that's billions of additions, many\nseconds even in C. Interviewers expect you to say this version out loud as a baseline and\nthen improve it."
+     "md": "For each gift, the partner's price is known exactly (`budget − price`), yet the loop searches for it by trying everything."
     }
    ],
    "slow": true
@@ -447,14 +469,14 @@
    "space": "O(n)",
    "idea": [
     {
-     "md": "In a **sorted** list, a pair sum tells you which way to move. Put one finger on the cheapest\nprice (`lo`) and one on the most expensive (`hi`):\n\n- If the sum is **too big**, the price at `hi` can't be in the answer: even paired with the\n  cheapest gift left it overshoots, and every other partner is pricier. Drop it: `hi − 1`.\n- If the sum is **too small**, the price at `lo` can't be in the answer: even paired with the\n  priciest gift left it falls short. Drop it: `lo + 1`.\n- If it's **equal**, you found the pair.\n\nEach step throws away one gift for good, so the walk takes at most n − 1 steps.\n\nThe catch: sorting moves the prices, and we must return **original** indices. So sort the\n*indices* by price (or sort (price, index) pairs), and read the positions off at the end."
+     "md": "Sort the **indices** by price (so original positions are kept), then squeeze two pointers from the cheapest\nand the most expensive: too big drops the expensive end, too small drops the cheap end.\n\n**Why it's correct.** If the total is too big, the most expensive gift overshoots even with the cheapest\nremaining partner, so it can't be in the pair; symmetrically for too small."
     }
    ],
    "build": [
-    "Make a list of indices `0 … n−1` and sort it by `prices[index]`. Now `order[0]` is the index of the cheapest gift.",
-    "Set `lo = 0` and `hi = n − 1`, pointing into `order`.",
-    "While `lo < hi`: add the two prices. Equal: you're done. Too big: `hi -= 1`. Too small: `lo += 1`.",
-    "When they match, the answer is the two original indices `order[lo]` and `order[hi]`, smaller first. Sorting by price may have put the later index first."
+    "Sort indices by price.",
+    "Pointers at both ends.",
+    "Move the side that can't be in the pair.",
+    "Return the two original indices in order."
    ],
    "code": {
     "python": "class Solution:\n    def pickTwo(self, prices: List[int], budget: int) -> List[int]:\n        order = sorted(range(len(prices)), key=lambda k: prices[k])\n        lo, hi = 0, len(prices) - 1\n        while lo < hi:\n            total = prices[order[lo]] + prices[order[hi]]\n            if total == budget:\n                a, b = order[lo], order[hi]\n                return [min(a, b), max(a, b)]\n            if total > budget:\n                hi -= 1\n            else:\n                lo += 1\n        return []\n",
@@ -727,7 +749,7 @@
    ],
    "complexity": [
     {
-     "md": "**Time O(n log n).** Sorting costs O(n log n). The two-pointer walk is O(n): every step\nmoves `lo` or `hi` one place inward, and they meet after at most n − 1 steps. The sort\ndominates.\n\n**Space O(n)** for the `order` array of indices (plus whatever the sort uses internally)."
+     "md": "**Time O(n log n)** for the sort. **Space O(n)** for the index order."
     }
    ],
    "walk": {
@@ -907,7 +929,7 @@
    },
    "limits": [
     {
-     "md": "Much faster than checking every pair (about 1.7 million steps for n = 10⁵ instead of 5\nbillion), but the sort is work the problem never asked for, and it forces the extra index\nbookkeeping. This is the right tool when the input is **already sorted** (then it's O(n)\ntime and O(1) space). Here the input is unsorted, and a hash map skips the sort entirely."
+     "md": "Sorting costs O(n log n) and extra memory for the order. A hash map finds the pair in one O(n) pass."
     }
    ]
   },
@@ -918,16 +940,13 @@
    "space": "O(n)",
    "idea": [
     {
-     "md": "Go through the gifts once, left to right, and keep a **hash map from price to index** of the\ngifts you've already passed. At gift `j` with price `p`, the partner must cost\n`budget − p`. Ask the map: is that price there?\n\n- **Yes:** the partner sits at `map[budget − p]`, which is earlier than `j`. Return\n  `[map[budget − p], j]`, already in order.\n- **No:** store `p → j` and move on. If `p`'s partner comes later, that gift will find `p`\n  here.\n\nThe order inside the loop matters: **look up first, store second.** If you stored first,\na price of 3 with budget 6 would find itself and you'd return one gift twice."
+     "md": "Walk the gifts once with a map from price to index. For gift `j`, compute `need = budget − price[j]`. If\n`need` is in the map, the pair is `[map[need], j]`; otherwise store `price[j] → j`.\n\n**Why the pair is found.** When the second gift of the pair is reached, the first one is already stored,\nso the lookup succeeds at exactly that moment, and the earlier index comes first automatically."
     }
    ],
    "build": [
-    "Create an empty map from price to index.",
-    "Loop `j` over the indices, with `p = prices[j]`.",
-    "Compute `need = budget − p` (in 64 bits in Java, C++ and C).",
-    "If `need` is in the map, return `[map[need], j]`.",
-    "Otherwise store `map[p] = j` and continue.",
-    "Equal prices: if a price appears twice, the second copy overwrites nothing important. When the pair *is* the two copies (`[5, 5]`, budget 10), the second 5 looks up 5 and finds the first one before storing itself."
+    "Empty map price → index.",
+    "For each gift, look up its partner.",
+    "Return on a hit, else store the gift."
    ],
    "code": {
     "python": "class Solution:\n    def pickTwo(self, prices: List[int], budget: int) -> List[int]:\n        where = {}\n        for j, p in enumerate(prices):\n            need = budget - p\n            if need in where:\n                return [where[need], j]\n            where[p] = j\n        return []\n",
@@ -1167,7 +1186,7 @@
    ],
    "complexity": [
     {
-     "md": "**Time O(n).** One pass over the prices, and each step does one lookup and at most one\ninsert, each O(1) on average for a hash map.\n\n**Space O(n).** In the worst case the pair is the last two gifts, so nearly every price\ngoes into the map first.\n\n\"On average\" matters: a hash map can degrade when many keys collide, but with a decent hash\nfunction (every standard library has one) that doesn't happen on real inputs."
+     "md": "**Time O(n)** expected. **Space O(n)** for the map."
     }
    ],
    "walk": {
@@ -1386,7 +1405,7 @@
  ],
  "takeaways": [
   {
-   "md": "- When the partner of an item is **fully determined** (here `budget − price`), stop searching\n  for pairs and start **looking up** the partner. A hash map makes each lookup O(1).\n- **Look up before you insert** when an item must not pair with itself.\n- Store whatever the answer needs as the map's value. We needed indices, so the map goes\n  price → index.\n- Sort + two pointers is the go-to when the input is already sorted (O(1) extra space), but\n  sorting first costs O(n log n) and loses the original positions unless you carry them along.\n- In fixed-width languages, check whether a subtraction like `budget − price` can overflow, and\n  use 64-bit integers when it can."
+   "md": "- **Pair with a fixed sum:** one pass with a hash map of complements.\n- **Look up before storing** so an element never pairs with itself.\n- **Pitfall:** sorting the values and losing the original indices."
   }
  ]
 }

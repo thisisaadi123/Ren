@@ -1,0 +1,30 @@
+{
+  "id": "session-details",
+  "title": "Session Details",
+  "topic": "gaps-islands",
+  "pattern": "sessions",
+  "difficulty": "hard",
+  "statement": "A user's page views form one **session** until there's a gap of **more than 30 minutes** (exactly 30 stays in the same\nsession). Number each user's sessions from 1 in time order.\n\nReturn `user_id`, `session`, `started_at` (first view), `ended_at` (last view) and `views`, ordered by `user_id`, then\n`session`.",
+  "notes": "Flag the row that starts each session with 1, then a running sum of the flags numbers the sessions.",
+  "tables": [
+    {
+      "name": "events",
+      "columns": [
+        [
+          "user_id",
+          "INTEGER"
+        ],
+        [
+          "at",
+          "TEXT"
+        ]
+      ]
+    }
+  ],
+  "ordered": true,
+  "reference": "WITH flagged AS (\n  SELECT user_id, at,\n         CASE WHEN (strftime('%s', at) - strftime('%s', LAG(at) OVER (PARTITION BY user_id ORDER BY at))) / 60 <= 30\n              THEN 0 ELSE 1 END AS starts\n  FROM events\n),\nnumbered AS (\n  SELECT user_id, at, SUM(starts) OVER (PARTITION BY user_id ORDER BY at ROWS UNBOUNDED PRECEDING) AS session\n  FROM flagged\n)\nSELECT user_id, session, MIN(at) AS started_at, MAX(at) AS ended_at, COUNT(*) AS views\nFROM numbered\nGROUP BY user_id, session\nORDER BY user_id, session",
+  "wrong": [
+    "WITH flagged AS (SELECT user_id, at, CASE WHEN (strftime('%s', at) - strftime('%s', LAG(at) OVER (PARTITION BY user_id ORDER BY at))) / 60 < 30 THEN 0 ELSE 1 END AS starts FROM events), numbered AS (SELECT user_id, at, SUM(starts) OVER (PARTITION BY user_id ORDER BY at ROWS UNBOUNDED PRECEDING) AS session FROM flagged) SELECT user_id, session, MIN(at) AS started_at, MAX(at) AS ended_at, COUNT(*) AS views FROM numbered GROUP BY user_id, session ORDER BY user_id, session",
+    "WITH flagged AS (SELECT user_id, at, CASE WHEN (strftime('%s', at) - strftime('%s', LAG(at) OVER (PARTITION BY user_id ORDER BY at))) / 60 <= 30 THEN 0 ELSE 1 END AS starts FROM events), numbered AS (SELECT user_id, at, SUM(starts) OVER (ORDER BY at ROWS UNBOUNDED PRECEDING) AS session FROM flagged) SELECT user_id, session, MIN(at) AS started_at, MAX(at) AS ended_at, COUNT(*) AS views FROM numbered GROUP BY user_id, session ORDER BY user_id, session"
+  ]
+}

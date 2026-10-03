@@ -4,53 +4,89 @@
  "question": [
   {
    "md": "A shuttle drives forward past marks 0, 1, 2, … A trip `[p, from, to]` puts `p` people on board from\nmark `from` until mark `to`. Return whether the number on board ever exceeds `capacity`.\n\n- **People get off before others get on** at the same mark. So a party riding 0 → 2 and another\n  riding 2 → 4 never share the shuttle: at mark 2 the first leaves, then the second boards. A party\n  is on board for marks `from … to − 1`.\n- **Only the peak matters.** You return true/false, not the schedule.\n- **Size:** up to 10⁵ trips, marks up to 10⁵, at most 100 people per trip. The load can reach\n  10⁷, which fits in an `int`."
+  },
+  {
+   "md": "**Edge cases to keep in mind**\n\n- At the same mark, riders get off **before** new riders get on, so a trip ending at `m` frees its seats for one\n  starting at `m`.\n- A party is on board for marks `from … to − 1`, not at `to`.\n- A single party larger than the capacity fails immediately."
   }
  ],
  "think": [
   {
-   "md": "Take capacity 6 and trips `[[2, 1, 5], [3, 3, 7], [4, 5, 8]]`. Track the load mark by mark:"
+   "md": "**Difference arrays: describe where the values change.** Adding `v` to every position in `[l, r]` changes the\n*differences* between neighbours in only two places: the value goes up by `v` at `l`, and back down by `v` at `r + 1`.\nSo record `diff[l] += v` and `diff[r + 1] −= v` (O(1) per update), and after all updates rebuild the actual values\nwith one running sum (a prefix sum over `diff`). Many range updates cost O(updates + n) instead of O(updates · n)."
   },
   {
-   "panels": [
-    {
-     "type": "row",
-     "cells": [
-      0,
-      1,
-      2,
-      3,
-      4,
-      5,
-      6,
-      7,
-      8
-     ],
-     "label": "mark"
-    },
-    {
-     "type": "row",
-     "cells": [
-      0,
-      2,
-      2,
-      5,
-      5,
-      7,
-      7,
-      4,
-      0
-     ],
-     "states": {
-      "5": "mark",
-      "6": "mark"
-     },
-     "label": "people on board"
-    }
-   ],
-   "caption": "At mark 5 the party of 2 leaves and the party of 4 boards: 3 + 4 = 7 > 6."
+   "md": "**Riders as range updates.** A trip `[p, from, to]` adds `p` riders to every stretch between marks `from` and\n`to − 1`: `+p` at `from`, `−p` at `to`. The load at mark `m` is the running sum, and the trip is feasible exactly\nwhen that running sum never exceeds the capacity.\n\n**Getting off before getting on.** Because the party leaves at `to` (the `−p` sits at index `to`), a trip that\nstarts at the same mark is added in the same running-sum step after the subtraction is already in place, so the\nrule is handled automatically."
   },
   {
-   "md": "Notice what changes the load: only boarding (`+p` at `from`) and leaving (`−p` at `to`). Between\nthose marks it stays flat. So instead of recounting every party at every mark, write down the\n**changes** and add them up as you drive:\n\n- change[1] = +2, change[3] = +3, change[5] = −2 + 4 = +2, change[7] = −3, change[8] = −4.\n- Running sum: 0, 2, 2, 5, 5, **7**, 7, 4, 0.\n\nThat's the difference-array trick: a range update becomes two point updates, and one prefix-sum\npass rebuilds every value."
+   "md": "**Load mark by mark** for capacity 6 and trips [[2, 1, 5], [3, 3, 7], [4, 5, 8]]:"
+  },
+  {
+   "table": {
+    "head": [
+     "mark",
+     "change",
+     "load",
+     ""
+    ],
+    "rows": [
+     [
+      "0",
+      "0",
+      "0",
+      "ok"
+     ],
+     [
+      "1",
+      "2",
+      "2",
+      "ok"
+     ],
+     [
+      "2",
+      "0",
+      "2",
+      "ok"
+     ],
+     [
+      "3",
+      "3",
+      "5",
+      "ok"
+     ],
+     [
+      "4",
+      "0",
+      "5",
+      "ok"
+     ],
+     [
+      "5",
+      "2",
+      "7",
+      "over capacity"
+     ],
+     [
+      "6",
+      "0",
+      "7",
+      "over capacity"
+     ],
+     [
+      "7",
+      "-3",
+      "4",
+      "ok"
+     ],
+     [
+      "8",
+      "-4",
+      "0",
+      "ok"
+     ]
+    ]
+   }
+  },
+  {
+   "md": "At mark 5 the load reaches 7, more than 6: **false**."
   }
  ],
  "approaches": [
@@ -61,13 +97,13 @@
    "space": "O(1)",
    "idea": [
     {
-     "md": "For each mark `m` up to the last drop-off, add up the parties with `from ≤ m < to`. If any total exceeds the capacity, return false."
+     "md": "For every mark, add up the parties on board (those with `from ≤ mark < to`) and compare with the capacity."
     }
    ],
    "build": [
-    "Find the last mark, `max(to)`.",
-    "For each mark `m` from 0 to it: sum `p` over trips with `from ≤ m < to`.",
-    "If the sum exceeds `capacity`, return false. After all marks, return true."
+    "Last mark.",
+    "For each mark, sum the parties on board.",
+    "Fail if over capacity."
    ],
    "code": {
     "python": "class Solution:\n    def canCarryAll(self, capacity: int, trips: List[List[int]]) -> bool:\n        last = max(t[2] for t in trips)\n        for m in range(last + 1):\n            load = sum(p for p, a, b in trips if a <= m < b)\n            if load > capacity:\n                return False\n        return True\n",
@@ -224,7 +260,7 @@
    ],
    "complexity": [
     {
-     "md": "**Time O(M · T)** for M marks and T trips: 10⁵ × 10⁵ = 10¹⁰ in the worst case. **Space O(1).**"
+     "md": "**Time O(M · t)** for `M` marks and `t` trips. **Space O(1).**"
     }
    ],
    "walk": {
@@ -480,7 +516,7 @@
    },
    "limits": [
     {
-     "md": "Each mark recounts every trip, although from one mark to the next only the parties boarding or leaving there change the load."
+     "md": "Each mark rescans all trips, though the load only changes at boarding and leaving points."
     }
    ],
    "slow": true
@@ -492,14 +528,13 @@
    "space": "O(T)",
    "idea": [
     {
-     "md": "Each trip becomes two events: `(from, +p)` and `(to, −p)`. Sort by mark, and at equal marks put\nthe negative changes first (people get off before others get on). Then walk the events with a\nrunning load; if it ever exceeds the capacity, return false.\n\nThis never looks at marks where nothing happens, so it works even if marks were huge."
+     "md": "Turn each trip into two events, `(from, +p)` and `(to, −p)`, sort them, and replay them, keeping the load.\nSorting by `(mark, change)` puts negative changes first at the same mark, which is exactly \"get off before\ngetting on\"."
     }
    ],
    "build": [
-    "Make a list of `(mark, change)` pairs: `(from, +p)` and `(to, −p)` per trip.",
-    "Sort by mark, then by change (so −p comes before +p at the same mark).",
-    "Add the changes in order; if the running load exceeds `capacity`, return false.",
-    "Return true."
+    "Two events per trip.",
+    "Sort by mark, leaving before boarding.",
+    "Replay and check the load."
    ],
    "code": {
     "python": "class Solution:\n    def canCarryAll(self, capacity: int, trips: List[List[int]]) -> bool:\n        events = []\n        for p, a, b in trips:\n            events.append((a, p))\n            events.append((b, -p))\n        events.sort()\n        load = 0\n        for _, change in events:\n            load += change\n            if load > capacity:\n                return False\n        return True\n",
@@ -678,7 +713,7 @@
    ],
    "complexity": [
     {
-     "md": "**Time O(T log T)** for sorting 2T events. **Space O(T)** for the events."
+     "md": "**Time O(t log t).** **Space O(t)** for the events."
     }
    ],
    "walk": {
@@ -836,7 +871,7 @@
    },
    "limits": [
     {
-     "md": "Sorting is needed only because the events arrive in random order. Here the marks are small\nintegers (≤ 10⁵), so they can index an array directly, which puts every event in place\nwithout sorting."
+     "md": "Sorting costs O(t log t). Marks are small integers, so a difference array indexed by mark avoids sorting."
     }
    ]
   },
@@ -847,14 +882,13 @@
    "space": "O(M)",
    "idea": [
     {
-     "md": "Make an array `change` with one slot per mark. For each trip, `change[from] += p` and\n`change[to] −= p`. Walking the marks in order with a running sum gives the load at each\nmark: at mark `m` it equals all boardings at marks ≤ m minus all drop-offs at marks ≤ m.\n\n\"Off before on\" is automatic: at one mark the `+` and `−` are already combined into a single\nnumber, so a party leaving and a party boarding at the same mark never overlap."
+     "md": "A difference array over the marks: `change[from] += p`, `change[to] −= p`. A running sum over the marks\ngives the load; fail as soon as it exceeds the capacity.\n\n**Why same-mark order works.** The net change at a mark already includes everyone leaving and boarding\nthere, and since leavers free their seats before boarders take them, only the net load matters."
     }
    ],
    "build": [
-    "Find the last mark and make `change` with that many slots + 1, all zero.",
-    "For each trip: `change[from] += p`, `change[to] −= p`.",
-    "Walk `m` from 0 up, adding `change[m]` to `load`; return false as soon as `load > capacity`.",
-    "Return true."
+    "Array up to the last mark.",
+    "Two marks per trip.",
+    "Running sum; check against capacity."
    ],
    "code": {
     "python": "class Solution:\n    def canCarryAll(self, capacity: int, trips: List[List[int]]) -> bool:\n        last = max(t[2] for t in trips)\n        change = [0] * (last + 1)\n        for p, a, b in trips:\n            change[a] += p\n            change[b] -= p\n        load = 0\n        for c in change:\n            load += c\n            if load > capacity:\n                return False\n        return True\n",
@@ -1017,7 +1051,7 @@
    ],
    "complexity": [
     {
-     "md": "**Time O(T + M):** two writes per trip, then one pass over at most 10⁵ + 1 marks.\n\n**Space O(M)** for the `change` array."
+     "md": "**Time O(t + M).** **Space O(M).**"
     }
    ],
    "walk": {
@@ -1408,7 +1442,7 @@
  ],
  "takeaways": [
   {
-   "md": "- **Range add, then read everything once?** Use a difference array: `+v` at the start, `−v` just\n  past the end, then a running sum.\n- Exclusive ends (`to` is the first mark the party is *not* on board) make \"off before on\" fall out\n  naturally.\n- If the coordinates are too large or sparse for an array, sort the events instead (the\n  **Brightest Spot** approach)."
+   "md": "- **Intervals as +/− events:** difference array when coordinates are small, sorted events when they're large.\n- Half-open intervals `[from, to)` make \"leave before board\" automatic.\n- **Pitfall:** treating `to` as still on board."
   }
  ]
 }

@@ -1,0 +1,559 @@
+{
+ "version": 1,
+ "summary": "Scan once as a tiny state machine: skip spaces, take at most one sign, then read digits. An underscore is\nskipped only if a digit came before it and a digit comes right after; anything else stops the reading. Cap\nthe running value at 2³¹ as you go so it never overflows, then apply the sign and clamp.",
+ "question": [
+  {
+   "md": "Read a signed 32-bit integer from the front of `text`: leading spaces, an optional `+`/`-`, then digits where a\nsingle `_` between two digits is ignored. Stop at anything else. No digits means 0; out-of-range values clamp\nto `−2³¹` or `2³¹ − 1`.\n\n- **Text up to 200 characters**, so the digits can describe numbers far beyond 64 bits."
+  },
+  {
+   "md": "**Edge cases to keep in mind**\n\n- Only spaces are skipped at the start, not other characters.\n- At most one sign; `+-5` and `- 5` read as 0 (the sign must be followed directly by a digit).\n- An underscore needs a digit on **both** sides; anywhere else it stops the reading.\n- Values beyond 32 bits clamp to `−2³¹` or `2³¹ − 1`."
+  }
+ ],
+ "think": [
+  {
+   "md": "**How to approach any parsing task.** Write the format as a sequence of phases, each with a clear rule for which\ncharacters it consumes and what makes it stop. Then walk the text once with an index, handling one phase after\nanother. Most bugs come from the boundaries between phases, so list them explicitly as edge cases before coding."
+  },
+  {
+   "md": "**The phases here:**\n\n1. **Spaces:** consume `' '` characters.\n2. **Sign:** consume one `+` or `−` if present.\n3. **Digits:** consume digits, and an underscore only if a digit was read before it and the next character is a\n   digit. Anything else stops.\n4. **Finish:** no digits means 0; otherwise apply the sign and clamp.\n\n**Overflow without big numbers.** Once the magnitude passes 2³¹ the final answer is already decided: it clamps.\nSo cap the running value at 2³¹ after every digit; it then always fits in 64 bits."
+  },
+  {
+   "md": "**Readings of tricky inputs:**"
+  },
+  {
+   "table": {
+    "head": [
+     "text",
+     "value"
+    ],
+    "rows": [
+     [
+      "\"  -12_405_kWh\"",
+      "-12405"
+     ],
+     [
+      "\"+7\"",
+      "7"
+     ],
+     [
+      "\"5__6\"",
+      "5"
+     ],
+     [
+      "\"_42\"",
+      "0"
+     ],
+     [
+      "\"12_\"",
+      "12"
+     ],
+     [
+      "\"  - 3\"",
+      "0"
+     ],
+     [
+      "\"99_999_999_999\"",
+      "2147483647"
+     ],
+     [
+      "\"-99999999999\"",
+      "-2147483648"
+     ],
+     [
+      "\"abc\"",
+      "0"
+     ],
+     [
+      "\"\"",
+      "0"
+     ]
+    ]
+   }
+  }
+ ],
+ "approaches": [
+  {
+   "title": "Single scan with a capped value",
+   "kind": "best",
+   "time": "O(n)",
+   "space": "O(1)",
+   "idea": [
+    {
+     "md": "One index walks through the phases above. In the digit phase keep `value = min(2³¹, value · 10 + digit)`\nand a flag `seen` that turns on at the first digit. At the end return `clamp(sign · value)`.\n\n**Why capping at 2³¹ is safe.** Any magnitude of at least 2³¹ clamps to the same answer (`2³¹ − 1` for\npositive, `−2³¹` for negative, and `−2³¹` is exactly `−1 · 2³¹`). So replacing a larger value by 2³¹ never\nchanges the result."
+    }
+   ],
+   "build": [
+    "Skip leading spaces.",
+    "Read an optional sign.",
+    "Read digits and valid underscores, capping the value.",
+    "Apply the sign and clamp."
+   ],
+   "code": {
+    "python": "class Solution:\n    def readMeter(self, text: str) -> int:\n        n, i = len(text), 0\n        while i < n and text[i] == \" \":\n            i += 1\n        sign = 1\n        if i < n and text[i] in \"+-\":\n            sign = -1 if text[i] == \"-\" else 1\n            i += 1\n        cap, value, seen = 1 << 31, 0, False\n        while i < n:\n            c = text[i]\n            if c.isdigit():\n                value = min(cap, value * 10 + int(c))\n                seen = True\n            elif not (c == \"_\" and seen and i + 1 < n and text[i + 1].isdigit()):\n                break\n            i += 1\n        return max(-cap, min(cap - 1, sign * value))\n",
+    "java": "class Solution {\n    public int readMeter(String text) {\n        int n = text.length(), i = 0;\n        while (i < n && text.charAt(i) == ' ') i++;\n        int sign = 1;\n        if (i < n && (text.charAt(i) == '+' || text.charAt(i) == '-')) sign = text.charAt(i++) == '-' ? -1 : 1;\n        long cap = 1L << 31, value = 0;\n        boolean seen = false;\n        for (; i < n; i++) {\n            char c = text.charAt(i);\n            if (Character.isDigit(c)) { value = Math.min(cap, value * 10 + (c - '0')); seen = true; }\n            else if (!(c == '_' && seen && i + 1 < n && Character.isDigit(text.charAt(i + 1)))) break;\n        }\n        return (int) Math.max(-cap, Math.min(cap - 1, sign * value));\n    }\n}\n",
+    "cpp": "class Solution {\npublic:\n    int readMeter(string& text) {\n        int n = text.size(), i = 0;\n        while (i < n && text[i] == ' ') i++;\n        int sign = 1;\n        if (i < n && (text[i] == '+' || text[i] == '-')) sign = text[i++] == '-' ? -1 : 1;\n        long long cap = 1LL << 31, value = 0;\n        bool seen = false;\n        for (; i < n; i++) {\n            char c = text[i];\n            if (isdigit((unsigned char) c)) { value = min(cap, value * 10 + (c - '0')); seen = true; }\n            else if (!(c == '_' && seen && i + 1 < n && isdigit((unsigned char) text[i + 1]))) break;\n        }\n        return (int) max(-cap, min(cap - 1, sign * value));\n    }\n};\n",
+    "c": "#include <ctype.h>\n\nint readMeter(char* text) {\n    int n = strlen(text), i = 0;\n    while (i < n && text[i] == ' ') i++;\n    int sign = 1;\n    if (i < n && (text[i] == '+' || text[i] == '-')) sign = text[i++] == '-' ? -1 : 1;\n    long long cap = 1LL << 31, value = 0;\n    bool seen = false;\n    for (; i < n; i++) {\n        char c = text[i];\n        if (isdigit((unsigned char) c)) { value = value * 10 + (c - '0'); if (value > cap) value = cap; seen = true; }\n        else if (!(c == '_' && seen && i + 1 < n && isdigit((unsigned char) text[i + 1]))) break;\n    }\n    long long r = sign * value;\n    return (int) (r < -cap ? -cap : r > cap - 1 ? cap - 1 : r);\n}\n"
+   },
+   "lines": [
+    {
+     "text": "Phase 1: only the space character is skipped.",
+     "at": {
+      "python": [
+       [
+        3,
+        5
+       ]
+      ],
+      "java": [
+       [
+        3,
+        4
+       ]
+      ],
+      "cpp": [
+       [
+        4,
+        5
+       ]
+      ],
+      "c": [
+       [
+        4,
+        5
+       ]
+      ]
+     }
+    },
+    {
+     "text": "Phase 2: at most one sign character; it isn't required.",
+     "at": {
+      "python": [
+       [
+        6,
+        9
+       ]
+      ],
+      "java": [
+       [
+        5,
+        6
+       ]
+      ],
+      "cpp": [
+       [
+        6,
+        7
+       ]
+      ],
+      "c": [
+       [
+        6,
+        7
+       ]
+      ]
+     }
+    },
+    {
+     "text": "Phase 3: each digit shifts the value left one decimal place. Capping at 2³¹ keeps it small while still remembering that it's out of range. `seen` records that a digit was read.",
+     "at": {
+      "python": [
+       [
+        10,
+        15
+       ],
+       [
+        18,
+        18
+       ]
+      ],
+      "java": [
+       [
+        7,
+        11
+       ]
+      ],
+      "cpp": [
+       [
+        8,
+        12
+       ]
+      ],
+      "c": [
+       [
+        8,
+        12
+       ]
+      ]
+     }
+    },
+    {
+     "text": "An underscore is skipped only between two digits (one already read, one next). Any other character, including a misplaced underscore, ends the number.",
+     "at": {
+      "python": [
+       [
+        16,
+        17
+       ]
+      ],
+      "java": [
+       [
+        12,
+        12
+       ]
+      ],
+      "cpp": [
+       [
+        13,
+        13
+       ]
+      ],
+      "c": [
+       [
+        13,
+        13
+       ]
+      ]
+     }
+    },
+    {
+     "text": "Apply the sign and clamp into the 32-bit range. With no digits, `value` is 0.",
+     "at": {
+      "python": [
+       [
+        19,
+        19
+       ]
+      ],
+      "java": [
+       [
+        14,
+        14
+       ]
+      ],
+      "cpp": [
+       [
+        15,
+        15
+       ]
+      ],
+      "c": [
+       [
+        15,
+        16
+       ]
+      ]
+     }
+    }
+   ],
+   "complexity": [
+    {
+     "md": "**Time O(n).** **Space O(1).**"
+    }
+   ],
+   "walk": {
+    "steps": [
+     {
+      "text": "Skip the two leading spaces.",
+      "panels": [
+       {
+        "type": "row",
+        "cells": [
+         " ",
+         " ",
+         "-",
+         "1",
+         "2",
+         "_",
+         "4",
+         "0",
+         "5",
+         "_",
+         "k",
+         "W",
+         "h"
+        ],
+        "states": {
+         "0": "dim",
+         "1": "dim"
+        }
+       }
+      ]
+     },
+     {
+      "text": "Read the sign '-'.",
+      "panels": [
+       {
+        "type": "row",
+        "cells": [
+         " ",
+         " ",
+         "-",
+         "1",
+         "2",
+         "_",
+         "4",
+         "0",
+         "5",
+         "_",
+         "k",
+         "W",
+         "h"
+        ],
+        "states": {
+         "2": "active"
+        }
+       },
+       {
+        "type": "vars",
+        "items": {
+         "sign": -1
+        }
+       }
+      ]
+     },
+     {
+      "text": "Digit 1: value = 1.",
+      "panels": [
+       {
+        "type": "row",
+        "cells": [
+         " ",
+         " ",
+         "-",
+         "1",
+         "2",
+         "_",
+         "4",
+         "0",
+         "5",
+         "_",
+         "k",
+         "W",
+         "h"
+        ],
+        "states": {
+         "3": "found"
+        }
+       },
+       {
+        "type": "vars",
+        "items": {
+         "sign": -1,
+         "value": 1
+        }
+       }
+      ]
+     },
+     {
+      "text": "Digit 2: value = 12.",
+      "panels": [
+       {
+        "type": "row",
+        "cells": [
+         " ",
+         " ",
+         "-",
+         "1",
+         "2",
+         "_",
+         "4",
+         "0",
+         "5",
+         "_",
+         "k",
+         "W",
+         "h"
+        ],
+        "states": {
+         "4": "found"
+        }
+       },
+       {
+        "type": "vars",
+        "items": {
+         "sign": -1,
+         "value": 12
+        }
+       }
+      ]
+     },
+     {
+      "text": "'_' sits between two digits: skip it.",
+      "panels": [
+       {
+        "type": "row",
+        "cells": [
+         " ",
+         " ",
+         "-",
+         "1",
+         "2",
+         "_",
+         "4",
+         "0",
+         "5",
+         "_",
+         "k",
+         "W",
+         "h"
+        ],
+        "states": {
+         "5": "dim"
+        }
+       },
+       {
+        "type": "vars",
+        "items": {
+         "sign": -1,
+         "value": 12
+        }
+       }
+      ]
+     },
+     {
+      "text": "Digit 4: value = 124.",
+      "panels": [
+       {
+        "type": "row",
+        "cells": [
+         " ",
+         " ",
+         "-",
+         "1",
+         "2",
+         "_",
+         "4",
+         "0",
+         "5",
+         "_",
+         "k",
+         "W",
+         "h"
+        ],
+        "states": {
+         "6": "found"
+        }
+       },
+       {
+        "type": "vars",
+        "items": {
+         "sign": -1,
+         "value": 124
+        }
+       }
+      ]
+     },
+     {
+      "text": "Digit 0: value = 1240.",
+      "panels": [
+       {
+        "type": "row",
+        "cells": [
+         " ",
+         " ",
+         "-",
+         "1",
+         "2",
+         "_",
+         "4",
+         "0",
+         "5",
+         "_",
+         "k",
+         "W",
+         "h"
+        ],
+        "states": {
+         "7": "found"
+        }
+       },
+       {
+        "type": "vars",
+        "items": {
+         "sign": -1,
+         "value": 1240
+        }
+       }
+      ]
+     },
+     {
+      "text": "Digit 5: value = 12405.",
+      "panels": [
+       {
+        "type": "row",
+        "cells": [
+         " ",
+         " ",
+         "-",
+         "1",
+         "2",
+         "_",
+         "4",
+         "0",
+         "5",
+         "_",
+         "k",
+         "W",
+         "h"
+        ],
+        "states": {
+         "8": "found"
+        }
+       },
+       {
+        "type": "vars",
+        "items": {
+         "sign": -1,
+         "value": 12405
+        }
+       }
+      ]
+     },
+     {
+      "text": "'_' stops the reading.",
+      "panels": [
+       {
+        "type": "row",
+        "cells": [
+         " ",
+         " ",
+         "-",
+         "1",
+         "2",
+         "_",
+         "4",
+         "0",
+         "5",
+         "_",
+         "k",
+         "W",
+         "h"
+        ],
+        "states": {
+         "9": "mark"
+        }
+       },
+       {
+        "type": "vars",
+        "items": {
+         "sign": -1,
+         "value": 12405
+        }
+       }
+      ]
+     },
+     {
+      "text": "Apply the sign: -12405. It's inside the 32-bit range.",
+      "panels": [],
+      "result": "-12405"
+     }
+    ],
+    "title": "One pass: spaces, an optional sign, then digits (with single underscores between digits)."
+   }
+  }
+ ],
+ "takeaways": [
+  {
+   "md": "- **Parsing = phases + one index.** Write down each phase's stop condition.\n- **Cap early** when the result is known to clamp, instead of using big integers.\n- **Pitfalls:** treating a lone sign as a number; accepting underscores at the edges."
+  }
+ ]
+}

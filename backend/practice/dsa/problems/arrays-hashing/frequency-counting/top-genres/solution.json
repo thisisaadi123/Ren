@@ -4,35 +4,72 @@
  "question": [
   {
    "md": "Return the `k` most-played genres, best first. Ties in play count go to the **smaller genre id**.\n\n- **The order of the answer matters:** by count descending, then id ascending.\n- **Ids can be negative** (−10⁴ … 10⁴), so shift them by 10⁴ to use them as array indices.\n- **k is valid:** at least k different genres exist.\n- **Size:** up to 10⁵ plays, up to 20,001 distinct genres."
+  },
+  {
+   "md": "**Edge cases to keep in mind**\n\n- Ties in play count: smaller genre id first.\n- `k` equals the number of genres: return all of them in order.\n- Genre ids can be negative (down to −10⁴), so an array index needs an offset of 10⁴."
   }
  ],
  "think": [
   {
-   "md": "Take `plays = [3, 1, 3, 2, 1, 3, 4, 2, 1, 5]` with k = 3. Counts: 1→3, 3→3, 2→2, 4→1, 5→1.\nOrder by count, ties by id: 1 (3 plays), 3 (3 plays), 2, 4, 5. The top 3 are `[1, 3, 2]`."
+   "md": "**Counting is a lookup table.** Most \"how many times\" questions reduce to: walk the input once and keep a count per\nvalue. The only design choice is the table:\n\n- **A plain array** when the values are small and known in advance (26 letters, 128 characters, ids in a fixed range):\n  index directly by the value.\n- **A hash map (or hash set)** when values are large or unpredictable (up to 10⁹): expected O(1) per lookup.\n\nEither way, one pass builds the counts in O(n), which is what replaces repeated scanning."
   },
   {
-   "panels": [
-    {
-     "type": "row",
-     "cells": [
-      "1:3",
-      "3:3",
-      "2:2",
-      "4:1",
-      "5:1"
+   "md": "**Count, then take the best `k`.** For `[3, 1, 3, 2, 1, 3, 4, 2, 1, 5]` with `k = 3`:"
+  },
+  {
+   "table": {
+    "head": [
+     "genre",
+     "plays"
+    ],
+    "rows": [
+     [
+      "1",
+      "3"
      ],
-     "states": {
-      "0": "answer",
-      "1": "answer",
-      "2": "answer"
-     },
-     "label": "genre:plays, best first"
-    }
-   ],
-   "caption": "Genres 1 and 3 tie; 1 wins on id."
+     [
+      "3",
+      "3"
+     ],
+     [
+      "2",
+      "2"
+     ],
+     [
+      "4",
+      "1"
+     ],
+     [
+      "5",
+      "1"
+     ]
+    ]
+   }
   },
   {
-   "md": "So the work is: count (one pass), then **select the k best**. Selection is where the approaches\ndiffer:\n\n- sort all d genres: O(d log d);\n- keep only the best k seen so far in a heap: O(d log k), good when k is small;\n- put genres in buckets by count, since counts are integers between 1 and n: O(n + d), no comparisons\n  at all."
+   "md": "The top 3 are **`[1, 3, 2]`**.\n\n**Ways to take the best `k`:** sort all genres (O(g log g)), keep a size-`k` min-heap of the best seen so far\n(O(g log k)), or, since counts are at most `n`, put genres in **buckets by count** and read from the highest\nbucket down (O(n)):"
+  },
+  {
+   "table": {
+    "head": [
+     "play count",
+     "genres (id order)"
+    ],
+    "rows": [
+     [
+      "3",
+      "1, 3"
+     ],
+     [
+      "2",
+      "2"
+     ],
+     [
+      "1",
+      "4, 5"
+     ]
+    ]
+   }
   }
  ],
  "approaches": [
@@ -43,13 +80,13 @@
    "space": "O(d)",
    "idea": [
     {
-     "md": "List the distinct genres. k times: count every remaining genre with a scan of `plays`, take the best (most plays, then smallest id), and remove it."
+     "md": "`k` times, scan all remaining genres for the most played (counting with `plays.count`), take it and remove it."
     }
    ],
    "build": [
-    "Collect the distinct genres in increasing id order.",
-    "Repeat k times: find the genre with the most plays (scanning to count), keeping the earlier (smaller) id on ties.",
-    "Move it to the answer."
+    "Distinct genres in id order.",
+    "Each round, find the most played.",
+    "Take it and remove it."
    ],
    "code": {
     "python": "class Solution:\n    def topGenres(self, plays: List[int], k: int) -> List[int]:\n        left = sorted(set(plays))\n        out = []\n        for _ in range(k):\n            best = left[0]\n            for g in left:\n                if plays.count(g) > plays.count(best):\n                    best = g\n            out.append(best)\n            left.remove(best)\n        return out\n",
@@ -59,7 +96,7 @@
    },
    "lines": [
     {
-     "text": "The genres still in the running.",
+     "text": "The genres still available, in id order (so ties go to the smaller id).",
      "at": {
       "python": [
        [
@@ -93,7 +130,7 @@
      }
     },
     {
-     "text": "Each round adds one genre to the answer.",
+     "text": "One genre is chosen per round.",
      "at": {
       "python": [
        [
@@ -122,7 +159,7 @@
      }
     },
     {
-     "text": "Count every remaining genre with a full scan. Genres are visited from the smallest id and only a strictly higher count replaces the best, which implements the tie rule.",
+     "text": "The genre with the most plays; strictly more is needed to replace, so ties keep the smaller id.",
      "at": {
       "python": [
        [
@@ -151,7 +188,7 @@
      }
     },
     {
-     "text": "Record the winner (shifting its index back to an id) and remove it from the running.",
+     "text": "Add it to the answer and remove it from the candidates.",
      "at": {
       "python": [
        [
@@ -180,7 +217,7 @@
      }
     },
     {
-     "text": "The k winners in order.",
+     "text": "The `k` chosen genres.",
      "at": {
       "python": [
        [
@@ -214,7 +251,7 @@
    ],
    "complexity": [
     {
-     "md": "**Time O(k · d · n):** k rounds × d genres × an n-long scan. **Space O(d).**"
+     "md": "**Time O(k · g · n)** because every count rescans the log. **Space O(g).**"
     }
    ],
    "walk": {
@@ -310,7 +347,7 @@
    },
    "limits": [
     {
-     "md": "Counts are recomputed every round although they never change. Count once, then choose."
+     "md": "Counts are recomputed constantly. Count once, then select."
     }
    ],
    "slow": true
@@ -322,14 +359,14 @@
    "space": "O(d)",
    "idea": [
     {
-     "md": "Count plays into an array indexed by `id + 10000`. Collect the genres that appear and sort them by (count descending, id ascending). The first k are the answer."
+     "md": "Count plays into an array indexed by `genre + 10⁴`. Collect the genres that were played and sort them by `(−count, id)`; take the first `k`."
     }
    ],
    "build": [
-    "Count plays per genre (shifted index).",
-    "Collect genres with a nonzero count.",
-    "Sort by count descending, then id ascending.",
-    "Return the first k."
+    "Count with an offset.",
+    "Collect played genres.",
+    "Sort by count descending, then id.",
+    "Take `k`."
    ],
    "code": {
     "python": "class Solution:\n    def topGenres(self, plays: List[int], k: int) -> List[int]:\n        count = [0] * 20001\n        for g in plays:\n            count[g + 10000] += 1\n        genres = [i - 10000 for i in range(20001) if count[i]]\n        genres.sort(key=lambda g: (-count[g + 10000], g))\n        return genres[:k]\n",
@@ -354,7 +391,7 @@
      }
     },
     {
-     "text": "Ids −10⁴ … 10⁴ shifted by 10⁴ become indices 0 … 20,000.",
+     "text": "One pass over the log; the offset maps ids −10⁴…10⁴ to indices 0…20000.",
      "at": {
       "python": [
        [
@@ -383,7 +420,7 @@
      }
     },
     {
-     "text": "The genres that were actually played (d of them).",
+     "text": "The genres that were played at least once.",
      "at": {
       "python": [
        [
@@ -412,7 +449,7 @@
      }
     },
     {
-     "text": "Best first: more plays, then smaller id.",
+     "text": "Most plays first; ties by smaller id.",
      "at": {
       "python": [
        [
@@ -441,7 +478,7 @@
      }
     },
     {
-     "text": "The first k.",
+     "text": "The first `k`.",
      "at": {
       "python": [
        [
@@ -475,7 +512,7 @@
    ],
    "complexity": [
     {
-     "md": "**Time O(n + R + d log d)** with R = 20,001 possible ids (a constant). **Space O(R).**"
+     "md": "**Time O(n + g log g)** for `g` distinct genres. **Space O(R)** for the count array (R = 20001)."
     }
    ],
    "walk": {
@@ -539,7 +576,7 @@
    },
    "limits": [
     {
-     "md": "It sorts all d genres just to keep k of them. When k is much smaller than d, keeping only the best k is cheaper."
+     "md": "Sorts every genre although only `k` are needed."
     }
    ]
   },
@@ -550,14 +587,14 @@
    "space": "O(k)",
    "idea": [
     {
-     "md": "Visit the genres with their counts. Keep a heap of at most k entries whose **top is the weakest**\none kept (fewest plays; on a tie, the larger id). For each genre: if the heap has fewer than k,\npush it; otherwise, if it beats the top, replace the top. At the end the heap holds the k best;\npop them weakest first and reverse."
+     "md": "Count, then scan the genres keeping a **min-heap of size `k`** holding the best `k` so far, ordered by\n`(count, −id)` so the weakest is on top. A new genre replaces the top only if it's better. At the end, sort\nthe heap's `k` items from best to worst."
     }
    ],
    "build": [
-    "Count plays per genre.",
-    "Define \"weaker\": fewer plays, or equal plays and a larger id.",
-    "For each played genre: push if the heap has < k entries; else if it's stronger than the top, replace the top.",
-    "Pop everything (weakest first) and fill the answer from the back."
+    "Count with an offset.",
+    "Min-heap of the best `k`.",
+    "Replace the weakest when a better genre appears.",
+    "Sort the `k` winners."
    ],
    "code": {
     "python": "import heapq\n\nclass Solution:\n    def topGenres(self, plays: List[int], k: int) -> List[int]:\n        count = [0] * 20001\n        for g in plays:\n            count[g + 10000] += 1\n        heap = []\n        for i in range(20001):\n            if not count[i]:\n                continue\n            item = (count[i], -(i - 10000))\n            if len(heap) < k:\n                heapq.heappush(heap, item)\n            elif item > heap[0]:\n                heapq.heapreplace(heap, item)\n        best = sorted(heap, reverse=True)\n        return [-g for _, g in best]\n",
@@ -597,7 +634,7 @@
      }
     },
     {
-     "text": "Plays per genre, ids shifted by 10⁴ into array indices.",
+     "text": "One pass over the log.",
      "at": {
       "python": [
        [
@@ -626,7 +663,7 @@
      }
     },
     {
-     "text": "The k strongest genres seen so far, weakest on top.",
+     "text": "The best `k` genres seen so far, weakest on top.",
      "at": {
       "python": [
        [
@@ -659,7 +696,7 @@
      }
     },
     {
-     "text": "Visit each genre that was played.",
+     "text": "Every genre that was played.",
      "at": {
       "python": [
        [
@@ -741,7 +778,7 @@
      }
     },
     {
-     "text": "The heap pops weakest first, so fill the answer from the back to get best first.",
+     "text": "Sort the `k` winners from most to fewest plays (ties by id) and return their ids.",
      "at": {
       "python": [
        [
@@ -784,7 +821,7 @@
    ],
    "complexity": [
     {
-     "md": "**Time O(n + R + d log k):** counting, then each of d genres costs at most one O(log k) heap operation. **Space O(k)** for the heap (plus the fixed count array)."
+     "md": "**Time O(n + g log k).** **Space O(k)** for the heap."
     }
    ],
    "walk": {
@@ -891,7 +928,7 @@
    },
    "limits": [
     {
-     "md": "Still pays a log factor per genre. Since play counts are integers between 1 and n, buckets can order genres by count with no comparisons at all."
+     "md": "Still O(log k) per genre. Counts are bounded by `n`, so buckets avoid comparisons entirely."
     }
    ]
   },
@@ -902,13 +939,13 @@
    "space": "O(n + R)",
    "idea": [
     {
-     "md": "After counting, put each genre into `bucket[count]`, visiting genres in increasing id order so\nevery bucket is sorted by id. Then read buckets from the highest count (n) down, taking genres\nuntil there are k. Ties are handled by the bucket's order; no sorting anywhere."
+     "md": "Count, then drop each played genre into `bucket[count]` in increasing id order. Read buckets from the\nhighest count down, collecting genres until `k` are taken.\n\n**Why the order is right.** Higher buckets come first; within a bucket, ids were appended in increasing\norder, which is the tie rule."
     }
    ],
    "build": [
-    "Count plays per genre (shifted index).",
-    "Create buckets `0 … n`; for ids in increasing order, append each played genre to `bucket[count]`.",
-    "Walk `c` from n down to 1, appending genres from `bucket[c]` until k are taken."
+    "Count with an offset.",
+    "Bucket genres by count (ids ascending).",
+    "Read from the highest bucket until `k` are taken."
    ],
    "code": {
     "python": "class Solution:\n    def topGenres(self, plays: List[int], k: int) -> List[int]:\n        count = [0] * 20001\n        for g in plays:\n            count[g + 10000] += 1\n        bucket = [[] for _ in range(len(plays) + 1)]\n        for i in range(20001):\n            if count[i]:\n                bucket[count[i]].append(i - 10000)\n        out = []\n        for c in range(len(plays), 0, -1):\n            for g in bucket[c]:\n                if len(out) == k:\n                    return out\n                out.append(g)\n        return out\n",
@@ -918,7 +955,7 @@
    },
    "lines": [
     {
-     "text": "Plays per genre, ids shifted by 10⁴ into indices.",
+     "text": "One pass over the log.",
      "at": {
       "python": [
        [
@@ -947,7 +984,7 @@
      }
     },
     {
-     "text": "Each played genre goes into the bucket for its count. Ids are visited smallest first, so each bucket is already ordered by id: exactly the tie rule.",
+     "text": "Each played genre goes into the bucket for its play count, in increasing id order.",
      "at": {
       "python": [
        [
@@ -979,7 +1016,7 @@
      }
     },
     {
-     "text": "From the highest possible count (n) downwards, take genres in bucket order until k are taken.",
+     "text": "Highest count first; stop as soon as `k` genres are collected.",
      "at": {
       "python": [
        [
@@ -1008,7 +1045,7 @@
      }
     },
     {
-     "text": "The k most-played genres, best first.",
+     "text": "The top `k` genres.",
      "at": {
       "python": [
        [
@@ -1042,7 +1079,7 @@
    ],
    "complexity": [
     {
-     "md": "**Time O(n + R):** counting, one pass over the R = 20,001 possible ids, and at most n buckets to read. **Space O(n + R).**"
+     "md": "**Time O(n + R):** counting, a pass over the id range, and the buckets. **Space O(n + R).**"
     }
    ],
    "walk": {
@@ -1131,7 +1168,7 @@
  ],
  "takeaways": [
   {
-   "md": "- **Top-k by frequency** = count, then select. Selection options: sort (d log d), size-k heap\n  (d log k), buckets by count (linear).\n- For a heap of the \"best k\", keep the **weakest on top** so it's the one you compare against and\n  evict.\n- Small, known id ranges (here −10⁴ … 10⁴) make an offset array a drop-in replacement for a hash map.\n- Ties are part of the order: encode them in the comparator, or get them for free by filling\n  buckets in id order."
+   "md": "- **Top k by frequency:** count, then buckets (O(n)), a size-k heap (O(g log k)), or a full sort.\n- Encode tie rules in the order buckets are filled or in the heap key.\n- **Pitfall:** a max-heap of all genres when a size-k min-heap is enough."
   }
  ]
 }

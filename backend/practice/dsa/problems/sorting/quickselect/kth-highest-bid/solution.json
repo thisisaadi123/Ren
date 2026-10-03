@@ -1,0 +1,665 @@
+{
+ "version": 1,
+ "summary": "The k-th highest bid is the value at index `n − k` of the sorted bids. Quickselect finds it without sorting:\npartition around a random pivot (three ways, so repeats are handled), then continue only in the part that\ncontains index `n − k`. Expected O(n).",
+ "question": [
+  {
+   "md": "Return the k-th highest bid, counting repeats: in `[9, 9, 5]` the 2nd highest is 9.\n\n- **Repeats count separately**, so this is \"the value at sorted position k from the top\".\n- **Up to 10⁵ bids** and k anywhere from 1 to n."
+  },
+  {
+   "md": "**Edge cases to keep in mind**\n\n- Repeats count separately: in `[9, 9, 5]` the 2nd highest is 9.\n- `k = 1` is the maximum; `k = n` the minimum.\n- The k-th highest is the value at sorted (ascending) index `n − k`."
+  }
+ ],
+ "think": [
+  {
+   "md": "**Quickselect: quick sort that only follows one side.** To find the value at sorted position `t`, partition around a\npivot into `< p | = p | > p`. The `= p` block already sits at its final sorted positions `lt … gt`:\n\n- if `t` falls inside `lt … gt`, the answer is the pivot;\n- if `t < lt`, the answer is in the left part, so continue only there;\n- if `t > gt`, continue only in the right part.\n\n**Why it's O(n) on average.** A random pivot splits the range roughly in half on average, and only one half is kept:\n`n + n/2 + n/4 + … ≈ 2n` comparisons. The worst case is O(n²) (consistently terrible pivots), which randomness makes\nvanishingly unlikely. Three-way partitioning keeps repeated values from causing that worst case."
+  },
+  {
+   "md": "**Quickselect on `[12, 40, 7, 40, 25, 3, 18]` for the 3rd highest** (sorted index 4); the pivot is random, one possible run:"
+  },
+  {
+   "table": {
+    "head": [
+     "range",
+     "pivot",
+     "after partition (< | = | >)",
+     "pivot block",
+     "decision"
+    ],
+    "rows": [
+     [
+      "0 … 6",
+      "40",
+      "[12, 7, 25, 3, 18] | [40, 40] | []",
+      "5 … 6",
+      "left of the block → keep the left part"
+     ],
+     [
+      "0 … 4",
+      "18",
+      "[12, 7, 3] | [18] | [25]",
+      "3 … 3",
+      "right of the block → keep the right part"
+     ],
+     [
+      "4 … 4",
+      "25",
+      "[] | [25] | []",
+      "4 … 4",
+      "inside the pivot block → answer"
+     ]
+    ]
+   }
+  },
+  {
+   "md": "Answer **25** (sorted: [3, 7, 12, 18, 25, 40, 40])."
+  }
+ ],
+ "approaches": [
+  {
+   "title": "Sort and index",
+   "kind": "brute",
+   "time": "O(n log n)",
+   "space": "O(n)",
+   "idea": [
+    {
+     "md": "Sort and read index `n − k`."
+    }
+   ],
+   "build": [
+    "Sort.",
+    "Index `n − k`."
+   ],
+   "code": {
+    "python": "class Solution:\n    def kthHighest(self, bids: List[int], k: int) -> int:\n        return sorted(bids)[len(bids) - k]\n",
+    "java": "class Solution {\n    public int kthHighest(int[] bids, int k) {\n        int[] a = bids.clone();\n        Arrays.sort(a);\n        return a[a.length - k];\n    }\n}\n",
+    "cpp": "class Solution {\npublic:\n    int kthHighest(vector<int>& bids, int k) {\n        vector<int> a = bids;\n        sort(a.begin(), a.end());\n        return a[a.size() - k];\n    }\n};\n",
+    "c": "static int cmp_int(const void* x, const void* y) {\n    int a = *(const int*) x, b = *(const int*) y;\n    return (a > b) - (a < b);\n}\n\nint kthHighest(int* bids, int bidsSize, int k) {\n    int* a = malloc(bidsSize * sizeof(int));\n    memcpy(a, bids, bidsSize * sizeof(int));\n    qsort(a, bidsSize, sizeof(int), cmp_int);\n    int answer = a[bidsSize - k];\n    free(a);\n    return answer;\n}\n"
+   },
+   "lines": [
+    {
+     "text": "Sort ascending; the k-th highest sits k places from the end.",
+     "at": {
+      "python": [
+       [
+        3,
+        3
+       ]
+      ],
+      "java": [
+       [
+        3,
+        5
+       ]
+      ],
+      "cpp": [
+       [
+        4,
+        6
+       ]
+      ],
+      "c": [
+       [
+        1,
+        4
+       ],
+       [
+        7,
+        12
+       ]
+      ]
+     }
+    }
+   ],
+   "complexity": [
+    {
+     "md": "**Time O(n log n).** **Space O(n).**"
+    }
+   ],
+   "walk": {
+    "steps": [
+     {
+      "text": "Sorted high to low: [40, 40, 25, 18, 12, 7, 3].",
+      "panels": [
+       {
+        "type": "row",
+        "cells": [
+         40,
+         40,
+         25,
+         18,
+         12,
+         7,
+         3
+        ],
+        "states": {
+         "2": "found"
+        }
+       }
+      ]
+     },
+     {
+      "text": "Position 3: 25.",
+      "panels": [],
+      "result": "25"
+     }
+    ],
+    "title": "Sort from highest to lowest and read position k."
+   },
+   "limits": [
+    {
+     "md": "Orders everything to read one position."
+    }
+   ]
+  },
+  {
+   "title": "Min-heap of the k highest",
+   "kind": "better",
+   "time": "O(n log k)",
+   "space": "O(k)",
+   "idea": [
+    {
+     "md": "Keep a min-heap of the `k` largest bids seen so far: push each bid, and pop the smallest whenever the heap\nexceeds `k`. At the end the heap's minimum is the k-th highest."
+    }
+   ],
+   "build": [
+    "Min-heap.",
+    "Push each bid; pop when size exceeds `k`.",
+    "Return the heap's minimum."
+   ],
+   "code": {
+    "python": "import heapq\n\nclass Solution:\n    def kthHighest(self, bids: List[int], k: int) -> int:\n        heap = []\n        for b in bids:\n            heapq.heappush(heap, b)\n            if len(heap) > k:\n                heapq.heappop(heap)\n        return heap[0]\n",
+    "java": "class Solution {\n    public int kthHighest(int[] bids, int k) {\n        PriorityQueue<Integer> heap = new PriorityQueue<>();\n        for (int b : bids) {\n            heap.add(b);\n            if (heap.size() > k) heap.poll();\n        }\n        return heap.peek();\n    }\n}\n",
+    "cpp": "class Solution {\npublic:\n    int kthHighest(vector<int>& bids, int k) {\n        priority_queue<int, vector<int>, greater<int>> heap;\n        for (int b : bids) {\n            heap.push(b);\n            if ((int) heap.size() > k) heap.pop();\n        }\n        return heap.top();\n    }\n};\n",
+    "c": "static void push(int* h, int* n, int x) {\n    int i = (*n)++;\n    while (i > 0 && h[(i - 1) / 2] > x) { h[i] = h[(i - 1) / 2]; i = (i - 1) / 2; }\n    h[i] = x;\n}\n\nstatic void pop(int* h, int* n) {\n    int x = h[--(*n)], i = 0;\n    for (int c = 1; c < *n; i = c, c = 2 * c + 1) {\n        if (c + 1 < *n && h[c + 1] < h[c]) c++;\n        if (h[c] >= x) break;\n        h[i] = h[c];\n    }\n    if (*n > 0) h[i] = x;\n}\n\nint kthHighest(int* bids, int bidsSize, int k) {\n    int* heap = malloc((k + 1) * sizeof(int));\n    int n = 0;\n    for (int i = 0; i < bidsSize; i++) {\n        push(heap, &n, bids[i]);\n        if (n > k) pop(heap, &n);\n    }\n    int answer = heap[0];\n    free(heap);\n    return answer;\n}\n"
+   },
+   "lines": [
+    {
+     "text": "A min-heap that will hold the k highest bids seen so far.",
+     "at": {
+      "python": [
+       [
+        5,
+        5
+       ]
+      ],
+      "java": [
+       [
+        3,
+        3
+       ]
+      ],
+      "cpp": [
+       [
+        4,
+        4
+       ]
+      ],
+      "c": [
+       [
+        18,
+        19
+       ]
+      ]
+     },
+     "notes": {
+      "c": "A small array-based binary heap."
+     }
+    },
+    {
+     "text": "Every bid gets a chance.",
+     "at": {
+      "python": [
+       [
+        6,
+        7
+       ]
+      ],
+      "java": [
+       [
+        4,
+        5
+       ]
+      ],
+      "cpp": [
+       [
+        5,
+        6
+       ]
+      ],
+      "c": [
+       [
+        1,
+        5
+       ],
+       [
+        20,
+        21
+       ]
+      ]
+     },
+     "notes": {
+      "c": "Sift up past bigger parents."
+     }
+    },
+    {
+     "text": "More than k kept: the smallest can't be among the k highest any more.",
+     "at": {
+      "python": [
+       [
+        8,
+        9
+       ]
+      ],
+      "java": [
+       [
+        6,
+        6
+       ]
+      ],
+      "cpp": [
+       [
+        7,
+        7
+       ]
+      ],
+      "c": [
+       [
+        7,
+        15
+       ],
+       [
+        22,
+        22
+       ]
+      ]
+     },
+     "notes": {
+      "c": "Remove the root and sift the last value down."
+     }
+    },
+    {
+     "text": "The smallest of the k highest is the k-th highest.",
+     "at": {
+      "python": [
+       [
+        10,
+        10
+       ]
+      ],
+      "java": [
+       [
+        8,
+        8
+       ]
+      ],
+      "cpp": [
+       [
+        9,
+        9
+       ]
+      ],
+      "c": [
+       [
+        24,
+        26
+       ]
+      ]
+     }
+    }
+   ],
+   "complexity": [
+    {
+     "md": "**Time O(n log k).** **Space O(k).**"
+    }
+   ],
+   "walk": {
+    "steps": [
+     {
+      "text": "Add 12.",
+      "panels": [
+       {
+        "type": "row",
+        "cells": [
+         12
+        ],
+        "label": "heap (sorted for display)"
+       }
+      ]
+     },
+     {
+      "text": "Add 40.",
+      "panels": [
+       {
+        "type": "row",
+        "cells": [
+         12,
+         40
+        ],
+        "label": "heap (sorted for display)"
+       }
+      ]
+     },
+     {
+      "text": "Add 7.",
+      "panels": [
+       {
+        "type": "row",
+        "cells": [
+         7,
+         12,
+         40
+        ],
+        "label": "heap (sorted for display)"
+       }
+      ]
+     },
+     {
+      "text": "Add 40; more than 3 kept, so drop the smallest, 7.",
+      "panels": [
+       {
+        "type": "row",
+        "cells": [
+         12,
+         40,
+         40
+        ],
+        "label": "heap (sorted for display)"
+       }
+      ]
+     },
+     {
+      "text": "Add 25; more than 3 kept, so drop the smallest, 12.",
+      "panels": [
+       {
+        "type": "row",
+        "cells": [
+         25,
+         40,
+         40
+        ],
+        "label": "heap (sorted for display)"
+       }
+      ]
+     },
+     {
+      "text": "Add 3; more than 3 kept, so drop the smallest, 3.",
+      "panels": [
+       {
+        "type": "row",
+        "cells": [
+         25,
+         40,
+         40
+        ],
+        "label": "heap (sorted for display)"
+       }
+      ]
+     },
+     {
+      "text": "Add 18; more than 3 kept, so drop the smallest, 18.",
+      "panels": [
+       {
+        "type": "row",
+        "cells": [
+         25,
+         40,
+         40
+        ],
+        "label": "heap (sorted for display)"
+       }
+      ]
+     },
+     {
+      "text": "The heap's smallest is the 3-th highest: 25.",
+      "panels": [],
+      "result": "25"
+     }
+    ],
+    "title": "Keep a min-heap of the 3 highest bids seen so far; its top is the k-th highest."
+   },
+   "limits": [
+    {
+     "md": "O(log k) per bid; quickselect averages O(1) per element."
+    }
+   ]
+  },
+  {
+   "title": "Three-way quickselect",
+   "kind": "best",
+   "time": "O(n) expected",
+   "space": "O(n)",
+   "idea": [
+    {
+     "md": "Quickselect for sorted index `n − k` with three-way partitioning and a random pivot, narrowing `lo … hi`\nto the side that contains the target until it lands in the pivot block."
+    }
+   ],
+   "build": [
+    "Target index `n − k`.",
+    "Random pivot, three-way partition.",
+    "Keep the side containing the target."
+   ],
+   "code": {
+    "python": "import random\n\nclass Solution:\n    def kthHighest(self, bids: List[int], k: int) -> int:\n        a = bids[:]\n        target = len(a) - k\n        lo, hi = 0, len(a) - 1\n        while True:\n            p = a[random.randint(lo, hi)]\n            lt, i, gt = lo, lo, hi\n            while i <= gt:\n                if a[i] < p:\n                    a[lt], a[i] = a[i], a[lt]\n                    lt += 1\n                    i += 1\n                elif a[i] > p:\n                    a[i], a[gt] = a[gt], a[i]\n                    gt -= 1\n                else:\n                    i += 1\n            if target < lt:\n                hi = lt - 1\n            elif target > gt:\n                lo = gt + 1\n            else:\n                return p\n",
+    "java": "class Solution {\n    private final Random rng = new Random(5);\n\n    public int kthHighest(int[] bids, int k) {\n        int[] a = bids.clone();\n        int target = a.length - k;\n        int lo = 0, hi = a.length - 1;\n        while (true) {\n            int p = a[lo + rng.nextInt(hi - lo + 1)];\n            int lt = lo, i = lo, gt = hi;\n            while (i <= gt) {\n                if (a[i] < p) { int t = a[lt]; a[lt++] = a[i]; a[i++] = t; }\n                else if (a[i] > p) { int t = a[gt]; a[gt--] = a[i]; a[i] = t; }\n                else i++;\n            }\n            if (target < lt) hi = lt - 1;\n            else if (target > gt) lo = gt + 1;\n            else return p;\n        }\n    }\n}\n",
+    "cpp": "class Solution {\npublic:\n    int kthHighest(vector<int>& bids, int k) {\n        vector<int> a = bids;\n        int target = a.size() - k;\n        int lo = 0, hi = (int) a.size() - 1;\n        mt19937 rng(5);\n        while (true) {\n            int p = a[lo + rng() % (hi - lo + 1)];\n            int lt = lo, i = lo, gt = hi;\n            while (i <= gt) {\n                if (a[i] < p) swap(a[lt++], a[i++]);\n                else if (a[i] > p) swap(a[i], a[gt--]);\n                else i++;\n            }\n            if (target < lt) hi = lt - 1;\n            else if (target > gt) lo = gt + 1;\n            else return p;\n        }\n    }\n};\n",
+    "c": "int kthHighest(int* bids, int bidsSize, int k) {\n    int n = bidsSize;\n    int* a = malloc(n * sizeof(int));\n    memcpy(a, bids, n * sizeof(int));\n    int target = n - k;\n    int lo = 0, hi = n - 1, answer = 0;\n    while (1) {\n        int p = a[lo + rand() % (hi - lo + 1)];\n        int lt = lo, i = lo, gt = hi;\n        while (i <= gt) {\n            if (a[i] < p) { int t = a[lt]; a[lt++] = a[i]; a[i++] = t; }\n            else if (a[i] > p) { int t = a[gt]; a[gt--] = a[i]; a[i] = t; }\n            else i++;\n        }\n        if (target < lt) hi = lt - 1;\n        else if (target > gt) lo = gt + 1;\n        else { answer = p; break; }\n    }\n    free(a);\n    return answer;\n}\n"
+   },
+   "lines": [
+    {
+     "text": "A copy to rearrange, and the target index: the k-th highest is at `n − k` in ascending order.",
+     "at": {
+      "python": [
+       [
+        5,
+        6
+       ]
+      ],
+      "java": [
+       [
+        5,
+        6
+       ]
+      ],
+      "cpp": [
+       [
+        4,
+        5
+       ]
+      ],
+      "c": [
+       [
+        2,
+        5
+       ]
+      ]
+     }
+    },
+    {
+     "text": "The answer is somewhere in `a[lo..hi]`; at first, the whole array.",
+     "at": {
+      "python": [
+       [
+        7,
+        8
+       ]
+      ],
+      "java": [
+       [
+        7,
+        8
+       ]
+      ],
+      "cpp": [
+       [
+        6,
+        8
+       ]
+      ],
+      "c": [
+       [
+        6,
+        7
+       ]
+      ]
+     }
+    },
+    {
+     "text": "Three-way partition around a random pivot value: `< p` to the front, `> p` to the back, copies of `p` in the middle.",
+     "at": {
+      "python": [
+       [
+        9,
+        20
+       ]
+      ],
+      "java": [
+       [
+        9,
+        14
+       ]
+      ],
+      "cpp": [
+       [
+        9,
+        14
+       ]
+      ],
+      "c": [
+       [
+        8,
+        13
+       ]
+      ]
+     }
+    },
+    {
+     "text": "After partitioning, `a[lt..gt]` holds exactly the pivot's copies, in their sorted positions. If the target index is among them, that's the answer; otherwise keep only the side that contains it.",
+     "at": {
+      "python": [
+       [
+        21,
+        26
+       ]
+      ],
+      "java": [
+       [
+        16,
+        18
+       ]
+      ],
+      "cpp": [
+       [
+        16,
+        18
+       ]
+      ],
+      "c": [
+       [
+        15,
+        17
+       ]
+      ]
+     }
+    },
+    {
+     "text": "Free the copy and return the value found.",
+     "at": {
+      "c": [
+       [
+        19,
+        20
+       ]
+      ]
+     }
+    }
+   ],
+   "complexity": [
+    {
+     "md": "**Time O(n)** expected, O(n²) worst case. **Space O(n)** for the copy (O(1) in place)."
+    }
+   ],
+   "walk": {
+    "steps": [
+     {
+      "text": "We want the value that would sit at index 4 after sorting (n − k = 7 − 3).",
+      "panels": [
+       {
+        "type": "row",
+        "cells": [
+         12,
+         40,
+         7,
+         40,
+         25,
+         3,
+         18
+        ],
+        "pointers": {
+         "lo": 0,
+         "hi": 6
+        }
+       }
+      ]
+     },
+     {
+      "text": "Pivot 40: smaller values fill 0..4, copies of 40 fill 5..6. Index 4 is in the smaller part: keep only that part.",
+      "panels": [
+       {
+        "type": "row",
+        "cells": [
+         12,
+         7,
+         25,
+         3,
+         18,
+         40,
+         40
+        ],
+        "states": {
+         "0": "mark",
+         "1": "mark",
+         "2": "mark",
+         "3": "mark",
+         "4": "mark",
+         "5": "found",
+         "6": "found"
+        },
+        "pointers": {
+         "lo": 0,
+         "hi": 4
+        }
+       }
+      ]
+     },
+     {
+      "text": "Pivot 25 fills 4..4, which includes index 4: the answer is 25.",
+      "panels": [
+       {
+        "type": "row",
+        "cells": [
+         12,
+         7,
+         3,
+         18,
+         25,
+         40,
+         40
+        ],
+        "states": {
+         "4": "found"
+        }
+       }
+      ],
+      "result": "25"
+     }
+    ],
+    "title": "Quickselect: the k-th highest is the value at index n − k in ascending order. Partition, then keep only the side holding that index."
+   }
+  }
+ ],
+ "takeaways": [
+  {
+   "md": "- **k-th largest/smallest:** quickselect (expected O(n)) or a size-k heap (O(n log k), good for streams).\n- Translate \"k-th highest\" to the ascending index `n − k`.\n- **Pitfall:** two-way partitioning with many equal values."
+  }
+ ]
+}

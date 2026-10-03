@@ -1,0 +1,815 @@
+{
+ "version": 1,
+ "summary": "Quick sort with a **three-way partition**: one pass splits the range into values below the pivot, equal to it,\nand above it, and the equal block is finished on the spot. With few distinct values, each pass removes a whole\nvalue from the problem, so repeats make it faster, not slower. O(n log n) expected, O(n · distinct) at worst\nunder few-distinct data.",
+ "question": [
+  {
+   "md": "Sort `readings` without the built-in sort. Most readings repeat a handful of values.\n\n- **Up to 10⁵ readings**, possibly all equal.\n- The statement warns that a quick sort which ignores repeats becomes very slow."
+  },
+  {
+   "md": "**Edge cases to keep in mind**\n\n- All readings equal: a two-way quick sort degrades to O(n²) and n-deep recursion.\n- Only a few distinct values: most of the work should be skipped.\n- The built-in sort isn't allowed."
+  }
+ ],
+ "think": [
+  {
+   "md": "**Why O(n log n) sorts work.** Insertion sort places each value by scanning a sorted prefix: up to `n` steps per value,\nO(n²) total. The O(n log n) sorts **divide** the problem:\n\n- **Merge sort** splits the array in half, sorts each half, and merges two sorted halves in linear time. There are\n  `log₂ n` levels of halving and each level does O(n) merging: O(n log n), always. It's **stable** (equal values keep\n  their order) but needs an O(n) buffer for arrays.\n- **Quick sort** picks a pivot, partitions the values into \"smaller\" and \"larger\" around it, then sorts both sides. With\n  a random pivot the split is balanced on average: O(n log n) expected, in place, but O(n²) if pivots keep being\n  extreme, and not stable."
+  },
+  {
+   "md": "**What goes wrong with repeats.** Two-way partitioning puts values equal to the pivot on one side. When almost\neverything equals the pivot, each partition removes only the pivot itself: `n` levels of O(n) work.\n\n**Three-way partitioning.** Split into `< pivot | = pivot | > pivot`. The middle block is already in its final\nplace and is never touched again, so a value repeated many times is handled in one pass. The loop is the Dutch\nnational flag: `lt` ends the \"less\" zone, `i` scans, `gt` starts the \"greater\" zone."
+  },
+  {
+   "md": "**Partitioning `[5, 3, 5, 1, 5, 3, 5]` around pivot 5:**"
+  },
+  {
+   "table": {
+    "head": [
+     "value at i",
+     "action",
+     "zones after"
+    ],
+    "rows": [
+     [
+      "5",
+      "5 = 5: stays in the 'equal' zone",
+      "less [] | equal [5] | ? [3, 5, 1, 5, 3, 5] | greater []"
+     ],
+     [
+      "3",
+      "3 < 5: swap into the 'less' zone",
+      "less [3] | equal [5] | ? [5, 1, 5, 3, 5] | greater []"
+     ],
+     [
+      "5",
+      "5 = 5: stays in the 'equal' zone",
+      "less [3] | equal [5, 5] | ? [1, 5, 3, 5] | greater []"
+     ],
+     [
+      "1",
+      "1 < 5: swap into the 'less' zone",
+      "less [3, 1] | equal [5, 5] | ? [5, 3, 5] | greater []"
+     ],
+     [
+      "5",
+      "5 = 5: stays in the 'equal' zone",
+      "less [3, 1] | equal [5, 5, 5] | ? [3, 5] | greater []"
+     ],
+     [
+      "3",
+      "3 < 5: swap into the 'less' zone",
+      "less [3, 1, 3] | equal [5, 5, 5] | ? [5] | greater []"
+     ],
+     [
+      "5",
+      "5 = 5: stays in the 'equal' zone",
+      "less [3, 1, 3] | equal [5, 5, 5, 5] | ? [] | greater []"
+     ]
+    ]
+   }
+  }
+ ],
+ "approaches": [
+  {
+   "title": "Two-way quick sort",
+   "kind": "brute",
+   "time": "O(n²) with repeats",
+   "space": "O(n) recursion",
+   "idea": [
+    {
+     "md": "Quick sort with a random pivot and two-way partitioning (`< pivot` on the left, everything else on the right)."
+    }
+   ],
+   "build": [
+    "Random pivot.",
+    "Two-way partition.",
+    "Recurse on both sides."
+   ],
+   "code": {
+    "python": "import random\n\nclass Solution:\n    def sortReadings(self, readings: List[int]) -> List[int]:\n        a = readings[:]\n        def sort(lo, hi):\n            if lo >= hi:\n                return\n            r = random.randint(lo, hi)\n            a[r], a[hi] = a[hi], a[r]\n            p, i = a[hi], lo\n            for j in range(lo, hi):\n                if a[j] < p:\n                    a[i], a[j] = a[j], a[i]\n                    i += 1\n            a[i], a[hi] = a[hi], a[i]\n            sort(lo, i - 1)\n            sort(i + 1, hi)\n        sort(0, len(a) - 1)\n        return a\n",
+    "java": "class Solution {\n    private final Random rng = new Random(7);\n    private int[] a;\n\n    public int[] sortReadings(int[] readings) {\n        a = readings.clone();\n        sort(0, a.length - 1);\n        return a;\n    }\n\n    private void swap(int i, int j) { int t = a[i]; a[i] = a[j]; a[j] = t; }\n\n    private void sort(int lo, int hi) {\n        if (lo >= hi) return;\n        swap(lo + rng.nextInt(hi - lo + 1), hi);\n        int p = a[hi], i = lo;\n        for (int j = lo; j < hi; j++) if (a[j] < p) swap(i++, j);\n        swap(i, hi);\n        sort(lo, i - 1);\n        sort(i + 1, hi);\n    }\n}\n",
+    "cpp": "class Solution {\n    vector<int> a;\n    mt19937 rng{7};\n\n    void sort(int lo, int hi) {\n        if (lo >= hi) return;\n        swap(a[lo + rng() % (hi - lo + 1)], a[hi]);\n        int p = a[hi], i = lo;\n        for (int j = lo; j < hi; j++) if (a[j] < p) swap(a[i++], a[j]);\n        swap(a[i], a[hi]);\n        sort(lo, i - 1);\n        sort(i + 1, hi);\n    }\n\npublic:\n    vector<int> sortReadings(vector<int>& readings) {\n        a = readings;\n        sort(0, (int) a.size() - 1);\n        return a;\n    }\n};\n",
+    "c": "static void swap(int* a, int i, int j) { int t = a[i]; a[i] = a[j]; a[j] = t; }\n\nstatic void quick(int* a, int lo, int hi) {\n    if (lo >= hi) return;\n    swap(a, lo + rand() % (hi - lo + 1), hi);\n    int p = a[hi], i = lo;\n    for (int j = lo; j < hi; j++) if (a[j] < p) swap(a, i++, j);\n    swap(a, i, hi);\n    quick(a, lo, i - 1);\n    quick(a, i + 1, hi);\n}\n\nint* sortReadings(int* readings, int readingsSize, int* returnSize) {\n    int* a = malloc(readingsSize * sizeof(int));\n    memcpy(a, readings, readingsSize * sizeof(int));\n    quick(a, 0, readingsSize - 1);\n    *returnSize = readingsSize;\n    return a;\n}\n"
+   },
+   "lines": [
+    {
+     "text": "Work on a copy.",
+     "at": {
+      "python": [
+       [
+        5,
+        5
+       ]
+      ],
+      "java": [
+       [
+        6,
+        6
+       ]
+      ],
+      "cpp": [
+       [
+        17,
+        17
+       ]
+      ],
+      "c": [
+       [
+        14,
+        15
+       ]
+      ]
+     }
+    },
+    {
+     "text": "Sort `a[lo..hi]`.",
+     "at": {
+      "python": [
+       [
+        6,
+        8
+       ]
+      ],
+      "java": [
+       [
+        13,
+        14
+       ]
+      ],
+      "cpp": [
+       [
+        5,
+        6
+       ]
+      ],
+      "c": [
+       [
+        3,
+        4
+       ]
+      ]
+     }
+    },
+    {
+     "text": "Random pivot, then everything strictly smaller moves left. Copies of the pivot all stay on the right side.",
+     "at": {
+      "python": [
+       [
+        9,
+        16
+       ]
+      ],
+      "java": [
+       [
+        11,
+        11
+       ],
+       [
+        15,
+        18
+       ]
+      ],
+      "cpp": [
+       [
+        7,
+        10
+       ]
+      ],
+      "c": [
+       [
+        1,
+        1
+       ],
+       [
+        5,
+        8
+       ]
+      ]
+     }
+    },
+    {
+     "text": "Recurse. With many copies, the right side shrinks by only one element per level.",
+     "at": {
+      "python": [
+       [
+        17,
+        18
+       ]
+      ],
+      "java": [
+       [
+        19,
+        20
+       ]
+      ],
+      "cpp": [
+       [
+        11,
+        12
+       ]
+      ],
+      "c": [
+       [
+        9,
+        10
+       ]
+      ]
+     }
+    },
+    {
+     "text": "Sort everything.",
+     "at": {
+      "python": [
+       [
+        19,
+        20
+       ]
+      ],
+      "java": [
+       [
+        7,
+        8
+       ]
+      ],
+      "cpp": [
+       [
+        18,
+        19
+       ]
+      ],
+      "c": [
+       [
+        16,
+        18
+       ]
+      ]
+     }
+    }
+   ],
+   "complexity": [
+    {
+     "md": "**Time O(n²)** when most values are equal (each partition peels off one value). **Space O(n)** recursion in that case."
+    }
+   ],
+   "walk": {
+    "steps": [
+     {
+      "text": "Positions 0..6: pivot 5 lands at 3; the 3 other copies of 5 still have to be sorted on the right.",
+      "panels": [
+       {
+        "type": "row",
+        "cells": [
+         3,
+         1,
+         3,
+         5,
+         5,
+         5,
+         5
+        ],
+        "states": {
+         "0": "mark",
+         "1": "mark",
+         "2": "mark",
+         "3": "found",
+         "4": "mark",
+         "5": "mark",
+         "6": "mark"
+        }
+       }
+      ]
+     },
+     {
+      "text": "Positions 0..2: pivot 3 lands at 1; the 1 other copies of 3 still have to be sorted on the right.",
+      "panels": [
+       {
+        "type": "row",
+        "cells": [
+         1,
+         3,
+         3,
+         5,
+         5,
+         5,
+         5
+        ],
+        "states": {
+         "0": "mark",
+         "1": "found",
+         "2": "mark"
+        }
+       }
+      ]
+     },
+     {
+      "text": "Positions 4..6: pivot 5 lands at 4; the 2 other copies of 5 still have to be sorted on the right.",
+      "panels": [
+       {
+        "type": "row",
+        "cells": [
+         1,
+         3,
+         3,
+         5,
+         5,
+         5,
+         5
+        ],
+        "states": {
+         "4": "found",
+         "5": "mark",
+         "6": "mark"
+        }
+       }
+      ]
+     },
+     {
+      "text": "Positions 5..6: pivot 5 lands at 5; the 1 other copies of 5 still have to be sorted on the right.",
+      "panels": [
+       {
+        "type": "row",
+        "cells": [
+         1,
+         3,
+         3,
+         5,
+         5,
+         5,
+         5
+        ],
+        "states": {
+         "5": "found",
+         "6": "mark"
+        }
+       }
+      ]
+     },
+     {
+      "text": "Sorted, but every copy of 5 needed its own partition pass: [1, 3, 3, 5, 5, 5, 5].",
+      "panels": [],
+      "result": "[1, 3, 3, 5, 5, 5, 5]"
+     }
+    ],
+    "title": "Two-way quick sort: values smaller than the pivot go left, everything else right. Equal values all pile onto one side."
+   },
+   "limits": [
+    {
+     "md": "Equal values keep landing on the same side. Grouping them into their own block removes them from further work."
+    }
+   ],
+   "slow": true
+  },
+  {
+   "title": "Three-way quick sort",
+   "kind": "best",
+   "time": "O(n log n) expected",
+   "space": "O(log n) expected",
+   "idea": [
+    {
+     "md": "Three-way quick sort with an explicit stack: partition `[lo, hi]` into `< p`, `= p`, `> p` with `lt`, `i`,\n`gt`, then push only `[lo, lt − 1]` and `[gt + 1, hi]`.\n\n**Why it's fast with repeats.** With `d` distinct values, each value becomes the pivot's equal block once,\nso the work is about O(n log d) expected."
+    }
+   ],
+   "build": [
+    "Stack of ranges.",
+    "Random pivot value.",
+    "Dutch-flag partition.",
+    "Push the less and greater ranges only."
+   ],
+   "code": {
+    "python": "import random\n\nclass Solution:\n    def sortReadings(self, readings: List[int]) -> List[int]:\n        a = readings[:]\n        stack = [(0, len(a) - 1)]\n        while stack:\n            lo, hi = stack.pop()\n            if lo >= hi:\n                continue\n            p = a[random.randint(lo, hi)]\n            lt, i, gt = lo, lo, hi\n            while i <= gt:\n                if a[i] < p:\n                    a[lt], a[i] = a[i], a[lt]\n                    lt += 1\n                    i += 1\n                elif a[i] > p:\n                    a[i], a[gt] = a[gt], a[i]\n                    gt -= 1\n                else:\n                    i += 1\n            stack.append((lo, lt - 1))\n            stack.append((gt + 1, hi))\n        return a\n",
+    "java": "class Solution {\n    private final Random rng = new Random(7);\n    private int[] a;\n\n    public int[] sortReadings(int[] readings) {\n        a = readings.clone();\n        sort(0, a.length - 1);\n        return a;\n    }\n\n    private void swap(int i, int j) { int t = a[i]; a[i] = a[j]; a[j] = t; }\n\n    private void sort(int lo, int hi) {\n        if (lo >= hi) return;\n        int p = a[lo + rng.nextInt(hi - lo + 1)];\n        int lt = lo, i = lo, gt = hi;\n        while (i <= gt) {\n            if (a[i] < p) swap(lt++, i++);\n            else if (a[i] > p) swap(i, gt--);\n            else i++;\n        }\n        sort(lo, lt - 1);\n        sort(gt + 1, hi);\n    }\n}\n",
+    "cpp": "class Solution {\n    vector<int> a;\n    mt19937 rng{7};\n\n    void sort(int lo, int hi) {\n        if (lo >= hi) return;\n        int p = a[lo + rng() % (hi - lo + 1)];\n        int lt = lo, i = lo, gt = hi;\n        while (i <= gt) {\n            if (a[i] < p) swap(a[lt++], a[i++]);\n            else if (a[i] > p) swap(a[i], a[gt--]);\n            else i++;\n        }\n        sort(lo, lt - 1);\n        sort(gt + 1, hi);\n    }\n\npublic:\n    vector<int> sortReadings(vector<int>& readings) {\n        a = readings;\n        sort(0, (int) a.size() - 1);\n        return a;\n    }\n};\n",
+    "c": "static void swap(int* a, int i, int j) { int t = a[i]; a[i] = a[j]; a[j] = t; }\n\nstatic void sort3(int* a, int lo, int hi) {\n    if (lo >= hi) return;\n    int p = a[lo + rand() % (hi - lo + 1)];\n    int lt = lo, i = lo, gt = hi;\n    while (i <= gt) {\n        if (a[i] < p) swap(a, lt++, i++);\n        else if (a[i] > p) swap(a, i, gt--);\n        else i++;\n    }\n    sort3(a, lo, lt - 1);\n    sort3(a, gt + 1, hi);\n}\n\nint* sortReadings(int* readings, int readingsSize, int* returnSize) {\n    int* a = malloc(readingsSize * sizeof(int));\n    memcpy(a, readings, readingsSize * sizeof(int));\n    sort3(a, 0, readingsSize - 1);\n    *returnSize = readingsSize;\n    return a;\n}\n"
+   },
+   "lines": [
+    {
+     "text": "Work on a copy.",
+     "at": {
+      "python": [
+       [
+        5,
+        5
+       ]
+      ],
+      "java": [
+       [
+        6,
+        6
+       ]
+      ],
+      "cpp": [
+       [
+        20,
+        20
+       ]
+      ],
+      "c": [
+       [
+        17,
+        18
+       ]
+      ]
+     }
+    },
+    {
+     "text": "Ranges still to sort.",
+     "at": {
+      "python": [
+       [
+        6,
+        10
+       ]
+      ],
+      "java": [
+       [
+        13,
+        14
+       ]
+      ],
+      "cpp": [
+       [
+        5,
+        6
+       ]
+      ],
+      "c": [
+       [
+        3,
+        4
+       ]
+      ]
+     },
+     "notes": {
+      "python": "An explicit stack of ranges instead of recursion (Python's recursion limit is low)."
+     }
+    },
+    {
+     "text": "A random pivot value; `lt`, `i` and `gt` mark the three regions.",
+     "at": {
+      "python": [
+       [
+        11,
+        12
+       ]
+      ],
+      "java": [
+       [
+        15,
+        16
+       ]
+      ],
+      "cpp": [
+       [
+        7,
+        8
+       ]
+      ],
+      "c": [
+       [
+        5,
+        6
+       ]
+      ]
+     }
+    },
+    {
+     "text": "Smaller values go to the front block, bigger ones to the back block, equal ones stay in the middle. A value swapped in from `gt` hasn't been looked at yet, so `i` doesn't advance then.",
+     "at": {
+      "python": [
+       [
+        13,
+        22
+       ]
+      ],
+      "java": [
+       [
+        11,
+        11
+       ],
+       [
+        17,
+        20
+       ]
+      ],
+      "cpp": [
+       [
+        9,
+        12
+       ]
+      ],
+      "c": [
+       [
+        1,
+        1
+       ],
+       [
+        7,
+        10
+       ]
+      ]
+     }
+    },
+    {
+     "text": "The equal block `[lt, gt]` is done; only the smaller and bigger parts are sorted further.",
+     "at": {
+      "python": [
+       [
+        23,
+        24
+       ]
+      ],
+      "java": [
+       [
+        22,
+        23
+       ]
+      ],
+      "cpp": [
+       [
+        14,
+        15
+       ]
+      ],
+      "c": [
+       [
+        12,
+        13
+       ]
+      ]
+     }
+    },
+    {
+     "text": "Sorted.",
+     "at": {
+      "python": [
+       [
+        25,
+        25
+       ]
+      ],
+      "java": [
+       [
+        7,
+        8
+       ]
+      ],
+      "cpp": [
+       [
+        21,
+        22
+       ]
+      ],
+      "c": [
+       [
+        19,
+        21
+       ]
+      ]
+     }
+    }
+   ],
+   "complexity": [
+    {
+     "md": "**Time O(n log n)** expected, O(n log d) with `d` distinct values. **Space O(log n)** expected stack."
+    }
+   ],
+   "walk": {
+    "steps": [
+     {
+      "text": "Pivot 5. lt, i and gt start at the ends.",
+      "panels": [
+       {
+        "type": "row",
+        "cells": [
+         5,
+         3,
+         5,
+         1,
+         5,
+         3,
+         5
+        ],
+        "pointers": {
+         "lt": 0,
+         "i": 0,
+         "gt": 6
+        }
+       }
+      ]
+     },
+     {
+      "text": "a[i] was equal: leave it in the middle.",
+      "panels": [
+       {
+        "type": "row",
+        "cells": [
+         5,
+         3,
+         5,
+         1,
+         5,
+         3,
+         5
+        ],
+        "states": {
+         "0": "found"
+        },
+        "pointers": {
+         "lt": 0,
+         "i": 1,
+         "gt": 6
+        }
+       }
+      ]
+     },
+     {
+      "text": "a[i] was smaller: swap it to the lt side.",
+      "panels": [
+       {
+        "type": "row",
+        "cells": [
+         3,
+         5,
+         5,
+         1,
+         5,
+         3,
+         5
+        ],
+        "states": {
+         "1": "found"
+        },
+        "pointers": {
+         "lt": 1,
+         "i": 2,
+         "gt": 6
+        }
+       }
+      ]
+     },
+     {
+      "text": "a[i] was equal: leave it in the middle.",
+      "panels": [
+       {
+        "type": "row",
+        "cells": [
+         3,
+         5,
+         5,
+         1,
+         5,
+         3,
+         5
+        ],
+        "states": {
+         "1": "found",
+         "2": "found"
+        },
+        "pointers": {
+         "lt": 1,
+         "i": 3,
+         "gt": 6
+        }
+       }
+      ]
+     },
+     {
+      "text": "a[i] was smaller: swap it to the lt side.",
+      "panels": [
+       {
+        "type": "row",
+        "cells": [
+         3,
+         1,
+         5,
+         5,
+         5,
+         3,
+         5
+        ],
+        "states": {
+         "2": "found",
+         "3": "found"
+        },
+        "pointers": {
+         "lt": 2,
+         "i": 4,
+         "gt": 6
+        }
+       }
+      ]
+     },
+     {
+      "text": "a[i] was equal: leave it in the middle.",
+      "panels": [
+       {
+        "type": "row",
+        "cells": [
+         3,
+         1,
+         5,
+         5,
+         5,
+         3,
+         5
+        ],
+        "states": {
+         "2": "found",
+         "3": "found",
+         "4": "found"
+        },
+        "pointers": {
+         "lt": 2,
+         "i": 5,
+         "gt": 6
+        }
+       }
+      ]
+     },
+     {
+      "text": "a[i] was smaller: swap it to the lt side.",
+      "panels": [
+       {
+        "type": "row",
+        "cells": [
+         3,
+         1,
+         3,
+         5,
+         5,
+         5,
+         5
+        ],
+        "states": {
+         "3": "found",
+         "4": "found",
+         "5": "found"
+        },
+        "pointers": {
+         "lt": 3,
+         "i": 6,
+         "gt": 6
+        }
+       }
+      ]
+     },
+     {
+      "text": "a[i] was equal: leave it in the middle.",
+      "panels": [
+       {
+        "type": "row",
+        "cells": [
+         3,
+         1,
+         3,
+         5,
+         5,
+         5,
+         5
+        ],
+        "states": {
+         "3": "found",
+         "4": "found",
+         "5": "found",
+         "6": "found"
+        },
+        "pointers": {
+         "lt": 3,
+         "i": 6,
+         "gt": 6
+        }
+       }
+      ]
+     },
+     {
+      "text": "Every 5 sits in positions 3..6 and is done. Only the smaller side [3, 1, 3] still needs sorting.",
+      "panels": [
+       {
+        "type": "row",
+        "cells": [
+         3,
+         1,
+         3,
+         5,
+         5,
+         5,
+         5
+        ],
+        "states": {
+         "3": "found",
+         "4": "found",
+         "5": "found",
+         "6": "found"
+        }
+       }
+      ],
+      "result": "[1, 3, 3, 5, 5, 5, 5]"
+     }
+    ],
+    "title": "Three-way partition: one pass splits the range into < pivot | = pivot | > pivot, and the middle part is finished at once."
+   }
+  }
+ ],
+ "takeaways": [
+  {
+   "md": "- **Many duplicates → three-way partition** (`<`, `=`, `>`).\n- The equal block is final and skipped from then on.\n- **Pitfall:** advancing `i` after swapping with `gt` (the arriving value is unexamined)."
+  }
+ ]
+}

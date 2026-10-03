@@ -1,0 +1,785 @@
+{
+ "version": 1,
+ "summary": "Fix a target maximum gap D. Splitting a gap g so no piece exceeds D takes `⌈g / D⌉ − 1` new stations, and the\ntotal needed only goes down as D grows. So binary-search the real number D: the answer is the smallest D whose\ntotal need is at most `extra`. O(n · log(range / ε)), independent of how many stations you may add.",
+ "question": [
+  {
+   "md": "Stations are at sorted integer positions. Add `extra` stations anywhere (fractional positions allowed) to make\nthe **largest gap between neighbours** as small as possible; return that gap within 10⁻⁶.\n\n- **Only gaps matter**, not absolute positions.\n- **New stations within a gap are best spread evenly:** k stations split a gap g into k + 1 pieces of g/(k+1).\n- **extra can be 10⁶**, so placing stations one at a time can be slow."
+  }
+ ],
+ "think": [
+  {
+   "md": "Take stations `[0, 4, 15, 21]` (gaps `[4, 11, 6]`) and 4 extra stations. The longest gap is 11. Putting one\nstation in its middle halves it to 5.5; now the gap of 6 might be the longest, and\nso on."
+  },
+  {
+   "panels": [
+    {
+     "type": "row",
+     "cells": [
+      4,
+      11,
+      6
+     ],
+     "label": "gaps",
+     "slots": true
+    }
+   ],
+   "caption": "k stations inside a gap g leave pieces of g / (k + 1)."
+  },
+  {
+   "md": "Flip the question: **for a given maximum D, how many stations are needed?** Gap g needs pieces of length ≤ D,\ni.e. at least ⌈g / D⌉ pieces, which takes ⌈g / D⌉ − 1 stations. Summing over gaps gives the total, and a\nlarger D never needs more stations. So \"D is achievable with `extra` stations\" is monotonic: false for tiny D,\ntrue from the answer upward. Binary search on D finds the boundary."
+  }
+ ],
+ "approaches": [
+  {
+   "title": "Place stations one by one (scan for the worst gap)",
+   "kind": "brute",
+   "time": "O(extra · n)",
+   "space": "O(n)",
+   "idea": [
+    {
+     "md": "Track how many stations each gap has received. Each time, scan all gaps for the one with the longest current piece `gap / (added + 1)`, and add a station there. After all stations, return the longest piece. (Adding to the worst gap is always optimal: no other choice can reduce the maximum.)"
+    }
+   ],
+   "build": [
+    "`added[i] = 0` for each gap.",
+    "Repeat `extra` times: find the gap with the largest `gap / (added + 1)` and increment its count.",
+    "Return the largest `gap / (added + 1)`."
+   ],
+   "code": {
+    "python": "class Solution:\n    def smallestMaxGap(self, stations: List[int], extra: int) -> float:\n        gaps = [b - a for a, b in zip(stations, stations[1:])]\n        added = [0] * len(gaps)\n        for _ in range(extra):\n            i = max(range(len(gaps)), key=lambda q: gaps[q] / (added[q] + 1))\n            added[i] += 1\n        return max(g / (a + 1) for g, a in zip(gaps, added))\n",
+    "java": "class Solution {\n    public double smallestMaxGap(int[] stations, int extra) {\n        int m = stations.length - 1;\n        int[] added = new int[m];\n        for (int t = 0; t < extra; t++) {\n            int best = 0;\n            for (int i = 1; i < m; i++) {\n                double cur = (double) (stations[i + 1] - stations[i]) / (added[i] + 1);\n                if (cur > (double) (stations[best + 1] - stations[best]) / (added[best] + 1)) best = i;\n            }\n            added[best]++;\n        }\n        double worst = 0;\n        for (int i = 0; i < m; i++) worst = Math.max(worst, (double) (stations[i + 1] - stations[i]) / (added[i] + 1));\n        return worst;\n    }\n}\n",
+    "cpp": "class Solution {\npublic:\n    double smallestMaxGap(vector<int>& stations, int extra) {\n        int m = stations.size() - 1;\n        vector<int> added(m, 0);\n        auto piece = [&](int i) { return (double) (stations[i + 1] - stations[i]) / (added[i] + 1); };\n        for (int t = 0; t < extra; t++) {\n            int best = 0;\n            for (int i = 1; i < m; i++) if (piece(i) > piece(best)) best = i;\n            added[best]++;\n        }\n        double worst = 0;\n        for (int i = 0; i < m; i++) worst = max(worst, piece(i));\n        return worst;\n    }\n};\n",
+    "c": "double smallestMaxGap(int* stations, int stationsSize, int extra) {\n    int m = stationsSize - 1;\n    int* added = calloc(m, sizeof(int));\n    for (int t = 0; t < extra; t++) {\n        int best = 0;\n        for (int i = 1; i < m; i++) {\n            double cur = (double) (stations[i + 1] - stations[i]) / (added[i] + 1);\n            if (cur > (double) (stations[best + 1] - stations[best]) / (added[best] + 1)) best = i;\n        }\n        added[best]++;\n    }\n    double worst = 0;\n    for (int i = 0; i < m; i++) {\n        double cur = (double) (stations[i + 1] - stations[i]) / (added[i] + 1);\n        if (cur > worst) worst = cur;\n    }\n    free(added);\n    return worst;\n}\n"
+   },
+   "lines": [
+    {
+     "text": "Each gap and the number of stations added inside it so far (spread evenly, so pieces are gap / (added + 1)).",
+     "at": {
+      "python": [
+       [
+        3,
+        4
+       ]
+      ],
+      "java": [
+       [
+        4,
+        4
+       ]
+      ],
+      "cpp": [
+       [
+        5,
+        6
+       ]
+      ],
+      "c": [
+       [
+        3,
+        3
+       ]
+      ]
+     }
+    },
+    {
+     "text": "Find the gap whose pieces are currently longest and give it one more station. That's the only move that can lower the overall maximum.",
+     "at": {
+      "python": [
+       [
+        5,
+        7
+       ]
+      ],
+      "java": [
+       [
+        5,
+        11
+       ]
+      ],
+      "cpp": [
+       [
+        7,
+        10
+       ]
+      ],
+      "c": [
+       [
+        4,
+        10
+       ]
+      ]
+     }
+    },
+    {
+     "text": "The longest piece after all stations are placed.",
+     "at": {
+      "python": [
+       [
+        8,
+        8
+       ]
+      ],
+      "java": [
+       [
+        13,
+        15
+       ]
+      ],
+      "cpp": [
+       [
+        12,
+        14
+       ]
+      ],
+      "c": [
+       [
+        12,
+        18
+       ]
+      ]
+     }
+    }
+   ],
+   "complexity": [
+    {
+     "md": "**Time O(extra · n):** up to 10⁶ × 2000 = 2 × 10⁹. **Space O(n).**"
+    }
+   ],
+   "walk": {
+    "steps": [
+     {
+      "text": "Gaps: [4, 11, 6]. Every new station goes into the gap with the longest current piece.",
+      "panels": [
+       {
+        "type": "row",
+        "cells": [
+         4,
+         11,
+         6
+        ],
+        "label": "gap",
+        "slots": true
+       },
+       {
+        "type": "row",
+        "cells": [
+         "4",
+         "11",
+         "6"
+        ],
+        "label": "current piece"
+       }
+      ]
+     },
+     {
+      "text": "Station 1 → gap 1 (11), now split into 2 pieces of 5.5.",
+      "panels": [
+       {
+        "type": "row",
+        "cells": [
+         4,
+         11,
+         6
+        ],
+        "states": {
+         "1": "active"
+        },
+        "label": "gap",
+        "slots": true
+       },
+       {
+        "type": "row",
+        "cells": [
+         "4",
+         "5.5",
+         "6"
+        ],
+        "label": "current piece"
+       }
+      ]
+     },
+     {
+      "text": "Station 2 → gap 2 (6), now split into 2 pieces of 3.",
+      "panels": [
+       {
+        "type": "row",
+        "cells": [
+         4,
+         11,
+         6
+        ],
+        "states": {
+         "2": "active"
+        },
+        "label": "gap",
+        "slots": true
+       },
+       {
+        "type": "row",
+        "cells": [
+         "4",
+         "5.5",
+         "3"
+        ],
+        "label": "current piece"
+       }
+      ]
+     },
+     {
+      "text": "Station 3 → gap 1 (11), now split into 3 pieces of 3.666667.",
+      "panels": [
+       {
+        "type": "row",
+        "cells": [
+         4,
+         11,
+         6
+        ],
+        "states": {
+         "1": "active"
+        },
+        "label": "gap",
+        "slots": true
+       },
+       {
+        "type": "row",
+        "cells": [
+         "4",
+         "3.666667",
+         "3"
+        ],
+        "label": "current piece"
+       }
+      ]
+     },
+     {
+      "text": "Station 4 → gap 0 (4), now split into 2 pieces of 2.",
+      "panels": [
+       {
+        "type": "row",
+        "cells": [
+         4,
+         11,
+         6
+        ],
+        "states": {
+         "0": "active"
+        },
+        "label": "gap",
+        "slots": true
+       },
+       {
+        "type": "row",
+        "cells": [
+         "2",
+         "3.666667",
+         "3"
+        ],
+        "label": "current piece"
+       }
+      ]
+     },
+     {
+      "text": "Largest piece now: 3.666667.",
+      "panels": [
+       {
+        "type": "row",
+        "cells": [
+         "2",
+         "3.666667",
+         "3"
+        ],
+        "label": "current piece"
+       }
+      ],
+      "result": "3.666667"
+     }
+    ],
+    "title": "Greedy: always place the next station in the gap whose current pieces are longest; recompute that by scanning all gaps."
+   },
+   "limits": [
+    {
+     "md": "One full scan per station. A max-heap of gaps would make each placement O(log n), but the work still grows with `extra` (10⁶). Binary search on the answer doesn't depend on `extra` at all."
+    }
+   ],
+   "slow": true
+  },
+  {
+   "title": "Binary search on the maximum gap",
+   "kind": "best",
+   "time": "O(n log(range / ε))",
+   "space": "O(n)",
+   "idea": [
+    {
+     "md": "`lo = 0`, `hi = largest gap`. Repeat 100 times: `mid = (lo + hi) / 2`; `need = Σ (⌈gap / mid⌉ − 1)`; if `need ≤ extra`, mid is achievable (`hi = mid`), else `lo = mid`. Return `hi`."
+    }
+   ],
+   "build": [
+    "Bracket `[0, max gap]` (with no extra stations the max gap is achievable).",
+    "For mid: stations needed = Σ ⌈gap / mid⌉ − 1.",
+    "Achievable → `hi = mid`; else `lo = mid`. 100 rounds.",
+    "Return `hi` (always achievable)."
+   ],
+   "code": {
+    "python": "import math\n\nclass Solution:\n    def smallestMaxGap(self, stations: List[int], extra: int) -> float:\n        gaps = [b - a for a, b in zip(stations, stations[1:])]\n        lo, hi = 0.0, float(max(gaps))\n        for _ in range(100):\n            mid = (lo + hi) / 2\n            need = sum(math.ceil(g / mid) - 1 for g in gaps)\n            if need <= extra:\n                hi = mid\n            else:\n                lo = mid\n        return hi\n",
+    "java": "class Solution {\n    public double smallestMaxGap(int[] stations, int extra) {\n        double lo = 0, hi = 0;\n        for (int i = 0; i + 1 < stations.length; i++) hi = Math.max(hi, stations[i + 1] - stations[i]);\n        for (int it = 0; it < 100; it++) {\n            double mid = (lo + hi) / 2;\n            long need = 0;\n            for (int i = 0; i + 1 < stations.length; i++) need += (long) Math.ceil((stations[i + 1] - stations[i]) / mid) - 1;\n            if (need <= extra) hi = mid; else lo = mid;\n        }\n        return hi;\n    }\n}\n",
+    "cpp": "class Solution {\npublic:\n    double smallestMaxGap(vector<int>& stations, int extra) {\n        double lo = 0, hi = 0;\n        for (size_t i = 0; i + 1 < stations.size(); i++) hi = max(hi, (double) (stations[i + 1] - stations[i]));\n        for (int it = 0; it < 100; it++) {\n            double mid = (lo + hi) / 2;\n            long long need = 0;\n            for (size_t i = 0; i + 1 < stations.size(); i++) need += (long long) ceil((stations[i + 1] - stations[i]) / mid) - 1;\n            if (need <= extra) hi = mid; else lo = mid;\n        }\n        return hi;\n    }\n};\n",
+    "c": "double smallestMaxGap(int* stations, int stationsSize, int extra) {\n    double lo = 0, hi = 0;\n    for (int i = 0; i + 1 < stationsSize; i++) if (stations[i + 1] - stations[i] > hi) hi = stations[i + 1] - stations[i];\n    for (int it = 0; it < 100; it++) {\n        double mid = (lo + hi) / 2;\n        long long need = 0;\n        for (int i = 0; i + 1 < stationsSize; i++) need += (long long) ceil((stations[i + 1] - stations[i]) / mid) - 1;\n        if (need <= extra) hi = mid; else lo = mid;\n    }\n    return hi;\n}\n"
+   },
+   "lines": [
+    {
+     "text": "The answer is between 0 and the current largest gap (adding nothing already achieves that).",
+     "at": {
+      "python": [
+       [
+        5,
+        6
+       ]
+      ],
+      "java": [
+       [
+        3,
+        4
+       ]
+      ],
+      "cpp": [
+       [
+        4,
+        5
+       ]
+      ],
+      "c": [
+       [
+        2,
+        3
+       ]
+      ]
+     }
+    },
+    {
+     "text": "100 halvings of [0, 10⁸] reach far below 10⁻⁶.",
+     "at": {
+      "python": [
+       [
+        7,
+        8
+       ]
+      ],
+      "java": [
+       [
+        5,
+        6
+       ]
+      ],
+      "cpp": [
+       [
+        6,
+        7
+       ]
+      ],
+      "c": [
+       [
+        4,
+        5
+       ]
+      ]
+     }
+    },
+    {
+     "text": "Stations needed so no piece exceeds mid: gap g needs ⌈g / mid⌉ pieces. Totals can be huge for tiny mid, hence 64-bit. mid is never 0, since hi starts positive and the midpoint of a positive interval is positive.",
+     "at": {
+      "python": [
+       [
+        9,
+        9
+       ]
+      ],
+      "java": [
+       [
+        7,
+        8
+       ]
+      ],
+      "cpp": [
+       [
+        8,
+        9
+       ]
+      ],
+      "c": [
+       [
+        6,
+        7
+       ]
+      ]
+     }
+    },
+    {
+     "text": "Affordable → the true answer is ≤ mid. Too many → it's > mid.",
+     "at": {
+      "python": [
+       [
+        10,
+        13
+       ]
+      ],
+      "java": [
+       [
+        9,
+        9
+       ]
+      ],
+      "cpp": [
+       [
+        10,
+        10
+       ]
+      ],
+      "c": [
+       [
+        8,
+        8
+       ]
+      ]
+     }
+    },
+    {
+     "text": "`hi` is always achievable.",
+     "at": {
+      "python": [
+       [
+        14,
+        14
+       ]
+      ],
+      "java": [
+       [
+        11,
+        11
+       ]
+      ],
+      "cpp": [
+       [
+        12,
+        12
+       ]
+      ],
+      "c": [
+       [
+        10,
+        10
+       ]
+      ]
+     }
+    }
+   ],
+   "complexity": [
+    {
+     "md": "**Time O(n · 100).** **Space O(1)** (the Python version builds the gap list: O(n))."
+    }
+   ],
+   "walk": {
+    "steps": [
+     {
+      "text": "[0, 11], D = 5.5: needs 0 + 1 + 1 = 2 stations → affordable: try smaller.",
+      "panels": [
+       {
+        "type": "row",
+        "cells": [
+         4,
+         11,
+         6
+        ],
+        "label": "gap",
+        "slots": true
+       },
+       {
+        "type": "vars",
+        "items": {
+         "lo": "0",
+         "hi": "11",
+         "D": "5.5"
+        }
+       }
+      ]
+     },
+     {
+      "text": "[0, 5.5], D = 2.75: needs 1 + 3 + 2 = 6 stations → too many: larger.",
+      "panels": [
+       {
+        "type": "row",
+        "cells": [
+         4,
+         11,
+         6
+        ],
+        "label": "gap",
+        "slots": true
+       },
+       {
+        "type": "vars",
+        "items": {
+         "lo": "0",
+         "hi": "5.5",
+         "D": "2.75"
+        }
+       }
+      ]
+     },
+     {
+      "text": "[2.75, 5.5], D = 4.125: needs 0 + 2 + 1 = 3 stations → affordable: try smaller.",
+      "panels": [
+       {
+        "type": "row",
+        "cells": [
+         4,
+         11,
+         6
+        ],
+        "label": "gap",
+        "slots": true
+       },
+       {
+        "type": "vars",
+        "items": {
+         "lo": "2.75",
+         "hi": "5.5",
+         "D": "4.125"
+        }
+       }
+      ]
+     },
+     {
+      "text": "[2.75, 4.125], D = 3.4375: needs 1 + 3 + 1 = 5 stations → too many: larger.",
+      "panels": [
+       {
+        "type": "row",
+        "cells": [
+         4,
+         11,
+         6
+        ],
+        "label": "gap",
+        "slots": true
+       },
+       {
+        "type": "vars",
+        "items": {
+         "lo": "2.75",
+         "hi": "4.125",
+         "D": "3.4375"
+        }
+       }
+      ]
+     },
+     {
+      "text": "[3.4375, 4.125], D = 3.78125: needs 1 + 2 + 1 = 4 stations → affordable: try smaller.",
+      "panels": [
+       {
+        "type": "row",
+        "cells": [
+         4,
+         11,
+         6
+        ],
+        "label": "gap",
+        "slots": true
+       },
+       {
+        "type": "vars",
+        "items": {
+         "lo": "3.4375",
+         "hi": "4.125",
+         "D": "3.78125"
+        }
+       }
+      ]
+     },
+     {
+      "text": "[3.4375, 3.78125], D = 3.609375: needs 1 + 3 + 1 = 5 stations → too many: larger.",
+      "panels": [
+       {
+        "type": "row",
+        "cells": [
+         4,
+         11,
+         6
+        ],
+        "label": "gap",
+        "slots": true
+       },
+       {
+        "type": "vars",
+        "items": {
+         "lo": "3.4375",
+         "hi": "3.78125",
+         "D": "3.609375"
+        }
+       }
+      ]
+     },
+     {
+      "text": "[3.609375, 3.78125], D = 3.695312: needs 1 + 2 + 1 = 4 stations → affordable: try smaller.",
+      "panels": [
+       {
+        "type": "row",
+        "cells": [
+         4,
+         11,
+         6
+        ],
+        "label": "gap",
+        "slots": true
+       },
+       {
+        "type": "vars",
+        "items": {
+         "lo": "3.609375",
+         "hi": "3.78125",
+         "D": "3.695312"
+        }
+       }
+      ]
+     },
+     {
+      "text": "[3.609375, 3.695312], D = 3.652344: needs 1 + 3 + 1 = 5 stations → too many: larger.",
+      "panels": [
+       {
+        "type": "row",
+        "cells": [
+         4,
+         11,
+         6
+        ],
+        "label": "gap",
+        "slots": true
+       },
+       {
+        "type": "vars",
+        "items": {
+         "lo": "3.609375",
+         "hi": "3.695312",
+         "D": "3.652344"
+        }
+       }
+      ]
+     },
+     {
+      "text": "[3.652344, 3.695312], D = 3.673828: needs 1 + 2 + 1 = 4 stations → affordable: try smaller.",
+      "panels": [
+       {
+        "type": "row",
+        "cells": [
+         4,
+         11,
+         6
+        ],
+        "label": "gap",
+        "slots": true
+       },
+       {
+        "type": "vars",
+        "items": {
+         "lo": "3.652344",
+         "hi": "3.695312",
+         "D": "3.673828"
+        }
+       }
+      ]
+     },
+     {
+      "text": "[3.652344, 3.673828], D = 3.663086: needs 1 + 3 + 1 = 5 stations → too many: larger.",
+      "panels": [
+       {
+        "type": "row",
+        "cells": [
+         4,
+         11,
+         6
+        ],
+        "label": "gap",
+        "slots": true
+       },
+       {
+        "type": "vars",
+        "items": {
+         "lo": "3.652344",
+         "hi": "3.673828",
+         "D": "3.663086"
+        }
+       }
+      ]
+     },
+     {
+      "text": "[3.663086, 3.673828], D = 3.668457: needs 1 + 2 + 1 = 4 stations → affordable: try smaller.",
+      "panels": [
+       {
+        "type": "row",
+        "cells": [
+         4,
+         11,
+         6
+        ],
+        "label": "gap",
+        "slots": true
+       },
+       {
+        "type": "vars",
+        "items": {
+         "lo": "3.663086",
+         "hi": "3.673828",
+         "D": "3.668457"
+        }
+       }
+      ]
+     },
+     {
+      "text": "[3.663086, 3.668457], D = 3.665771: needs 1 + 3 + 1 = 5 stations → too many: larger.",
+      "panels": [
+       {
+        "type": "row",
+        "cells": [
+         4,
+         11,
+         6
+        ],
+        "label": "gap",
+        "slots": true
+       },
+       {
+        "type": "vars",
+        "items": {
+         "lo": "3.663086",
+         "hi": "3.668457",
+         "D": "3.665771"
+        }
+       }
+      ]
+     },
+     {
+      "text": "Converges to 3.666667.",
+      "panels": [
+       {
+        "type": "row",
+        "cells": [
+         4,
+         11,
+         6
+        ],
+        "label": "gap",
+        "slots": true
+       }
+      ],
+      "result": "3.666667"
+     }
+    ],
+    "title": "Binary-search the answer D: stations needed = Σ (ceil(gap / D) − 1). D is achievable if that's ≤ extra."
+   }
+  }
+ ],
+ "takeaways": [
+  {
+   "md": "- **Minimise the maximum** problems often invert well: fix the maximum D, compute the cost to achieve it, and\n  binary-search D.\n- Cost for a gap: `⌈g / D⌉ − 1` cuts. Monotonic in D, which is all binary search needs.\n- Greedy placement is correct but scales with the number of items placed; searching on the answer doesn't."
+  }
+ ]
+}

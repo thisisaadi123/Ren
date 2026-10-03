@@ -1,0 +1,1209 @@
+{
+ "version": 1,
+ "summary": "Knuth–Morris–Pratt. The prefix function of the tag says, for each prefix, the longest proper prefix that is\nalso a suffix (its border). Scan the text once, tracking how many tag characters currently match; on a\nmismatch, fall back to the border instead of restarting, and after a full match fall back the same way so\noverlapping copies are found. O(n + m).",
+ "question": [
+  {
+   "md": "Return every start index where `tag` occurs in `text`, overlaps included, left to right.\n\n- **Both up to 10⁵ lowercase letters.**\n- Checking every start costs O(n · m) on inputs like `aaaa…a` / `aaa…ab`."
+  },
+  {
+   "md": "**Edge cases to keep in mind**\n\n- Overlapping copies all count: `aaaa` contains `aa` at 0, 1 and 2.\n- The tag may equal the whole text (one match) or never appear (empty list).\n- Worst case for naive matching: `text = aaaa…a`, `tag = aa…ab`, where every start compares almost the whole tag."
+  }
+ ],
+ "think": [
+  {
+   "md": "**Restating it.** Report every start index `i` with `text[i .. i+m) = tag`, in increasing order, overlaps\nincluded.\n\n**What the naive method throws away.** Comparing at each start, a partial match of `j` characters that breaks\nmeans we slide by one and compare again from scratch, re-reading `j − 1` characters we have already seen. But\nthose characters are known: they are `tag[0 .. j)`. So how much of the next attempt already matches depends\nonly on the tag, and can be computed in advance."
+  },
+  {
+   "md": "**Borders and the prefix function.** A *border* of a string is a proper prefix that is also a suffix: `ab` is a border\nof `abab`, and `a` is a border of `aba`. The **prefix function** `pi[i]` is the length of the longest border of the\nfirst `i + 1` characters. It is computed left to right: to extend a border of length `k` by the next character, check\n`t[i] == t[k]`; if not, the next shorter candidate is the border of the border, `pi[k − 1]`, and so on until a match\nor `k = 0`."
+  },
+  {
+   "md": "**Prefix function of `\"abab\"`:**"
+  },
+  {
+   "table": {
+    "head": [
+     "i",
+     "prefix",
+     "pi[i]",
+     "longest border"
+    ],
+    "rows": [
+     [
+      "0",
+      "a",
+      "0",
+      "—"
+     ],
+     [
+      "1",
+      "ab",
+      "0",
+      "—"
+     ],
+     [
+      "2",
+      "aba",
+      "1",
+      "a"
+     ],
+     [
+      "3",
+      "abab",
+      "2",
+      "ab"
+     ]
+    ]
+   }
+  },
+  {
+   "md": "**The scan.** Keep `k` = how many tag characters match, ending at the current text position. On a mismatch,\nfall back from `k` to `pi[k − 1]` (the longest border of what matched) and try again; that's the most of the\ntag that can still be matched. After a full match, fall back the same way to catch overlapping copies. Trace on\n`\"abababcabab\"`:"
+  },
+  {
+   "table": {
+    "head": [
+     "i",
+     "char",
+     "k before",
+     "fallbacks",
+     "k after",
+     "event"
+    ],
+    "rows": [
+     [
+      "0",
+      "a",
+      "0",
+      "—",
+      "1",
+      ""
+     ],
+     [
+      "1",
+      "b",
+      "1",
+      "—",
+      "2",
+      ""
+     ],
+     [
+      "2",
+      "a",
+      "2",
+      "—",
+      "3",
+      ""
+     ],
+     [
+      "3",
+      "b",
+      "3",
+      "—",
+      "4",
+      "match at 0, keep 2"
+     ],
+     [
+      "4",
+      "a",
+      "2",
+      "—",
+      "3",
+      ""
+     ],
+     [
+      "5",
+      "b",
+      "3",
+      "—",
+      "4",
+      "match at 2, keep 2"
+     ],
+     [
+      "6",
+      "c",
+      "2",
+      "0",
+      "0",
+      ""
+     ],
+     [
+      "7",
+      "a",
+      "0",
+      "—",
+      "1",
+      ""
+     ],
+     [
+      "8",
+      "b",
+      "1",
+      "—",
+      "2",
+      ""
+     ],
+     [
+      "9",
+      "a",
+      "2",
+      "—",
+      "3",
+      ""
+     ],
+     [
+      "10",
+      "b",
+      "3",
+      "—",
+      "4",
+      "match at 7, keep 2"
+     ]
+    ]
+   }
+  },
+  {
+   "md": "Matches at **[0, 2, 7]**."
+  }
+ ],
+ "approaches": [
+  {
+   "title": "Check every start",
+   "kind": "brute",
+   "time": "O(n · m)",
+   "space": "O(1)",
+   "idea": [
+    {
+     "md": "Line the tag up at every start `0 … n − m` and compare character by character until a mismatch or a full\nmatch. Record full matches.\n\nCorrect and easy to trust, but every start begins comparing from the tag's first character."
+    }
+   ],
+   "build": [
+    "Loop over starts.",
+    "Compare until mismatch or `m` matches.",
+    "Record full matches."
+   ],
+   "code": {
+    "python": "class Solution:\n    def findAll(self, text: str, tag: str) -> List[int]:\n        n, m = len(text), len(tag)\n        out = []\n        for i in range(n - m + 1):\n            j = 0\n            while j < m and text[i + j] == tag[j]:\n                j += 1\n            if j == m:\n                out.append(i)\n        return out\n",
+    "java": "class Solution {\n    public int[] findAll(String text, String tag) {\n        int n = text.length(), m = tag.length();\n        List<Integer> out = new ArrayList<>();\n        for (int i = 0; i + m <= n; i++) {\n            int j = 0;\n            while (j < m && text.charAt(i + j) == tag.charAt(j)) j++;\n            if (j == m) out.add(i);\n        }\n        return out.stream().mapToInt(x -> x).toArray();\n    }\n}\n",
+    "cpp": "class Solution {\npublic:\n    vector<int> findAll(string& text, string& tag) {\n        int n = text.size(), m = tag.size();\n        vector<int> out;\n        for (int i = 0; i + m <= n; i++) {\n            int j = 0;\n            while (j < m && text[i + j] == tag[j]) j++;\n            if (j == m) out.push_back(i);\n        }\n        return out;\n    }\n};\n",
+    "c": "int* findAll(char* text, char* tag, int* returnSize) {\n    int n = strlen(text), m = strlen(tag), count = 0;\n    int* out = malloc((n + 1) * sizeof(int));\n    for (int i = 0; i + m <= n; i++) {\n        int j = 0;\n        while (j < m && text[i + j] == tag[j]) j++;\n        if (j == m) out[count++] = i;\n    }\n    *returnSize = count;\n    return out;\n}\n"
+   },
+   "lines": [
+    {
+     "text": "Lengths and the list of match positions.",
+     "at": {
+      "python": [
+       [
+        3,
+        4
+       ]
+      ],
+      "java": [
+       [
+        3,
+        4
+       ]
+      ],
+      "cpp": [
+       [
+        4,
+        5
+       ]
+      ],
+      "c": [
+       [
+        2,
+        3
+       ]
+      ]
+     }
+    },
+    {
+     "text": "Every position where the whole tag still fits.",
+     "at": {
+      "python": [
+       [
+        5,
+        5
+       ]
+      ],
+      "java": [
+       [
+        5,
+        5
+       ]
+      ],
+      "cpp": [
+       [
+        6,
+        6
+       ]
+      ],
+      "c": [
+       [
+        4,
+        4
+       ]
+      ]
+     }
+    },
+    {
+     "text": "Compare until the first mismatch or until all `m` characters have matched.",
+     "at": {
+      "python": [
+       [
+        6,
+        8
+       ]
+      ],
+      "java": [
+       [
+        6,
+        7
+       ]
+      ],
+      "cpp": [
+       [
+        7,
+        8
+       ]
+      ],
+      "c": [
+       [
+        5,
+        6
+       ]
+      ]
+     }
+    },
+    {
+     "text": "All `m` characters matched: the tag occurs at `i`.",
+     "at": {
+      "python": [
+       [
+        9,
+        10
+       ]
+      ],
+      "java": [
+       [
+        8,
+        8
+       ]
+      ],
+      "cpp": [
+       [
+        9,
+        9
+       ]
+      ],
+      "c": [
+       [
+        7,
+        7
+       ]
+      ]
+     }
+    },
+    {
+     "text": "The starts, already in increasing order.",
+     "at": {
+      "python": [
+       [
+        11,
+        11
+       ]
+      ],
+      "java": [
+       [
+        10,
+        10
+       ]
+      ],
+      "cpp": [
+       [
+        11,
+        11
+       ]
+      ],
+      "c": [
+       [
+        9,
+        10
+       ]
+      ]
+     }
+    }
+   ],
+   "complexity": [
+    {
+     "md": "**Time O(n · m)** worst case: about 10¹⁰ comparisons for `n = 10⁵` with long near-matches. **Space O(1)** besides the output."
+    }
+   ],
+   "walk": {
+    "steps": [
+     {
+      "text": "Start 0: 'abab' matches.",
+      "panels": [
+       {
+        "type": "row",
+        "cells": [
+         "a",
+         "b",
+         "a",
+         "b",
+         "a",
+         "b",
+         "c",
+         "a",
+         "b",
+         "a",
+         "b"
+        ],
+        "states": {
+         "0": "found",
+         "1": "found",
+         "2": "found",
+         "3": "found"
+        }
+       }
+      ]
+     },
+     {
+      "text": "Start 1: 'baba' differs.",
+      "panels": [
+       {
+        "type": "row",
+        "cells": [
+         "a",
+         "b",
+         "a",
+         "b",
+         "a",
+         "b",
+         "c",
+         "a",
+         "b",
+         "a",
+         "b"
+        ],
+        "states": {
+         "1": "dim",
+         "2": "dim",
+         "3": "dim",
+         "4": "dim"
+        }
+       }
+      ]
+     },
+     {
+      "text": "Start 2: 'abab' matches.",
+      "panels": [
+       {
+        "type": "row",
+        "cells": [
+         "a",
+         "b",
+         "a",
+         "b",
+         "a",
+         "b",
+         "c",
+         "a",
+         "b",
+         "a",
+         "b"
+        ],
+        "states": {
+         "2": "found",
+         "3": "found",
+         "4": "found",
+         "5": "found"
+        }
+       }
+      ]
+     },
+     {
+      "text": "Start 3: 'babc' differs.",
+      "panels": [
+       {
+        "type": "row",
+        "cells": [
+         "a",
+         "b",
+         "a",
+         "b",
+         "a",
+         "b",
+         "c",
+         "a",
+         "b",
+         "a",
+         "b"
+        ],
+        "states": {
+         "3": "dim",
+         "4": "dim",
+         "5": "dim",
+         "6": "dim"
+        }
+       }
+      ]
+     },
+     {
+      "text": "Start 4: 'abca' differs.",
+      "panels": [
+       {
+        "type": "row",
+        "cells": [
+         "a",
+         "b",
+         "a",
+         "b",
+         "a",
+         "b",
+         "c",
+         "a",
+         "b",
+         "a",
+         "b"
+        ],
+        "states": {
+         "4": "dim",
+         "5": "dim",
+         "6": "dim",
+         "7": "dim"
+        }
+       }
+      ]
+     },
+     {
+      "text": "Start 5: 'bcab' differs.",
+      "panels": [
+       {
+        "type": "row",
+        "cells": [
+         "a",
+         "b",
+         "a",
+         "b",
+         "a",
+         "b",
+         "c",
+         "a",
+         "b",
+         "a",
+         "b"
+        ],
+        "states": {
+         "5": "dim",
+         "6": "dim",
+         "7": "dim",
+         "8": "dim"
+        }
+       }
+      ]
+     },
+     {
+      "text": "Start 6: 'caba' differs.",
+      "panels": [
+       {
+        "type": "row",
+        "cells": [
+         "a",
+         "b",
+         "a",
+         "b",
+         "a",
+         "b",
+         "c",
+         "a",
+         "b",
+         "a",
+         "b"
+        ],
+        "states": {
+         "6": "dim",
+         "7": "dim",
+         "8": "dim",
+         "9": "dim"
+        }
+       }
+      ]
+     },
+     {
+      "text": "Start 7: 'abab' matches.",
+      "panels": [
+       {
+        "type": "row",
+        "cells": [
+         "a",
+         "b",
+         "a",
+         "b",
+         "a",
+         "b",
+         "c",
+         "a",
+         "b",
+         "a",
+         "b"
+        ],
+        "states": {
+         "7": "found",
+         "8": "found",
+         "9": "found",
+         "10": "found"
+        }
+       }
+      ]
+     },
+     {
+      "text": "Starts: [0, 2, 7].",
+      "panels": [],
+      "result": "[0, 2, 7]"
+     }
+    ],
+    "title": "Line the tag up at every start and compare character by character."
+   },
+   "limits": [
+    {
+     "md": "After a partial match breaks, the next start re-reads text that was already matched. The prefix function tells exactly how much of that match can be kept, so the text pointer never moves back."
+    }
+   ],
+   "slow": true
+  },
+  {
+   "title": "KMP: prefix function, then one pass",
+   "kind": "best",
+   "time": "O(n + m)",
+   "space": "O(m)",
+   "idea": [
+    {
+     "md": "**Phase 1:** compute the prefix function `fail` of the tag (the same matching process, run on the tag\nagainst itself).\n\n**Phase 2:** scan the text with `k`. For each character: while `k > 0` and it doesn't match `tag[k]`,\nset `k = fail[k − 1]`. If it matches, `k += 1`. If `k == m`, record `i − m + 1` and set `k = fail[m − 1]`.\n\n**Invariant.** After processing text position `i`, `k` is the length of the longest prefix of the tag that\nends exactly at `i`. Every occurrence of the tag ends at some `i` with `k = m`, so none is missed."
+    }
+   ],
+   "build": [
+    "Build `fail` for the tag.",
+    "Scan the text keeping `k`; fall back through `fail` on mismatches.",
+    "On a full match, record and fall back to `fail[m − 1]`."
+   ],
+   "code": {
+    "python": "class Solution:\n    def findAll(self, text: str, tag: str) -> List[int]:\n        m = len(tag)\n        fail, k = [0] * m, 0\n        for i in range(1, m):\n            while k and tag[i] != tag[k]:\n                k = fail[k - 1]\n            if tag[i] == tag[k]:\n                k += 1\n            fail[i] = k\n        out, k = [], 0\n        for i, c in enumerate(text):\n            while k and c != tag[k]:\n                k = fail[k - 1]\n            if c == tag[k]:\n                k += 1\n            if k == m:\n                out.append(i - m + 1)\n                k = fail[k - 1]\n        return out\n",
+    "java": "class Solution {\n    public int[] findAll(String text, String tag) {\n        int n = text.length(), m = tag.length(), k = 0;\n        int[] fail = new int[m];\n        for (int i = 1; i < m; i++) {\n            while (k > 0 && tag.charAt(i) != tag.charAt(k)) k = fail[k - 1];\n            if (tag.charAt(i) == tag.charAt(k)) k++;\n            fail[i] = k;\n        }\n        List<Integer> out = new ArrayList<>();\n        k = 0;\n        for (int i = 0; i < n; i++) {\n            char c = text.charAt(i);\n            while (k > 0 && c != tag.charAt(k)) k = fail[k - 1];\n            if (c == tag.charAt(k)) k++;\n            if (k == m) { out.add(i - m + 1); k = fail[k - 1]; }\n        }\n        return out.stream().mapToInt(x -> x).toArray();\n    }\n}\n",
+    "cpp": "class Solution {\npublic:\n    vector<int> findAll(string& text, string& tag) {\n        int n = text.size(), m = tag.size(), k = 0;\n        vector<int> fail(m, 0);\n        for (int i = 1; i < m; i++) {\n            while (k > 0 && tag[i] != tag[k]) k = fail[k - 1];\n            if (tag[i] == tag[k]) k++;\n            fail[i] = k;\n        }\n        vector<int> out;\n        k = 0;\n        for (int i = 0; i < n; i++) {\n            while (k > 0 && text[i] != tag[k]) k = fail[k - 1];\n            if (text[i] == tag[k]) k++;\n            if (k == m) { out.push_back(i - m + 1); k = fail[k - 1]; }\n        }\n        return out;\n    }\n};\n",
+    "c": "int* findAll(char* text, char* tag, int* returnSize) {\n    int n = strlen(text), m = strlen(tag), k = 0, count = 0;\n    int* fail = calloc(m, sizeof(int));\n    for (int i = 1; i < m; i++) {\n        while (k > 0 && tag[i] != tag[k]) k = fail[k - 1];\n        if (tag[i] == tag[k]) k++;\n        fail[i] = k;\n    }\n    int* out = malloc((n + 1) * sizeof(int));\n    k = 0;\n    for (int i = 0; i < n; i++) {\n        while (k > 0 && text[i] != tag[k]) k = fail[k - 1];\n        if (text[i] == tag[k]) k++;\n        if (k == m) { out[count++] = i - m + 1; k = fail[k - 1]; }\n    }\n    free(fail);\n    *returnSize = count;\n    return out;\n}\n"
+   },
+   "lines": [
+    {
+     "text": "The prefix function of the tag: for each prefix, the longest border. It's the scan below applied to the tag itself.",
+     "at": {
+      "python": [
+       [
+        3,
+        10
+       ]
+      ],
+      "java": [
+       [
+        3,
+        8
+       ]
+      ],
+      "cpp": [
+       [
+        4,
+        9
+       ]
+      ],
+      "c": [
+       [
+        2,
+        7
+       ]
+      ]
+     }
+    },
+    {
+     "text": "`k` = tag characters matched so far, ending at this text position. A match extends it by one.",
+     "at": {
+      "python": [
+       [
+        11,
+        12
+       ],
+       [
+        15,
+        16
+       ]
+      ],
+      "java": [
+       [
+        10,
+        13
+       ],
+       [
+        15,
+        15
+       ]
+      ],
+      "cpp": [
+       [
+        11,
+        13
+       ],
+       [
+        15,
+        15
+       ]
+      ],
+      "c": [
+       [
+        9,
+        11
+       ],
+       [
+        13,
+        13
+       ]
+      ]
+     }
+    },
+    {
+     "text": "On a mismatch, the longest border of the matched part is the largest piece that could still be extended. Keep falling back until the next character fits or nothing is left.",
+     "at": {
+      "python": [
+       [
+        13,
+        14
+       ]
+      ],
+      "java": [
+       [
+        14,
+        14
+       ]
+      ],
+      "cpp": [
+       [
+        14,
+        14
+       ]
+      ],
+      "c": [
+       [
+        12,
+        12
+       ]
+      ]
+     }
+    },
+    {
+     "text": "A full match starts at `i − m + 1`. Falling back to `fail[m − 1]` instead of 0 keeps the overlap, so a copy sharing characters with this one is still found.",
+     "at": {
+      "python": [
+       [
+        17,
+        19
+       ]
+      ],
+      "java": [
+       [
+        16,
+        16
+       ]
+      ],
+      "cpp": [
+       [
+        16,
+        16
+       ]
+      ],
+      "c": [
+       [
+        14,
+        14
+       ]
+      ]
+     }
+    },
+    {
+     "text": "All starts, left to right.",
+     "at": {
+      "python": [
+       [
+        20,
+        20
+       ]
+      ],
+      "java": [
+       [
+        18,
+        18
+       ]
+      ],
+      "cpp": [
+       [
+        18,
+        18
+       ]
+      ],
+      "c": [
+       [
+        16,
+        18
+       ]
+      ]
+     }
+    }
+   ],
+   "complexity": [
+    {
+     "md": "**Time O(n + m).** `k` grows by at most 1 per character and each fallback shrinks it, so the total number\nof fallbacks can't exceed the total growth: at most `n` in the scan and `m` in the table. **Space O(m)**\nfor the table."
+    }
+   ],
+   "walk": {
+    "steps": [
+     {
+      "text": "Position 1 ('b'): the longest proper prefix of 'ab' that is also its suffix has length 0.",
+      "panels": [
+       {
+        "type": "row",
+        "cells": [
+         "a",
+         "b",
+         "a",
+         "b"
+        ],
+        "label": "tag"
+       },
+       {
+        "type": "row",
+        "cells": [
+         0,
+         0,
+         "·",
+         "·"
+        ],
+        "label": "prefix fn"
+       }
+      ]
+     },
+     {
+      "text": "Position 2 ('a'): the longest proper prefix of 'aba' that is also its suffix has length 1.",
+      "panels": [
+       {
+        "type": "row",
+        "cells": [
+         "a",
+         "b",
+         "a",
+         "b"
+        ],
+        "states": {
+         "0": "found",
+         "2": "active"
+        },
+        "label": "tag"
+       },
+       {
+        "type": "row",
+        "cells": [
+         0,
+         0,
+         1,
+         "·"
+        ],
+        "label": "prefix fn"
+       }
+      ]
+     },
+     {
+      "text": "Position 3 ('b'): the longest proper prefix of 'abab' that is also its suffix has length 2.",
+      "panels": [
+       {
+        "type": "row",
+        "cells": [
+         "a",
+         "b",
+         "a",
+         "b"
+        ],
+        "states": {
+         "0": "found",
+         "1": "found",
+         "2": "active",
+         "3": "active"
+        },
+        "label": "tag"
+       },
+       {
+        "type": "row",
+        "cells": [
+         0,
+         0,
+         1,
+         2
+        ],
+        "label": "prefix fn"
+       }
+      ]
+     },
+     {
+      "text": "Text[0] = 'a': matched length k = 1.",
+      "panels": [
+       {
+        "type": "row",
+        "cells": [
+         "a",
+         "b",
+         "a",
+         "b",
+         "a",
+         "b",
+         "c",
+         "a",
+         "b",
+         "a",
+         "b"
+        ],
+        "states": {
+         "0": "active"
+        }
+       },
+       {
+        "type": "vars",
+        "items": {
+         "k": 1
+        }
+       }
+      ]
+     },
+     {
+      "text": "Text[1] = 'b': matched length k = 2.",
+      "panels": [
+       {
+        "type": "row",
+        "cells": [
+         "a",
+         "b",
+         "a",
+         "b",
+         "a",
+         "b",
+         "c",
+         "a",
+         "b",
+         "a",
+         "b"
+        ],
+        "states": {
+         "0": "active",
+         "1": "active"
+        }
+       },
+       {
+        "type": "vars",
+        "items": {
+         "k": 2
+        }
+       }
+      ]
+     },
+     {
+      "text": "Text[2] = 'a': matched length k = 3.",
+      "panels": [
+       {
+        "type": "row",
+        "cells": [
+         "a",
+         "b",
+         "a",
+         "b",
+         "a",
+         "b",
+         "c",
+         "a",
+         "b",
+         "a",
+         "b"
+        ],
+        "states": {
+         "0": "active",
+         "1": "active",
+         "2": "active"
+        }
+       },
+       {
+        "type": "vars",
+        "items": {
+         "k": 3
+        }
+       }
+      ]
+     },
+     {
+      "text": "Text[3] = 'b': matched length k = 4. Full match at 0; fall back to k = 2.",
+      "panels": [
+       {
+        "type": "row",
+        "cells": [
+         "a",
+         "b",
+         "a",
+         "b",
+         "a",
+         "b",
+         "c",
+         "a",
+         "b",
+         "a",
+         "b"
+        ],
+        "states": {
+         "0": "found",
+         "1": "found",
+         "2": "found",
+         "3": "found"
+        }
+       },
+       {
+        "type": "vars",
+        "items": {
+         "k": 4
+        }
+       }
+      ]
+     },
+     {
+      "text": "Text[4] = 'a': matched length k = 3.",
+      "panels": [
+       {
+        "type": "row",
+        "cells": [
+         "a",
+         "b",
+         "a",
+         "b",
+         "a",
+         "b",
+         "c",
+         "a",
+         "b",
+         "a",
+         "b"
+        ],
+        "states": {
+         "2": "active",
+         "3": "active",
+         "4": "active"
+        }
+       },
+       {
+        "type": "vars",
+        "items": {
+         "k": 3
+        }
+       }
+      ]
+     },
+     {
+      "text": "Text[5] = 'b': matched length k = 4. Full match at 2; fall back to k = 2.",
+      "panels": [
+       {
+        "type": "row",
+        "cells": [
+         "a",
+         "b",
+         "a",
+         "b",
+         "a",
+         "b",
+         "c",
+         "a",
+         "b",
+         "a",
+         "b"
+        ],
+        "states": {
+         "2": "found",
+         "3": "found",
+         "4": "found",
+         "5": "found"
+        }
+       },
+       {
+        "type": "vars",
+        "items": {
+         "k": 4
+        }
+       }
+      ]
+     },
+     {
+      "text": "Text[6] = 'c': matched length k = 0.",
+      "panels": [
+       {
+        "type": "row",
+        "cells": [
+         "a",
+         "b",
+         "a",
+         "b",
+         "a",
+         "b",
+         "c",
+         "a",
+         "b",
+         "a",
+         "b"
+        ]
+       },
+       {
+        "type": "vars",
+        "items": {
+         "k": 0
+        }
+       }
+      ]
+     },
+     {
+      "text": "Text[7] = 'a': matched length k = 1.",
+      "panels": [
+       {
+        "type": "row",
+        "cells": [
+         "a",
+         "b",
+         "a",
+         "b",
+         "a",
+         "b",
+         "c",
+         "a",
+         "b",
+         "a",
+         "b"
+        ],
+        "states": {
+         "7": "active"
+        }
+       },
+       {
+        "type": "vars",
+        "items": {
+         "k": 1
+        }
+       }
+      ]
+     },
+     {
+      "text": "Text[8] = 'b': matched length k = 2.",
+      "panels": [
+       {
+        "type": "row",
+        "cells": [
+         "a",
+         "b",
+         "a",
+         "b",
+         "a",
+         "b",
+         "c",
+         "a",
+         "b",
+         "a",
+         "b"
+        ],
+        "states": {
+         "7": "active",
+         "8": "active"
+        }
+       },
+       {
+        "type": "vars",
+        "items": {
+         "k": 2
+        }
+       }
+      ]
+     },
+     {
+      "text": "Text[9] = 'a': matched length k = 3.",
+      "panels": [
+       {
+        "type": "row",
+        "cells": [
+         "a",
+         "b",
+         "a",
+         "b",
+         "a",
+         "b",
+         "c",
+         "a",
+         "b",
+         "a",
+         "b"
+        ],
+        "states": {
+         "7": "active",
+         "8": "active",
+         "9": "active"
+        }
+       },
+       {
+        "type": "vars",
+        "items": {
+         "k": 3
+        }
+       }
+      ]
+     },
+     {
+      "text": "Text[10] = 'b': matched length k = 4. Full match at 7; fall back to k = 2.",
+      "panels": [
+       {
+        "type": "row",
+        "cells": [
+         "a",
+         "b",
+         "a",
+         "b",
+         "a",
+         "b",
+         "c",
+         "a",
+         "b",
+         "a",
+         "b"
+        ],
+        "states": {
+         "7": "found",
+         "8": "found",
+         "9": "found",
+         "10": "found"
+        }
+       },
+       {
+        "type": "vars",
+        "items": {
+         "k": 4
+        }
+       }
+      ]
+     },
+     {
+      "text": "Starts: [0, 2, 7].",
+      "panels": [],
+      "result": "[0, 2, 7]"
+     }
+    ],
+    "title": "Build the prefix function of the tag, then stream the text keeping k = how much of the tag currently matches. On a mismatch (or a full match) fall back to the longest border instead of restarting."
+   }
+  }
+ ],
+ "takeaways": [
+  {
+   "md": "- **Recognise it:** find all occurrences of a pattern, or anything about prefixes that are also suffixes.\n- **Template:** build `pi` for the pattern; scan with `k`, fall back via `pi[k − 1]`.\n- **Pitfalls:** resetting `k` to 0 after a match (misses overlaps); using `pi[k]` instead of `pi[k − 1]`.\n- **Related:** the Z-function solves the same problems; rolling hashes give a probabilistic alternative."
+  }
+ ]
+}

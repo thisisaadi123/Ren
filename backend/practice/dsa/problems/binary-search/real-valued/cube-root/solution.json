@@ -1,0 +1,586 @@
+{
+ "version": 1,
+ "summary": "x³ grows steadily with x (it's strictly increasing, even for negatives), so the cube root of v is the single\npoint where x³ crosses v. Bisection keeps an interval around that point and halves it a fixed number of times;\n100 halvings shrink any starting interval far below the 10⁻⁶ tolerance.",
+ "question": [
+  {
+   "md": "Return r with r³ = volume, within 10⁻⁶ (relative for large values), without built-in power or root\nfunctions.\n\n- **Negative inputs are fine:** the cube root of −8 is −2 (unlike square roots).\n- **|volume| < 1** has a root larger in size than the volume (∛0.125 = 0.5), so the search interval must be\n  at least [−1, 1], not [−|v|, |v|].\n- **The answer is a decimal**; exact equality is not expected."
+  }
+ ],
+ "think": [
+  {
+   "md": "Take v = 50. 3³ = 27 is too small and 4³ = 64 too big, so the root is between 3 and 4. Try 3.5: 42.875, too\nsmall, so it's between 3.5 and 4. Each test halves the interval: this is binary search on real numbers."
+  },
+  {
+   "panels": [
+    {
+     "type": "row",
+     "cells": [
+      "3",
+      "3.5",
+      "3.75",
+      "3.6875",
+      "…",
+      "3.684"
+     ],
+     "states": {
+      "5": "answer"
+     },
+     "label": "midpoints tried"
+    }
+   ],
+   "caption": "Each midpoint's cube tells which half keeps the root."
+  },
+  {
+   "md": "Two details make it robust:\n\n- **Starting interval:** `[−max(1, |v|), max(1, |v|)]` always contains the root: for |v| ≥ 1 the root's size is\n  at most |v|, and for |v| < 1 it's at most 1.\n- **Stopping:** instead of comparing with a tolerance (tricky with relative error), just halve a fixed 100 or\n  more times. The interval shrinks by 2¹⁰⁰, far beyond double precision."
+  }
+ ],
+ "approaches": [
+  {
+   "title": "Newton's method",
+   "kind": "better",
+   "time": "O(log log(1/ε)) steps once close",
+   "space": "O(1)",
+   "idea": [
+    {
+     "md": "Treat it as solving f(r) = r³ − v = 0. Newton's update `r ← r − f(r) / f′(r) = r − (r³ − v) / (3r²)` roughly doubles the number of correct digits per step once r is close. Start from r = v (or 1 when v is 0 or tiny), iterate a fixed number of times."
+    }
+   ],
+   "build": [
+    "If v is 0, return 0.",
+    "Start with `r = v`.",
+    "Repeat ~100 times: `r = r − (r³ − v) / (3r²)`.",
+    "Return r."
+   ],
+   "code": {
+    "python": "class Solution:\n    def cubeRoot(self, volume: float) -> float:\n        if volume == 0:\n            return 0.0\n        r = volume\n        for _ in range(100):\n            r -= (r * r * r - volume) / (3 * r * r)\n        return r\n",
+    "java": "class Solution {\n    public double cubeRoot(double volume) {\n        if (volume == 0) return 0;\n        double r = volume;\n        for (int i = 0; i < 100; i++) r -= (r * r * r - volume) / (3 * r * r);\n        return r;\n    }\n}\n",
+    "cpp": "class Solution {\npublic:\n    double cubeRoot(double volume) {\n        if (volume == 0) return 0;\n        double r = volume;\n        for (int i = 0; i < 100; i++) r -= (r * r * r - volume) / (3 * r * r);\n        return r;\n    }\n};\n",
+    "c": "double cubeRoot(double volume) {\n    if (volume == 0) return 0;\n    double r = volume;\n    for (int i = 0; i < 100; i++) r -= (r * r * r - volume) / (3 * r * r);\n    return r;\n}\n"
+   },
+   "lines": [
+    {
+     "text": "Newton divides by 3r², so the root 0 is handled up front.",
+     "at": {
+      "python": [
+       [
+        3,
+        4
+       ]
+      ],
+      "java": [
+       [
+        3,
+        3
+       ]
+      ],
+      "cpp": [
+       [
+        4,
+        4
+       ]
+      ],
+      "c": [
+       [
+        2,
+        2
+       ]
+      ]
+     }
+    },
+    {
+     "text": "Start at v itself: it has the right sign, and the iteration moves towards the root from there.",
+     "at": {
+      "python": [
+       [
+        5,
+        5
+       ]
+      ],
+      "java": [
+       [
+        4,
+        4
+       ]
+      ],
+      "cpp": [
+       [
+        5,
+        5
+       ]
+      ],
+      "c": [
+       [
+        3,
+        3
+       ]
+      ]
+     }
+    },
+    {
+     "text": "Slide along the tangent of r³ − v to where it hits zero. Far from the root each step shrinks r by about a third; close to it, the correct digits double each step. 100 steps is plenty for |v| ≤ 10⁹.",
+     "at": {
+      "python": [
+       [
+        6,
+        7
+       ]
+      ],
+      "java": [
+       [
+        5,
+        5
+       ]
+      ],
+      "cpp": [
+       [
+        6,
+        6
+       ]
+      ],
+      "c": [
+       [
+        4,
+        4
+       ]
+      ]
+     }
+    },
+    {
+     "text": "The converged root.",
+     "at": {
+      "python": [
+       [
+        8,
+        8
+       ]
+      ],
+      "java": [
+       [
+        6,
+        6
+       ]
+      ],
+      "cpp": [
+       [
+        7,
+        7
+       ]
+      ],
+      "c": [
+       [
+        5,
+        5
+       ]
+      ]
+     }
+    }
+   ],
+   "complexity": [
+    {
+     "md": "**Time:** a handful of steps once close; up to ~60 to get close from v = 10⁹ (each step shrinks r by ~2/3 there). **Space O(1).**"
+    }
+   ],
+   "walk": {
+    "steps": [
+     {
+      "text": "Step 1: r = 50 → 33.34 (r³ = 37059.263704).",
+      "panels": [
+       {
+        "type": "vars",
+        "items": {
+         "r": "33.34",
+         "r cubed": "37059.263704"
+        }
+       }
+      ]
+     },
+     {
+      "text": "Step 2: r = 33.34 → 22.241661 (r³ = 11002.759796).",
+      "panels": [
+       {
+        "type": "vars",
+        "items": {
+         "r": "22.241661",
+         "r cubed": "11002.759796"
+        }
+       }
+      ]
+     },
+     {
+      "text": "Step 3: r = 22.241661 → 14.861465 (r³ = 3282.349729).",
+      "panels": [
+       {
+        "type": "vars",
+        "items": {
+         "r": "14.861465",
+         "r cubed": "3282.349729"
+        }
+       }
+      ]
+     },
+     {
+      "text": "Step 4: r = 14.861465 → 9.983105 (r³ = 994.939975).",
+      "panels": [
+       {
+        "type": "vars",
+        "items": {
+         "r": "9.983105",
+         "r cubed": "994.939975"
+        }
+       }
+      ]
+     },
+     {
+      "text": "Step 5: r = 9.983105 → 6.822634 (r³ = 317.58231).",
+      "panels": [
+       {
+        "type": "vars",
+        "items": {
+         "r": "6.822634",
+         "r cubed": "317.58231"
+        }
+       }
+      ]
+     },
+     {
+      "text": "Step 6: r = 6.822634 → 4.906474 (r³ = 118.115914).",
+      "panels": [
+       {
+        "type": "vars",
+        "items": {
+         "r": "4.906474",
+         "r cubed": "118.115914"
+        }
+       }
+      ]
+     },
+     {
+      "text": "Step 7: r = 4.906474 → 3.963307 (r³ = 62.254848).",
+      "panels": [
+       {
+        "type": "vars",
+        "items": {
+         "r": "3.963307",
+         "r cubed": "62.254848"
+        }
+       }
+      ]
+     },
+     {
+      "text": "Step 8: r = 3.963307 → 3.703249 (r³ = 50.786533).",
+      "panels": [
+       {
+        "type": "vars",
+        "items": {
+         "r": "3.703249",
+         "r cubed": "50.786533"
+        }
+       }
+      ],
+      "result": "3.684031"
+     }
+    ],
+    "title": "Newton's method: improve a guess r with r − (r³ − v) / (3r²) until it stops changing."
+   },
+   "limits": [
+    {
+     "md": "Fast, but its behaviour depends on the starting point and on dividing by r², which is fragile near 0 (for tiny |v|, intermediate values blow up before settling). Bisection is slower per digit but always safe and needs no derivative."
+    }
+   ]
+  },
+  {
+   "title": "Bisection on the real line",
+   "kind": "best",
+   "time": "O(log(range / ε))",
+   "space": "O(1)",
+   "idea": [
+    {
+     "md": "Keep `[lo, hi] = [−max(1, |v|), max(1, |v|)]`. Repeat 200 times: `mid = (lo + hi) / 2`; if `mid³ < v`, `lo = mid`, else `hi = mid`. Return the midpoint."
+    }
+   ],
+   "build": [
+    "Bracket the root with `±max(1, |v|)`.",
+    "Halve the bracket a fixed number of times by comparing `mid³` with v.",
+    "Return `(lo + hi) / 2`."
+   ],
+   "code": {
+    "python": "class Solution:\n    def cubeRoot(self, volume: float) -> float:\n        bound = max(1.0, abs(volume))\n        lo, hi = -bound, bound\n        for _ in range(200):\n            mid = (lo + hi) / 2\n            if mid * mid * mid < volume:\n                lo = mid\n            else:\n                hi = mid\n        return (lo + hi) / 2\n",
+    "java": "class Solution {\n    public double cubeRoot(double volume) {\n        double bound = Math.max(1.0, Math.abs(volume));\n        double lo = -bound, hi = bound;\n        for (int i = 0; i < 200; i++) {\n            double mid = (lo + hi) / 2;\n            if (mid * mid * mid < volume) lo = mid; else hi = mid;\n        }\n        return (lo + hi) / 2;\n    }\n}\n",
+    "cpp": "class Solution {\npublic:\n    double cubeRoot(double volume) {\n        double bound = max(1.0, fabs(volume));\n        double lo = -bound, hi = bound;\n        for (int i = 0; i < 200; i++) {\n            double mid = (lo + hi) / 2;\n            if (mid * mid * mid < volume) lo = mid; else hi = mid;\n        }\n        return (lo + hi) / 2;\n    }\n};\n",
+    "c": "double cubeRoot(double volume) {\n    double bound = fabs(volume) > 1.0 ? fabs(volume) : 1.0;\n    double lo = -bound, hi = bound;\n    for (int i = 0; i < 200; i++) {\n        double mid = (lo + hi) / 2;\n        if (mid * mid * mid < volume) lo = mid; else hi = mid;\n    }\n    return (lo + hi) / 2;\n}\n"
+   },
+   "lines": [
+    {
+     "text": "An interval guaranteed to contain the root, for any sign and size of v (`fabs` is plain absolute value, not a root function).",
+     "at": {
+      "python": [
+       [
+        3,
+        4
+       ]
+      ],
+      "java": [
+       [
+        3,
+        4
+       ]
+      ],
+      "cpp": [
+       [
+        4,
+        5
+       ]
+      ],
+      "c": [
+       [
+        2,
+        3
+       ]
+      ]
+     }
+    },
+    {
+     "text": "x³ is increasing, so comparing `mid³` with v tells which half holds the root. A fixed number of rounds avoids fiddly tolerance tests; 200 halvings is far more than double precision needs.",
+     "at": {
+      "python": [
+       [
+        5,
+        10
+       ]
+      ],
+      "java": [
+       [
+        5,
+        7
+       ]
+      ],
+      "cpp": [
+       [
+        6,
+        8
+       ]
+      ],
+      "c": [
+       [
+        4,
+        6
+       ]
+      ]
+     }
+    },
+    {
+     "text": "The midpoint of a vanishingly small interval.",
+     "at": {
+      "python": [
+       [
+        11,
+        11
+       ]
+      ],
+      "java": [
+       [
+        9,
+        9
+       ]
+      ],
+      "cpp": [
+       [
+        10,
+        10
+       ]
+      ],
+      "c": [
+       [
+        8,
+        8
+       ]
+      ]
+     }
+    }
+   ],
+   "complexity": [
+    {
+     "md": "**Time O(log(range / ε))**: here a fixed 200 iterations. **Space O(1).**"
+    }
+   ],
+   "walk": {
+    "steps": [
+     {
+      "text": "[-50, 50], mid = 0: mid³ = 0 < 50, so the root is in the upper half.",
+      "panels": [
+       {
+        "type": "vars",
+        "items": {
+         "lo": "-50",
+         "hi": "50",
+         "mid": "0"
+        }
+       }
+      ]
+     },
+     {
+      "text": "[0, 50], mid = 25: mid³ = 15625 ≥ 50, so the root is in the lower half.",
+      "panels": [
+       {
+        "type": "vars",
+        "items": {
+         "lo": "0",
+         "hi": "50",
+         "mid": "25"
+        }
+       }
+      ]
+     },
+     {
+      "text": "[0, 25], mid = 12.5: mid³ = 1953.125 ≥ 50, so the root is in the lower half.",
+      "panels": [
+       {
+        "type": "vars",
+        "items": {
+         "lo": "0",
+         "hi": "25",
+         "mid": "12.5"
+        }
+       }
+      ]
+     },
+     {
+      "text": "[0, 12.5], mid = 6.25: mid³ = 244.140625 ≥ 50, so the root is in the lower half.",
+      "panels": [
+       {
+        "type": "vars",
+        "items": {
+         "lo": "0",
+         "hi": "12.5",
+         "mid": "6.25"
+        }
+       }
+      ]
+     },
+     {
+      "text": "[0, 6.25], mid = 3.125: mid³ = 30.517578 < 50, so the root is in the upper half.",
+      "panels": [
+       {
+        "type": "vars",
+        "items": {
+         "lo": "0",
+         "hi": "6.25",
+         "mid": "3.125"
+        }
+       }
+      ]
+     },
+     {
+      "text": "[3.125, 6.25], mid = 4.6875: mid³ = 102.996826 ≥ 50, so the root is in the lower half.",
+      "panels": [
+       {
+        "type": "vars",
+        "items": {
+         "lo": "3.125",
+         "hi": "6.25",
+         "mid": "4.6875"
+        }
+       }
+      ]
+     },
+     {
+      "text": "[3.125, 4.6875], mid = 3.90625: mid³ = 59.604645 ≥ 50, so the root is in the lower half.",
+      "panels": [
+       {
+        "type": "vars",
+        "items": {
+         "lo": "3.125",
+         "hi": "4.6875",
+         "mid": "3.90625"
+        }
+       }
+      ]
+     },
+     {
+      "text": "[3.125, 3.90625], mid = 3.515625: mid³ = 43.451786 < 50, so the root is in the upper half.",
+      "panels": [
+       {
+        "type": "vars",
+        "items": {
+         "lo": "3.125",
+         "hi": "3.90625",
+         "mid": "3.515625"
+        }
+       }
+      ]
+     },
+     {
+      "text": "[3.515625, 3.90625], mid = 3.710938: mid³ = 51.103532 ≥ 50, so the root is in the lower half.",
+      "panels": [
+       {
+        "type": "vars",
+        "items": {
+         "lo": "3.515625",
+         "hi": "3.90625",
+         "mid": "3.710938"
+        }
+       }
+      ]
+     },
+     {
+      "text": "[3.515625, 3.710938], mid = 3.613281: mid³ = 47.174282 < 50, so the root is in the upper half.",
+      "panels": [
+       {
+        "type": "vars",
+        "items": {
+         "lo": "3.515625",
+         "hi": "3.710938",
+         "mid": "3.613281"
+        }
+       }
+      ]
+     },
+     {
+      "text": "[3.613281, 3.710938], mid = 3.662109: mid³ = 49.112714 < 50, so the root is in the upper half.",
+      "panels": [
+       {
+        "type": "vars",
+        "items": {
+         "lo": "3.613281",
+         "hi": "3.710938",
+         "mid": "3.662109"
+        }
+       }
+      ]
+     },
+     {
+      "text": "[3.662109, 3.710938], mid = 3.686523: mid³ = 50.101531 ≥ 50, so the root is in the lower half.",
+      "panels": [
+       {
+        "type": "vars",
+        "items": {
+         "lo": "3.662109",
+         "hi": "3.710938",
+         "mid": "3.686523"
+        }
+       }
+      ]
+     },
+     {
+      "text": "After 100 halvings the interval is narrower than 10⁻¹⁵ of its start: r ≈ 3.684031.",
+      "panels": [
+       {
+        "type": "vars",
+        "items": {
+         "root": "3.684031"
+        }
+       }
+      ],
+      "result": "3.684031"
+     }
+    ],
+    "title": "Bisection: keep an interval [lo, hi] whose cube brackets v; halve it ~100 times."
+   }
+  }
+ ],
+ "takeaways": [
+  {
+   "md": "- **Binary search on reals:** keep a bracket `[lo, hi]` around the answer of a monotonic condition, halve it a\n  fixed number of times (60–100+) instead of testing a tolerance.\n- Choose the starting bracket carefully: for |v| < 1 the root lies outside [−|v|, |v|].\n- Newton's method converges faster near the root but needs a derivative and care near zero."
+  }
+ ]
+}

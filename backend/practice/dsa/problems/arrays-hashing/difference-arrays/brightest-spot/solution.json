@@ -4,62 +4,60 @@
  "question": [
   {
    "md": "Each lamp `[position, reach]` lights the whole interval `[position − reach, position + reach]`\n(integer points, both ends included). A point's brightness is how many intervals contain it. Find\nthe brightest point; if several tie, return the **smallest**.\n\n- **Endpoints count.** A lamp at 5 with reach 0 lights exactly the point 5.\n- **The street is endless** and positions go from −10⁸ to 10⁸ with reach up to 10⁸, so lit points\n  range over about 4 × 10⁸ values. An array with one cell per point would be far too big.\n- **Ties go to the smallest point.** `[[−3, 2], [1, 2], [3, 3]]` lights −1, 0 and 1 with two lamps\n  each; the answer is −1.\n- **Size:** up to 10⁵ lamps. All coordinates (including `end + 1`) stay within ±2 × 10⁸ + 1, so\n  `int` is enough."
+  },
+  {
+   "md": "**Edge cases to keep in mind**\n\n- The street is effectively infinite (positions up to ±2 × 10⁸), so no array over all points.\n- Ties: return the **smallest** brightest point.\n- A lamp with reach 0 lights only its own position."
   }
  ],
  "think": [
   {
-   "md": "Take `lamps = [[2, 3], [6, 1], [4, 1], [10, 2], [5, 2]]`. Their lit ranges are −1…5, 5…7, 3…5,\n8…12 and 3…7. Count the brightness at every point from −1 to 12:"
+   "md": "**Difference arrays: describe where the values change.** Adding `v` to every position in `[l, r]` changes the\n*differences* between neighbours in only two places: the value goes up by `v` at `l`, and back down by `v` at `r + 1`.\nSo record `diff[l] += v` and `diff[r + 1] −= v` (O(1) per update), and after all updates rebuild the actual values\nwith one running sum (a prefix sum over `diff`). Many range updates cost O(updates + n) instead of O(updates · n)."
   },
   {
-   "panels": [
-    {
-     "type": "row",
-     "cells": [
-      -1,
-      0,
-      1,
-      2,
-      3,
-      4,
-      5,
-      6,
-      7,
-      8,
-      9,
-      10,
-      11,
-      12
-     ],
-     "label": "point"
-    },
-    {
-     "type": "row",
-     "cells": [
-      1,
-      1,
-      1,
-      1,
-      3,
-      3,
-      4,
-      2,
-      2,
-      1,
-      1,
-      1,
-      1,
-      1
-     ],
-     "states": {
-      "6": "answer"
-     },
-     "label": "brightness"
-    }
-   ],
-   "caption": "Point 5 is under four lamps. Nothing else reaches 4."
+   "md": "**Brightness at every point** for `[[2, 3], [6, 1], [4, 1], [10, 2], [5, 2]]` (lit ranges [[-1, 5], [5, 7], [3, 5], [8, 12], [3, 7]]):"
   },
   {
-   "md": "Walking left to right, the brightness changes only at two kinds of places: it goes **up by one** at\na lamp's left edge, and **down by one** just after a lamp's right edge. Between those places it's\nflat.\n\nSo the brightest stretch must **begin** at some left edge (that's where the brightness last went up\nbefore the peak). The smallest brightest point is therefore one of the n left edges, not one of\nhundreds of millions of points. That cuts the search down to n candidates.\n\nThis is the **difference array** idea (+1 where something starts, −1 just after it ends, then a\nrunning sum), except the street is too long for an array, so we keep only the places where\nsomething changes and visit them in sorted order."
+   "table": {
+    "head": [
+     "point",
+     "-1",
+     "0",
+     "1",
+     "2",
+     "3",
+     "4",
+     "5",
+     "6",
+     "7",
+     "8",
+     "9",
+     "10",
+     "11",
+     "12"
+    ],
+    "rows": [
+     [
+      "brightness",
+      "1",
+      "1",
+      "1",
+      "1",
+      "3",
+      "3",
+      "4",
+      "2",
+      "2",
+      "1",
+      "1",
+      "1",
+      "1",
+      "1"
+     ]
+    ]
+   }
+  },
+  {
+   "md": "The highest brightness is 4, first reached at **5**.\n\n**Coordinates are too large for an array**, but the difference-array idea still works on *events*: brightness\ngoes up by 1 at `position − reach` and down by 1 at `position + reach + 1` (the first unlit point). Between\nevents it's constant.\n\n**Only left edges can be the answer.** Brightness increases only at a lamp's left edge. The smallest point with\nthe maximum brightness is where the brightness last went up to that maximum, so it's a left edge. So sweep the\nsorted left edges, and for each one count lamps started (`starts ≤ x`) minus lamps already ended (`stops ≤ x`).\nSorted starts: `[-1, 3, 3, 5, 8]`; sorted stops: `[6, 6, 8, 8, 13]`."
   }
  ],
  "approaches": [
@@ -70,14 +68,13 @@
    "space": "O(1)",
    "idea": [
     {
-     "md": "Only left edges can be the answer. For each lamp's left edge `x`, count how many lamps\nsatisfy `start ≤ x ≤ end`. Keep the largest count; on a tie keep the smaller `x`."
+     "md": "Only left edges can be the answer, so for each lamp's left edge count how many lamps light it; keep the brightest, ties to the smaller point."
     }
    ],
    "build": [
-    "For each lamp, take its left edge `x = position − reach`.",
-    "Count lamps whose range contains `x` (a scan over all lamps).",
-    "If the count beats the best, or ties it with a smaller `x`, remember `x`.",
-    "Return the remembered point."
+    "Candidates = left edges.",
+    "Count lamps covering each candidate.",
+    "Keep the brightest (smallest on ties)."
    ],
    "code": {
     "python": "class Solution:\n    def brightestSpot(self, lamps: List[List[int]]) -> int:\n        best, best_at = -1, 0\n        for p, r in lamps:\n            x = p - r\n            lit = sum(1 for q, s in lamps if q - s <= x <= q + s)\n            if lit > best or (lit == best and x < best_at):\n                best, best_at = lit, x\n        return best_at\n",
@@ -237,7 +234,7 @@
    ],
    "complexity": [
     {
-     "md": "**Time O(n²):** n candidates, each checked against n lamps (10¹⁰ at the limit). **Space O(1).**"
+     "md": "**Time O(L²)** for `L` lamps: 10¹⁰ checks at the limit. **Space O(1).**"
     }
    ],
    "walk": {
@@ -405,7 +402,7 @@
    },
    "limits": [
     {
-     "md": "Neighbouring candidates share almost all of their lamps, yet each count starts from scratch.\nIf the candidates are visited in increasing order, the count can be **updated** as lamps\nswitch on and off, instead of recounted."
+     "md": "Each candidate rescans all lamps. Sorting starts and stops lets a sweep count coverage incrementally."
     }
    ],
    "slow": true
@@ -417,16 +414,14 @@
    "space": "O(n)",
    "idea": [
     {
-     "md": "Make two sorted lists: every lamp's **start** (`position − reach`) and every lamp's **stop**,\nthe first dark point after it (`position + reach + 1`). For any point `x`:\n\n`brightness(x) = (starts ≤ x) − (stops ≤ x)`\n\nbecause a lamp lights `x` exactly when it has started and hasn't yet stopped. Walk the starts\nin increasing order with one pointer `i`, and move a second pointer `j` through the stops\nwhile `stops[j] ≤ x`. Both pointers only move forward, so the walk is linear after sorting.\n\nEqual starts are handled together (we evaluate after the last of them), and the first `x`\nthat **strictly** beats the best is kept, which makes ties resolve to the smaller point."
+     "md": "Sort the left edges (`position − reach`) and the stop points (`position + reach + 1`). Sweep the left\nedges in order; for a group of equal edges ending at index `i`, advance a stop pointer `j` past stops\n`≤ x`. The brightness at `x` is `(i + 1) − j`: lamps started minus lamps finished. Keep the first maximum.\n\n**Why stops `≤ x` are finished.** A stop is the first point a lamp no longer lights, so a lamp with stop\n`≤ x` doesn't light `x`."
     }
    ],
    "build": [
-    "Build `starts[k] = p − r` and `stops[k] = p + r + 1`, and sort both.",
-    "Set `j = 0`, `best = −1`. Walk `i` over `starts`.",
-    "Skip ahead while the next start equals this one, so every lamp starting at `x` is counted.",
-    "Advance `j` while `stops[j] ≤ x` (those lamps are already dark at `x`).",
-    "`lit = (i + 1) − j`. If `lit > best`, record `best = lit` and the point `x`.",
-    "Return the recorded point."
+    "Sorted starts and stops.",
+    "Sweep starts, grouping equal ones.",
+    "Advance the stop pointer.",
+    "Brightness = started − finished; keep the first maximum."
    ],
    "code": {
     "python": "class Solution:\n    def brightestSpot(self, lamps: List[List[int]]) -> int:\n        starts = sorted(p - r for p, r in lamps)\n        stops = sorted(p + r + 1 for p, r in lamps)\n        n = len(starts)\n        best, best_at, j, i = -1, 0, 0, 0\n        while i < n:\n            x = starts[i]\n            while i + 1 < n and starts[i + 1] == x:\n                i += 1\n            while j < n and stops[j] <= x:\n                j += 1\n            lit = (i + 1) - j\n            if lit > best:\n                best, best_at = lit, x\n            i += 1\n        return best_at\n",
@@ -688,7 +683,7 @@
    ],
    "complexity": [
     {
-     "md": "**Time O(n log n):** two sorts; the walk is O(n) because `i` and `j` each move at most n\ntimes.\n\n**Space O(n)** for the two lists.\n\nWith the street this long, sorting the change points is the right tool: a true\ndifference array would need hundreds of millions of cells."
+     "md": "**Time O(L log L)** for the sorts; the sweep is O(L). **Space O(L).**"
     }
    ],
    "walk": {
@@ -957,7 +952,7 @@
  ],
  "takeaways": [
   {
-   "md": "- Coverage counts change only at interval **edges**. Think \"+1 at start, −1 just after the end,\n  running sum\": the difference-array idea.\n- When the coordinate range is too large for an array, keep only the edge points, **sort** them, and\n  sweep (this is coordinate compression in disguise).\n- \"Lit at x\" = `starts ≤ x` minus `stops ≤ x` with `stop = end + 1`. The +1 turns an inclusive end\n  into an exclusive one and avoids off-by-one errors.\n- For \"smallest point with the max\", visit points in increasing order and replace only on a\n  strict improvement."
+   "md": "- **Huge coordinates:** use the difference idea on sorted events (a sweep line) instead of an array.\n- The maximum of a step function is reached at a point where it steps up.\n- **Pitfall:** using `position + reach` as the stop (off by one: that point is still lit)."
   }
  ]
 }

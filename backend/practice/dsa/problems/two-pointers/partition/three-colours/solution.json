@@ -1,0 +1,696 @@
+{
+ "version": 1,
+ "summary": "Keep three regions: 0s at the front (before `lo`), 2s at the back (after `hi`), and 1s in between, with `mid`\nscanning the unknown part. A 0 is swapped to `lo`, a 2 to `hi`, a 1 is left alone. One pass, O(1) extra space.",
+ "question": [
+  {
+   "md": "Sort a row of 0s, 1s and 2s in **one pass**, **without counting**, using O(1) extra space.\n\n- Only three values exist.\n- **Up to 10⁵ balls.**"
+  },
+  {
+   "md": "**Edge cases to keep in mind**\n\n- Only one or two colours present: still works, some zones stay empty.\n- Already sorted: one pass with no harmful swaps.\n- One ball: unchanged."
+  }
+ ],
+ "think": [
+  {
+   "md": "**Four zones.** Keep three pointers and think of the row as\n\n`[ 0s | 1s | unknown | 2s ]`, with the 0s in `[0, lo)`, the 1s in `[lo, mid)`, the unknown part in `[mid, hi]` and\nthe 2s in `(hi, n)`.\n\nLook at the first unknown ball `a[mid]`:\n\n- **1:** it belongs right where it is, at the end of the 1s zone: `mid += 1`.\n- **0:** swap it with `a[lo]`, the first ball of the 1s zone (or itself if that zone is empty). The 0s zone grows\n  and so does the 1s zone's start: `lo += 1`, `mid += 1`.\n- **2:** swap it with `a[hi]`, the last unknown ball, and `hi −= 1`. Don't move `mid`: the ball that just arrived\n  came from the unknown zone and hasn't been examined.\n\nEvery step shrinks the unknown zone by one, so after at most `n` steps it's empty and the row is sorted."
+  },
+  {
+   "md": "**Trace on `[2, 0, 1, 2, 1, 0, 0]`:**"
+  },
+  {
+   "table": {
+    "head": [
+     "ball at mid",
+     "action",
+     "zones after"
+    ],
+    "rows": [
+     [
+      "2",
+      "2: swap with a[hi=6], hi moves left (mid stays: the ball that came in is unknown)",
+      "0s [] | 1s [] | ? [0, 0, 1, 2, 1, 0] | 2s [2]"
+     ],
+     [
+      "0",
+      "0: swap with a[lo=0], lo and mid move right",
+      "0s [0] | 1s [] | ? [0, 1, 2, 1, 0] | 2s [2]"
+     ],
+     [
+      "0",
+      "0: swap with a[lo=1], lo and mid move right",
+      "0s [0, 0] | 1s [] | ? [1, 2, 1, 0] | 2s [2]"
+     ],
+     [
+      "1",
+      "1: already in the 1s zone, mid moves right",
+      "0s [0, 0] | 1s [1] | ? [2, 1, 0] | 2s [2]"
+     ],
+     [
+      "2",
+      "2: swap with a[hi=5], hi moves left (mid stays: the ball that came in is unknown)",
+      "0s [0, 0] | 1s [1] | ? [0, 1] | 2s [2, 2]"
+     ],
+     [
+      "0",
+      "0: swap with a[lo=2], lo and mid move right",
+      "0s [0, 0, 0] | 1s [1] | ? [1] | 2s [2, 2]"
+     ],
+     [
+      "1",
+      "1: already in the 1s zone, mid moves right",
+      "0s [0, 0, 0] | 1s [1, 1] | ? [] | 2s [2, 2]"
+     ]
+    ]
+   }
+  }
+ ],
+ "approaches": [
+  {
+   "title": "Built-in sort",
+   "kind": "brute",
+   "time": "O(n log n)",
+   "space": "O(n)",
+   "idea": [
+    {
+     "md": "Sort with the built-in sort. Correct but O(n log n), and it ignores that there are only three values."
+    }
+   ],
+   "build": [
+    "Sort."
+   ],
+   "code": {
+    "python": "class Solution:\n    def sortColours(self, balls: List[int]) -> List[int]:\n        return sorted(balls)\n",
+    "java": "class Solution {\n    public int[] sortColours(int[] balls) {\n        int[] a = balls.clone();\n        Arrays.sort(a);\n        return a;\n    }\n}\n",
+    "cpp": "class Solution {\npublic:\n    vector<int> sortColours(vector<int>& balls) {\n        vector<int> a = balls;\n        sort(a.begin(), a.end());\n        return a;\n    }\n};\n",
+    "c": "static int cmp_int(const void* x, const void* y) {\n    int a = *(const int*) x, b = *(const int*) y;\n    return (a > b) - (a < b);\n}\n\nint* sortColours(int* balls, int ballsSize, int* returnSize) {\n    int* a = malloc(ballsSize * sizeof(int));\n    memcpy(a, balls, ballsSize * sizeof(int));\n    qsort(a, ballsSize, sizeof(int), cmp_int);\n    *returnSize = ballsSize;\n    return a;\n}\n"
+   },
+   "lines": [
+    {
+     "text": "A general-purpose sort.",
+     "at": {
+      "python": [
+       [
+        3,
+        3
+       ]
+      ],
+      "java": [
+       [
+        3,
+        5
+       ]
+      ],
+      "cpp": [
+       [
+        4,
+        6
+       ]
+      ],
+      "c": [
+       [
+        1,
+        4
+       ],
+       [
+        7,
+        11
+       ]
+      ]
+     }
+    }
+   ],
+   "complexity": [
+    {
+     "md": "**Time O(n log n).** **Space O(n)** for the copy."
+    }
+   ],
+   "limits": [
+    {
+     "md": "Only three distinct values exist; counting or partitioning handles that in O(n)."
+    }
+   ]
+  },
+  {
+   "title": "Count, then rewrite",
+   "kind": "better",
+   "time": "O(n)",
+   "space": "O(1)",
+   "idea": [
+    {
+     "md": "Count the 0s, 1s and 2s in one pass, then write that many of each. Two passes, O(1) extra space."
+    }
+   ],
+   "build": [
+    "Count each colour.",
+    "Write the colours back in order."
+   ],
+   "code": {
+    "python": "class Solution:\n    def sortColours(self, balls: List[int]) -> List[int]:\n        count = [0, 0, 0]\n        for b in balls:\n            count[b] += 1\n        return [0] * count[0] + [1] * count[1] + [2] * count[2]\n",
+    "java": "class Solution {\n    public int[] sortColours(int[] balls) {\n        int[] count = new int[3];\n        for (int b : balls) count[b]++;\n        int[] out = new int[balls.length];\n        int w = 0;\n        for (int c = 0; c < 3; c++) for (int i = 0; i < count[c]; i++) out[w++] = c;\n        return out;\n    }\n}\n",
+    "cpp": "class Solution {\npublic:\n    vector<int> sortColours(vector<int>& balls) {\n        int count[3] = {0, 0, 0};\n        for (int b : balls) count[b]++;\n        vector<int> out;\n        for (int c = 0; c < 3; c++) out.insert(out.end(), count[c], c);\n        return out;\n    }\n};\n",
+    "c": "int* sortColours(int* balls, int ballsSize, int* returnSize) {\n    int count[3] = {0, 0, 0};\n    for (int i = 0; i < ballsSize; i++) count[balls[i]]++;\n    int* out = malloc(ballsSize * sizeof(int));\n    int w = 0;\n    for (int c = 0; c < 3; c++) for (int i = 0; i < count[c]; i++) out[w++] = c;\n    *returnSize = ballsSize;\n    return out;\n}\n"
+   },
+   "lines": [
+    {
+     "text": "How many balls of each colour.",
+     "at": {
+      "python": [
+       [
+        3,
+        5
+       ]
+      ],
+      "java": [
+       [
+        3,
+        4
+       ]
+      ],
+      "cpp": [
+       [
+        4,
+        5
+       ]
+      ],
+      "c": [
+       [
+        2,
+        3
+       ]
+      ]
+     }
+    },
+    {
+     "text": "Rebuild the row: all 0s, then 1s, then 2s.",
+     "at": {
+      "python": [
+       [
+        6,
+        6
+       ]
+      ],
+      "java": [
+       [
+        5,
+        8
+       ]
+      ],
+      "cpp": [
+       [
+        6,
+        8
+       ]
+      ],
+      "c": [
+       [
+        4,
+        8
+       ]
+      ]
+     }
+    }
+   ],
+   "complexity": [
+    {
+     "md": "**Time O(n):** two passes. **Space O(1)** besides the output."
+    }
+   ],
+   "walk": {
+    "steps": [
+     {
+      "text": "Counts: 3 zeros, 2 ones, 2 twos.",
+      "panels": [
+       {
+        "type": "row",
+        "cells": [
+         2,
+         0,
+         1,
+         2,
+         1,
+         0,
+         0
+        ]
+       }
+      ]
+     },
+     {
+      "text": "Rewrite: [0, 0, 0, 1, 1, 2, 2].",
+      "panels": [
+       {
+        "type": "row",
+        "cells": [
+         0,
+         0,
+         0,
+         1,
+         1,
+         2,
+         2
+        ]
+       }
+      ],
+      "result": "[0, 0, 0, 1, 1, 2, 2]"
+     }
+    ],
+    "title": "Count each colour, then rewrite the row: all the 0s, then the 1s, then the 2s."
+   },
+   "limits": [
+    {
+     "md": "Two passes, and it rewrites values instead of moving the actual items, which doesn't work when the items carry more data than their colour. The three-pointer partition does one pass and only swaps."
+    }
+   ]
+  },
+  {
+   "title": "Three pointers (one pass)",
+   "kind": "best",
+   "time": "O(n)",
+   "space": "O(1)",
+   "idea": [
+    {
+     "md": "Pointers `lo = mid = 0`, `hi = n − 1`. While `mid ≤ hi`, classify `a[mid]` as above.\n\n**Invariant.** `a[0..lo)` are 0s, `a[lo..mid)` are 1s, `a(hi..n)` are 2s; `a[mid..hi]` is unexamined. It\nholds at the start (all zones empty except the unknown one), and each case keeps it.\n\n**Why advancing `mid` after a 0-swap is safe.** The ball moved from `lo` to `mid` was a 1 (from the 1s\nzone) or, if `lo = mid`, the same 0. Either way it's already classified."
+    }
+   ],
+   "build": [
+    "Three pointers.",
+    "0: swap with `lo`, advance `lo` and `mid`.",
+    "2: swap with `hi`, retreat `hi`.",
+    "1: advance `mid`."
+   ],
+   "code": {
+    "python": "class Solution:\n    def sortColours(self, balls: List[int]) -> List[int]:\n        a = balls[:]\n        lo, mid, hi = 0, 0, len(a) - 1\n        while mid <= hi:\n            if a[mid] == 0:\n                a[lo], a[mid] = a[mid], a[lo]\n                lo += 1\n                mid += 1\n            elif a[mid] == 2:\n                a[mid], a[hi] = a[hi], a[mid]\n                hi -= 1\n            else:\n                mid += 1\n        return a\n",
+    "java": "class Solution {\n    public int[] sortColours(int[] balls) {\n        int[] a = balls.clone();\n        int lo = 0, mid = 0, hi = a.length - 1;\n        while (mid <= hi) {\n            if (a[mid] == 0) { int t = a[lo]; a[lo++] = a[mid]; a[mid++] = t; }\n            else if (a[mid] == 2) { int t = a[hi]; a[hi--] = a[mid]; a[mid] = t; }\n            else mid++;\n        }\n        return a;\n    }\n}\n",
+    "cpp": "class Solution {\npublic:\n    vector<int> sortColours(vector<int>& balls) {\n        vector<int> a = balls;\n        int lo = 0, mid = 0, hi = (int) a.size() - 1;\n        while (mid <= hi) {\n            if (a[mid] == 0) swap(a[lo++], a[mid++]);\n            else if (a[mid] == 2) swap(a[mid], a[hi--]);\n            else mid++;\n        }\n        return a;\n    }\n};\n",
+    "c": "int* sortColours(int* balls, int ballsSize, int* returnSize) {\n    int* a = malloc(ballsSize * sizeof(int));\n    memcpy(a, balls, ballsSize * sizeof(int));\n    int lo = 0, mid = 0, hi = ballsSize - 1;\n    while (mid <= hi) {\n        if (a[mid] == 0) { int t = a[lo]; a[lo++] = a[mid]; a[mid++] = t; }\n        else if (a[mid] == 2) { int t = a[hi]; a[hi--] = a[mid]; a[mid] = t; }\n        else mid++;\n    }\n    *returnSize = ballsSize;\n    return a;\n}\n"
+   },
+   "lines": [
+    {
+     "text": "Empty 0s and 1s zones at the left, empty 2s zone at the right; everything is unknown.",
+     "at": {
+      "python": [
+       [
+        3,
+        4
+       ]
+      ],
+      "java": [
+       [
+        3,
+        4
+       ]
+      ],
+      "cpp": [
+       [
+        4,
+        5
+       ]
+      ],
+      "c": [
+       [
+        2,
+        4
+       ]
+      ]
+     }
+    },
+    {
+     "text": "While unknown balls remain.",
+     "at": {
+      "python": [
+       [
+        5,
+        5
+       ]
+      ],
+      "java": [
+       [
+        5,
+        5
+       ]
+      ],
+      "cpp": [
+       [
+        6,
+        6
+       ]
+      ],
+      "c": [
+       [
+        5,
+        5
+       ]
+      ]
+     }
+    },
+    {
+     "text": "A 0 joins the 0s zone by swapping with the first 1; both boundaries move right.",
+     "at": {
+      "python": [
+       [
+        6,
+        9
+       ]
+      ],
+      "java": [
+       [
+        6,
+        6
+       ]
+      ],
+      "cpp": [
+       [
+        7,
+        7
+       ]
+      ],
+      "c": [
+       [
+        6,
+        6
+       ]
+      ]
+     }
+    },
+    {
+     "text": "A 2 joins the 2s zone by swapping with the last unknown ball; `mid` stays to examine the ball that arrived.",
+     "at": {
+      "python": [
+       [
+        10,
+        12
+       ]
+      ],
+      "java": [
+       [
+        7,
+        7
+       ]
+      ],
+      "cpp": [
+       [
+        8,
+        8
+       ]
+      ],
+      "c": [
+       [
+        7,
+        7
+       ]
+      ]
+     }
+    },
+    {
+     "text": "A 1 is already in the right zone.",
+     "at": {
+      "python": [
+       [
+        13,
+        14
+       ]
+      ],
+      "java": [
+       [
+        8,
+        8
+       ]
+      ],
+      "cpp": [
+       [
+        9,
+        9
+       ]
+      ],
+      "c": [
+       [
+        8,
+        8
+       ]
+      ]
+     }
+    },
+    {
+     "text": "The sorted row.",
+     "at": {
+      "python": [
+       [
+        15,
+        15
+       ]
+      ],
+      "java": [
+       [
+        10,
+        10
+       ]
+      ],
+      "cpp": [
+       [
+        11,
+        11
+       ]
+      ],
+      "c": [
+       [
+        10,
+        11
+       ]
+      ]
+     }
+    }
+   ],
+   "complexity": [
+    {
+     "md": "**Time O(n):** each step shrinks the unknown zone by one. **Space O(1).**"
+    }
+   ],
+   "walk": {
+    "steps": [
+     {
+      "text": "Start: the whole row is unknown.",
+      "panels": [
+       {
+        "type": "row",
+        "cells": [
+         2,
+         0,
+         1,
+         2,
+         1,
+         0,
+         0
+        ],
+        "pointers": {
+         "lo": 0,
+         "mid": 0,
+         "hi": 6
+        }
+       }
+      ]
+     },
+     {
+      "text": "a[mid] was 2: swap it to the hi side; the ball swapped in is unknown, so mid stays.",
+      "panels": [
+       {
+        "type": "row",
+        "cells": [
+         0,
+         0,
+         1,
+         2,
+         1,
+         0,
+         2
+        ],
+        "states": {
+         "6": "found"
+        },
+        "pointers": {
+         "lo": 0,
+         "mid": 0,
+         "hi": 5
+        }
+       }
+      ]
+     },
+     {
+      "text": "a[mid] was 0: swap it to the lo side; both move on.",
+      "panels": [
+       {
+        "type": "row",
+        "cells": [
+         0,
+         0,
+         1,
+         2,
+         1,
+         0,
+         2
+        ],
+        "states": {
+         "0": "found",
+         "6": "found"
+        },
+        "pointers": {
+         "lo": 1,
+         "mid": 1,
+         "hi": 5
+        }
+       }
+      ]
+     },
+     {
+      "text": "a[mid] was 0: swap it to the lo side; both move on.",
+      "panels": [
+       {
+        "type": "row",
+        "cells": [
+         0,
+         0,
+         1,
+         2,
+         1,
+         0,
+         2
+        ],
+        "states": {
+         "0": "found",
+         "1": "found",
+         "6": "found"
+        },
+        "pointers": {
+         "lo": 2,
+         "mid": 2,
+         "hi": 5
+        }
+       }
+      ]
+     },
+     {
+      "text": "a[mid] was 1: already in the middle; mid moves on.",
+      "panels": [
+       {
+        "type": "row",
+        "cells": [
+         0,
+         0,
+         1,
+         2,
+         1,
+         0,
+         2
+        ],
+        "states": {
+         "0": "found",
+         "1": "found",
+         "6": "found"
+        },
+        "pointers": {
+         "lo": 2,
+         "mid": 3,
+         "hi": 5
+        }
+       }
+      ]
+     },
+     {
+      "text": "a[mid] was 2: swap it to the hi side; the ball swapped in is unknown, so mid stays.",
+      "panels": [
+       {
+        "type": "row",
+        "cells": [
+         0,
+         0,
+         1,
+         0,
+         1,
+         2,
+         2
+        ],
+        "states": {
+         "0": "found",
+         "1": "found",
+         "5": "found",
+         "6": "found"
+        },
+        "pointers": {
+         "lo": 2,
+         "mid": 3,
+         "hi": 4
+        }
+       }
+      ]
+     },
+     {
+      "text": "a[mid] was 0: swap it to the lo side; both move on.",
+      "panels": [
+       {
+        "type": "row",
+        "cells": [
+         0,
+         0,
+         0,
+         1,
+         1,
+         2,
+         2
+        ],
+        "states": {
+         "0": "found",
+         "1": "found",
+         "2": "found",
+         "5": "found",
+         "6": "found"
+        },
+        "pointers": {
+         "lo": 3,
+         "mid": 4,
+         "hi": 4
+        }
+       }
+      ]
+     },
+     {
+      "text": "a[mid] was 1: already in the middle; mid moves on.",
+      "panels": [
+       {
+        "type": "row",
+        "cells": [
+         0,
+         0,
+         0,
+         1,
+         1,
+         2,
+         2
+        ],
+        "states": {
+         "0": "found",
+         "1": "found",
+         "2": "found",
+         "5": "found",
+         "6": "found"
+        },
+        "pointers": {
+         "lo": 3,
+         "mid": 5,
+         "hi": 4
+        }
+       }
+      ]
+     },
+     {
+      "text": "Sorted: [0, 0, 0, 1, 1, 2, 2].",
+      "panels": [],
+      "result": "[0, 0, 0, 1, 1, 2, 2]"
+     }
+    ],
+    "title": "Three pointers: everything before lo is 0, everything after hi is 2, mid scans the unknown middle."
+   }
+  }
+ ],
+ "takeaways": [
+  {
+   "md": "- **Dutch national flag:** three zones plus an unknown zone, one pass, O(1) space.\n- After swapping with the far end, re-examine the incoming element.\n- **Pitfall:** advancing `mid` after a 2-swap, which skips an unexamined ball.\n- **Related:** quicksort's three-way partition uses exactly this loop."
+  }
+ ]
+}

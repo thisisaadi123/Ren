@@ -1,0 +1,81 @@
+{
+  "id": "category-bestsellers",
+  "title": "Bestseller in Each Category",
+  "topic": "ranking",
+  "pattern": "top-per-group",
+  "difficulty": "hard",
+  "statement": "A product's `units` sold is the total `quantity` across all orders that weren't cancelled. In each category, find the\nproduct with the most units. If several products tie for the most, list them all. Products that never sold don't\ncount.\n\nReturn `category`, the product's `name` and `units`, ordered by `category`, then `name`.",
+  "notes": "",
+  "tables": [
+    {
+      "name": "products",
+      "columns": [
+        [
+          "id",
+          "INTEGER",
+          "pk"
+        ],
+        [
+          "name",
+          "TEXT"
+        ],
+        [
+          "category",
+          "TEXT"
+        ],
+        [
+          "price",
+          "REAL"
+        ]
+      ]
+    },
+    {
+      "name": "orders",
+      "columns": [
+        [
+          "id",
+          "INTEGER",
+          "pk"
+        ],
+        [
+          "customer_id",
+          "INTEGER",
+          "fk customers.id"
+        ],
+        [
+          "ordered_on",
+          "TEXT"
+        ],
+        [
+          "status",
+          "TEXT"
+        ]
+      ]
+    },
+    {
+      "name": "order_items",
+      "columns": [
+        [
+          "order_id",
+          "INTEGER",
+          "fk orders.id"
+        ],
+        [
+          "product_id",
+          "INTEGER",
+          "fk products.id"
+        ],
+        [
+          "quantity",
+          "INTEGER"
+        ]
+      ]
+    }
+  ],
+  "ordered": true,
+  "reference": "WITH sold AS (\n  SELECT p.id, p.category, p.name, SUM(i.quantity) AS units\n  FROM order_items i\n  JOIN orders o ON o.id = i.order_id\n  JOIN products p ON p.id = i.product_id\n  WHERE o.status <> 'cancelled'\n  GROUP BY p.id, p.category, p.name\n),\nranked AS (\n  SELECT category, name, units, RANK() OVER (PARTITION BY category ORDER BY units DESC) AS r\n  FROM sold\n)\nSELECT category, name, units FROM ranked WHERE r = 1 ORDER BY category, name",
+  "wrong": [
+    "WITH sold AS (SELECT p.id, p.category, p.name, SUM(i.quantity) AS units FROM order_items i JOIN products p ON p.id = i.product_id GROUP BY p.id, p.category, p.name), ranked AS (SELECT category, name, units, RANK() OVER (PARTITION BY category ORDER BY units DESC) AS r FROM sold) SELECT category, name, units FROM ranked WHERE r = 1 ORDER BY category, name",
+    "WITH sold AS (SELECT p.id, p.category, p.name, SUM(i.quantity) AS units FROM order_items i JOIN orders o ON o.id = i.order_id JOIN products p ON p.id = i.product_id WHERE o.status <> 'cancelled' GROUP BY p.id, p.category, p.name), ranked AS (SELECT category, name, units, ROW_NUMBER() OVER (PARTITION BY category ORDER BY units DESC) AS r FROM sold) SELECT category, name, units FROM ranked WHERE r = 1 ORDER BY category, name"
+  ]
+}

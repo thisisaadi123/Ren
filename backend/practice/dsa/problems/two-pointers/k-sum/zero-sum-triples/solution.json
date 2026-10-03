@@ -1,0 +1,638 @@
+{
+ "version": 1,
+ "summary": "Sort, then for each **different** first value `a[i]`, squeeze `j`, `k` over the rest looking for\n`a[j] + a[k] = −a[i]`. After a hit, move `j` past copies of `a[j]` so the same triple isn't found again; skip\nrepeated first values too. Triples come out already sorted. O(n²).",
+ "question": [
+  {
+   "md": "Find every **different** triple of values (from three different positions) summing to 0. Each triple is written\nin increasing order, and the list is sorted.\n\n- **Duplicates in the input** must not create duplicate triples: `[-1, 0, 1]` is reported once.\n- **Up to 2000 values.**"
+  },
+  {
+   "md": "**Edge cases to keep in mind**\n\n- Repeated values can form the same triple in several ways; each different triple is reported once.\n- `[0, 0, 0]` is a valid triple when there are three zeros.\n- No triple: return an empty list."
+  }
+ ],
+ "think": [
+  {
+   "md": "**Fix one, squeeze two.** Three unknowns are hard, two are easy. Sort the values. Fix the first element `a[i]`; the\nother two must come from positions after `i`, and their sum must relate to `target − a[i]`. That's the sorted\npair-sum problem, solved by two pointers `j = i + 1` and `k = n − 1` moving inward. Doing this for every `i` costs\n`n` squeezes of O(n) each: **O(n²)** instead of O(n³).\n\n**Why sorting is allowed.** The questions are about *sets* of three positions (their values' sum), not their order,\nso rearranging the array doesn't change which value-triples exist. Requiring `i < j < k` in the sorted array picks each\nset of positions exactly once."
+  },
+  {
+   "md": "**Duplicates.** After sorting, equal values sit next to each other, which makes duplicates easy to avoid:\n\n1. **Skip a fixed value equal to the previous fixed value.** Every triple it could start was already found by the\n   first copy (that copy had at least as many elements after it).\n2. **After a hit, move `j` past equal values.** The same `a[i]` and `a[j]` would force the same `a[k]` again.\n   (`k` just moves one step; the next differing `a[j]` changes the needed `a[k]` anyway.)\n\n**Early stop.** If the fixed value is positive, the two values after it are at least as large, so every sum is\npositive: stop."
+  },
+  {
+   "md": "**Trace on sorted `[-4, -2, -1, -1, 0, 1, 2, 2]`:**"
+  },
+  {
+   "table": {
+    "head": [
+     "i",
+     "fixed",
+     "action",
+     "triples found"
+    ],
+    "rows": [
+     [
+      "0",
+      "-4",
+      "squeeze",
+      "[-4, 2, 2]"
+     ],
+     [
+      "1",
+      "-2",
+      "squeeze",
+      "[-2, 0, 2]"
+     ],
+     [
+      "2",
+      "-1",
+      "squeeze",
+      "[-1, -1, 2], [-1, 0, 1]"
+     ],
+     [
+      "3",
+      "-1",
+      "same value as the previous fixed one: skip",
+      "—"
+     ],
+     [
+      "4",
+      "0",
+      "squeeze",
+      "none"
+     ],
+     [
+      "5",
+      "1",
+      "positive: every triple from here sums above 0, stop",
+      "—"
+     ]
+    ]
+   }
+  }
+ ],
+ "approaches": [
+  {
+   "title": "Every triple, deduplicated with a set",
+   "kind": "brute",
+   "time": "O(n³)",
+   "space": "O(t)",
+   "idea": [
+    {
+     "md": "Check every triple of positions; when one sums to 0, add its sorted values to a set (which removes duplicates). Sort the set at the end."
+    }
+   ],
+   "build": [
+    "Three nested loops.",
+    "Store sorted value-triples in a set.",
+    "Sort the results."
+   ],
+   "code": {
+    "python": "class Solution:\n    def zeroTriples(self, values: List[int]) -> List[List[int]]:\n        n, found = len(values), set()\n        for i in range(n):\n            for j in range(i + 1, n):\n                for k in range(j + 1, n):\n                    if values[i] + values[j] + values[k] == 0:\n                        found.add(tuple(sorted((values[i], values[j], values[k]))))\n        return [list(t) for t in sorted(found)]\n",
+    "java": "class Solution {\n    public int[][] zeroTriples(int[] values) {\n        int n = values.length;\n        TreeSet<List<Integer>> found = new TreeSet<>((x, y) -> {\n            for (int t = 0; t < 3; t++) if (!x.get(t).equals(y.get(t))) return Integer.compare(x.get(t), y.get(t));\n            return 0;\n        });\n        for (int i = 0; i < n; i++)\n            for (int j = i + 1; j < n; j++)\n                for (int k = j + 1; k < n; k++)\n                    if (values[i] + values[j] + values[k] == 0) {\n                        Integer[] t = {values[i], values[j], values[k]};\n                        Arrays.sort(t);\n                        found.add(Arrays.asList(t));\n                    }\n        int[][] out = new int[found.size()][];\n        int r = 0;\n        for (List<Integer> t : found) out[r++] = new int[] {t.get(0), t.get(1), t.get(2)};\n        return out;\n    }\n}\n",
+    "cpp": "class Solution {\npublic:\n    vector<vector<int>> zeroTriples(vector<int>& values) {\n        int n = values.size();\n        set<vector<int>> found;\n        for (int i = 0; i < n; i++)\n            for (int j = i + 1; j < n; j++)\n                for (int k = j + 1; k < n; k++)\n                    if (values[i] + values[j] + values[k] == 0) {\n                        vector<int> t = {values[i], values[j], values[k]};\n                        sort(t.begin(), t.end());\n                        found.insert(t);\n                    }\n        return vector<vector<int>>(found.begin(), found.end());\n    }\n};\n",
+    "c": "static int cmp3(const void* x, const void* y) {\n    const int *a = *(int* const*) x, *b = *(int* const*) y;\n    for (int t = 0; t < 3; t++) if (a[t] != b[t]) return (a[t] > b[t]) - (a[t] < b[t]);\n    return 0;\n}\n\nint** zeroTriples(int* values, int valuesSize, int* returnSize, int** returnColumnSizes) {\n    int n = valuesSize, cap = 16, m = 0;\n    int** found = malloc(cap * sizeof(int*));\n    for (int i = 0; i < n; i++)\n        for (int j = i + 1; j < n; j++)\n            for (int k = j + 1; k < n; k++)\n                if (values[i] + values[j] + values[k] == 0) {\n                    int t[3] = {values[i], values[j], values[k]};\n                    if (t[0] > t[1]) { int s = t[0]; t[0] = t[1]; t[1] = s; }\n                    if (t[1] > t[2]) { int s = t[1]; t[1] = t[2]; t[2] = s; }\n                    if (t[0] > t[1]) { int s = t[0]; t[0] = t[1]; t[1] = s; }\n                    if (m == cap) found = realloc(found, (cap *= 2) * sizeof(int*));\n                    found[m] = malloc(3 * sizeof(int));\n                    memcpy(found[m++], t, sizeof t);\n                }\n    qsort(found, m, sizeof(int*), cmp3);\n    int w = 0;\n    for (int r = 0; r < m; r++) {\n        if (w && cmp3(&found[w - 1], &found[r]) == 0) { free(found[r]); continue; }\n        found[w++] = found[r];\n    }\n    *returnSize = w;\n    *returnColumnSizes = malloc((w + 1) * sizeof(int));\n    for (int r = 0; r < w; r++) (*returnColumnSizes)[r] = 3;\n    return found;\n}\n"
+   },
+   "lines": [
+    {
+     "text": "A set of value-triples, so the same triple is stored once.",
+     "at": {
+      "python": [
+       [
+        3,
+        3
+       ]
+      ],
+      "java": [
+       [
+        3,
+        7
+       ]
+      ],
+      "cpp": [
+       [
+        4,
+        5
+       ]
+      ],
+      "c": [
+       [
+        8,
+        9
+       ]
+      ]
+     },
+     "notes": {
+      "c": "No set in C: collect all triples, then sort and drop repeats."
+     }
+    },
+    {
+     "text": "Every set of three positions.",
+     "at": {
+      "python": [
+       [
+        4,
+        6
+       ]
+      ],
+      "java": [
+       [
+        8,
+        10
+       ]
+      ],
+      "cpp": [
+       [
+        6,
+        8
+       ]
+      ],
+      "c": [
+       [
+        10,
+        12
+       ]
+      ]
+     }
+    },
+    {
+     "text": "A zero sum: store its values in increasing order.",
+     "at": {
+      "python": [
+       [
+        7,
+        8
+       ]
+      ],
+      "java": [
+       [
+        11,
+        14
+       ]
+      ],
+      "cpp": [
+       [
+        9,
+        12
+       ]
+      ],
+      "c": [
+       [
+        1,
+        5
+       ],
+       [
+        13,
+        20
+       ]
+      ]
+     }
+    },
+    {
+     "text": "The distinct triples, sorted.",
+     "at": {
+      "python": [
+       [
+        9,
+        9
+       ]
+      ],
+      "java": [
+       [
+        16,
+        19
+       ]
+      ],
+      "cpp": [
+       [
+        14,
+        14
+       ]
+      ],
+      "c": [
+       [
+        22,
+        26
+       ],
+       [
+        28,
+        31
+       ]
+      ]
+     },
+     "notes": {
+      "c": "Sort, then keep only the first copy of each triple; each row has 3 columns."
+     }
+    }
+   ],
+   "complexity": [
+    {
+     "md": "**Time O(n³):** about 1.3 × 10⁹ triples for `n = 2000`. **Space O(t)** for the `t` triples found."
+    }
+   ],
+   "limits": [
+    {
+     "md": "Cubic, and it relies on a set to undo duplicates afterwards. Sorting first lets the squeeze find each triple once."
+    }
+   ],
+   "slow": true
+  },
+  {
+   "title": "Sort, fix one, squeeze, skip duplicates",
+   "kind": "best",
+   "time": "O(n²)",
+   "space": "O(1)",
+   "idea": [
+    {
+     "md": "Sort. For each `i` (skipping repeated fixed values and stopping at the first positive one), squeeze `j` and\n`k`: below 0 move `j`, above 0 move `k`, on 0 record the triple, then move `j` past its duplicates and `k`\none step.\n\n**Output order for free.** Fixed values increase with `i`, and within one `i` the hits come with increasing\n`a[j]`, so the triples are produced already sorted."
+    }
+   ],
+   "build": [
+    "Sort.",
+    "Skip repeated fixed values; stop at a positive one.",
+    "Squeeze toward 0.",
+    "On a hit, record and skip duplicates of `a[j]`."
+   ],
+   "code": {
+    "python": "class Solution:\n    def zeroTriples(self, values: List[int]) -> List[List[int]]:\n        a, out = sorted(values), []\n        for i in range(len(a) - 2):\n            if i and a[i] == a[i - 1]:\n                continue\n            if a[i] > 0:\n                break\n            j, k = i + 1, len(a) - 1\n            while j < k:\n                s = a[i] + a[j] + a[k]\n                if s < 0:\n                    j += 1\n                elif s > 0:\n                    k -= 1\n                else:\n                    out.append([a[i], a[j], a[k]])\n                    j += 1\n                    while j < k and a[j] == a[j - 1]:\n                        j += 1\n                    k -= 1\n        return out\n",
+    "java": "class Solution {\n    public int[][] zeroTriples(int[] values) {\n        int[] a = values.clone();\n        Arrays.sort(a);\n        List<int[]> out = new ArrayList<>();\n        for (int i = 0; i + 2 < a.length; i++) {\n            if (i > 0 && a[i] == a[i - 1]) continue;\n            if (a[i] > 0) break;\n            int j = i + 1, k = a.length - 1;\n            while (j < k) {\n                int s = a[i] + a[j] + a[k];\n                if (s < 0) j++;\n                else if (s > 0) k--;\n                else {\n                    out.add(new int[] {a[i], a[j], a[k]});\n                    j++;\n                    while (j < k && a[j] == a[j - 1]) j++;\n                    k--;\n                }\n            }\n        }\n        return out.toArray(new int[0][]);\n    }\n}\n",
+    "cpp": "class Solution {\npublic:\n    vector<vector<int>> zeroTriples(vector<int>& values) {\n        vector<int> a = values;\n        sort(a.begin(), a.end());\n        vector<vector<int>> out;\n        int n = a.size();\n        for (int i = 0; i + 2 < n; i++) {\n            if (i > 0 && a[i] == a[i - 1]) continue;\n            if (a[i] > 0) break;\n            int j = i + 1, k = n - 1;\n            while (j < k) {\n                int s = a[i] + a[j] + a[k];\n                if (s < 0) j++;\n                else if (s > 0) k--;\n                else {\n                    out.push_back({a[i], a[j], a[k]});\n                    j++;\n                    while (j < k && a[j] == a[j - 1]) j++;\n                    k--;\n                }\n            }\n        }\n        return out;\n    }\n};\n",
+    "c": "static int cmp_int(const void* x, const void* y) {\n    int a = *(const int*) x, b = *(const int*) y;\n    return (a > b) - (a < b);\n}\n\nint** zeroTriples(int* values, int valuesSize, int* returnSize, int** returnColumnSizes) {\n    int n = valuesSize, cap = 16, m = 0;\n    int* a = malloc(n * sizeof(int));\n    memcpy(a, values, n * sizeof(int));\n    qsort(a, n, sizeof(int), cmp_int);\n    int** out = malloc(cap * sizeof(int*));\n    for (int i = 0; i + 2 < n; i++) {\n        if (i > 0 && a[i] == a[i - 1]) continue;\n        if (a[i] > 0) break;\n        int j = i + 1, k = n - 1;\n        while (j < k) {\n            int s = a[i] + a[j] + a[k];\n            if (s < 0) j++;\n            else if (s > 0) k--;\n            else {\n                if (m == cap) out = realloc(out, (cap *= 2) * sizeof(int*));\n                out[m] = malloc(3 * sizeof(int));\n                out[m][0] = a[i]; out[m][1] = a[j]; out[m][2] = a[k];\n                m++;\n                j++;\n                while (j < k && a[j] == a[j - 1]) j++;\n                k--;\n            }\n        }\n    }\n    free(a);\n    *returnSize = m;\n    *returnColumnSizes = malloc((m + 1) * sizeof(int));\n    for (int r = 0; r < m; r++) (*returnColumnSizes)[r] = 3;\n    return out;\n}\n"
+   },
+   "lines": [
+    {
+     "text": "Equal values become neighbours, and the squeeze can tell which way to move.",
+     "at": {
+      "python": [
+       [
+        3,
+        3
+       ]
+      ],
+      "java": [
+       [
+        3,
+        5
+       ]
+      ],
+      "cpp": [
+       [
+        4,
+        7
+       ]
+      ],
+      "c": [
+       [
+        1,
+        4
+       ],
+       [
+        7,
+        11
+       ]
+      ]
+     }
+    },
+    {
+     "text": "Skip a fixed value equal to the previous one: all its triples were already found.",
+     "at": {
+      "python": [
+       [
+        4,
+        6
+       ]
+      ],
+      "java": [
+       [
+        6,
+        7
+       ]
+      ],
+      "cpp": [
+       [
+        8,
+        9
+       ]
+      ],
+      "c": [
+       [
+        12,
+        13
+       ]
+      ]
+     }
+    },
+    {
+     "text": "A positive smallest value makes every remaining sum positive.",
+     "at": {
+      "python": [
+       [
+        7,
+        8
+       ]
+      ],
+      "java": [
+       [
+        8,
+        8
+       ]
+      ],
+      "cpp": [
+       [
+        10,
+        10
+       ]
+      ],
+      "c": [
+       [
+        14,
+        14
+       ]
+      ]
+     }
+    },
+    {
+     "text": "Too small: move `j` right. Too big: move `k` left.",
+     "at": {
+      "python": [
+       [
+        9,
+        15
+       ]
+      ],
+      "java": [
+       [
+        9,
+        13
+       ]
+      ],
+      "cpp": [
+       [
+        11,
+        15
+       ]
+      ],
+      "c": [
+       [
+        15,
+        19
+       ]
+      ]
+     }
+    },
+    {
+     "text": "Record the triple, then move `j` past equal values (and `k` one step) so the same triple isn't recorded again.",
+     "at": {
+      "python": [
+       [
+        16,
+        21
+       ]
+      ],
+      "java": [
+       [
+        14,
+        18
+       ]
+      ],
+      "cpp": [
+       [
+        16,
+        20
+       ]
+      ],
+      "c": [
+       [
+        20,
+        27
+       ]
+      ]
+     },
+     "notes": {
+      "c": "The output array grows by doubling; each row has 3 columns."
+     }
+    },
+    {
+     "text": "All different triples, already in sorted order.",
+     "at": {
+      "python": [
+       [
+        22,
+        22
+       ]
+      ],
+      "java": [
+       [
+        22,
+        22
+       ]
+      ],
+      "cpp": [
+       [
+        24,
+        24
+       ]
+      ],
+      "c": [
+       [
+        31,
+        35
+       ]
+      ]
+     }
+    }
+   ],
+   "complexity": [
+    {
+     "md": "**Time O(n²).** **Space O(1)** besides the sort and the output."
+    }
+   ],
+   "walk": {
+    "steps": [
+     {
+      "text": "Sorted: [-4, -2, -1, -1, 0, 1, 2, 2].",
+      "panels": [
+       {
+        "type": "row",
+        "cells": [
+         -4,
+         -2,
+         -1,
+         -1,
+         0,
+         1,
+         2,
+         2
+        ]
+       }
+      ]
+     },
+     {
+      "text": "First value -4: found [[-4, 2, 2]].",
+      "panels": [
+       {
+        "type": "row",
+        "cells": [
+         -4,
+         -2,
+         -1,
+         -1,
+         0,
+         1,
+         2,
+         2
+        ],
+        "states": {
+         "0": "active"
+        }
+       },
+       {
+        "type": "vars",
+        "items": {
+         "triples": 1
+        }
+       }
+      ]
+     },
+     {
+      "text": "First value -2: found [[-2, 0, 2]].",
+      "panels": [
+       {
+        "type": "row",
+        "cells": [
+         -4,
+         -2,
+         -1,
+         -1,
+         0,
+         1,
+         2,
+         2
+        ],
+        "states": {
+         "1": "active"
+        }
+       },
+       {
+        "type": "vars",
+        "items": {
+         "triples": 2
+        }
+       }
+      ]
+     },
+     {
+      "text": "First value -1: found [[-1, -1, 2], [-1, 0, 1]].",
+      "panels": [
+       {
+        "type": "row",
+        "cells": [
+         -4,
+         -2,
+         -1,
+         -1,
+         0,
+         1,
+         2,
+         2
+        ],
+        "states": {
+         "2": "active"
+        }
+       },
+       {
+        "type": "vars",
+        "items": {
+         "triples": 4
+        }
+       }
+      ]
+     },
+     {
+      "text": "-1 is the same first value as before: skip it (it would find the same triples).",
+      "panels": [
+       {
+        "type": "row",
+        "cells": [
+         -4,
+         -2,
+         -1,
+         -1,
+         0,
+         1,
+         2,
+         2
+        ],
+        "states": {
+         "3": "mark"
+        }
+       }
+      ]
+     },
+     {
+      "text": "First value 0: found nothing.",
+      "panels": [
+       {
+        "type": "row",
+        "cells": [
+         -4,
+         -2,
+         -1,
+         -1,
+         0,
+         1,
+         2,
+         2
+        ],
+        "states": {
+         "4": "active"
+        }
+       },
+       {
+        "type": "vars",
+        "items": {
+         "triples": 4
+        }
+       }
+      ]
+     },
+     {
+      "text": "First value 1: found nothing.",
+      "panels": [
+       {
+        "type": "row",
+        "cells": [
+         -4,
+         -2,
+         -1,
+         -1,
+         0,
+         1,
+         2,
+         2
+        ],
+        "states": {
+         "5": "active"
+        }
+       },
+       {
+        "type": "vars",
+        "items": {
+         "triples": 4
+        }
+       }
+      ]
+     },
+     {
+      "text": "Triples: [[-4, 2, 2], [-2, 0, 2], [-1, -1, 2], [-1, 0, 1]].",
+      "panels": [],
+      "result": "[[-4, 2, 2], [-2, 0, 2], [-1, -1, 2], [-1, 0, 1]]"
+     }
+    ],
+    "title": "Sort. Fix each different first value, squeeze for pairs summing to its negative, and skip repeated values so no triple is reported twice."
+   }
+  }
+ ],
+ "takeaways": [
+  {
+   "md": "- **3-sum with distinct answers:** sort, fix, squeeze, and skip equal neighbours.\n- Sorted order makes both duplicate skipping and sorted output automatic.\n- **Pitfall:** skipping duplicates of the fixed value by comparing with the **next** element (that drops valid triples like `[-1, -1, 2]`)."
+  }
+ ]
+}

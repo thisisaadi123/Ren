@@ -1,0 +1,701 @@
+{
+ "version": 1,
+ "summary": "On a given day, count bouquets greedily: walk the row, extend a run of bloomed flowers, and cut a bouquet each\ntime the run reaches `size`. Waiting longer never hurts, so binary-search the earliest day between the first\nand last bloom. If there aren't even enough flowers in total, return −1.",
+ "question": [
+  {
+   "md": "Flower i blooms on day `bloom[i]` and stays bloomed. A bouquet takes `size` **adjacent** flowers; each flower\nis used once. Return the earliest day you can make `bouquets` bouquets, or −1.\n\n- **Adjacent** matters: three bloomed flowers separated by an unbloomed one don't make a bouquet of 3.\n- **Impossible** exactly when `bouquets × size > n`: even on the last day there aren't enough flowers. That\n  product can reach 10⁶ × 10⁵, so compute it in 64 bits.\n- **The answer is always a bloom day** (bouquet counts only change when a flower blooms)."
+  }
+ ],
+ "think": [
+  {
+   "md": "Take `[3, 9, 4, 8, 2, 5, 1, 7]`, 2 bouquets of 2. By day 5 the bloomed positions are\n[0, 2, 4, 5, 6]: the only adjacent run is 4–6, which gives just 1 bouquet of 2.\nOn day 7 the bloomed pattern\n`■□■□■■■■` allows 2."
+  },
+  {
+   "panels": [
+    {
+     "type": "row",
+     "cells": [
+      3,
+      9,
+      4,
+      8,
+      2,
+      5,
+      1,
+      7
+     ],
+     "states": {
+      "0": "found",
+      "1": "dim",
+      "2": "found",
+      "3": "dim",
+      "4": "found",
+      "5": "found",
+      "6": "found",
+      "7": "found"
+     },
+     "slots": true
+    }
+   ],
+   "caption": "Bloomed by day 7 (light)."
+  },
+  {
+   "md": "Two pieces:\n\n- **For a fixed day,** counting bouquets greedily from the left is optimal: taking the leftmost possible\n  bouquet never blocks a better choice.\n- **Across days,** a later day has every flower an earlier day had, so the count never drops. The test \"day d\n  is enough\" is monotonic: binary search on d."
+  }
+ ],
+ "approaches": [
+  {
+   "title": "Try each bloom day in order",
+   "kind": "brute",
+   "time": "O(n² log n)",
+   "space": "O(n)",
+   "idea": [
+    {
+     "md": "Sort the distinct bloom days; for each in increasing order, count bouquets; return the first day that gives enough. (Return −1 up front if there aren't enough flowers at all.)"
+    }
+   ],
+   "build": [
+    "If `bouquets × size > n`, return −1.",
+    "Sort distinct bloom days.",
+    "For each day, greedy-count bouquets; return the first that's enough."
+   ],
+   "code": {
+    "python": "class Solution:\n    def earliestBouquetDay(self, bloom: List[int], bouquets: int, size: int) -> int:\n        if bouquets * size > len(bloom):\n            return -1\n        def count(day):\n            made = run = 0\n            for b in bloom:\n                run = run + 1 if b <= day else 0\n                if run == size:\n                    made += 1\n                    run = 0\n            return made\n        for day in sorted(set(bloom)):\n            if count(day) >= bouquets:\n                return day\n        return -1\n",
+    "java": "class Solution {\n    public int earliestBouquetDay(int[] bloom, int bouquets, int size) {\n        if ((long) bouquets * size > bloom.length) return -1;\n        int[] days = Arrays.stream(bloom).distinct().sorted().toArray();\n        for (int day : days) if (count(bloom, day, size) >= bouquets) return day;\n        return -1;\n    }\n\n    private int count(int[] bloom, int day, int size) {\n        int made = 0, run = 0;\n        for (int b : bloom) {\n            run = b <= day ? run + 1 : 0;\n            if (run == size) { made++; run = 0; }\n        }\n        return made;\n    }\n}\n",
+    "cpp": "class Solution {\npublic:\n    int earliestBouquetDay(vector<int>& bloom, int bouquets, int size) {\n        if ((long long) bouquets * size > (long long) bloom.size()) return -1;\n        auto count = [&](int day) {\n            int made = 0, run = 0;\n            for (int b : bloom) {\n                run = b <= day ? run + 1 : 0;\n                if (run == size) { made++; run = 0; }\n            }\n            return made;\n        };\n        vector<int> days = bloom;\n        sort(days.begin(), days.end());\n        days.erase(unique(days.begin(), days.end()), days.end());\n        for (int day : days) if (count(day) >= bouquets) return day;\n        return -1;\n    }\n};\n",
+    "c": "static int countBouquets(const int* bloom, int n, int day, int size) {\n    int made = 0, run = 0;\n    for (int i = 0; i < n; i++) {\n        run = bloom[i] <= day ? run + 1 : 0;\n        if (run == size) { made++; run = 0; }\n    }\n    return made;\n}\n\nstatic int cmpInt(const void* a, const void* b) {\n    int p = *(const int*) a, q = *(const int*) b;\n    return (p > q) - (p < q);\n}\n\nint earliestBouquetDay(int* bloom, int bloomSize, int bouquets, int size) {\n    if ((long long) bouquets * size > bloomSize) return -1;\n    int* days = malloc(bloomSize * sizeof(int));\n    memcpy(days, bloom, bloomSize * sizeof(int));\n    qsort(days, bloomSize, sizeof(int), cmpInt);\n    int answer = -1;\n    for (int i = 0; i < bloomSize && answer < 0; i++) {\n        if (i > 0 && days[i] == days[i - 1]) continue;\n        if (countBouquets(bloom, bloomSize, days[i], size) >= bouquets) answer = days[i];\n    }\n    free(days);\n    return answer;\n}\n"
+   },
+   "lines": [
+    {
+     "text": "Not enough flowers even when all have bloomed (64-bit product).",
+     "at": {
+      "python": [
+       [
+        3,
+        4
+       ]
+      ],
+      "java": [
+       [
+        3,
+        3
+       ]
+      ],
+      "cpp": [
+       [
+        4,
+        4
+       ]
+      ],
+      "c": [
+       [
+        16,
+        16
+       ]
+      ]
+     }
+    },
+    {
+     "text": "Greedy bouquet count for one day: a run of bloomed flowers grows; at `size`, cut a bouquet and restart the run; an unbloomed flower breaks the run.",
+     "at": {
+      "python": [
+       [
+        5,
+        12
+       ]
+      ],
+      "java": [
+       [
+        9,
+        16
+       ]
+      ],
+      "cpp": [
+       [
+        5,
+        12
+       ]
+      ],
+      "c": [
+       [
+        1,
+        8
+       ]
+      ]
+     }
+    },
+    {
+     "text": "Candidate days are the bloom days, smallest first.",
+     "at": {
+      "python": [
+       [
+        13,
+        15
+       ]
+      ],
+      "java": [
+       [
+        4,
+        5
+       ]
+      ],
+      "cpp": [
+       [
+        13,
+        16
+       ]
+      ],
+      "c": [
+       [
+        10,
+        13
+       ],
+       [
+        17,
+        23
+       ]
+      ]
+     }
+    },
+    {
+     "text": "Unreachable once enough flowers exist (the last bloom day always works).",
+     "at": {
+      "python": [
+       [
+        16,
+        16
+       ]
+      ],
+      "java": [
+       [
+        6,
+        6
+       ]
+      ],
+      "cpp": [
+       [
+        17,
+        17
+       ]
+      ],
+      "c": [
+       [
+        25,
+        26
+       ]
+      ]
+     }
+    }
+   ],
+   "complexity": [
+    {
+     "md": "**Time O(n²)** count passes in the worst case (n distinct days), plus the sort. **Space O(n).**"
+    }
+   ],
+   "walk": {
+    "steps": [
+     {
+      "text": "Day 1: bloomed □□□□□□■□ → not enough.",
+      "panels": [
+       {
+        "type": "row",
+        "cells": [
+         3,
+         9,
+         4,
+         8,
+         2,
+         5,
+         1,
+         7
+        ],
+        "states": {
+         "0": "dim",
+         "1": "dim",
+         "2": "dim",
+         "3": "dim",
+         "4": "dim",
+         "5": "dim",
+         "6": "found",
+         "7": "dim"
+        },
+        "slots": true
+       },
+       {
+        "type": "vars",
+        "items": {
+         "day": 1
+        }
+       }
+      ]
+     },
+     {
+      "text": "Day 2: bloomed □□□□■□■□ → not enough.",
+      "panels": [
+       {
+        "type": "row",
+        "cells": [
+         3,
+         9,
+         4,
+         8,
+         2,
+         5,
+         1,
+         7
+        ],
+        "states": {
+         "0": "dim",
+         "1": "dim",
+         "2": "dim",
+         "3": "dim",
+         "4": "found",
+         "5": "dim",
+         "6": "found",
+         "7": "dim"
+        },
+        "slots": true
+       },
+       {
+        "type": "vars",
+        "items": {
+         "day": 2
+        }
+       }
+      ]
+     },
+     {
+      "text": "Day 3: bloomed ■□□□■□■□ → not enough.",
+      "panels": [
+       {
+        "type": "row",
+        "cells": [
+         3,
+         9,
+         4,
+         8,
+         2,
+         5,
+         1,
+         7
+        ],
+        "states": {
+         "0": "found",
+         "1": "dim",
+         "2": "dim",
+         "3": "dim",
+         "4": "found",
+         "5": "dim",
+         "6": "found",
+         "7": "dim"
+        },
+        "slots": true
+       },
+       {
+        "type": "vars",
+        "items": {
+         "day": 3
+        }
+       }
+      ]
+     },
+     {
+      "text": "Day 4: bloomed ■□■□■□■□ → not enough.",
+      "panels": [
+       {
+        "type": "row",
+        "cells": [
+         3,
+         9,
+         4,
+         8,
+         2,
+         5,
+         1,
+         7
+        ],
+        "states": {
+         "0": "found",
+         "1": "dim",
+         "2": "found",
+         "3": "dim",
+         "4": "found",
+         "5": "dim",
+         "6": "found",
+         "7": "dim"
+        },
+        "slots": true
+       },
+       {
+        "type": "vars",
+        "items": {
+         "day": 4
+        }
+       }
+      ]
+     },
+     {
+      "text": "Day 5: bloomed ■□■□■■■□ → not enough.",
+      "panels": [
+       {
+        "type": "row",
+        "cells": [
+         3,
+         9,
+         4,
+         8,
+         2,
+         5,
+         1,
+         7
+        ],
+        "states": {
+         "0": "found",
+         "1": "dim",
+         "2": "found",
+         "3": "dim",
+         "4": "found",
+         "5": "found",
+         "6": "found",
+         "7": "dim"
+        },
+        "slots": true
+       },
+       {
+        "type": "vars",
+        "items": {
+         "day": 5
+        }
+       }
+      ]
+     },
+     {
+      "text": "Day 7: bloomed ■□■□■■■■ → enough adjacent runs.",
+      "panels": [
+       {
+        "type": "row",
+        "cells": [
+         3,
+         9,
+         4,
+         8,
+         2,
+         5,
+         1,
+         7
+        ],
+        "states": {
+         "0": "found",
+         "1": "dim",
+         "2": "found",
+         "3": "dim",
+         "4": "found",
+         "5": "found",
+         "6": "found",
+         "7": "found"
+        },
+        "slots": true
+       },
+       {
+        "type": "vars",
+        "items": {
+         "day": 7
+        }
+       }
+      ],
+      "result": "7"
+     }
+    ],
+    "title": "Try each distinct bloom day in increasing order; the first day on which enough bouquets can be made is the answer."
+   },
+   "limits": [
+    {
+     "md": "Tests every candidate day in order; the test is monotonic, so binary search needs only ~30 tests."
+    }
+   ],
+   "slow": true
+  },
+  {
+   "title": "Binary search on the day",
+   "kind": "best",
+   "time": "O(n log(max day))",
+   "space": "O(1)",
+   "idea": [
+    {
+     "md": "After the impossibility check, search the first day in `[min(bloom), max(bloom)]` with `count(day) ≥ bouquets`."
+    }
+   ],
+   "build": [
+    "Return −1 if `bouquets × size > n`.",
+    "Range `[min, max]` of bloom days.",
+    "Greedy count for mid; enough → `hi = mid`, else `lo = mid + 1`."
+   ],
+   "code": {
+    "python": "class Solution:\n    def earliestBouquetDay(self, bloom: List[int], bouquets: int, size: int) -> int:\n        if bouquets * size > len(bloom):\n            return -1\n        def enough(day):\n            made = run = 0\n            for b in bloom:\n                run = run + 1 if b <= day else 0\n                if run == size:\n                    made += 1\n                    run = 0\n            return made >= bouquets\n        lo, hi = min(bloom), max(bloom)\n        while lo < hi:\n            mid = (lo + hi) // 2\n            if enough(mid):\n                hi = mid\n            else:\n                lo = mid + 1\n        return lo\n",
+    "java": "class Solution {\n    public int earliestBouquetDay(int[] bloom, int bouquets, int size) {\n        if ((long) bouquets * size > bloom.length) return -1;\n        int lo = Integer.MAX_VALUE, hi = 0;\n        for (int b : bloom) { lo = Math.min(lo, b); hi = Math.max(hi, b); }\n        while (lo < hi) {\n            int mid = lo + (hi - lo) / 2;\n            if (count(bloom, mid, size) >= bouquets) hi = mid;\n            else lo = mid + 1;\n        }\n        return lo;\n    }\n\n    private int count(int[] bloom, int day, int size) {\n        int made = 0, run = 0;\n        for (int b : bloom) {\n            run = b <= day ? run + 1 : 0;\n            if (run == size) { made++; run = 0; }\n        }\n        return made;\n    }\n}\n",
+    "cpp": "class Solution {\npublic:\n    int earliestBouquetDay(vector<int>& bloom, int bouquets, int size) {\n        if ((long long) bouquets * size > (long long) bloom.size()) return -1;\n        auto count = [&](int day) {\n            int made = 0, run = 0;\n            for (int b : bloom) {\n                run = b <= day ? run + 1 : 0;\n                if (run == size) { made++; run = 0; }\n            }\n            return made;\n        };\n        auto [mn, mx] = minmax_element(bloom.begin(), bloom.end());\n        int lo = *mn, hi = *mx;\n        while (lo < hi) {\n            int mid = lo + (hi - lo) / 2;\n            if (count(mid) >= bouquets) hi = mid;\n            else lo = mid + 1;\n        }\n        return lo;\n    }\n};\n",
+    "c": "static int countBouquets(const int* bloom, int n, int day, int size) {\n    int made = 0, run = 0;\n    for (int i = 0; i < n; i++) {\n        run = bloom[i] <= day ? run + 1 : 0;\n        if (run == size) { made++; run = 0; }\n    }\n    return made;\n}\n\nint earliestBouquetDay(int* bloom, int bloomSize, int bouquets, int size) {\n    if ((long long) bouquets * size > bloomSize) return -1;\n    int lo = bloom[0], hi = bloom[0];\n    for (int i = 1; i < bloomSize; i++) { if (bloom[i] < lo) lo = bloom[i]; if (bloom[i] > hi) hi = bloom[i]; }\n    while (lo < hi) {\n        int mid = lo + (hi - lo) / 2;\n        if (countBouquets(bloom, bloomSize, mid, size) >= bouquets) hi = mid;\n        else lo = mid + 1;\n    }\n    return lo;\n}\n"
+   },
+   "lines": [
+    {
+     "text": "Not enough flowers in total.",
+     "at": {
+      "python": [
+       [
+        3,
+        4
+       ]
+      ],
+      "java": [
+       [
+        3,
+        3
+       ]
+      ],
+      "cpp": [
+       [
+        4,
+        4
+       ]
+      ],
+      "c": [
+       [
+        11,
+        11
+       ]
+      ]
+     }
+    },
+    {
+     "text": "Greedy bouquet count for a day.",
+     "at": {
+      "python": [
+       [
+        5,
+        12
+       ]
+      ],
+      "java": [
+       [
+        14,
+        21
+       ]
+      ],
+      "cpp": [
+       [
+        5,
+        12
+       ]
+      ],
+      "c": [
+       [
+        1,
+        8
+       ]
+      ]
+     }
+    },
+    {
+     "text": "Before the first bloom nothing is possible; by the last bloom day everything is (given enough flowers).",
+     "at": {
+      "python": [
+       [
+        13,
+        13
+       ]
+      ],
+      "java": [
+       [
+        4,
+        5
+       ]
+      ],
+      "cpp": [
+       [
+        13,
+        14
+       ]
+      ],
+      "c": [
+       [
+        12,
+        13
+       ]
+      ]
+     }
+    },
+    {
+     "text": "Halve the day range.",
+     "at": {
+      "python": [
+       [
+        14,
+        15
+       ]
+      ],
+      "java": [
+       [
+        6,
+        7
+       ]
+      ],
+      "cpp": [
+       [
+        15,
+        16
+       ]
+      ],
+      "c": [
+       [
+        14,
+        15
+       ]
+      ]
+     }
+    },
+    {
+     "text": "Enough bouquets → that day or earlier; otherwise later.",
+     "at": {
+      "python": [
+       [
+        16,
+        19
+       ]
+      ],
+      "java": [
+       [
+        8,
+        9
+       ]
+      ],
+      "cpp": [
+       [
+        17,
+        18
+       ]
+      ],
+      "c": [
+       [
+        16,
+        17
+       ]
+      ]
+     }
+    },
+    {
+     "text": "The earliest workable day.",
+     "at": {
+      "python": [
+       [
+        20,
+        20
+       ]
+      ],
+      "java": [
+       [
+        11,
+        11
+       ]
+      ],
+      "cpp": [
+       [
+        20,
+        20
+       ]
+      ],
+      "c": [
+       [
+        19,
+        19
+       ]
+      ]
+     }
+    }
+   ],
+   "complexity": [
+    {
+     "md": "**Time O(n log(max day)):** about 30 passes. **Space O(1).**"
+    }
+   ],
+   "walk": {
+    "steps": [
+     {
+      "text": "lo=1, hi=9, try 5: 1 bouquet possible → fails, so the answer is > 5.",
+      "panels": [
+       {
+        "type": "vars",
+        "items": {
+         "lo": 1,
+         "mid": 5,
+         "hi": 9
+        }
+       }
+      ]
+     },
+     {
+      "text": "lo=6, hi=9, try 7: 2 bouquets possible → works, so the answer is ≤ 7.",
+      "panels": [
+       {
+        "type": "vars",
+        "items": {
+         "lo": 6,
+         "mid": 7,
+         "hi": 9
+        }
+       }
+      ]
+     },
+     {
+      "text": "lo=6, hi=7, try 6: 1 bouquet possible → fails, so the answer is > 6.",
+      "panels": [
+       {
+        "type": "vars",
+        "items": {
+         "lo": 6,
+         "mid": 6,
+         "hi": 7
+        }
+       }
+      ]
+     },
+     {
+      "text": "Earliest day: 7.",
+      "panels": [
+       {
+        "type": "row",
+        "cells": [
+         3,
+         9,
+         4,
+         8,
+         2,
+         5,
+         1,
+         7
+        ],
+        "states": {
+         "0": "found",
+         "1": "dim",
+         "2": "found",
+         "3": "dim",
+         "4": "found",
+         "5": "found",
+         "6": "found",
+         "7": "found"
+        },
+        "slots": true
+       }
+      ],
+      "result": "7"
+     }
+    ],
+    "title": "Binary-search the day in [earliest bloom, latest bloom]; more days never means fewer bouquets."
+   }
+  }
+ ],
+ "takeaways": [
+  {
+   "md": "- \"Earliest time when a monotonic condition holds\" → binary search on time.\n- Contiguity constraints are usually checked with a greedy run counter.\n- Rule out the impossible case first, so the search always has a valid answer."
+  }
+ ]
+}

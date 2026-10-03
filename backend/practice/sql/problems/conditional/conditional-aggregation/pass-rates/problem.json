@@ -1,0 +1,36 @@
+{
+  "id": "pass-rates",
+  "title": "Pass Rates",
+  "topic": "conditional",
+  "pattern": "conditional-aggregation",
+  "difficulty": "medium",
+  "statement": "A score of **50 or more** passes. For every course with enrollments, return:\n\n- `course_id`\n- `passed`, `failed` and `unmarked` (NULL score) counts\n- `pass_rate`: passed as a percentage of the **marked** enrollments, rounded to 1 decimal place, or NULL when none\n  are marked\n\nAny order.",
+  "notes": "`NULLIF(x, 0)` is NULL when `x` is 0, and dividing by NULL gives NULL instead of an error.",
+  "tables": [
+    {
+      "name": "enrollments",
+      "columns": [
+        [
+          "student_id",
+          "INTEGER",
+          "fk students.id"
+        ],
+        [
+          "course_id",
+          "INTEGER",
+          "fk courses.id"
+        ],
+        [
+          "score",
+          "INTEGER"
+        ]
+      ]
+    }
+  ],
+  "ordered": false,
+  "reference": "SELECT course_id,\n       SUM(CASE WHEN score >= 50 THEN 1 ELSE 0 END) AS passed,\n       SUM(CASE WHEN score < 50 THEN 1 ELSE 0 END) AS failed,\n       SUM(CASE WHEN score IS NULL THEN 1 ELSE 0 END) AS unmarked,\n       ROUND(100.0 * SUM(CASE WHEN score >= 50 THEN 1 ELSE 0 END) / NULLIF(COUNT(score), 0), 1) AS pass_rate\nFROM enrollments\nGROUP BY course_id",
+  "wrong": [
+    "SELECT course_id, SUM(CASE WHEN score >= 50 THEN 1 ELSE 0 END) AS passed, SUM(CASE WHEN score < 50 THEN 1 ELSE 0 END) AS failed, SUM(CASE WHEN score IS NULL THEN 1 ELSE 0 END) AS unmarked, ROUND(100.0 * SUM(CASE WHEN score >= 50 THEN 1 ELSE 0 END) / COUNT(*), 1) AS pass_rate FROM enrollments GROUP BY course_id",
+    "SELECT course_id, SUM(CASE WHEN score >= 50 THEN 1 ELSE 0 END) AS passed, SUM(CASE WHEN score >= 50 THEN 0 ELSE 1 END) AS failed, SUM(CASE WHEN score IS NULL THEN 1 ELSE 0 END) AS unmarked, ROUND(100.0 * SUM(CASE WHEN score >= 50 THEN 1 ELSE 0 END) / NULLIF(COUNT(score), 0), 1) AS pass_rate FROM enrollments GROUP BY course_id"
+  ]
+}

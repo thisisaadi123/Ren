@@ -1,0 +1,30 @@
+{
+  "id": "stickiness",
+  "title": "Stickiness",
+  "topic": "product-analytics",
+  "pattern": "activity-metrics",
+  "difficulty": "hard",
+  "statement": "For each month (written `YYYY-MM`) with logins:\n\n- `mau`: monthly active users, the different users who logged in that month\n- `avg_dau`: the average number of different users per day, over the days of that month that had any login, rounded\n  to 2 decimal places\n- `stickiness`: `avg_dau` as a percentage of `mau`, rounded to 1 decimal place (from the unrounded average)\n\nA user can log in several times a day. Order by `month`.",
+  "notes": "",
+  "tables": [
+    {
+      "name": "logins",
+      "columns": [
+        [
+          "user_id",
+          "INTEGER"
+        ],
+        [
+          "login_on",
+          "TEXT"
+        ]
+      ]
+    }
+  ],
+  "ordered": true,
+  "reference": "WITH daily AS (\n  SELECT login_on, COUNT(DISTINCT user_id) AS dau FROM logins GROUP BY login_on\n),\nmonthly AS (\n  SELECT strftime('%Y-%m', login_on) AS month, COUNT(DISTINCT user_id) AS mau FROM logins GROUP BY month\n)\nSELECT m.month, m.mau,\n       ROUND(AVG(d.dau), 2) AS avg_dau,\n       ROUND(100.0 * AVG(d.dau) / m.mau, 1) AS stickiness\nFROM monthly m\nJOIN daily d ON strftime('%Y-%m', d.login_on) = m.month\nGROUP BY m.month, m.mau\nORDER BY m.month",
+  "wrong": [
+    "WITH daily AS (SELECT login_on, COUNT(*) AS dau FROM logins GROUP BY login_on), monthly AS (SELECT strftime('%Y-%m', login_on) AS month, COUNT(DISTINCT user_id) AS mau FROM logins GROUP BY month) SELECT m.month, m.mau, ROUND(AVG(d.dau), 2) AS avg_dau, ROUND(100.0 * AVG(d.dau) / m.mau, 1) AS stickiness FROM monthly m JOIN daily d ON strftime('%Y-%m', d.login_on) = m.month GROUP BY m.month, m.mau ORDER BY m.month",
+    "WITH daily AS (SELECT login_on, COUNT(DISTINCT user_id) AS dau FROM logins GROUP BY login_on), monthly AS (SELECT strftime('%Y-%m', login_on) AS month, COUNT(*) AS mau FROM logins GROUP BY month) SELECT m.month, m.mau, ROUND(AVG(d.dau), 2) AS avg_dau, ROUND(100.0 * AVG(d.dau) / m.mau, 1) AS stickiness FROM monthly m JOIN daily d ON strftime('%Y-%m', d.login_on) = m.month GROUP BY m.month, m.mau ORDER BY m.month"
+  ]
+}

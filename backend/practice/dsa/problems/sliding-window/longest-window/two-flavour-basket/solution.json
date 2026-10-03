@@ -1,0 +1,1169 @@
+{
+ "version": 1,
+ "summary": "The longest contiguous stretch with at most two distinct values. Slide a window with a count per flavour and a\ndistinct counter; when a third flavour enters, advance the left edge until some flavour's count drops to\nzero. O(n), with an array of counts since flavours are below `n`.",
+ "question": [
+  {
+   "md": "Return the length of the longest run of consecutive tubs that uses at most two different flavours.\n\n- **n up to 10⁵**, flavours in `[0, n)`."
+  },
+  {
+   "md": "**Edge cases to keep in mind**\n\n- One or two flavours in total: the whole counter.\n- All tubs different: the answer is 2 (or 1 if there's a single tub).\n- The best stretch may be in the middle; starting from the first tub isn't required."
+  }
+ ],
+ "think": [
+  {
+   "md": "**Translating the story.** Starting anywhere and walking right until you can't continue means you take a\ncontiguous stretch of tubs. The cone allows two flavours, so the question is: the longest stretch with **at most\ntwo distinct values**."
+  },
+  {
+   "md": "**Why the left edge never goes back.** If the window `[L, R]` breaks the rule, then every longer window `[L, R']` with\n`R' > R` contains it and breaks the rule too. So once a start `L` fails for some `R`, it fails for all later `R`, and\nwe can throw it away forever. That's what lets the left pointer only move forward, and makes the whole scan O(n)."
+  },
+  {
+   "md": "**Trace** (last column = flavours in the window):"
+  },
+  {
+   "table": {
+    "head": [
+     "R",
+     "flavour",
+     "L",
+     "window",
+     "length",
+     "best",
+     "flavours"
+    ],
+    "rows": [
+     [
+      "0",
+      "3",
+      "0",
+      "3",
+      "1",
+      "1",
+      "3"
+     ],
+     [
+      "1",
+      "3",
+      "0",
+      "3 3",
+      "2",
+      "2",
+      "3"
+     ],
+     [
+      "2",
+      "1",
+      "0",
+      "3 3 1",
+      "3",
+      "3",
+      "1, 3"
+     ],
+     [
+      "3",
+      "2",
+      "2",
+      "1 2",
+      "2",
+      "3",
+      "1, 2"
+     ],
+     [
+      "4",
+      "1",
+      "2",
+      "1 2 1",
+      "3",
+      "3",
+      "1, 2"
+     ],
+     [
+      "5",
+      "1",
+      "2",
+      "1 2 1 1",
+      "4",
+      "4",
+      "1, 2"
+     ],
+     [
+      "6",
+      "2",
+      "2",
+      "1 2 1 1 2",
+      "5",
+      "5",
+      "1, 2"
+     ],
+     [
+      "7",
+      "4",
+      "6",
+      "2 4",
+      "2",
+      "5",
+      "2, 4"
+     ],
+     [
+      "8",
+      "4",
+      "6",
+      "2 4 4",
+      "3",
+      "5",
+      "2, 4"
+     ],
+     [
+      "9",
+      "2",
+      "6",
+      "2 4 4 2",
+      "4",
+      "5",
+      "2, 4"
+     ]
+    ]
+   }
+  },
+  {
+   "md": "**Counting distinct values in O(1).** Keep a count per flavour and a separate number `distinct`. When a count goes\nfrom 0 to 1, a new flavour entered (`distinct + 1`); when a count drops from 1 to 0, a flavour left completely\n(`distinct − 1`). Other changes don't affect `distinct`.\n\nWhen a third flavour enters, `L` must move until one of the flavours disappears entirely; that might take several\nsteps, because the leftmost tub's flavour may appear again later in the window."
+  }
+ ],
+ "approaches": [
+  {
+   "title": "Walk from every tub",
+   "kind": "brute",
+   "time": "O(n²)",
+   "space": "O(n)",
+   "idea": [
+    {
+     "md": "From every tub, walk right remembering at most two flavours; stop at the first tub whose flavour would be a third. Correct, but each start re-walks the same tubs."
+    }
+   ],
+   "build": [
+    "Loop over starts.",
+    "Track up to two flavours.",
+    "Keep the longest."
+   ],
+   "code": {
+    "python": "class Solution:\n    def mostScoops(self, flavours: List[int]) -> int:\n        n, best = len(flavours), 0\n        for i in range(n):\n            taken, j = set(), i\n            while j < n and (flavours[j] in taken or len(taken) < 2):\n                taken.add(flavours[j])\n                j += 1\n            best = max(best, j - i)\n        return best\n",
+    "java": "class Solution {\n    public int mostScoops(int[] flavours) {\n        int n = flavours.length, best = 0;\n        for (int i = 0; i < n; i++) {\n            int a = flavours[i], b = -1, j = i;\n            while (j < n && (flavours[j] == a || flavours[j] == b || b == -1)) {\n                if (flavours[j] != a && b == -1) b = flavours[j];\n                j++;\n            }\n            best = Math.max(best, j - i);\n        }\n        return best;\n    }\n}\n",
+    "cpp": "class Solution {\npublic:\n    int mostScoops(vector<int>& flavours) {\n        int n = flavours.size(), best = 0;\n        for (int i = 0; i < n; i++) {\n            int a = flavours[i], b = -1, j = i;\n            while (j < n && (flavours[j] == a || flavours[j] == b || b == -1)) {\n                if (flavours[j] != a && b == -1) b = flavours[j];\n                j++;\n            }\n            best = max(best, j - i);\n        }\n        return best;\n    }\n};\n",
+    "c": "int mostScoops(int* flavours, int flavoursSize) {\n    int n = flavoursSize, best = 0;\n    for (int i = 0; i < n; i++) {\n        int a = flavours[i], b = -1, j = i;\n        while (j < n && (flavours[j] == a || flavours[j] == b || b == -1)) {\n            if (flavours[j] != a && b == -1) b = flavours[j];\n            j++;\n        }\n        if (j - i > best) best = j - i;\n    }\n    return best;\n}\n"
+   },
+   "lines": [
+    {
+     "text": "The most scoops found.",
+     "at": {
+      "python": [
+       [
+        3,
+        3
+       ]
+      ],
+      "java": [
+       [
+        3,
+        3
+       ]
+      ],
+      "cpp": [
+       [
+        4,
+        4
+       ]
+      ],
+      "c": [
+       [
+        2,
+        2
+       ]
+      ]
+     }
+    },
+    {
+     "text": "Each tub as the starting point. Every index is tried as the left end of the window. Nothing learned from one start is reused for the next, which is exactly the waste the better approaches remove.",
+     "at": {
+      "python": [
+       [
+        4,
+        4
+       ]
+      ],
+      "java": [
+       [
+        4,
+        4
+       ]
+      ],
+      "cpp": [
+       [
+        5,
+        5
+       ]
+      ],
+      "c": [
+       [
+        3,
+        3
+       ]
+      ]
+     }
+    },
+    {
+     "text": "Walk right while the tub's flavour is one of the (at most two) flavours already chosen, or while the second slot is still free.",
+     "at": {
+      "python": [
+       [
+        5,
+        8
+       ]
+      ],
+      "java": [
+       [
+        5,
+        8
+       ]
+      ],
+      "cpp": [
+       [
+        6,
+        9
+       ]
+      ],
+      "c": [
+       [
+        4,
+        7
+       ]
+      ]
+     },
+     "notes": {
+      "java": "Flavours are non-negative, so `b = −1` means 'second flavour not chosen yet'.",
+      "cpp": "Flavours are non-negative, so `b = −1` means 'second flavour not chosen yet'.",
+      "c": "Flavours are non-negative, so `b = −1` means 'second flavour not chosen yet'."
+     }
+    },
+    {
+     "text": "Scoops taken from this start.",
+     "at": {
+      "python": [
+       [
+        9,
+        9
+       ]
+      ],
+      "java": [
+       [
+        10,
+        10
+       ]
+      ],
+      "cpp": [
+       [
+        11,
+        11
+       ]
+      ],
+      "c": [
+       [
+        9,
+        9
+       ]
+      ]
+     }
+    },
+    {
+     "text": "The most scoops.",
+     "at": {
+      "python": [
+       [
+        10,
+        10
+       ]
+      ],
+      "java": [
+       [
+        12,
+        12
+       ]
+      ],
+      "cpp": [
+       [
+        13,
+        13
+       ]
+      ],
+      "c": [
+       [
+        11,
+        11
+       ]
+      ]
+     }
+    }
+   ],
+   "complexity": [
+    {
+     "md": "**Time O(n²)**, e.g. for two alternating flavours. **Space O(1).**"
+    }
+   ],
+   "walk": {
+    "steps": [
+     {
+      "text": "Start 0: the window grows to 0..2 (length 3). Adding 2 at 3 would break the rule, so this start stops.",
+      "panels": [
+       {
+        "type": "row",
+        "cells": [
+         3,
+         3,
+         1,
+         2,
+         1,
+         1,
+         2,
+         4,
+         4,
+         2
+        ],
+        "states": {
+         "0": "active",
+         "1": "active",
+         "2": "active",
+         "3": "mark"
+        },
+        "pointers": {
+         "L": 0,
+         "R": 2
+        }
+       },
+       {
+        "type": "vars",
+        "items": {
+         "best": 3
+        }
+       }
+      ]
+     },
+     {
+      "text": "Start 1: the window grows to 1..2 (length 2). Adding 2 at 3 would break the rule, so this start stops.",
+      "panels": [
+       {
+        "type": "row",
+        "cells": [
+         3,
+         3,
+         1,
+         2,
+         1,
+         1,
+         2,
+         4,
+         4,
+         2
+        ],
+        "states": {
+         "1": "active",
+         "2": "active",
+         "3": "mark"
+        },
+        "pointers": {
+         "L": 1,
+         "R": 2
+        }
+       },
+       {
+        "type": "vars",
+        "items": {
+         "best": 3
+        }
+       }
+      ]
+     },
+     {
+      "text": "Start 2: the window grows to 2..6 (length 5). Adding 4 at 7 would break the rule, so this start stops.",
+      "panels": [
+       {
+        "type": "row",
+        "cells": [
+         3,
+         3,
+         1,
+         2,
+         1,
+         1,
+         2,
+         4,
+         4,
+         2
+        ],
+        "states": {
+         "2": "active",
+         "3": "active",
+         "4": "active",
+         "5": "active",
+         "6": "active",
+         "7": "mark"
+        },
+        "pointers": {
+         "L": 2,
+         "R": 6
+        }
+       },
+       {
+        "type": "vars",
+        "items": {
+         "best": 5
+        }
+       }
+      ]
+     },
+     {
+      "text": "Start 3: the window grows to 3..6 (length 4). Adding 4 at 7 would break the rule, so this start stops.",
+      "panels": [
+       {
+        "type": "row",
+        "cells": [
+         3,
+         3,
+         1,
+         2,
+         1,
+         1,
+         2,
+         4,
+         4,
+         2
+        ],
+        "states": {
+         "3": "active",
+         "4": "active",
+         "5": "active",
+         "6": "active",
+         "7": "mark"
+        },
+        "pointers": {
+         "L": 3,
+         "R": 6
+        }
+       },
+       {
+        "type": "vars",
+        "items": {
+         "best": 5
+        }
+       }
+      ]
+     },
+     {
+      "text": "Start 4: the window grows to 4..6 (length 3). Adding 4 at 7 would break the rule, so this start stops.",
+      "panels": [
+       {
+        "type": "row",
+        "cells": [
+         3,
+         3,
+         1,
+         2,
+         1,
+         1,
+         2,
+         4,
+         4,
+         2
+        ],
+        "states": {
+         "4": "active",
+         "5": "active",
+         "6": "active",
+         "7": "mark"
+        },
+        "pointers": {
+         "L": 4,
+         "R": 6
+        }
+       },
+       {
+        "type": "vars",
+        "items": {
+         "best": 5
+        }
+       }
+      ]
+     },
+     {
+      "text": "Start 5: the window grows to 5..6 (length 2). Adding 4 at 7 would break the rule, so this start stops.",
+      "panels": [
+       {
+        "type": "row",
+        "cells": [
+         3,
+         3,
+         1,
+         2,
+         1,
+         1,
+         2,
+         4,
+         4,
+         2
+        ],
+        "states": {
+         "5": "active",
+         "6": "active",
+         "7": "mark"
+        },
+        "pointers": {
+         "L": 5,
+         "R": 6
+        }
+       },
+       {
+        "type": "vars",
+        "items": {
+         "best": 5
+        }
+       }
+      ]
+     },
+     {
+      "text": "Starts 6..9 are checked the same way. The longest window starts at 2. In total about 39 cells were re-read, which grows like n²: the same cells are scanned again from every start.",
+      "panels": [
+       {
+        "type": "row",
+        "cells": [
+         3,
+         3,
+         1,
+         2,
+         1,
+         1,
+         2,
+         4,
+         4,
+         2
+        ],
+        "states": {
+         "2": "found",
+         "3": "found",
+         "4": "found",
+         "5": "found",
+         "6": "found"
+        },
+        "pointers": {
+         "L": 2,
+         "R": 6
+        }
+       },
+       {
+        "type": "vars",
+        "items": {
+         "best": 5
+        }
+       }
+      ]
+     },
+     {
+      "text": "Most scoops: 5.",
+      "panels": [],
+      "result": "5"
+     }
+    ],
+    "title": "From each tub, walk until a third flavour appears."
+   },
+   "limits": [
+    {
+     "md": "With two alternating flavours, every start walks to the end: O(n²)."
+    }
+   ],
+   "slow": true
+  },
+  {
+   "title": "Window with flavour counts",
+   "kind": "best",
+   "time": "O(n)",
+   "space": "O(n)",
+   "idea": [
+    {
+     "md": "Sliding window with `count[f]` and `distinct`. Add `flavours[R]`; while `distinct > 2`, remove\n`flavours[L]` and advance `L`. Record `R − L + 1`.\n\nBecause flavours are below `n`, a plain array of counts replaces a hash map.\n\n**Generalises directly:** replace 2 by `k` for \"longest stretch with at most `k` distinct values\"."
+    }
+   ],
+   "build": [
+    "`count` array of size `n`, `distinct = 0`, `L = 0`, `best = 0`.",
+    "Add tub `R`: if its count goes 0 → 1, `distinct += 1`.",
+    "While `distinct > 2`: decrement `count[flavours[L]]`; if it hits 0, `distinct −= 1`; `L += 1`.",
+    "`best = max(best, R − L + 1)`."
+   ],
+   "code": {
+    "python": "class Solution:\n    def mostScoops(self, flavours: List[int]) -> int:\n        count = [0] * len(flavours)\n        left = distinct = best = 0\n        for i, f in enumerate(flavours):\n            count[f] += 1\n            if count[f] == 1:\n                distinct += 1\n            while distinct > 2:\n                g = flavours[left]\n                count[g] -= 1\n                if count[g] == 0:\n                    distinct -= 1\n                left += 1\n            best = max(best, i - left + 1)\n        return best\n",
+    "java": "class Solution {\n    public int mostScoops(int[] flavours) {\n        int n = flavours.length, left = 0, distinct = 0, best = 0;\n        int[] count = new int[n];\n        for (int i = 0; i < n; i++) {\n            if (count[flavours[i]]++ == 0) distinct++;\n            while (distinct > 2) if (--count[flavours[left++]] == 0) distinct--;\n            best = Math.max(best, i - left + 1);\n        }\n        return best;\n    }\n}\n",
+    "cpp": "class Solution {\npublic:\n    int mostScoops(vector<int>& flavours) {\n        int n = flavours.size(), left = 0, distinct = 0, best = 0;\n        vector<int> count(n, 0);\n        for (int i = 0; i < n; i++) {\n            if (count[flavours[i]]++ == 0) distinct++;\n            while (distinct > 2) if (--count[flavours[left++]] == 0) distinct--;\n            best = max(best, i - left + 1);\n        }\n        return best;\n    }\n};\n",
+    "c": "int mostScoops(int* flavours, int flavoursSize) {\n    int n = flavoursSize, left = 0, distinct = 0, best = 0;\n    int* count = calloc(n, sizeof(int));\n    for (int i = 0; i < n; i++) {\n        if (count[flavours[i]]++ == 0) distinct++;\n        while (distinct > 2) if (--count[flavours[left++]] == 0) distinct--;\n        if (i - left + 1 > best) best = i - left + 1;\n    }\n    free(count);\n    return best;\n}\n"
+   },
+   "lines": [
+    {
+     "text": "A count per flavour for the window and `distinct`, the number of flavours with a positive count.",
+     "at": {
+      "python": [
+       [
+        3,
+        4
+       ]
+      ],
+      "java": [
+       [
+        3,
+        4
+       ]
+      ],
+      "cpp": [
+       [
+        4,
+        5
+       ]
+      ],
+      "c": [
+       [
+        2,
+        3
+       ]
+      ]
+     }
+    },
+    {
+     "text": "Bring the next element into the window on the right. The window may now break the rule; the next lines repair it. A flavour whose count goes from 0 to 1 is new to the window.",
+     "at": {
+      "python": [
+       [
+        5,
+        8
+       ]
+      ],
+      "java": [
+       [
+        5,
+        6
+       ]
+      ],
+      "cpp": [
+       [
+        6,
+        7
+       ]
+      ],
+      "c": [
+       [
+        4,
+        5
+       ]
+      ]
+     }
+    },
+    {
+     "text": "Three flavours: drop tubs from the left until some flavour's count reaches 0. That can take several steps, because the leftmost flavour may appear again later in the window.",
+     "at": {
+      "python": [
+       [
+        9,
+        14
+       ]
+      ],
+      "java": [
+       [
+        7,
+        7
+       ]
+      ],
+      "cpp": [
+       [
+        8,
+        8
+       ]
+      ],
+      "c": [
+       [
+        6,
+        6
+       ]
+      ]
+     }
+    },
+    {
+     "text": "After the repair, `L … R` is the longest valid window that ends at `R` (no earlier start works). Comparing its length with the best covers every possible right end.",
+     "at": {
+      "python": [
+       [
+        15,
+        15
+       ]
+      ],
+      "java": [
+       [
+        8,
+        8
+       ]
+      ],
+      "cpp": [
+       [
+        9,
+        9
+       ]
+      ],
+      "c": [
+       [
+        7,
+        7
+       ]
+      ]
+     }
+    },
+    {
+     "text": "The most scoops.",
+     "at": {
+      "python": [
+       [
+        16,
+        16
+       ]
+      ],
+      "java": [
+       [
+        10,
+        10
+       ]
+      ],
+      "cpp": [
+       [
+        11,
+        11
+       ]
+      ],
+      "c": [
+       [
+        9,
+        10
+       ]
+      ]
+     }
+    }
+   ],
+   "complexity": [
+    {
+     "md": "**Time O(n).** **Space O(n)** for the counts (a hash map would hold at most 3 keys)."
+    }
+   ],
+   "walk": {
+    "steps": [
+     {
+      "text": "R adds 3 at 0; the rule still holds, so the window just grows to 0..0. New best: 1.",
+      "panels": [
+       {
+        "type": "row",
+        "cells": [
+         3,
+         3,
+         1,
+         2,
+         1,
+         1,
+         2,
+         4,
+         4,
+         2
+        ],
+        "states": {
+         "0": "found"
+        },
+        "pointers": {
+         "L": 0,
+         "R": 0
+        }
+       },
+       {
+        "type": "vars",
+        "items": {
+         "best": 1,
+         "flavours": [
+          3
+         ]
+        }
+       }
+      ]
+     },
+     {
+      "text": "R adds 3 at 1; the rule still holds, so the window just grows to 0..1. New best: 2.",
+      "panels": [
+       {
+        "type": "row",
+        "cells": [
+         3,
+         3,
+         1,
+         2,
+         1,
+         1,
+         2,
+         4,
+         4,
+         2
+        ],
+        "states": {
+         "0": "found",
+         "1": "found"
+        },
+        "pointers": {
+         "L": 0,
+         "R": 1
+        }
+       },
+       {
+        "type": "vars",
+        "items": {
+         "best": 2,
+         "flavours": [
+          3
+         ]
+        }
+       }
+      ]
+     },
+     {
+      "text": "R adds 1 at 2; the rule still holds, so the window just grows to 0..2. New best: 3.",
+      "panels": [
+       {
+        "type": "row",
+        "cells": [
+         3,
+         3,
+         1,
+         2,
+         1,
+         1,
+         2,
+         4,
+         4,
+         2
+        ],
+        "states": {
+         "0": "found",
+         "1": "found",
+         "2": "found"
+        },
+        "pointers": {
+         "L": 0,
+         "R": 2
+        }
+       },
+       {
+        "type": "vars",
+        "items": {
+         "best": 3,
+         "flavours": [
+          1,
+          3
+         ]
+        }
+       }
+      ]
+     },
+     {
+      "text": "R adds 2 at 3. That breaks the rule (flavours [1, 2, 3]). L moves past 0..1 until it holds again: window 2..3.",
+      "panels": [
+       {
+        "type": "row",
+        "cells": [
+         3,
+         3,
+         1,
+         2,
+         1,
+         1,
+         2,
+         4,
+         4,
+         2
+        ],
+        "states": {
+         "2": "active",
+         "3": "active",
+         "0": "dim",
+         "1": "dim"
+        },
+        "pointers": {
+         "L": 2,
+         "R": 3
+        }
+       },
+       {
+        "type": "vars",
+        "items": {
+         "best": 3,
+         "flavours": [
+          1,
+          2
+         ]
+        }
+       }
+      ]
+     },
+     {
+      "text": "R adds 1 at 4; the rule still holds, so the window just grows to 2..4.",
+      "panels": [
+       {
+        "type": "row",
+        "cells": [
+         3,
+         3,
+         1,
+         2,
+         1,
+         1,
+         2,
+         4,
+         4,
+         2
+        ],
+        "states": {
+         "2": "active",
+         "3": "active",
+         "4": "active"
+        },
+        "pointers": {
+         "L": 2,
+         "R": 4
+        }
+       },
+       {
+        "type": "vars",
+        "items": {
+         "best": 3,
+         "flavours": [
+          1,
+          2
+         ]
+        }
+       }
+      ]
+     },
+     {
+      "text": "R adds 1 at 5; the rule still holds, so the window just grows to 2..5. New best: 4.",
+      "panels": [
+       {
+        "type": "row",
+        "cells": [
+         3,
+         3,
+         1,
+         2,
+         1,
+         1,
+         2,
+         4,
+         4,
+         2
+        ],
+        "states": {
+         "2": "found",
+         "3": "found",
+         "4": "found",
+         "5": "found"
+        },
+        "pointers": {
+         "L": 2,
+         "R": 5
+        }
+       },
+       {
+        "type": "vars",
+        "items": {
+         "best": 4,
+         "flavours": [
+          1,
+          2
+         ]
+        }
+       }
+      ]
+     },
+     {
+      "text": "R adds 2 at 6; the rule still holds, so the window just grows to 2..6. New best: 5.",
+      "panels": [
+       {
+        "type": "row",
+        "cells": [
+         3,
+         3,
+         1,
+         2,
+         1,
+         1,
+         2,
+         4,
+         4,
+         2
+        ],
+        "states": {
+         "2": "found",
+         "3": "found",
+         "4": "found",
+         "5": "found",
+         "6": "found"
+        },
+        "pointers": {
+         "L": 2,
+         "R": 6
+        }
+       },
+       {
+        "type": "vars",
+        "items": {
+         "best": 5,
+         "flavours": [
+          1,
+          2
+         ]
+        }
+       }
+      ]
+     },
+     {
+      "text": "R adds 4 at 7. That breaks the rule (flavours [1, 2, 4]). L moves past 2..5 until it holds again: window 6..7.",
+      "panels": [
+       {
+        "type": "row",
+        "cells": [
+         3,
+         3,
+         1,
+         2,
+         1,
+         1,
+         2,
+         4,
+         4,
+         2
+        ],
+        "states": {
+         "6": "active",
+         "7": "active",
+         "2": "dim",
+         "3": "dim",
+         "4": "dim",
+         "5": "dim"
+        },
+        "pointers": {
+         "L": 6,
+         "R": 7
+        }
+       },
+       {
+        "type": "vars",
+        "items": {
+         "best": 5,
+         "flavours": [
+          2,
+          4
+         ]
+        }
+       }
+      ]
+     },
+     {
+      "text": "R adds 4 at 8; the rule still holds, so the window just grows to 6..8.",
+      "panels": [
+       {
+        "type": "row",
+        "cells": [
+         3,
+         3,
+         1,
+         2,
+         1,
+         1,
+         2,
+         4,
+         4,
+         2
+        ],
+        "states": {
+         "6": "active",
+         "7": "active",
+         "8": "active"
+        },
+        "pointers": {
+         "L": 6,
+         "R": 8
+        }
+       },
+       {
+        "type": "vars",
+        "items": {
+         "best": 5,
+         "flavours": [
+          2,
+          4
+         ]
+        }
+       }
+      ]
+     },
+     {
+      "text": "R adds 2 at 9; the rule still holds, so the window just grows to 6..9.",
+      "panels": [
+       {
+        "type": "row",
+        "cells": [
+         3,
+         3,
+         1,
+         2,
+         1,
+         1,
+         2,
+         4,
+         4,
+         2
+        ],
+        "states": {
+         "6": "active",
+         "7": "active",
+         "8": "active",
+         "9": "active"
+        },
+        "pointers": {
+         "L": 6,
+         "R": 9
+        }
+       },
+       {
+        "type": "vars",
+        "items": {
+         "best": 5,
+         "flavours": [
+          2,
+          4
+         ]
+        }
+       }
+      ]
+     },
+     {
+      "text": "R visited each index once and L only ever moved right, so the pointers made at most 20 moves in total: O(n).",
+      "panels": []
+     },
+     {
+      "text": "Most scoops: 5.",
+      "panels": [],
+      "result": "5"
+     }
+    ],
+    "title": "Keep a count per flavour in the window and the number of distinct flavours. When a third flavour appears, drop tubs from the left until one flavour's count hits zero."
+   }
+  }
+ ],
+ "takeaways": [
+  {
+   "md": "- **\"At most k distinct values\" windows:** counts + a distinct counter, updated only on 0 ↔ 1 transitions.\n- Read the story carefully: \"walk until you can't\" means contiguous.\n- Same template as every other longest-valid-window problem."
+  }
+ ]
+}

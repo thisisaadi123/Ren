@@ -1,0 +1,731 @@
+{
+ "version": 1,
+ "summary": "Keep a stack of runs: (tile, how many in a row). A new tile either extends the top run or starts a new one; when\na run reaches k it's crushed by popping it, which automatically lets the run below meet the next tiles. One\npass, O(n), and the result is the stack's runs written out.",
+ "question": [
+  {
+   "md": "Repeatedly crush any k identical adjacent tiles until none remain. Return the final row.\n\n- **Chain reactions:** crushing `bbb` in `abbba` (k = 3) brings the two `a`s together, and with a third `a` they\n  could crush too.\n- **The order of crushes doesn't change the result** (given in the statement), so any convenient order works.\n- **Size:** up to 10⁵ tiles; repeatedly rescanning after each crush is too slow."
+  }
+ ],
+ "think": [
+  {
+   "md": "Take `abbbacca` with k = 3. Crush `bbb`: `aacca`. No other run of 3 yet... `cc` isn't long enough, so the result is\n`aacca`."
+  },
+  {
+   "panels": [
+    {
+     "type": "row",
+     "cells": [
+      "a",
+      "b",
+      "b",
+      "b",
+      "a",
+      "c",
+      "c",
+      "a"
+     ],
+     "states": {
+      "1": "mark",
+      "2": "mark",
+      "3": "mark"
+     }
+    },
+    {
+     "type": "row",
+     "cells": [
+      "a",
+      "a",
+      "c",
+      "c",
+      "a"
+     ],
+     "label": "result"
+    }
+   ]
+  },
+  {
+   "md": "A crush affects only what's immediately to its left and right. Process tiles left to right while remembering the\nruns to the left: when a run is completed and removed, the run before it becomes the new neighbour of the next\ntile. \"The most recent unfinished run\" is the top of a stack; storing counts with each run makes the k-check\nO(1)."
+  }
+ ],
+ "approaches": [
+  {
+   "title": "Find and crush, repeat",
+   "kind": "brute",
+   "time": "O(n² / k)",
+   "space": "O(n)",
+   "idea": [
+    {
+     "md": "Scan for any k identical adjacent tiles; remove them; rescan from the start. Stop when a full scan finds nothing."
+    }
+   ],
+   "build": [
+    "Loop: scan, keeping the length of the current run of equal tiles.",
+    "When it reaches k, cut those tiles out and restart.",
+    "Stop when a scan completes with no cut."
+   ],
+   "code": {
+    "python": "class Solution:\n    def crushRuns(self, s: str, k: int) -> str:\n        changed = True\n        while changed:\n            changed = False\n            run = 1\n            for i in range(1, len(s) + 1):\n                if i < len(s) and s[i] == s[i - 1]:\n                    run += 1\n                    if run == k:\n                        s = s[:i - k + 1] + s[i + 1:]\n                        changed = True\n                        break\n                else:\n                    run = 1\n        return s\n",
+    "java": "class Solution {\n    public String crushRuns(String s, int k) {\n        StringBuilder t = new StringBuilder(s);\n        boolean changed = true;\n        while (changed) {\n            changed = false;\n            int run = 1;\n            for (int i = 1; i < t.length(); i++) {\n                run = t.charAt(i) == t.charAt(i - 1) ? run + 1 : 1;\n                if (run == k) {\n                    t.delete(i - k + 1, i + 1);\n                    changed = true;\n                    break;\n                }\n            }\n        }\n        return t.toString();\n    }\n}\n",
+    "cpp": "class Solution {\npublic:\n    string crushRuns(string& s, int k) {\n        string t = s;\n        bool changed = true;\n        while (changed) {\n            changed = false;\n            int run = 1;\n            for (int i = 1; i < (int) t.size(); i++) {\n                run = t[i] == t[i - 1] ? run + 1 : 1;\n                if (run == k) {\n                    t.erase(i - k + 1, k);\n                    changed = true;\n                    break;\n                }\n            }\n        }\n        return t;\n    }\n};\n",
+    "c": "char* crushRuns(char* s, int k) {\n    int n = strlen(s);\n    char* t = malloc(n + 1);\n    memcpy(t, s, n + 1);\n    bool changed = true;\n    while (changed) {\n        changed = false;\n        int run = 1, len = strlen(t);\n        for (int i = 1; i < len; i++) {\n            run = t[i] == t[i - 1] ? run + 1 : 1;\n            if (run == k) {\n                memmove(t + i - k + 1, t + i + 1, len - i);\n                changed = true;\n                break;\n            }\n        }\n    }\n    return t;\n}\n"
+   },
+   "lines": [
+    {
+     "text": "Keep going while the last scan crushed something.",
+     "at": {
+      "python": [
+       [
+        3,
+        5
+       ]
+      ],
+      "java": [
+       [
+        3,
+        6
+       ]
+      ],
+      "cpp": [
+       [
+        4,
+        7
+       ]
+      ],
+      "c": [
+       [
+        3,
+        7
+       ]
+      ]
+     }
+    },
+    {
+     "text": "Length of the current run of equal tiles.",
+     "at": {
+      "python": [
+       [
+        6,
+        9
+       ],
+       [
+        14,
+        15
+       ]
+      ],
+      "java": [
+       [
+        7,
+        9
+       ]
+      ],
+      "cpp": [
+       [
+        8,
+        10
+       ]
+      ],
+      "c": [
+       [
+        8,
+        10
+       ]
+      ]
+     }
+    },
+    {
+     "text": "A run of k: remove it and rescan from the beginning (neighbours may now form new runs).",
+     "at": {
+      "python": [
+       [
+        10,
+        13
+       ]
+      ],
+      "java": [
+       [
+        10,
+        13
+       ]
+      ],
+      "cpp": [
+       [
+        11,
+        14
+       ]
+      ],
+      "c": [
+       [
+        11,
+        14
+       ]
+      ]
+     }
+    },
+    {
+     "text": "Nothing left to crush.",
+     "at": {
+      "python": [
+       [
+        16,
+        16
+       ]
+      ],
+      "java": [
+       [
+        17,
+        17
+       ]
+      ],
+      "cpp": [
+       [
+        18,
+        18
+       ]
+      ],
+      "c": [
+       [
+        18,
+        18
+       ]
+      ]
+     }
+    }
+   ],
+   "complexity": [
+    {
+     "md": "**Time O(n² / k)** scans of O(n) each in the worst case (each crush removes k tiles). **Space O(n).**"
+    }
+   ],
+   "walk": {
+    "steps": [
+     {
+      "text": "Start: abbbacca",
+      "panels": [
+       {
+        "type": "row",
+        "cells": [
+         "a",
+         "b",
+         "b",
+         "b",
+         "a",
+         "c",
+         "c",
+         "a"
+        ]
+       }
+      ]
+     },
+     {
+      "text": "'bbb' at 1: crush it.",
+      "panels": [
+       {
+        "type": "row",
+        "cells": [
+         "a",
+         "b",
+         "b",
+         "b",
+         "a",
+         "c",
+         "c",
+         "a"
+        ],
+        "states": {
+         "1": "mark",
+         "2": "mark",
+         "3": "mark"
+        }
+       }
+      ]
+     },
+     {
+      "text": "No run of 3 left: 'aacca'.",
+      "panels": [
+       {
+        "type": "row",
+        "cells": [
+         "a",
+         "a",
+         "c",
+         "c",
+         "a"
+        ]
+       }
+      ],
+      "result": "aacca"
+     }
+    ],
+    "title": "Find any run of 3 identical tiles, remove it, and start over; stop when no run is left."
+   },
+   "limits": [
+    {
+     "md": "Every crush triggers a full rescan, although only the tiles around the crush can change. A stack keeps exactly that neighbourhood at hand."
+    }
+   ],
+   "slow": true
+  },
+  {
+   "title": "Stack of (tile, run length)",
+   "kind": "best",
+   "time": "O(n)",
+   "space": "O(n)",
+   "idea": [
+    {
+     "md": "For each tile: if it equals the top run's tile, increment that run's count, popping it when the count hits k; otherwise push (tile, 1). Finally, write each remaining run out."
+    }
+   ],
+   "build": [
+    "Stack of `[tile, count]`.",
+    "Extend or push; pop at count k.",
+    "Concatenate `tile × count` for the remaining runs."
+   ],
+   "code": {
+    "python": "class Solution:\n    def crushRuns(self, s: str, k: int) -> str:\n        stack = []\n        for c in s:\n            if stack and stack[-1][0] == c:\n                stack[-1][1] += 1\n                if stack[-1][1] == k:\n                    stack.pop()\n            else:\n                stack.append([c, 1])\n        return \"\".join(c * n for c, n in stack)\n",
+    "java": "class Solution {\n    public String crushRuns(String s, int k) {\n        int n = s.length(), top = 0;\n        char[] tile = new char[n];\n        int[] count = new int[n];\n        for (char c : s.toCharArray()) {\n            if (top > 0 && tile[top - 1] == c) {\n                if (++count[top - 1] == k) top--;\n            } else {\n                tile[top] = c;\n                count[top++] = 1;\n            }\n        }\n        StringBuilder out = new StringBuilder();\n        for (int i = 0; i < top; i++) for (int j = 0; j < count[i]; j++) out.append(tile[i]);\n        return out.toString();\n    }\n}\n",
+    "cpp": "class Solution {\npublic:\n    string crushRuns(string& s, int k) {\n        vector<pair<char, int>> stack;\n        for (char c : s) {\n            if (!stack.empty() && stack.back().first == c) {\n                if (++stack.back().second == k) stack.pop_back();\n            } else {\n                stack.push_back({c, 1});\n            }\n        }\n        string out;\n        for (auto& [c, cnt] : stack) out.append(cnt, c);\n        return out;\n    }\n};\n",
+    "c": "char* crushRuns(char* s, int k) {\n    int n = strlen(s), top = 0;\n    char* tile = malloc(n + 1);\n    int* count = malloc((n + 1) * sizeof(int));\n    for (int i = 0; i < n; i++) {\n        if (top > 0 && tile[top - 1] == s[i]) {\n            if (++count[top - 1] == k) top--;\n        } else {\n            tile[top] = s[i];\n            count[top++] = 1;\n        }\n    }\n    char* out = malloc(n + 1);\n    int w = 0;\n    for (int i = 0; i < top; i++) for (int j = 0; j < count[i]; j++) out[w++] = tile[i];\n    out[w] = '\\0';\n    free(tile);\n    free(count);\n    return out;\n}\n"
+   },
+   "lines": [
+    {
+     "text": "Runs still standing, left to right, each with its length.",
+     "at": {
+      "python": [
+       [
+        3,
+        3
+       ]
+      ],
+      "java": [
+       [
+        4,
+        5
+       ]
+      ],
+      "cpp": [
+       [
+        4,
+        4
+       ]
+      ],
+      "c": [
+       [
+        3,
+        4
+       ]
+      ]
+     },
+     "notes": {
+      "java": "Two parallel arrays act as the stack of runs.",
+      "c": "Two parallel arrays act as the stack of runs."
+     }
+    },
+    {
+     "text": "One pass over the tiles.",
+     "at": {
+      "python": [
+       [
+        4,
+        4
+       ]
+      ],
+      "java": [
+       [
+        6,
+        6
+       ]
+      ],
+      "cpp": [
+       [
+        5,
+        5
+       ]
+      ],
+      "c": [
+       [
+        5,
+        5
+       ]
+      ]
+     }
+    },
+    {
+     "text": "Same tile as the top run: it grows.",
+     "at": {
+      "python": [
+       [
+        5,
+        6
+       ]
+      ],
+      "java": [
+       [
+        7,
+        7
+       ]
+      ],
+      "cpp": [
+       [
+        6,
+        6
+       ]
+      ],
+      "c": [
+       [
+        6,
+        6
+       ]
+      ]
+     }
+    },
+    {
+     "text": "A run reaching k disappears; the run beneath becomes the top and can be extended by the next tiles.",
+     "at": {
+      "python": [
+       [
+        7,
+        8
+       ]
+      ],
+      "java": [
+       [
+        8,
+        8
+       ]
+      ],
+      "cpp": [
+       [
+        7,
+        7
+       ]
+      ],
+      "c": [
+       [
+        7,
+        7
+       ]
+      ]
+     }
+    },
+    {
+     "text": "A different tile starts a new run.",
+     "at": {
+      "python": [
+       [
+        9,
+        10
+       ]
+      ],
+      "java": [
+       [
+        9,
+        11
+       ]
+      ],
+      "cpp": [
+       [
+        8,
+        9
+       ]
+      ],
+      "c": [
+       [
+        8,
+        10
+       ]
+      ]
+     }
+    },
+    {
+     "text": "Write the surviving runs out in order.",
+     "at": {
+      "python": [
+       [
+        11,
+        11
+       ]
+      ],
+      "java": [
+       [
+        14,
+        16
+       ]
+      ],
+      "cpp": [
+       [
+        12,
+        14
+       ]
+      ],
+      "c": [
+       [
+        13,
+        19
+       ]
+      ]
+     }
+    }
+   ],
+   "complexity": [
+    {
+     "md": "**Time O(n):** each tile is pushed or counted once, and popped at most once. **Space O(n).**"
+    }
+   ],
+   "walk": {
+    "steps": [
+     {
+      "text": "'a' starts a new run.",
+      "panels": [
+       {
+        "type": "row",
+        "cells": [
+         "a",
+         "b",
+         "b",
+         "b",
+         "a",
+         "c",
+         "c",
+         "a"
+        ],
+        "states": {
+         "0": "active"
+        }
+       },
+       {
+        "type": "row",
+        "cells": [
+         "a×1"
+        ],
+        "label": "stack (tile × run)"
+       }
+      ]
+     },
+     {
+      "text": "'b' starts a new run.",
+      "panels": [
+       {
+        "type": "row",
+        "cells": [
+         "a",
+         "b",
+         "b",
+         "b",
+         "a",
+         "c",
+         "c",
+         "a"
+        ],
+        "states": {
+         "1": "active"
+        }
+       },
+       {
+        "type": "row",
+        "cells": [
+         "a×1",
+         "b×1"
+        ],
+        "label": "stack (tile × run)"
+       }
+      ]
+     },
+     {
+      "text": "'b' extends the top run to 2.",
+      "panels": [
+       {
+        "type": "row",
+        "cells": [
+         "a",
+         "b",
+         "b",
+         "b",
+         "a",
+         "c",
+         "c",
+         "a"
+        ],
+        "states": {
+         "2": "active"
+        }
+       },
+       {
+        "type": "row",
+        "cells": [
+         "a×1",
+         "b×2"
+        ],
+        "label": "stack (tile × run)"
+       }
+      ]
+     },
+     {
+      "text": "'b' makes a run of 3: crush it (pop).",
+      "panels": [
+       {
+        "type": "row",
+        "cells": [
+         "a",
+         "b",
+         "b",
+         "b",
+         "a",
+         "c",
+         "c",
+         "a"
+        ],
+        "states": {
+         "3": "active"
+        }
+       },
+       {
+        "type": "row",
+        "cells": [
+         "a×1"
+        ],
+        "label": "stack (tile × run)"
+       }
+      ]
+     },
+     {
+      "text": "'a' extends the top run to 2.",
+      "panels": [
+       {
+        "type": "row",
+        "cells": [
+         "a",
+         "b",
+         "b",
+         "b",
+         "a",
+         "c",
+         "c",
+         "a"
+        ],
+        "states": {
+         "4": "active"
+        }
+       },
+       {
+        "type": "row",
+        "cells": [
+         "a×2"
+        ],
+        "label": "stack (tile × run)"
+       }
+      ]
+     },
+     {
+      "text": "'c' starts a new run.",
+      "panels": [
+       {
+        "type": "row",
+        "cells": [
+         "a",
+         "b",
+         "b",
+         "b",
+         "a",
+         "c",
+         "c",
+         "a"
+        ],
+        "states": {
+         "5": "active"
+        }
+       },
+       {
+        "type": "row",
+        "cells": [
+         "a×2",
+         "c×1"
+        ],
+        "label": "stack (tile × run)"
+       }
+      ]
+     },
+     {
+      "text": "'c' extends the top run to 2.",
+      "panels": [
+       {
+        "type": "row",
+        "cells": [
+         "a",
+         "b",
+         "b",
+         "b",
+         "a",
+         "c",
+         "c",
+         "a"
+        ],
+        "states": {
+         "6": "active"
+        }
+       },
+       {
+        "type": "row",
+        "cells": [
+         "a×2",
+         "c×2"
+        ],
+        "label": "stack (tile × run)"
+       }
+      ]
+     },
+     {
+      "text": "'a' starts a new run.",
+      "panels": [
+       {
+        "type": "row",
+        "cells": [
+         "a",
+         "b",
+         "b",
+         "b",
+         "a",
+         "c",
+         "c",
+         "a"
+        ],
+        "states": {
+         "7": "active"
+        }
+       },
+       {
+        "type": "row",
+        "cells": [
+         "a×2",
+         "c×2",
+         "a×1"
+        ],
+        "label": "stack (tile × run)"
+       }
+      ]
+     },
+     {
+      "text": "Write the remaining runs out: 'aacca'.",
+      "panels": [
+       {
+        "type": "row",
+        "cells": [
+         "a×2",
+         "c×2",
+         "a×1"
+        ],
+        "label": "stack"
+       }
+      ],
+      "result": "aacca"
+     }
+    ],
+    "title": "Stack of (tile, run length). A tile equal to the top extends its run; reaching k pops it. Otherwise push a new run of 1."
+   }
+  }
+ ],
+ "takeaways": [
+  {
+   "md": "- \"Remove adjacent groups, then let neighbours meet\" → stack, so the new neighbour is always the top.\n- Store **(value, count)** on the stack to check run lengths in O(1)."
+  }
+ ]
+}

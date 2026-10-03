@@ -1,0 +1,941 @@
+{
+ "version": 1,
+ "summary": "Every palindrome has a centre, a letter or a gap between letters. Expand from each of the 2n − 1 centres while\nthe ends match, and remember the widest expansion (only a strictly longer one replaces it, so the leftmost wins\nties). Return the longest palindrome itself. O(n²) time, O(1) space.",
+ "question": [
+  {
+   "md": "Find the longest substring of `s` that reads the same both ways, and return the longest palindrome itself.\n\n- **Single letters** are palindromes, so the answer is at least 1.\n- **Ties go to the leftmost** palindrome of the greatest length.\n- **n ≤ 2000.**"
+  },
+  {
+   "md": "    **Edge cases to keep in mind**\n\n    - A single letter is a palindrome, so the answer is at least 1 letter long.\n    - All letters equal: the whole string.\n\n- **Ties:** if two palindromes share the greatest length, return the one that starts first. Centres are visited\n  left to right, and a strictly longer palindrome is needed to replace the best, so the first one found stays."
+  }
+ ],
+ "think": [
+  {
+   "md": "**Restating it.** Among all substrings that read the same both ways, find the longest\n(return the substring itself)."
+  },
+  {
+   "md": "**Every palindrome has a centre.** Fold a palindrome in half: an odd-length one folds on its middle letter\n(`aba` on `b`), an even-length one folds on the gap between its two middle letters (`abba` between the `b`s). A string\nof length `n` has `n` letters and `n − 1` gaps, so **2n − 1 centres**. Every palindromic substring belongs to exactly\none of them.\n\n**Growing from a centre.** If `s[i..j]` is a palindrome, then `s[i−1..j+1]` is one exactly when `s[i−1] = s[j+1]`.\nSo from a centre we compare the two letters just outside, extend if they match, and stop at the first mismatch: a\nmismatch at distance `d` means nothing wider around this centre can be a palindrome, because it would contain that\nmismatched pair at mirrored positions."
+  },
+  {
+   "md": "**The widest palindrome around each centre of `\"xabbaycdcz\"`:**"
+  },
+  {
+   "table": {
+    "head": [
+     "centre",
+     "widest palindrome",
+     "length",
+     "stopped by"
+    ],
+    "rows": [
+     [
+      "letter 0 (x)",
+      "x",
+      "1",
+      "edge"
+     ],
+     [
+      "gap 0|1",
+      "—",
+      "0",
+      "x ≠ a"
+     ],
+     [
+      "letter 1 (a)",
+      "a",
+      "1",
+      "x ≠ b"
+     ],
+     [
+      "gap 1|2",
+      "—",
+      "0",
+      "a ≠ b"
+     ],
+     [
+      "letter 2 (b)",
+      "b",
+      "1",
+      "a ≠ b"
+     ],
+     [
+      "gap 2|3",
+      "abba",
+      "4",
+      "x ≠ y"
+     ],
+     [
+      "letter 3 (b)",
+      "b",
+      "1",
+      "b ≠ a"
+     ],
+     [
+      "gap 3|4",
+      "—",
+      "0",
+      "b ≠ a"
+     ],
+     [
+      "letter 4 (a)",
+      "a",
+      "1",
+      "b ≠ y"
+     ],
+     [
+      "gap 4|5",
+      "—",
+      "0",
+      "a ≠ y"
+     ],
+     [
+      "letter 5 (y)",
+      "y",
+      "1",
+      "a ≠ c"
+     ],
+     [
+      "gap 5|6",
+      "—",
+      "0",
+      "y ≠ c"
+     ],
+     [
+      "letter 6 (c)",
+      "c",
+      "1",
+      "y ≠ d"
+     ],
+     [
+      "gap 6|7",
+      "—",
+      "0",
+      "c ≠ d"
+     ],
+     [
+      "letter 7 (d)",
+      "cdc",
+      "3",
+      "y ≠ z"
+     ],
+     [
+      "gap 7|8",
+      "—",
+      "0",
+      "d ≠ c"
+     ],
+     [
+      "letter 8 (c)",
+      "c",
+      "1",
+      "d ≠ z"
+     ],
+     [
+      "gap 8|9",
+      "—",
+      "0",
+      "c ≠ z"
+     ],
+     [
+      "letter 9 (z)",
+      "z",
+      "1",
+      "edge"
+     ]
+    ]
+   }
+  },
+  {
+   "md": "The longest is `abba`, so the answer is `\"abba\"`.\n\n**Only the widest per centre matters.** Every palindrome around a centre is contained in the widest one, so\nfor the longest overall we just need, for each centre, how far it expands. And the brute-force idea of\ntesting substrings from the longest down wastes time re-checking insides that the expansion verifies once."
+  }
+ ],
+ "approaches": [
+  {
+   "title": "Check substrings that could beat the best",
+   "kind": "brute",
+   "time": "O(n³)",
+   "space": "O(1)",
+   "idea": [
+    {
+     "md": "For each start `i`, test ends `j` that would beat the current best (`j ≥ i + best`), each with a\ntwo-pointer palindrome test. Record a palindrome when it's strictly longer than the best.\n\nSkipping ends that can't beat the best already prunes a lot, but each test is still O(n)."
+    }
+   ],
+   "build": [
+    "The best starts as the first letter (length 1).",
+    "For each `i`, for each `j ≥ i + best`, test `s[i..j]` with two pointers.",
+    "On success, set the best to `(j − i + 1, i)`."
+   ],
+   "code": {
+    "python": "class Solution:\n    def longestEchoText(self, s: str) -> str:\n        n = len(s)\n        best_len, best_i = 1, 0\n        for i in range(n):\n            for j in range(i + best_len, n):\n                a, b = i, j\n                while a < b and s[a] == s[b]:\n                    a, b = a + 1, b - 1\n                if a >= b:\n                    best_len, best_i = j - i + 1, i\n        return s[best_i:best_i + best_len]\n",
+    "java": "class Solution {\n    public String longestEchoText(String s) {\n        int n = s.length(), bestLen = 1, bestI = 0;\n        for (int i = 0; i < n; i++)\n            for (int j = i + bestLen; j < n; j++) {\n                int a = i, b = j;\n                while (a < b && s.charAt(a) == s.charAt(b)) { a++; b--; }\n                if (a >= b) { bestLen = j - i + 1; bestI = i; }\n            }\n        return s.substring(bestI, bestI + bestLen);\n    }\n}\n",
+    "cpp": "class Solution {\npublic:\n    string longestEchoText(string& s) {\n        int n = s.size(), bestLen = 1, bestI = 0;\n        for (int i = 0; i < n; i++)\n            for (int j = i + bestLen; j < n; j++) {\n                int a = i, b = j;\n                while (a < b && s[a] == s[b]) { a++; b--; }\n                if (a >= b) { bestLen = j - i + 1; bestI = i; }\n            }\n        return s.substr(bestI, bestLen);\n    }\n};\n",
+    "c": "char* longestEchoText(char* s) {\n    int n = strlen(s), bestLen = 1, bestI = 0;\n    for (int i = 0; i < n; i++)\n        for (int j = i + bestLen; j < n; j++) {\n            int a = i, b = j;\n            while (a < b && s[a] == s[b]) { a++; b--; }\n            if (a >= b) { bestLen = j - i + 1; bestI = i; }\n        }\n    char* out = malloc(bestLen + 1);\n    memcpy(out, s + bestI, bestLen);\n    out[bestLen] = '\\0';\n    return out;\n}\n"
+   },
+   "lines": [
+    {
+     "text": "One letter is always a palindrome, so the best is length 1 at position 0.",
+     "at": {
+      "python": [
+       [
+        3,
+        4
+       ]
+      ],
+      "java": [
+       [
+        3,
+        3
+       ]
+      ],
+      "cpp": [
+       [
+        4,
+        4
+       ]
+      ],
+      "c": [
+       [
+        2,
+        2
+       ]
+      ]
+     }
+    },
+    {
+     "text": "Only ends far enough to beat the best are worth testing; this also keeps the leftmost of equal-length palindromes.",
+     "at": {
+      "python": [
+       [
+        5,
+        6
+       ]
+      ],
+      "java": [
+       [
+        4,
+        5
+       ]
+      ],
+      "cpp": [
+       [
+        5,
+        6
+       ]
+      ],
+      "c": [
+       [
+        3,
+        4
+       ]
+      ]
+     }
+    },
+    {
+     "text": "Two pointers from the ends inward; meeting without a mismatch means a palindrome, which is strictly longer than the best by construction.",
+     "at": {
+      "python": [
+       [
+        7,
+        11
+       ]
+      ],
+      "java": [
+       [
+        6,
+        8
+       ]
+      ],
+      "cpp": [
+       [
+        7,
+        9
+       ]
+      ],
+      "c": [
+       [
+        5,
+        7
+       ]
+      ]
+     }
+    },
+    {
+     "text": "Return the substring (C copies it into a new buffer).",
+     "at": {
+      "python": [
+       [
+        12,
+        12
+       ]
+      ],
+      "java": [
+       [
+        10,
+        10
+       ]
+      ],
+      "cpp": [
+       [
+        11,
+        11
+       ]
+      ],
+      "c": [
+       [
+        9,
+        12
+       ]
+      ]
+     },
+     "notes": {
+      "c": "The text version copies it into a new string."
+     }
+    }
+   ],
+   "complexity": [
+    {
+     "md": "**Time O(n³)** in the worst case (many long near-palindromes). **Space O(1).**"
+    }
+   ],
+   "walk": {
+    "steps": [
+     {
+      "text": "Up to 55 substrings in 'xabbaycdcz'.",
+      "panels": [
+       {
+        "type": "row",
+        "cells": [
+         "x",
+         "a",
+         "b",
+         "b",
+         "a",
+         "y",
+         "c",
+         "d",
+         "c",
+         "z"
+        ]
+       }
+      ]
+     },
+     {
+      "text": "The longest palindrome found is 'abba' (length 4).",
+      "panels": [
+       {
+        "type": "row",
+        "cells": [
+         "x",
+         "a",
+         "b",
+         "b",
+         "a",
+         "y",
+         "c",
+         "d",
+         "c",
+         "z"
+        ],
+        "states": {
+         "1": "found",
+         "2": "found",
+         "3": "found",
+         "4": "found"
+        }
+       }
+      ],
+      "result": "'abba'"
+     }
+    ],
+    "title": "Check substrings from each start, longest-first candidates only: a substring is worth testing only if it would beat the best so far."
+   },
+   "limits": [
+    {
+     "md": "Every test starts again from the ends of the substring. Growing outward from centres verifies each mirrored pair once."
+    }
+   ],
+   "slow": true
+  },
+  {
+   "title": "Expand around every centre",
+   "kind": "best",
+   "time": "O(n²)",
+   "space": "O(1)",
+   "idea": [
+    {
+     "md": "For each centre, expand while the letters match. When it stops, the palindrome is `s[i+1 .. j−1]` with\nlength `j − i − 1`. Keep it if it's strictly longer than the best.\n\n**Why it's correct.** The longest palindrome has some centre, and expanding from that centre reaches\nits full width (all its mirrored pairs match). So it's measured at its centre and kept."
+    }
+   ],
+   "build": [
+    "Best = (1, 0).",
+    "For each centre `c`, set `i = c/2`, `j = i + c%2` and expand.",
+    "After expanding, compare `j − i − 1` with the best length.",
+    "Return the best substring."
+   ],
+   "code": {
+    "python": "class Solution:\n    def longestEchoText(self, s: str) -> str:\n        n = len(s)\n        best_len, best_i = 1, 0\n        for c in range(2 * n - 1):\n            i, j = c // 2, c // 2 + c % 2\n            while i >= 0 and j < n and s[i] == s[j]:\n                i, j = i - 1, j + 1\n            if j - i - 1 > best_len:\n                best_len, best_i = j - i - 1, i + 1\n        return s[best_i:best_i + best_len]\n",
+    "java": "class Solution {\n    public String longestEchoText(String s) {\n        int n = s.length(), bestLen = 1, bestI = 0;\n        for (int c = 0; c < 2 * n - 1; c++) {\n            int i = c / 2, j = c / 2 + c % 2;\n            while (i >= 0 && j < n && s.charAt(i) == s.charAt(j)) { i--; j++; }\n            if (j - i - 1 > bestLen) { bestLen = j - i - 1; bestI = i + 1; }\n        }\n        return s.substring(bestI, bestI + bestLen);\n    }\n}\n",
+    "cpp": "class Solution {\npublic:\n    string longestEchoText(string& s) {\n        int n = s.size(), bestLen = 1, bestI = 0;\n        for (int c = 0; c < 2 * n - 1; c++) {\n            int i = c / 2, j = c / 2 + c % 2;\n            while (i >= 0 && j < n && s[i] == s[j]) { i--; j++; }\n            if (j - i - 1 > bestLen) { bestLen = j - i - 1; bestI = i + 1; }\n        }\n        return s.substr(bestI, bestLen);\n    }\n};\n",
+    "c": "char* longestEchoText(char* s) {\n    int n = strlen(s), bestLen = 1, bestI = 0;\n    for (int c = 0; c < 2 * n - 1; c++) {\n        int i = c / 2, j = c / 2 + c % 2;\n        while (i >= 0 && j < n && s[i] == s[j]) { i--; j++; }\n        if (j - i - 1 > bestLen) { bestLen = j - i - 1; bestI = i + 1; }\n    }\n    char* out = malloc(bestLen + 1);\n    memcpy(out, s + bestI, bestLen);\n    out[bestLen] = '\\0';\n    return out;\n}\n"
+   },
+   "lines": [
+    {
+     "text": "The best palindrome so far: one letter at position 0.",
+     "at": {
+      "python": [
+       [
+        3,
+        4
+       ]
+      ],
+      "java": [
+       [
+        3,
+        3
+       ]
+      ],
+      "cpp": [
+       [
+        4,
+        4
+       ]
+      ],
+      "c": [
+       [
+        2,
+        2
+       ]
+      ]
+     }
+    },
+    {
+     "text": "Even `c` starts on a letter, odd `c` on a gap.",
+     "at": {
+      "python": [
+       [
+        5,
+        6
+       ]
+      ],
+      "java": [
+       [
+        4,
+        5
+       ]
+      ],
+      "cpp": [
+       [
+        5,
+        6
+       ]
+      ],
+      "c": [
+       [
+        3,
+        4
+       ]
+      ]
+     }
+    },
+    {
+     "text": "Widen while the outer letters match. When the loop ends, `s[i]` and `s[j]` are the mismatched (or missing) pair, so the palindrome is the part strictly between them.",
+     "at": {
+      "python": [
+       [
+        7,
+        8
+       ]
+      ],
+      "java": [
+       [
+        6,
+        6
+       ]
+      ],
+      "cpp": [
+       [
+        7,
+        7
+       ]
+      ],
+      "c": [
+       [
+        5,
+        5
+       ]
+      ]
+     }
+    },
+    {
+     "text": "Only a strictly longer palindrome replaces the best, so the leftmost one wins ties.",
+     "at": {
+      "python": [
+       [
+        9,
+        10
+       ]
+      ],
+      "java": [
+       [
+        7,
+        7
+       ]
+      ],
+      "cpp": [
+       [
+        8,
+        8
+       ]
+      ],
+      "c": [
+       [
+        6,
+        6
+       ]
+      ]
+     }
+    },
+    {
+     "text": "Return the substring, cut out once at the end (C copies it into a new buffer).",
+     "at": {
+      "python": [
+       [
+        11,
+        11
+       ]
+      ],
+      "java": [
+       [
+        9,
+        9
+       ]
+      ],
+      "cpp": [
+       [
+        10,
+        10
+       ]
+      ],
+      "c": [
+       [
+        8,
+        11
+       ]
+      ]
+     },
+     "notes": {
+      "c": "The text version copies it into a new string."
+     }
+    }
+   ],
+   "complexity": [
+    {
+     "md": "**Time O(n²)** worst case: the expansions add up to at most the number of palindromic substrings. **Space O(1)**: only indices are stored, and the substring is cut once at the end."
+    }
+   ],
+   "walk": {
+    "steps": [
+     {
+      "text": "Centre on letter 0 ('x'): expands 1 step(s) to 'x', then stops at the edge of the string.",
+      "panels": [
+       {
+        "type": "row",
+        "cells": [
+         "x",
+         "a",
+         "b",
+         "b",
+         "a",
+         "y",
+         "c",
+         "d",
+         "c",
+         "z"
+        ],
+        "states": {
+         "0": "found",
+         "1": "mark"
+        },
+        "pointers": {
+         "i": 0,
+         "j": 1
+        }
+       },
+       {
+        "type": "vars",
+        "items": {
+         "longest": 1
+        }
+       }
+      ]
+     },
+     {
+      "text": "Centre on letter 1 ('a'): expands 1 step(s) to 'a', then stops at 'x' ≠ 'b'.",
+      "panels": [
+       {
+        "type": "row",
+        "cells": [
+         "x",
+         "a",
+         "b",
+         "b",
+         "a",
+         "y",
+         "c",
+         "d",
+         "c",
+         "z"
+        ],
+        "states": {
+         "1": "found",
+         "0": "mark",
+         "2": "mark"
+        },
+        "pointers": {
+         "i": 0,
+         "j": 2
+        }
+       },
+       {
+        "type": "vars",
+        "items": {
+         "longest": 1
+        }
+       }
+      ]
+     },
+     {
+      "text": "Centre on letter 2 ('b'): expands 1 step(s) to 'b', then stops at 'a' ≠ 'b'.",
+      "panels": [
+       {
+        "type": "row",
+        "cells": [
+         "x",
+         "a",
+         "b",
+         "b",
+         "a",
+         "y",
+         "c",
+         "d",
+         "c",
+         "z"
+        ],
+        "states": {
+         "2": "found",
+         "1": "mark",
+         "3": "mark"
+        },
+        "pointers": {
+         "i": 1,
+         "j": 3
+        }
+       },
+       {
+        "type": "vars",
+        "items": {
+         "longest": 1
+        }
+       }
+      ]
+     },
+     {
+      "text": "Centre on the gap between 2 and 3: expands 2 step(s) to 'abba', then stops at 'x' ≠ 'y'. New longest.",
+      "panels": [
+       {
+        "type": "row",
+        "cells": [
+         "x",
+         "a",
+         "b",
+         "b",
+         "a",
+         "y",
+         "c",
+         "d",
+         "c",
+         "z"
+        ],
+        "states": {
+         "1": "found",
+         "2": "found",
+         "3": "found",
+         "4": "found",
+         "0": "mark",
+         "5": "mark"
+        },
+        "pointers": {
+         "i": 0,
+         "j": 5
+        }
+       },
+       {
+        "type": "vars",
+        "items": {
+         "longest": 4
+        }
+       }
+      ]
+     },
+     {
+      "text": "Centre on letter 3 ('b'): expands 1 step(s) to 'b', then stops at 'b' ≠ 'a'.",
+      "panels": [
+       {
+        "type": "row",
+        "cells": [
+         "x",
+         "a",
+         "b",
+         "b",
+         "a",
+         "y",
+         "c",
+         "d",
+         "c",
+         "z"
+        ],
+        "states": {
+         "3": "found",
+         "2": "mark",
+         "4": "mark"
+        },
+        "pointers": {
+         "i": 2,
+         "j": 4
+        }
+       },
+       {
+        "type": "vars",
+        "items": {
+         "longest": 4
+        }
+       }
+      ]
+     },
+     {
+      "text": "Centre on letter 4 ('a'): expands 1 step(s) to 'a', then stops at 'b' ≠ 'y'.",
+      "panels": [
+       {
+        "type": "row",
+        "cells": [
+         "x",
+         "a",
+         "b",
+         "b",
+         "a",
+         "y",
+         "c",
+         "d",
+         "c",
+         "z"
+        ],
+        "states": {
+         "4": "found",
+         "3": "mark",
+         "5": "mark"
+        },
+        "pointers": {
+         "i": 3,
+         "j": 5
+        }
+       },
+       {
+        "type": "vars",
+        "items": {
+         "longest": 4
+        }
+       }
+      ]
+     },
+     {
+      "text": "Centre on letter 5 ('y'): expands 1 step(s) to 'y', then stops at 'a' ≠ 'c'.",
+      "panels": [
+       {
+        "type": "row",
+        "cells": [
+         "x",
+         "a",
+         "b",
+         "b",
+         "a",
+         "y",
+         "c",
+         "d",
+         "c",
+         "z"
+        ],
+        "states": {
+         "5": "found",
+         "4": "mark",
+         "6": "mark"
+        },
+        "pointers": {
+         "i": 4,
+         "j": 6
+        }
+       },
+       {
+        "type": "vars",
+        "items": {
+         "longest": 4
+        }
+       }
+      ]
+     },
+     {
+      "text": "Centre on letter 6 ('c'): expands 1 step(s) to 'c', then stops at 'y' ≠ 'd'.",
+      "panels": [
+       {
+        "type": "row",
+        "cells": [
+         "x",
+         "a",
+         "b",
+         "b",
+         "a",
+         "y",
+         "c",
+         "d",
+         "c",
+         "z"
+        ],
+        "states": {
+         "6": "found",
+         "5": "mark",
+         "7": "mark"
+        },
+        "pointers": {
+         "i": 5,
+         "j": 7
+        }
+       },
+       {
+        "type": "vars",
+        "items": {
+         "longest": 4
+        }
+       }
+      ]
+     },
+     {
+      "text": "Centre on letter 7 ('d'): expands 2 step(s) to 'cdc', then stops at 'y' ≠ 'z'.",
+      "panels": [
+       {
+        "type": "row",
+        "cells": [
+         "x",
+         "a",
+         "b",
+         "b",
+         "a",
+         "y",
+         "c",
+         "d",
+         "c",
+         "z"
+        ],
+        "states": {
+         "6": "found",
+         "7": "found",
+         "8": "found",
+         "5": "mark",
+         "9": "mark"
+        },
+        "pointers": {
+         "i": 5,
+         "j": 9
+        }
+       },
+       {
+        "type": "vars",
+        "items": {
+         "longest": 4
+        }
+       }
+      ]
+     },
+     {
+      "text": "Centre on letter 8 ('c'): expands 1 step(s) to 'c', then stops at 'd' ≠ 'z'.",
+      "panels": [
+       {
+        "type": "row",
+        "cells": [
+         "x",
+         "a",
+         "b",
+         "b",
+         "a",
+         "y",
+         "c",
+         "d",
+         "c",
+         "z"
+        ],
+        "states": {
+         "8": "found",
+         "7": "mark",
+         "9": "mark"
+        },
+        "pointers": {
+         "i": 7,
+         "j": 9
+        }
+       },
+       {
+        "type": "vars",
+        "items": {
+         "longest": 4
+        }
+       }
+      ]
+     },
+     {
+      "text": "Centre on letter 9 ('z'): expands 1 step(s) to 'z', then stops at the edge of the string.",
+      "panels": [
+       {
+        "type": "row",
+        "cells": [
+         "x",
+         "a",
+         "b",
+         "b",
+         "a",
+         "y",
+         "c",
+         "d",
+         "c",
+         "z"
+        ],
+        "states": {
+         "9": "found",
+         "8": "mark"
+        },
+        "pointers": {
+         "i": 8,
+         "j": 9
+        }
+       },
+       {
+        "type": "vars",
+        "items": {
+         "longest": 4
+        }
+       }
+      ]
+     },
+     {
+      "text": "Longest: 'abba'.",
+      "panels": [],
+      "result": "'abba'"
+     }
+    ],
+    "title": "Expand around each of the 2n − 1 centres; the widest expansion wins (the earliest one on ties, since later ties don't replace it)."
+   }
+  }
+ ],
+ "takeaways": [
+  {
+   "md": "- **Longest palindromic substring:** expand around all `2n − 1` centres, O(n²) time, O(1) memory.\n- Track `(length, start)` and cut the substring once at the end.\n- **Pitfalls:** missing even-length centres; off-by-one in `j − i − 1`.\n- **Related:** Manacher's algorithm gives the same answer in O(n)."
+  }
+ ]
+}

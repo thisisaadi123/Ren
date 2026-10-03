@@ -1,0 +1,878 @@
+{
+ "version": 1,
+ "summary": "A stretch `a … b` sums to `target` exactly when `prefix[b + 1] − prefix[a] = target`, i.e. when an earlier\nprefix sum equals `currentPrefix − target`. Walk once, keep a hash map counting the prefix sums seen so far,\nand add the count of `prefix − target` at every step. O(n).",
+ "question": [
+  {
+   "md": "Count the non-empty runs of consecutive elements whose sum is exactly `target`.\n\n- **Counts runs by position:** two different runs with the same values both count. In `[0, 0]` with\n  target 0 there are 3 runs: each single 0 and the pair.\n- **Negative numbers are allowed**, so a run's sum can go up and down. That rules out the sliding-window\n  trick (which needs sums that only grow as the window grows).\n- **Size:** up to 10⁵ elements; the count can reach about 5 × 10⁹ (all-zero input, target 0), so return\n  it as a 64-bit integer."
+  },
+  {
+   "md": "**Edge cases to keep in mind**\n\n- Negative numbers are allowed, so a sliding window doesn't work (sums aren't monotone).\n- `target = 0`: stretches summing to zero, including repeated prefix values.\n- The count can reach about `n²/2 = 5 × 10⁹`: use 64 bits."
+  }
+ ],
+ "think": [
+  {
+   "md": "**Prefix sums.** Let `P[k]` be the sum of the first `k` elements (`P[0] = 0`). Then the sum of any stretch\n`a[i .. j−1]` is `P[j] − P[i]`: everything up to `j`, minus everything before `i`. One O(n) pass builds `P`; after\nthat, every range sum costs O(1). Many \"subarray sum\" questions become questions about **pairs of prefix sums**."
+  },
+  {
+   "md": "**From stretches to pairs of prefixes.** A stretch ending at `j` sums to `target` exactly when some earlier prefix\nequals `P[j] − target`. So walk once, and at each position add **how many earlier prefixes** had that value. A\nhash map counts prefix values seen so far, starting with `{0: 1}` for the empty prefix."
+  },
+  {
+   "md": "**Trace for target 3 on `[1, 2, 1, 2, 1, 3]`:**"
+  },
+  {
+   "table": {
+    "head": [
+     "i",
+     "value",
+     "prefix",
+     "looking for",
+     "earlier prefixes with it",
+     "count"
+    ],
+    "rows": [
+     [
+      "0",
+      "1",
+      "1",
+      "-2",
+      "0",
+      "0"
+     ],
+     [
+      "1",
+      "2",
+      "3",
+      "0",
+      "1",
+      "1"
+     ],
+     [
+      "2",
+      "1",
+      "4",
+      "1",
+      "1",
+      "2"
+     ],
+     [
+      "3",
+      "2",
+      "6",
+      "3",
+      "1",
+      "3"
+     ],
+     [
+      "4",
+      "1",
+      "7",
+      "4",
+      "1",
+      "4"
+     ],
+     [
+      "5",
+      "3",
+      "10",
+      "7",
+      "1",
+      "5"
+     ]
+    ]
+   }
+  },
+  {
+   "md": "Total **5** (direct check of every stretch: 5)."
+  }
+ ],
+ "approaches": [
+  {
+   "title": "Every start, running sum",
+   "kind": "brute",
+   "time": "O(n²)",
+   "space": "O(1)",
+   "idea": [
+    {
+     "md": "For every start, extend to the right with a running sum and count the ends where it equals the target."
+    }
+   ],
+   "build": [
+    "Every start.",
+    "Running sum while extending.",
+    "Count exact hits."
+   ],
+   "code": {
+    "python": "class Solution:\n    def countTargetStretches(self, nums: List[int], target: int) -> int:\n        n, count = len(nums), 0\n        for i in range(n):\n            s = 0\n            for j in range(i, n):\n                s += nums[j]\n                if s == target:\n                    count += 1\n        return count\n",
+    "java": "class Solution {\n    public long countTargetStretches(int[] nums, int target) {\n        int n = nums.length;\n        long count = 0;\n        for (int i = 0; i < n; i++) {\n            int s = 0;\n            for (int j = i; j < n; j++) {\n                s += nums[j];\n                if (s == target) count++;\n            }\n        }\n        return count;\n    }\n}\n",
+    "cpp": "class Solution {\npublic:\n    long long countTargetStretches(vector<int>& nums, int target) {\n        int n = nums.size();\n        long long count = 0;\n        for (int i = 0; i < n; i++) {\n            int s = 0;\n            for (int j = i; j < n; j++) {\n                s += nums[j];\n                if (s == target) count++;\n            }\n        }\n        return count;\n    }\n};\n",
+    "c": "long long countTargetStretches(int* nums, int numsSize, int target) {\n    long long count = 0;\n    for (int i = 0; i < numsSize; i++) {\n        int s = 0;\n        for (int j = i; j < numsSize; j++) {\n            s += nums[j];\n            if (s == target) count++;\n        }\n    }\n    return count;\n}\n"
+   },
+   "lines": [
+    {
+     "text": "Each possible first element.",
+     "at": {
+      "python": [
+       [
+        4,
+        5
+       ]
+      ],
+      "java": [
+       [
+        5,
+        6
+       ]
+      ],
+      "cpp": [
+       [
+        6,
+        7
+       ]
+      ],
+      "c": [
+       [
+        3,
+        4
+       ]
+      ]
+     }
+    },
+    {
+     "text": "Grow the run one element at a time, carrying its sum (within ±10⁸, fine for `int`).",
+     "at": {
+      "python": [
+       [
+        6,
+        7
+       ]
+      ],
+      "java": [
+       [
+        7,
+        8
+       ]
+      ],
+      "cpp": [
+       [
+        8,
+        9
+       ]
+      ],
+      "c": [
+       [
+        5,
+        6
+       ]
+      ]
+     }
+    },
+    {
+     "text": "A hit.",
+     "at": {
+      "python": [
+       [
+        8,
+        9
+       ]
+      ],
+      "java": [
+       [
+        9,
+        9
+       ]
+      ],
+      "cpp": [
+       [
+        10,
+        10
+       ]
+      ],
+      "c": [
+       [
+        7,
+        7
+       ]
+      ]
+     }
+    },
+    {
+     "text": "The number of runs, 64-bit.",
+     "at": {
+      "python": [
+       [
+        10,
+        10
+       ]
+      ],
+      "java": [
+       [
+        12,
+        12
+       ]
+      ],
+      "cpp": [
+       [
+        13,
+        13
+       ]
+      ],
+      "c": [
+       [
+        10,
+        10
+       ]
+      ]
+     }
+    }
+   ],
+   "complexity": [
+    {
+     "md": "**Time O(n²):** 5 × 10⁹ steps at the limit. **Space O(1).**"
+    }
+   ],
+   "walk": {
+    "steps": [
+     {
+      "text": "Stretch 0…1 sums to 3. Count 1.",
+      "panels": [
+       {
+        "type": "row",
+        "cells": [
+         1,
+         2,
+         1,
+         2,
+         1,
+         3
+        ],
+        "states": {
+         "0": "answer",
+         "1": "answer"
+        },
+        "slots": true
+       },
+       {
+        "type": "vars",
+        "items": {
+         "count": 1
+        }
+       }
+      ]
+     },
+     {
+      "text": "Stretch 1…2 sums to 3. Count 2.",
+      "panels": [
+       {
+        "type": "row",
+        "cells": [
+         1,
+         2,
+         1,
+         2,
+         1,
+         3
+        ],
+        "states": {
+         "1": "answer",
+         "2": "answer"
+        },
+        "slots": true
+       },
+       {
+        "type": "vars",
+        "items": {
+         "count": 2
+        }
+       }
+      ]
+     },
+     {
+      "text": "Stretch 2…3 sums to 3. Count 3.",
+      "panels": [
+       {
+        "type": "row",
+        "cells": [
+         1,
+         2,
+         1,
+         2,
+         1,
+         3
+        ],
+        "states": {
+         "2": "answer",
+         "3": "answer"
+        },
+        "slots": true
+       },
+       {
+        "type": "vars",
+        "items": {
+         "count": 3
+        }
+       }
+      ]
+     },
+     {
+      "text": "Stretch 3…4 sums to 3. Count 4.",
+      "panels": [
+       {
+        "type": "row",
+        "cells": [
+         1,
+         2,
+         1,
+         2,
+         1,
+         3
+        ],
+        "states": {
+         "3": "answer",
+         "4": "answer"
+        },
+        "slots": true
+       },
+       {
+        "type": "vars",
+        "items": {
+         "count": 4
+        }
+       }
+      ]
+     },
+     {
+      "text": "Stretch 5…5 sums to 3. Count 5.",
+      "panels": [
+       {
+        "type": "row",
+        "cells": [
+         1,
+         2,
+         1,
+         2,
+         1,
+         3
+        ],
+        "states": {
+         "5": "answer"
+        },
+        "slots": true
+       },
+       {
+        "type": "vars",
+        "items": {
+         "count": 5
+        }
+       }
+      ]
+     },
+     {
+      "text": "All stretches checked: 5.",
+      "panels": [
+       {
+        "type": "row",
+        "cells": [
+         1,
+         2,
+         1,
+         2,
+         1,
+         3
+        ],
+        "slots": true
+       }
+      ],
+      "result": "5"
+     }
+    ],
+    "title": "Try every start; extend to every end with a running sum; count the sums equal to the target."
+   },
+   "limits": [
+    {
+     "md": "It can't stop early (negative numbers can bring the sum back), so it always scans everything. Counting prefix values answers all stretches ending at a position at once."
+    }
+   ],
+   "slow": true
+  },
+  {
+   "title": "Prefix sums with a hash map of counts",
+   "kind": "best",
+   "time": "O(n)",
+   "space": "O(n)",
+   "idea": [
+    {
+     "md": "Walk once with a running prefix. Before recording the current prefix, add the number of earlier prefixes\nequal to `prefix − target`. Start the map with the empty prefix (`0` seen once) so stretches starting at\nindex 0 are counted.\n\n**Why each stretch is counted once.** A stretch `i … j` corresponds to the pair (prefix before `i`,\nprefix through `j`), counted exactly when `j` is processed."
+    }
+   ],
+   "build": [
+    "Map with `{0: 1}`.",
+    "Running prefix.",
+    "Add `seen[prefix − target]`.",
+    "Record the prefix."
+   ],
+   "code": {
+    "python": "from collections import Counter\n\nclass Solution:\n    def countTargetStretches(self, nums: List[int], target: int) -> int:\n        seen = Counter({0: 1})\n        count = prefix = 0\n        for x in nums:\n            prefix += x\n            count += seen[prefix - target]\n            seen[prefix] += 1\n        return count\n",
+    "java": "class Solution {\n    public long countTargetStretches(int[] nums, int target) {\n        Map<Integer, Integer> seen = new HashMap<>();\n        seen.put(0, 1);\n        long count = 0;\n        int prefix = 0;\n        for (int x : nums) {\n            prefix += x;\n            count += seen.getOrDefault(prefix - target, 0);\n            seen.merge(prefix, 1, Integer::sum);\n        }\n        return count;\n    }\n}\n",
+    "cpp": "class Solution {\npublic:\n    long long countTargetStretches(vector<int>& nums, int target) {\n        unordered_map<int, int> seen{{0, 1}};\n        long long count = 0;\n        int prefix = 0;\n        for (int x : nums) {\n            prefix += x;\n            auto it = seen.find(prefix - target);\n            if (it != seen.end()) count += it->second;\n            seen[prefix]++;\n        }\n        return count;\n    }\n};\n",
+    "c": "// A small hash map from a prefix sum to how many times it occurred.\ntypedef struct { int key; int count; bool used; } Slot;\n\nstatic Slot* slotFor(Slot* t, unsigned mask, int key) {\n    unsigned long long h = (unsigned long long) (long long) key * 0x9E3779B97F4A7C15ULL;\n    unsigned s = (unsigned) (h >> 32) & mask;\n    while (t[s].used && t[s].key != key) s = (s + 1) & mask;\n    return &t[s];\n}\n\nlong long countTargetStretches(int* nums, int numsSize, int target) {\n    unsigned cap = 1;\n    while (cap < 2u * (numsSize + 1)) cap <<= 1;\n    Slot* seen = calloc(cap, sizeof(Slot));\n    Slot* zero = slotFor(seen, cap - 1, 0);\n    *zero = (Slot) {0, 1, true};\n    long long count = 0;\n    int prefix = 0;\n    for (int i = 0; i < numsSize; i++) {\n        prefix += nums[i];\n        Slot* want = slotFor(seen, cap - 1, prefix - target);\n        if (want->used) count += want->count;\n        Slot* mine = slotFor(seen, cap - 1, prefix);\n        mine->key = prefix;\n        mine->used = true;\n        mine->count++;\n    }\n    free(seen);\n    return count;\n}\n"
+   },
+   "lines": [
+    {
+     "text": "C has no hash map: `slotFor` hashes a prefix sum to a starting slot and walks forward to its entry or to the empty slot where it would go.",
+     "at": {
+      "c": [
+       [
+        2,
+        2
+       ],
+       [
+        4,
+        9
+       ]
+      ]
+     }
+    },
+    {
+     "text": "The empty prefix (before any element) has sum 0 and has been seen once; that lets runs starting at index 0 be counted.",
+     "at": {
+      "python": [
+       [
+        5,
+        6
+       ]
+      ],
+      "java": [
+       [
+        3,
+        6
+       ]
+      ],
+      "cpp": [
+       [
+        4,
+        6
+       ]
+      ],
+      "c": [
+       [
+        12,
+        18
+       ]
+      ]
+     },
+     "notes": {
+      "c": "The table holds up to n + 1 distinct prefix sums, so it's sized at least twice that."
+     }
+    },
+    {
+     "text": "Running prefix sum, including the current element (within ±10⁸).",
+     "at": {
+      "python": [
+       [
+        7,
+        8
+       ]
+      ],
+      "java": [
+       [
+        7,
+        8
+       ]
+      ],
+      "cpp": [
+       [
+        7,
+        8
+       ]
+      ],
+      "c": [
+       [
+        19,
+        20
+       ]
+      ]
+     }
+    },
+    {
+     "text": "Every earlier prefix equal to `prefix − target` starts a run that ends here and sums to the target.",
+     "at": {
+      "python": [
+       [
+        9,
+        9
+       ]
+      ],
+      "java": [
+       [
+        9,
+        9
+       ]
+      ],
+      "cpp": [
+       [
+        9,
+        10
+       ]
+      ],
+      "c": [
+       [
+        21,
+        22
+       ]
+      ]
+     }
+    },
+    {
+     "text": "Only now add the current prefix, so a run can't be empty (it would need `target = 0` with start = end).",
+     "at": {
+      "python": [
+       [
+        10,
+        10
+       ]
+      ],
+      "java": [
+       [
+        10,
+        10
+       ]
+      ],
+      "cpp": [
+       [
+        11,
+        11
+       ]
+      ],
+      "c": [
+       [
+        23,
+        26
+       ]
+      ]
+     }
+    },
+    {
+     "text": "The total count, 64-bit.",
+     "at": {
+      "python": [
+       [
+        11,
+        11
+       ]
+      ],
+      "java": [
+       [
+        12,
+        12
+       ]
+      ],
+      "cpp": [
+       [
+        13,
+        13
+       ]
+      ],
+      "c": [
+       [
+        28,
+        29
+       ]
+      ]
+     },
+     "notes": {
+      "c": "Free the table first."
+     }
+    }
+   ],
+   "complexity": [
+    {
+     "md": "**Time O(n)** expected. **Space O(n)** for the map."
+    }
+   ],
+   "walk": {
+    "steps": [
+     {
+      "text": "The empty prefix (sum 0) has been seen once.",
+      "panels": [
+       {
+        "type": "row",
+        "cells": [
+         1,
+         2,
+         1,
+         2,
+         1,
+         3
+        ],
+        "slots": true
+       },
+       {
+        "type": "row",
+        "cells": [
+         "0×1"
+        ],
+        "label": "prefix sum × times seen"
+       },
+       {
+        "type": "vars",
+        "items": {
+         "count": 0
+        }
+       }
+      ]
+     },
+     {
+      "text": "Index 0: prefix 1; need earlier prefix 1 − 3 = -2, seen 0 times → count 0. Then record prefix 1.",
+      "panels": [
+       {
+        "type": "row",
+        "cells": [
+         1,
+         2,
+         1,
+         2,
+         1,
+         3
+        ],
+        "states": {
+         "0": "active"
+        },
+        "slots": true
+       },
+       {
+        "type": "row",
+        "cells": [
+         "0×1"
+        ],
+        "label": "prefix sum × times seen"
+       },
+       {
+        "type": "vars",
+        "items": {
+         "count": 0
+        }
+       }
+      ]
+     },
+     {
+      "text": "Index 1: prefix 3; need earlier prefix 3 − 3 = 0, seen 1 time → count 1. Then record prefix 3.",
+      "panels": [
+       {
+        "type": "row",
+        "cells": [
+         1,
+         2,
+         1,
+         2,
+         1,
+         3
+        ],
+        "states": {
+         "1": "active",
+         "0": "dim"
+        },
+        "slots": true
+       },
+       {
+        "type": "row",
+        "cells": [
+         "0×1",
+         "1×1"
+        ],
+        "states": {
+         "0": "answer"
+        },
+        "label": "prefix sum × times seen"
+       },
+       {
+        "type": "vars",
+        "items": {
+         "count": 1
+        }
+       }
+      ]
+     },
+     {
+      "text": "Index 2: prefix 4; need earlier prefix 4 − 3 = 1, seen 1 time → count 2. Then record prefix 4.",
+      "panels": [
+       {
+        "type": "row",
+        "cells": [
+         1,
+         2,
+         1,
+         2,
+         1,
+         3
+        ],
+        "states": {
+         "2": "active",
+         "0": "dim",
+         "1": "dim"
+        },
+        "slots": true
+       },
+       {
+        "type": "row",
+        "cells": [
+         "0×1",
+         "1×1",
+         "3×1"
+        ],
+        "states": {
+         "1": "answer"
+        },
+        "label": "prefix sum × times seen"
+       },
+       {
+        "type": "vars",
+        "items": {
+         "count": 2
+        }
+       }
+      ]
+     },
+     {
+      "text": "Index 3: prefix 6; need earlier prefix 6 − 3 = 3, seen 1 time → count 3. Then record prefix 6.",
+      "panels": [
+       {
+        "type": "row",
+        "cells": [
+         1,
+         2,
+         1,
+         2,
+         1,
+         3
+        ],
+        "states": {
+         "3": "active",
+         "0": "dim",
+         "1": "dim",
+         "2": "dim"
+        },
+        "slots": true
+       },
+       {
+        "type": "row",
+        "cells": [
+         "0×1",
+         "1×1",
+         "3×1",
+         "4×1"
+        ],
+        "states": {
+         "2": "answer"
+        },
+        "label": "prefix sum × times seen"
+       },
+       {
+        "type": "vars",
+        "items": {
+         "count": 3
+        }
+       }
+      ]
+     },
+     {
+      "text": "Index 4: prefix 7; need earlier prefix 7 − 3 = 4, seen 1 time → count 4. Then record prefix 7.",
+      "panels": [
+       {
+        "type": "row",
+        "cells": [
+         1,
+         2,
+         1,
+         2,
+         1,
+         3
+        ],
+        "states": {
+         "4": "active",
+         "0": "dim",
+         "1": "dim",
+         "2": "dim",
+         "3": "dim"
+        },
+        "slots": true
+       },
+       {
+        "type": "row",
+        "cells": [
+         "0×1",
+         "1×1",
+         "3×1",
+         "4×1",
+         "6×1"
+        ],
+        "states": {
+         "3": "answer"
+        },
+        "label": "prefix sum × times seen"
+       },
+       {
+        "type": "vars",
+        "items": {
+         "count": 4
+        }
+       }
+      ]
+     },
+     {
+      "text": "Index 5: prefix 10; need earlier prefix 10 − 3 = 7, seen 1 time → count 5. Then record prefix 10.",
+      "panels": [
+       {
+        "type": "row",
+        "cells": [
+         1,
+         2,
+         1,
+         2,
+         1,
+         3
+        ],
+        "states": {
+         "5": "active",
+         "0": "dim",
+         "1": "dim",
+         "2": "dim",
+         "3": "dim",
+         "4": "dim"
+        },
+        "slots": true
+       },
+       {
+        "type": "row",
+        "cells": [
+         "0×1",
+         "1×1",
+         "3×1",
+         "4×1",
+         "6×1",
+         "7×1"
+        ],
+        "states": {
+         "5": "answer"
+        },
+        "label": "prefix sum × times seen"
+       },
+       {
+        "type": "vars",
+        "items": {
+         "count": 5
+        }
+       }
+      ],
+      "result": "5"
+     }
+    ],
+    "title": "A stretch ending at i sums to 3 when some earlier prefix equals prefix − 3. Count earlier prefixes in a hash map."
+   }
+  }
+ ],
+ "takeaways": [
+  {
+   "md": "- **Count subarrays with sum k (any signs):** prefix sums + hash map of counts.\n- Seed the map with the empty prefix.\n- **Pitfall:** using a sliding window, which needs non-negative values."
+  }
+ ]
+}

@@ -1,0 +1,875 @@
+{
+ "version": 1,
+ "summary": "In postfix, every operator applies to the two most recent values that haven't been used yet: exactly the top\ntwo items of a stack. Push numbers; on an operator, pop the right operand, then the left, combine, push the\nresult. One pass, O(n).",
+ "question": [
+  {
+   "md": "Evaluate a postfix expression given as tokens: integers and `+ - * /`, each operator after its two operands.\n\n- **Operand order matters** for `-` and `/`: `9 3 -` is 9 − 3.\n- **Division truncates toward zero:** −7 / 2 is −3 (not −4). Python's `//` floors, so it needs care there.\n- **Negative numbers** like `-7` are tokens of their own, not operators.\n- **No parentheses or precedence:** postfix order already encodes the grouping."
+  }
+ ],
+ "think": [
+  {
+   "md": "Take `6 2 - -9 4 / * 5 +`. Read left to right: 6, 2, then `-` combines the two most recent values: 6 − 2 = 4.\nThen −9, 4, and `/`: −9 / 4 = −2 (truncated). Then `*` combines 4 and −2: −8. Then 5 and `+`: −3."
+  },
+  {
+   "panels": [
+    {
+     "type": "row",
+     "cells": [
+      "6",
+      "2",
+      "-",
+      "-9",
+      "4",
+      "/",
+      "*",
+      "5",
+      "+"
+     ]
+    }
+   ],
+   "caption": "Value: -3."
+  },
+  {
+   "md": "\"The two most recent unused values\" is a stack: values are pushed as they appear, and each operator consumes\nthe top two and leaves its result on top for later operators."
+  }
+ ],
+ "approaches": [
+  {
+   "title": "Reduce the first operator repeatedly",
+   "kind": "brute",
+   "time": "O(n²)",
+   "space": "O(n)",
+   "idea": [
+    {
+     "md": "The first operator in the list always applies to the two tokens right before it. Replace those three tokens with the result and repeat until one value remains."
+    }
+   ],
+   "build": [
+    "Copy the tokens into a list.",
+    "Find the first operator at index i; combine `list[i − 2]` and `list[i − 1]`.",
+    "Replace the three tokens with the result; repeat."
+   ],
+   "code": {
+    "python": "class Solution:\n    def evalPostfix(self, tokens: List[str]) -> int:\n        t = list(tokens)\n        while len(t) > 1:\n            i = next(k for k, x in enumerate(t) if x in (\"+\", \"-\", \"*\", \"/\"))\n            a, b, op = int(t[i - 2]), int(t[i - 1]), t[i]\n            if op == \"+\": r = a + b\n            elif op == \"-\": r = a - b\n            elif op == \"*\": r = a * b\n            else: r = abs(a) // abs(b) * (1 if (a < 0) == (b < 0) else -1)\n            t[i - 2:i + 1] = [str(r)]\n        return int(t[0])\n",
+    "java": "class Solution {\n    public int evalPostfix(String[] tokens) {\n        List<String> t = new ArrayList<>(Arrays.asList(tokens));\n        while (t.size() > 1) {\n            int i = 0;\n            while (!\"+-*/\".contains(t.get(i)) || t.get(i).length() != 1) i++;\n            int a = Integer.parseInt(t.get(i - 2)), b = Integer.parseInt(t.get(i - 1));\n            String op = t.get(i);\n            int r = op.equals(\"+\") ? a + b : op.equals(\"-\") ? a - b : op.equals(\"*\") ? a * b : a / b;\n            t.subList(i - 2, i + 1).clear();\n            t.add(i - 2, String.valueOf(r));\n        }\n        return Integer.parseInt(t.get(0));\n    }\n}\n",
+    "cpp": "class Solution {\npublic:\n    int evalPostfix(vector<string>& tokens) {\n        vector<string> t = tokens;\n        auto isOp = [](const string& x) { return x.size() == 1 && string(\"+-*/\").find(x[0]) != string::npos; };\n        while (t.size() > 1) {\n            size_t i = 0;\n            while (!isOp(t[i])) i++;\n            int a = stoi(t[i - 2]), b = stoi(t[i - 1]);\n            char op = t[i][0];\n            int r = op == '+' ? a + b : op == '-' ? a - b : op == '*' ? a * b : a / b;\n            t.erase(t.begin() + i - 2, t.begin() + i + 1);\n            t.insert(t.begin() + i - 2, to_string(r));\n        }\n        return stoi(t[0]);\n    }\n};\n",
+    "c": "static bool isOp(const char* x) {\n    return x[1] == '\\0' && (x[0] == '+' || x[0] == '-' || x[0] == '*' || x[0] == '/');\n}\n\nint evalPostfix(char** tokens, int tokensSize) {\n    int n = tokensSize;\n    int* val = malloc(n * sizeof(int));\n    char* op = malloc(n);\n    for (int i = 0; i < n; i++) {\n        op[i] = isOp(tokens[i]) ? tokens[i][0] : 0;\n        val[i] = op[i] ? 0 : atoi(tokens[i]);\n    }\n    while (n > 1) {\n        int i = 0;\n        while (!op[i]) i++;\n        int a = val[i - 2], b = val[i - 1];\n        int r = op[i] == '+' ? a + b : op[i] == '-' ? a - b : op[i] == '*' ? a * b : a / b;\n        val[i - 2] = r;\n        op[i - 2] = 0;\n        memmove(val + i - 1, val + i + 1, (n - i - 1) * sizeof(int));\n        memmove(op + i - 1, op + i + 1, n - i - 1);\n        n -= 2;\n    }\n    int answer = val[0];\n    free(val);\n    free(op);\n    return answer;\n}\n"
+   },
+   "lines": [
+    {
+     "text": "A working copy of the token list.",
+     "at": {
+      "python": [
+       [
+        3,
+        3
+       ]
+      ],
+      "java": [
+       [
+        3,
+        3
+       ]
+      ],
+      "cpp": [
+       [
+        4,
+        4
+       ]
+      ],
+      "c": [
+       [
+        7,
+        12
+       ]
+      ]
+     },
+     "notes": {
+      "c": "Parse once into parallel arrays: the operator character (0 for numbers) and the number value."
+     }
+    },
+    {
+     "text": "Until a single value remains.",
+     "at": {
+      "python": [
+       [
+        4,
+        4
+       ]
+      ],
+      "java": [
+       [
+        4,
+        4
+       ]
+      ],
+      "cpp": [
+       [
+        6,
+        6
+       ]
+      ],
+      "c": [
+       [
+        13,
+        13
+       ]
+      ]
+     }
+    },
+    {
+     "text": "The first operator; the two tokens before it are its operands (they must be numbers, since it's the first operator).",
+     "at": {
+      "python": [
+       [
+        5,
+        5
+       ]
+      ],
+      "java": [
+       [
+        5,
+        6
+       ]
+      ],
+      "cpp": [
+       [
+        5,
+        5
+       ],
+       [
+        7,
+        8
+       ]
+      ],
+      "c": [
+       [
+        1,
+        3
+       ],
+       [
+        14,
+        15
+       ]
+      ]
+     }
+    },
+    {
+     "text": "Combine them; division truncates toward zero.",
+     "at": {
+      "python": [
+       [
+        6,
+        10
+       ]
+      ],
+      "java": [
+       [
+        7,
+        9
+       ]
+      ],
+      "cpp": [
+       [
+        9,
+        11
+       ]
+      ],
+      "c": [
+       [
+        16,
+        17
+       ]
+      ]
+     },
+     "notes": {
+      "python": "Python's `//` rounds down, so divide the absolute values and fix the sign.",
+      "java": "Java's integer division already truncates toward zero.",
+      "cpp": "C++ integer division already truncates toward zero.",
+      "c": "C integer division already truncates toward zero."
+     }
+    },
+    {
+     "text": "Replace the three tokens with the single result, shifting the rest left.",
+     "at": {
+      "python": [
+       [
+        11,
+        11
+       ]
+      ],
+      "java": [
+       [
+        10,
+        11
+       ]
+      ],
+      "cpp": [
+       [
+        12,
+        13
+       ]
+      ],
+      "c": [
+       [
+        18,
+        22
+       ]
+      ]
+     }
+    },
+    {
+     "text": "The final value.",
+     "at": {
+      "python": [
+       [
+        12,
+        12
+       ]
+      ],
+      "java": [
+       [
+        13,
+        13
+       ]
+      ],
+      "cpp": [
+       [
+        15,
+        15
+       ]
+      ],
+      "c": [
+       [
+        24,
+        27
+       ]
+      ]
+     }
+    }
+   ],
+   "complexity": [
+    {
+     "md": "**Time O(n²):** each reduction searches and shifts the list. **Space O(n).**"
+    }
+   ],
+   "walk": {
+    "steps": [
+     {
+      "text": "Start: 6 2 - -9 4 / * 5 +",
+      "panels": [
+       {
+        "type": "row",
+        "cells": [
+         "6",
+         "2",
+         "-",
+         "-9",
+         "4",
+         "/",
+         "*",
+         "5",
+         "+"
+        ]
+       }
+      ]
+     },
+     {
+      "text": "'6 2 -' → 4.",
+      "panels": [
+       {
+        "type": "row",
+        "cells": [
+         "6",
+         "2",
+         "-",
+         "-9",
+         "4",
+         "/",
+         "*",
+         "5",
+         "+"
+        ],
+        "states": {
+         "0": "mark",
+         "1": "mark",
+         "2": "active"
+        }
+       }
+      ]
+     },
+     {
+      "text": "'-9 4 /' → -2.",
+      "panels": [
+       {
+        "type": "row",
+        "cells": [
+         "4",
+         "-9",
+         "4",
+         "/",
+         "*",
+         "5",
+         "+"
+        ],
+        "states": {
+         "1": "mark",
+         "2": "mark",
+         "3": "active"
+        }
+       }
+      ]
+     },
+     {
+      "text": "'4 -2 *' → -8.",
+      "panels": [
+       {
+        "type": "row",
+        "cells": [
+         "4",
+         "-2",
+         "*",
+         "5",
+         "+"
+        ],
+        "states": {
+         "0": "mark",
+         "1": "mark",
+         "2": "active"
+        }
+       }
+      ]
+     },
+     {
+      "text": "'-8 5 +' → -3.",
+      "panels": [
+       {
+        "type": "row",
+        "cells": [
+         "-8",
+         "5",
+         "+"
+        ],
+        "states": {
+         "0": "mark",
+         "1": "mark",
+         "2": "active"
+        }
+       }
+      ]
+     },
+     {
+      "text": "One value left: -3.",
+      "panels": [
+       {
+        "type": "row",
+        "cells": [
+         "-3"
+        ]
+       }
+      ],
+      "result": "-3"
+     }
+    ],
+    "title": "Find the first operator, combine the two values just before it, put the result in their place; repeat."
+   },
+   "limits": [
+    {
+     "md": "Re-scans from the start and shifts the list for every operator. A stack keeps the pending values exactly where the next operator needs them."
+    }
+   ],
+   "slow": true
+  },
+  {
+   "title": "Stack of values",
+   "kind": "best",
+   "time": "O(n)",
+   "space": "O(n)",
+   "idea": [
+    {
+     "md": "Push numbers. For an operator: `b = pop()`, `a = pop()`, push `a op b`. The single value left is the answer."
+    }
+   ],
+   "build": [
+    "Empty stack.",
+    "Number → push; operator → pop right, pop left, push the combination.",
+    "Return the remaining value."
+   ],
+   "code": {
+    "python": "class Solution:\n    def evalPostfix(self, tokens: List[str]) -> int:\n        stack = []\n        for t in tokens:\n            if t in (\"+\", \"-\", \"*\", \"/\"):\n                b, a = stack.pop(), stack.pop()\n                if t == \"+\": stack.append(a + b)\n                elif t == \"-\": stack.append(a - b)\n                elif t == \"*\": stack.append(a * b)\n                else: stack.append(abs(a) // abs(b) * (1 if (a < 0) == (b < 0) else -1))\n            else:\n                stack.append(int(t))\n        return stack[0]\n",
+    "java": "class Solution {\n    public int evalPostfix(String[] tokens) {\n        int[] stack = new int[tokens.length];\n        int top = 0;\n        for (String t : tokens) {\n            if (t.length() == 1 && \"+-*/\".indexOf(t.charAt(0)) >= 0) {\n                int b = stack[--top], a = stack[--top];\n                switch (t.charAt(0)) {\n                    case '+': stack[top++] = a + b; break;\n                    case '-': stack[top++] = a - b; break;\n                    case '*': stack[top++] = a * b; break;\n                    default: stack[top++] = a / b;\n                }\n            } else {\n                stack[top++] = Integer.parseInt(t);\n            }\n        }\n        return stack[0];\n    }\n}\n",
+    "cpp": "class Solution {\npublic:\n    int evalPostfix(vector<string>& tokens) {\n        vector<int> stack;\n        for (const string& t : tokens) {\n            if (t.size() == 1 && string(\"+-*/\").find(t[0]) != string::npos) {\n                int b = stack.back(); stack.pop_back();\n                int a = stack.back(); stack.pop_back();\n                switch (t[0]) {\n                    case '+': stack.push_back(a + b); break;\n                    case '-': stack.push_back(a - b); break;\n                    case '*': stack.push_back(a * b); break;\n                    default: stack.push_back(a / b);\n                }\n            } else {\n                stack.push_back(stoi(t));\n            }\n        }\n        return stack[0];\n    }\n};\n",
+    "c": "int evalPostfix(char** tokens, int tokensSize) {\n    int* stack = malloc(tokensSize * sizeof(int));\n    int top = 0;\n    for (int i = 0; i < tokensSize; i++) {\n        char* t = tokens[i];\n        if (t[1] == '\\0' && (t[0] == '+' || t[0] == '-' || t[0] == '*' || t[0] == '/')) {\n            int b = stack[--top], a = stack[--top];\n            switch (t[0]) {\n                case '+': stack[top++] = a + b; break;\n                case '-': stack[top++] = a - b; break;\n                case '*': stack[top++] = a * b; break;\n                default: stack[top++] = a / b;\n            }\n        } else {\n            stack[top++] = atoi(t);\n        }\n    }\n    int answer = stack[0];\n    free(stack);\n    return answer;\n}\n"
+   },
+   "lines": [
+    {
+     "text": "Values waiting for an operator.",
+     "at": {
+      "python": [
+       [
+        3,
+        3
+       ]
+      ],
+      "java": [
+       [
+        3,
+        4
+       ]
+      ],
+      "cpp": [
+       [
+        4,
+        4
+       ]
+      ],
+      "c": [
+       [
+        2,
+        3
+       ]
+      ]
+     },
+     "notes": {
+      "java": "An array with a `top` index works as a stack (n values at most).",
+      "c": "An array with a `top` index works as a stack (n values at most)."
+     }
+    },
+    {
+     "text": "One pass over the tokens.",
+     "at": {
+      "python": [
+       [
+        4,
+        4
+       ]
+      ],
+      "java": [
+       [
+        5,
+        5
+       ]
+      ],
+      "cpp": [
+       [
+        5,
+        5
+       ]
+      ],
+      "c": [
+       [
+        4,
+        5
+       ]
+      ]
+     }
+    },
+    {
+     "text": "A one-character token that is an operator (a token like `-7` is a number). Pop the right operand first, then the left.",
+     "at": {
+      "python": [
+       [
+        5,
+        6
+       ]
+      ],
+      "java": [
+       [
+        6,
+        7
+       ]
+      ],
+      "cpp": [
+       [
+        6,
+        8
+       ]
+      ],
+      "c": [
+       [
+        6,
+        7
+       ]
+      ]
+     }
+    },
+    {
+     "text": "Combine and push the result back.",
+     "at": {
+      "python": [
+       [
+        7,
+        10
+       ]
+      ],
+      "java": [
+       [
+        8,
+        13
+       ]
+      ],
+      "cpp": [
+       [
+        9,
+        14
+       ]
+      ],
+      "c": [
+       [
+        8,
+        13
+       ]
+      ]
+     },
+     "notes": {
+      "python": "Python's `//` floors, so divide absolute values and restore the sign to truncate toward zero.",
+      "java": "Integer division truncates toward zero, as required.",
+      "cpp": "Integer division truncates toward zero, as required.",
+      "c": "Integer division truncates toward zero, as required."
+     }
+    },
+    {
+     "text": "A number waits on the stack.",
+     "at": {
+      "python": [
+       [
+        11,
+        12
+       ]
+      ],
+      "java": [
+       [
+        14,
+        15
+       ]
+      ],
+      "cpp": [
+       [
+        15,
+        16
+       ]
+      ],
+      "c": [
+       [
+        14,
+        15
+       ]
+      ]
+     }
+    },
+    {
+     "text": "A valid expression leaves exactly one value.",
+     "at": {
+      "python": [
+       [
+        13,
+        13
+       ]
+      ],
+      "java": [
+       [
+        18,
+        18
+       ]
+      ],
+      "cpp": [
+       [
+        19,
+        19
+       ]
+      ],
+      "c": [
+       [
+        18,
+        20
+       ]
+      ]
+     }
+    }
+   ],
+   "complexity": [
+    {
+     "md": "**Time O(n).** **Space O(n)** for the stack."
+    }
+   ],
+   "walk": {
+    "steps": [
+     {
+      "text": "6: push.",
+      "panels": [
+       {
+        "type": "row",
+        "cells": [
+         "6",
+         "2",
+         "-",
+         "-9",
+         "4",
+         "/",
+         "*",
+         "5",
+         "+"
+        ],
+        "states": {
+         "0": "active"
+        }
+       },
+       {
+        "type": "row",
+        "cells": [
+         6
+        ],
+        "label": "stack"
+       }
+      ]
+     },
+     {
+      "text": "2: push.",
+      "panels": [
+       {
+        "type": "row",
+        "cells": [
+         "6",
+         "2",
+         "-",
+         "-9",
+         "4",
+         "/",
+         "*",
+         "5",
+         "+"
+        ],
+        "states": {
+         "1": "active"
+        }
+       },
+       {
+        "type": "row",
+        "cells": [
+         6,
+         2
+        ],
+        "label": "stack"
+       }
+      ]
+     },
+     {
+      "text": "'-': pop 2 and 6, push 6 - 2 = 4.",
+      "panels": [
+       {
+        "type": "row",
+        "cells": [
+         "6",
+         "2",
+         "-",
+         "-9",
+         "4",
+         "/",
+         "*",
+         "5",
+         "+"
+        ],
+        "states": {
+         "2": "active"
+        }
+       },
+       {
+        "type": "row",
+        "cells": [
+         4
+        ],
+        "label": "stack"
+       }
+      ]
+     },
+     {
+      "text": "-9: push.",
+      "panels": [
+       {
+        "type": "row",
+        "cells": [
+         "6",
+         "2",
+         "-",
+         "-9",
+         "4",
+         "/",
+         "*",
+         "5",
+         "+"
+        ],
+        "states": {
+         "3": "active"
+        }
+       },
+       {
+        "type": "row",
+        "cells": [
+         4,
+         -9
+        ],
+        "label": "stack"
+       }
+      ]
+     },
+     {
+      "text": "4: push.",
+      "panels": [
+       {
+        "type": "row",
+        "cells": [
+         "6",
+         "2",
+         "-",
+         "-9",
+         "4",
+         "/",
+         "*",
+         "5",
+         "+"
+        ],
+        "states": {
+         "4": "active"
+        }
+       },
+       {
+        "type": "row",
+        "cells": [
+         4,
+         -9,
+         4
+        ],
+        "label": "stack"
+       }
+      ]
+     },
+     {
+      "text": "'/': pop 4 and -9, push -9 / 4 = -2.",
+      "panels": [
+       {
+        "type": "row",
+        "cells": [
+         "6",
+         "2",
+         "-",
+         "-9",
+         "4",
+         "/",
+         "*",
+         "5",
+         "+"
+        ],
+        "states": {
+         "5": "active"
+        }
+       },
+       {
+        "type": "row",
+        "cells": [
+         4,
+         -2
+        ],
+        "label": "stack"
+       }
+      ]
+     },
+     {
+      "text": "'*': pop -2 and 4, push 4 * -2 = -8.",
+      "panels": [
+       {
+        "type": "row",
+        "cells": [
+         "6",
+         "2",
+         "-",
+         "-9",
+         "4",
+         "/",
+         "*",
+         "5",
+         "+"
+        ],
+        "states": {
+         "6": "active"
+        }
+       },
+       {
+        "type": "row",
+        "cells": [
+         -8
+        ],
+        "label": "stack"
+       }
+      ]
+     },
+     {
+      "text": "5: push.",
+      "panels": [
+       {
+        "type": "row",
+        "cells": [
+         "6",
+         "2",
+         "-",
+         "-9",
+         "4",
+         "/",
+         "*",
+         "5",
+         "+"
+        ],
+        "states": {
+         "7": "active"
+        }
+       },
+       {
+        "type": "row",
+        "cells": [
+         -8,
+         5
+        ],
+        "label": "stack"
+       }
+      ]
+     },
+     {
+      "text": "'+': pop 5 and -8, push -8 + 5 = -3.",
+      "panels": [
+       {
+        "type": "row",
+        "cells": [
+         "6",
+         "2",
+         "-",
+         "-9",
+         "4",
+         "/",
+         "*",
+         "5",
+         "+"
+        ],
+        "states": {
+         "8": "active"
+        }
+       },
+       {
+        "type": "row",
+        "cells": [
+         -3
+        ],
+        "label": "stack"
+       }
+      ],
+      "result": "-3"
+     }
+    ],
+    "title": "Numbers go on a stack. An operator pops the top two (right operand first), combines them, and pushes the result."
+   }
+  }
+ ],
+ "takeaways": [
+  {
+   "md": "- **Postfix evaluation = stack:** numbers push; operators pop two (right first) and push one.\n- Mind truncation toward zero when your language's division floors (Python)."
+  }
+ ]
+}

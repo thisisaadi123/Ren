@@ -4,30 +4,78 @@
  "question": [
   {
    "md": "Rearrange `s` so its most frequent character comes first (all its copies together), then the next\nmost frequent, and so on.\n\n- **All copies stay together:** `tree` becomes `eert`, never `eret`.\n- **Ties are fixed by character code**, so the output is unique: digits (`0`–`9`) come before\n  uppercase (`A`–`Z`), which come before lowercase (`a`–`z`). `aAbb` → `bbAa`.\n- **Only letters and digits**, so at most 62 different characters, all in ASCII. A 128-slot array\n  can count them.\n- **Size:** up to 10⁵ characters. The output has the same length."
+  },
+  {
+   "md": "**Edge cases to keep in mind**\n\n- Ties are broken by character code: digits before uppercase before lowercase.\n- All copies of a character stay together.\n- One distinct character: the string is unchanged."
   }
  ],
  "think": [
   {
-   "md": "Take `s = \"banana12b\"`. Count: a×3, b×2, n×2, 1×1, 2×1. Now order them: a first (3). Then b and n\ntie at 2; `b` has the smaller code, so `bb` then `nn`. Then `1` and `2` tie at 1; `1` first.\nResult: `aaabbnn12`."
+   "md": "**Counting is a lookup table.** Most \"how many times\" questions reduce to: walk the input once and keep a count per\nvalue. The only design choice is the table:\n\n- **A plain array** when the values are small and known in advance (26 letters, 128 characters, ids in a fixed range):\n  index directly by the value.\n- **A hash map (or hash set)** when values are large or unpredictable (up to 10⁹): expected O(1) per lookup.\n\nEither way, one pass builds the counts in O(n), which is what replaces repeated scanning."
   },
   {
-   "panels": [
-    {
-     "type": "row",
-     "cells": [
-      "a:3",
-      "b:2",
-      "n:2",
-      "1:1",
-      "2:1"
+   "md": "**Count, then order the distinct characters.** The output is just \"each character repeated its count times\", in\norder of (count descending, code ascending). For `\"banana12b\"`:"
+  },
+  {
+   "table": {
+    "head": [
+     "char",
+     "count",
+     "position in the order"
+    ],
+    "rows": [
+     [
+      "a",
+      "3",
+      "1"
      ],
-     "label": "sorted by count, then code"
-    }
-   ],
-   "caption": "Write each character as many times as it appears."
+     [
+      "b",
+      "2",
+      "2"
+     ],
+     [
+      "n",
+      "2",
+      "3"
+     ],
+     [
+      "1",
+      "1",
+      "4"
+     ],
+     [
+      "2",
+      "1",
+      "5"
+     ]
+    ]
+   }
   },
   {
-   "md": "Two separate jobs: **counting** (one pass) and **ordering** the distinct characters. The ordering\nis where approaches differ. The number of distinct characters is tiny here (≤ 62), but it's worth\nseeing the linear version too: since a count is between 1 and n, characters can be dropped into\nbuckets indexed by count."
+   "md": "Result **`aaabbnn12`**.\n\n**Sorting without comparisons.** Counts are between 1 and `n`, so instead of sorting the characters, drop each\ninto **bucket number = its count**. Reading buckets from `n` down to 1 gives counts in descending order; filling\neach bucket in increasing character code gives the tie order for free:"
+  },
+  {
+   "table": {
+    "head": [
+     "count",
+     "bucket"
+    ],
+    "rows": [
+     [
+      "3",
+      "a"
+     ],
+     [
+      "2",
+      "b, n"
+     ],
+     [
+      "1",
+      "1, 2"
+     ]
+    ]
+   }
   }
  ],
  "approaches": [
@@ -38,13 +86,13 @@
    "space": "O(σ)",
    "idea": [
     {
-     "md": "Keep the distinct characters in code order. Repeatedly scan them, counting each with a pass over `s`, and take the one with the highest count (the first one found wins ties, which is the smallest code). Append it count times and remove it."
+     "md": "Repeatedly pick the remaining character with the highest count (ties to the smaller code), output all its copies and remove it. Counting with `s.count` rescans the string each time."
     }
    ],
    "build": [
-    "List the distinct characters in increasing code order.",
-    "While any remain: find the one with the largest count (strictly larger replaces, so ties keep the smaller code).",
-    "Append it count times; remove it from the list."
+    "Distinct characters in code order.",
+    "Each round, find the most frequent remaining one.",
+    "Output its copies and remove it."
    ],
    "code": {
     "python": "class Solution:\n    def sortByFrequency(self, s: str) -> str:\n        left = sorted(set(s))\n        out = []\n        while left:\n            best = left[0]\n            for c in left:\n                if s.count(c) > s.count(best):\n                    best = c\n            out.append(best * s.count(best))\n            left.remove(best)\n        return \"\".join(out)\n",
@@ -54,7 +102,7 @@
    },
    "lines": [
     {
-     "text": "The characters still to place.",
+     "text": "The distinct characters still to place, in code order (so ties resolve to the smaller code).",
      "at": {
       "python": [
        [
@@ -88,7 +136,7 @@
      }
     },
     {
-     "text": "One round places one character.",
+     "text": "One character is placed per round.",
      "at": {
       "python": [
        [
@@ -134,7 +182,7 @@
      }
     },
     {
-     "text": "Count every remaining character by scanning `s`, and keep the largest count. Candidates are visited in code order and only a **strictly** larger count replaces the best, so ties go to the smaller code.",
+     "text": "Find the remaining character with the largest count; strictly larger is needed to replace, so ties keep the smaller code.",
      "at": {
       "python": [
        [
@@ -163,7 +211,7 @@
      }
     },
     {
-     "text": "Write the winner as many times as it appears, then take it out of the running.",
+     "text": "Write all its copies and remove it from the remaining set.",
      "at": {
       "python": [
        [
@@ -192,7 +240,7 @@
      }
     },
     {
-     "text": "The rearranged string.",
+     "text": "The arranged string.",
      "at": {
       "python": [
        [
@@ -226,7 +274,7 @@
    ],
    "complexity": [
     {
-     "md": "**Time O(σ² · n)** for σ distinct characters: σ rounds, each counting σ characters with an O(n) scan. With σ = 62 and n = 10⁵ that's ~4 × 10⁸. **Space O(σ).**"
+     "md": "**Time O(d² · n)** for `d` distinct characters (up to 62), because every count rescans the string. **Space O(d).**"
     }
    ],
    "walk": {
@@ -402,7 +450,7 @@
    },
    "limits": [
     {
-     "md": "Counts never change, yet they're recomputed in every round. Count once, then order once."
+     "md": "Counts are recomputed again and again. Counting once, then ordering the distinct characters, is enough."
     }
    ],
    "slow": true
@@ -414,14 +462,14 @@
    "space": "O(σ)",
    "idea": [
     {
-     "md": "One pass fills `count[c]` for each ASCII code. Collect the characters with a nonzero count and sort them by `(−count, code)`. Write each one `count` times."
+     "md": "Count each character once (an array of 128 for ASCII). Collect the characters that occur and sort them by\n`(−count, code)`. Output each one `count` times."
     }
    ],
    "build": [
-    "Count every character into a 128-slot array.",
-    "Collect the characters that appear.",
-    "Sort them: higher count first, then smaller code.",
-    "Append each `count[c]` times."
+    "Count into 128 slots.",
+    "Collect the present characters.",
+    "Sort by count descending, then code.",
+    "Output."
    ],
    "code": {
     "python": "class Solution:\n    def sortByFrequency(self, s: str) -> str:\n        count = [0] * 128\n        for ch in s:\n            count[ord(ch)] += 1\n        chars = [c for c in range(128) if count[c]]\n        chars.sort(key=lambda c: (-count[c], c))\n        return \"\".join(chr(c) * count[c] for c in chars)\n",
@@ -446,7 +494,7 @@
      }
     },
     {
-     "text": "A slot per ASCII code (letters and digits are all below 128).",
+     "text": "One pass: how often each character appears.",
      "at": {
       "python": [
        [
@@ -478,7 +526,7 @@
      }
     },
     {
-     "text": "Only characters that actually appear: at most 62 of them.",
+     "text": "Only characters that actually occur.",
      "at": {
       "python": [
        [
@@ -507,7 +555,7 @@
      }
     },
     {
-     "text": "Order by count descending, then code ascending.",
+     "text": "Most frequent first; on equal counts, smaller code first.",
      "at": {
       "python": [
        [
@@ -539,7 +587,7 @@
      }
     },
     {
-     "text": "Write each character `count` times, keeping copies together.",
+     "text": "Each character repeated its count times, in that order.",
      "at": {
       "python": [
        [
@@ -573,7 +621,7 @@
    ],
    "complexity": [
     {
-     "md": "**Time O(n + σ log σ):** a counting pass plus a sort of σ ≤ 62 items, effectively O(n). **Space O(σ)** besides the output."
+     "md": "**Time O(n + d log d):** at most 62 distinct characters to sort. **Space O(n)** for the output."
     }
    ],
    "walk": {
@@ -785,7 +833,7 @@
    },
    "limits": [
     {
-     "md": "With 62 possible characters this is as fast as anything in practice. The limit appears with a\nlarge alphabet (any Unicode text): sorting σ distinct characters costs O(σ log σ). Because a\ncount is an integer from 1 to n, bucketing by count avoids the comparison sort entirely."
+     "md": "Already fast, but it still sorts; buckets indexed by count avoid comparisons entirely."
     }
    ]
   },
@@ -796,13 +844,13 @@
    "space": "O(n + σ)",
    "idea": [
     {
-     "md": "Count the characters. Make buckets `1 … n`; visit characters in increasing code order and add\neach to `bucket[count]`, so every bucket holds its characters already sorted by code. Then read\nthe buckets from `n` down to 1 and write each character `count` times."
+     "md": "Count once. Put each present character into `bucket[count]`, scanning codes in increasing order so each\nbucket is already in tie order. Read buckets from the largest count down and output each character that\nmany times.\n\n**Why it's ordered correctly.** Higher buckets come first (count descending), and within a bucket\ncharacters were appended in increasing code."
     }
    ],
    "build": [
-    "Count into a 128-slot array.",
-    "For codes 0 … 127 with a nonzero count, append the code to `bucket[count]`.",
-    "For `k` from n down to 1, write every character in `bucket[k]` k times."
+    "Count into 128 slots.",
+    "Bucket by count, codes ascending.",
+    "Read buckets from high to low."
    ],
    "code": {
     "python": "class Solution:\n    def sortByFrequency(self, s: str) -> str:\n        count = [0] * 128\n        for ch in s:\n            count[ord(ch)] += 1\n        bucket = [[] for _ in range(len(s) + 1)]\n        for c in range(128):\n            if count[c]:\n                bucket[count[c]].append(c)\n        out = []\n        for k in range(len(s), 0, -1):\n            for c in bucket[k]:\n                out.append(chr(c) * k)\n        return \"\".join(out)\n",
@@ -812,7 +860,7 @@
    },
    "lines": [
     {
-     "text": "Count each character once.",
+     "text": "How often each character appears.",
      "at": {
       "python": [
        [
@@ -841,7 +889,7 @@
      }
     },
     {
-     "text": "Drop each character into the bucket for its count. Characters are visited in code order, so each bucket comes out sorted by code: the tie rule for free.",
+     "text": "Drop each present character into the bucket for its count, in increasing code order.",
      "at": {
       "python": [
        [
@@ -873,7 +921,7 @@
      }
     },
     {
-     "text": "Highest count first; within a bucket, smaller code first. Each character is written `k` times.",
+     "text": "Highest count first; within a bucket the order is already by code.",
      "at": {
       "python": [
        [
@@ -902,7 +950,7 @@
      }
     },
     {
-     "text": "The rearranged string.",
+     "text": "The arranged string.",
      "at": {
       "python": [
        [
@@ -936,7 +984,7 @@
    ],
    "complexity": [
     {
-     "md": "**Time O(n + σ):** counting, one pass over the alphabet, and n buckets to read. **Space O(n + σ)** for the buckets."
+     "md": "**Time O(n):** counting, 128 bucket insertions, and `n` output characters. **Space O(n)** for the buckets and output."
     }
    ],
    "walk": {
@@ -1075,7 +1123,7 @@
  ],
  "takeaways": [
   {
-   "md": "- \"Order by frequency\" = **count, then order the distinct items**. Do the counting exactly once.\n- When the sort key is a small integer (a count between 1 and n), **bucket sort** beats comparison\n  sorting.\n- Visiting keys in their natural order while filling buckets makes ties come out in the right\n  order without extra work."
+   "md": "- **Sort by frequency:** count, then bucket by count (O(n)) or sort the distinct items.\n- Fill buckets in the tie-break order to get ties for free.\n- **Pitfall:** sorting all `n` characters instead of the few distinct ones."
   }
  ]
 }

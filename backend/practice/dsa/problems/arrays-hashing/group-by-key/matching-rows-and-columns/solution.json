@@ -4,60 +4,83 @@
  "question": [
   {
    "md": "Count pairs `(r, c)` where row `r`, read left to right, is exactly the same sequence as column `c`, read\ntop to bottom.\n\n- **Same values in the same order**, element by element: row `[2, 7, 7]` matches column `[2, 7, 7]`\n  but not `[7, 2, 7]`.\n- **Pairs, not distinct rows.** If two identical rows both match a column, that's 2 pairs. In\n  `[[1, 1], [1, 1]]` every row matches every column: 4 pairs.\n- **Square grid**, so rows and columns have the same length n.\n- **Size:** n up to 600, so n³ = 2.16 × 10⁸ cell comparisons is too slow for a 1-second limit in\n  most languages, while n² = 360,000 cells is trivial."
+  },
+  {
+   "md": "**Edge cases to keep in mind**\n\n- Equal rows count separately: two identical rows matching one column give two pairs.\n- `n = 1`: the single row and column are the same cell, so the answer is 1.\n- Comparing a row and a column means comparing `n` values in order."
   }
  ],
  "think": [
   {
-   "md": "Take this 4 × 4 grid. Row 0 is `[3, 1, 2, 2]`; column 0 (read downwards) is also `[3, 1, 2, 2]`, so\n`(0, 0)` counts. Column 2 is `[2, 4, 2, 2]`, which equals both row 2 and row 3: two more pairs.\nTotal: 3."
+   "md": "**Group by a canonical key.** When \"belongs together\" is an equivalence (anagrams, same shape, shift-equivalent),\nfind a **key** that every member of a group shares and no other item has. Then grouping is just a hash map from key\nto items: one pass, no pairwise comparisons. The art is in choosing the key:\n\n- it must be **identical** for items that belong together (otherwise one group splits in two);\n- it must **differ** for items that don't (otherwise two groups merge);\n- it should be cheap to compute."
   },
   {
-   "panels": [
-    {
-     "type": "grid",
-     "cells": [
-      [
-       3,
-       1,
-       2,
-       2
-      ],
-      [
-       1,
-       4,
-       4,
-       5
-      ],
-      [
-       2,
-       4,
-       2,
-       2
-      ],
-      [
-       2,
-       4,
-       2,
-       2
-      ]
+   "md": "**The key is the row itself.** A row matches a column when they hold the same values in the same order, so use\nthe whole sequence (as a tuple) as the key. Count how many rows have each sequence, then, for each column, look\nup how many rows equal it."
+  },
+  {
+   "md": "**The grid's rows:**"
+  },
+  {
+   "table": {
+    "head": [
+     "row",
+     "values"
+    ],
+    "rows": [
+     [
+      "0",
+      "[3, 1, 2, 2]"
      ],
-     "states": {
-      "0,2": "answer",
-      "1,2": "answer",
-      "2,2": "found",
-      "3,2": "found",
-      "2,0": "found",
-      "2,1": "found",
-      "2,3": "found",
-      "3,0": "found",
-      "3,1": "found",
-      "3,3": "found"
-     }
-    }
-   ],
-   "caption": "Column 2 (dark) reads 2, 4, 2, 2: the same as rows 2 and 3 (light)."
+     [
+      "1",
+      "[1, 4, 4, 5]"
+     ],
+     [
+      "2",
+      "[2, 4, 2, 2]"
+     ],
+     [
+      "3",
+      "[2, 4, 2, 2]"
+     ]
+    ]
+   }
   },
   {
-   "md": "Comparing a row and a column costs n steps, and there are n² pairs, so brute force is n³. But we\ndon't need to compare *pairs*. We need, for each column, **how many rows are equal to it**. That's a\ncounting question: if rows could be looked up as whole values, each column would be one lookup.\n\nA whole row can be a key: a tuple in Python, a `List<Integer>` in Java, a `vector<int>` (with a\nhash function) in C++, or a hash of its values plus a full comparison in C."
+   "md": "**Each column and the number of equal rows:**"
+  },
+  {
+   "table": {
+    "head": [
+     "column",
+     "values (top to bottom)",
+     "equal rows"
+    ],
+    "rows": [
+     [
+      "0",
+      "[3, 1, 2, 2]",
+      "1"
+     ],
+     [
+      "1",
+      "[1, 4, 4, 4]",
+      "0"
+     ],
+     [
+      "2",
+      "[2, 4, 2, 2]",
+      "2"
+     ],
+     [
+      "3",
+      "[2, 5, 2, 2]",
+      "0"
+     ]
+    ]
+   }
+  },
+  {
+   "md": "Total **3** pairs."
   }
  ],
  "approaches": [
@@ -68,13 +91,13 @@
    "space": "O(1)",
    "idea": [
     {
-     "md": "For every `(r, c)`, walk `k` from 0 to n − 1 and check `grid[r][k] == grid[k][c]`. Count the pairs where all n match."
+     "md": "Compare every row with every column element by element. `n²` pairs, each up to `n` comparisons."
     }
    ],
    "build": [
-    "Loop over rows `r` and columns `c`.",
-    "Check every position `k`: `grid[r][k]` against `grid[k][c]`, stopping at the first difference.",
-    "Count the pairs that never differ."
+    "Loop over rows and columns.",
+    "Compare the `n` values.",
+    "Count equal pairs."
    ],
    "code": {
     "python": "class Solution:\n    def countMatchingPairs(self, grid: List[List[int]]) -> int:\n        n = len(grid)\n        total = 0\n        for r in range(n):\n            for c in range(n):\n                if all(grid[r][k] == grid[k][c] for k in range(n)):\n                    total += 1\n        return total\n",
@@ -173,7 +196,7 @@
    ],
    "complexity": [
     {
-     "md": "**Time O(n³):** n² pairs × up to n comparisons. **Space O(1).**"
+     "md": "**Time O(n³):** 2.16 × 10⁸ comparisons for `n = 600`. **Space O(1).**"
     }
    ],
    "walk": {
@@ -610,7 +633,7 @@
    },
    "limits": [
     {
-     "md": "Each row is compared against every column separately, even though many rows (or columns) may be identical. Organising the rows once, by sorting or hashing, lets each column find its matches directly."
+     "md": "Each column is compared against every row. Grouping identical rows lets one lookup per column answer it."
     }
    ],
    "slow": 3000
@@ -622,13 +645,13 @@
    "space": "O(n²)",
    "idea": [
     {
-     "md": "Sort the rows lexicographically (like words in a dictionary). Identical rows become neighbours. For each column, binary-search the first and last row equal to it; the distance is the number of matching rows."
+     "md": "Sort the rows (as tuples). For each column, binary-search the range of rows equal to it; its size is that column's count."
     }
    ],
    "build": [
-    "Copy the rows and sort them lexicographically.",
-    "For each column, build it as a list.",
-    "Find the range of rows equal to it with two binary searches; add its length."
+    "Sort the rows.",
+    "For each column, find the equal range by binary search.",
+    "Add the range sizes."
    ],
    "code": {
     "python": "from bisect import bisect_left, bisect_right\n\nclass Solution:\n    def countMatchingPairs(self, grid: List[List[int]]) -> int:\n        rows = sorted(tuple(r) for r in grid)\n        total = 0\n        for col in zip(*grid):\n            total += bisect_right(rows, col) - bisect_left(rows, col)\n        return total\n",
@@ -803,7 +826,7 @@
    ],
    "complexity": [
     {
-     "md": "**Time O(n² log n):** sorting n rows takes O(n log n) comparisons of length n; each column does two binary searches of O(log n) comparisons of length n. **Space O(n²)** for the copy (O(n) in C, which copies pointers)."
+     "md": "**Time O(n² log n):** sorting compares rows of length `n`. **Space O(n²)** for the row copies."
     }
    ],
    "walk": {
@@ -1098,7 +1121,7 @@
    },
    "limits": [
     {
-     "md": "The log factor comes from comparisons. Hashing a row lets a column jump straight to its equal rows."
+     "md": "Sorting and binary search compare whole rows `log n` times per lookup. Hashing the rows makes each lookup O(n)."
     }
    ]
   },
@@ -1109,12 +1132,13 @@
    "space": "O(n²)",
    "idea": [
     {
-     "md": "Count how many times each whole row occurs, using the row itself as the hash-map key. Then for every\ncolumn, add the count of rows equal to it (0 if none). Each row and column is hashed once in O(n),\nand there are 2n of them: O(n²) overall, the size of the input."
+     "md": "Count the rows in a hash map keyed by the row tuple. Then for each column, add the count of rows equal to\nit.\n\n**Why it's O(n²).** Hashing a row or a column costs O(n), and there are `2n` of them: about `2n²` work,\nwhich is the size of the grid itself."
     }
    ],
    "build": [
-    "Build a map from row (as a whole sequence) to how many times it occurs.",
-    "For each column, build it as a sequence and add `map[column]` to the total."
+    "Hash map row → count.",
+    "For each column, look up its count.",
+    "Sum."
    ],
    "code": {
     "python": "from collections import Counter\n\nclass Solution:\n    def countMatchingPairs(self, grid: List[List[int]]) -> int:\n        rows = Counter(tuple(r) for r in grid)\n        return sum(rows[col] for col in zip(*grid))\n",
@@ -1226,7 +1250,7 @@
    ],
    "complexity": [
     {
-     "md": "**Time O(n²)** on average: 2n sequences, each hashed and compared in O(n). **Space O(n²)** for the keys (O(n) in C, which stores row indices)."
+     "md": "**Time O(n²)** expected. **Space O(n²)** for the stored rows."
     }
    ],
    "walk": {
@@ -1704,7 +1728,7 @@
  ],
  "takeaways": [
   {
-   "md": "- A **whole sequence can be a hash key**. Turning \"compare these two lists\" into \"look this list up\"\n  removes a factor of n.\n- Count occurrences when duplicates each form their own pair.\n- In languages without sequence hashing, combine a hash with a full equality check; never trust the\n  hash alone.\n- Sorting sequences lexicographically is the comparison-based alternative, at an extra log factor."
+   "md": "- **Matching whole sequences:** hash the sequence and count; look up instead of comparing pairwise.\n- Equal keys with multiplicity → store counts, not just presence.\n- **Pitfall:** using a set of rows, which counts duplicate rows once."
   }
  ]
 }

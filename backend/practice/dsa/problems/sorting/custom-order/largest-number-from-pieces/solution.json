@@ -1,0 +1,655 @@
+{
+ "version": 1,
+ "summary": "Put piece `a` before piece `b` exactly when the string `a + b` is larger than `b + a`. This rule is a consistent\nordering, so sorting the pieces (as strings) by it and joining gives the largest number. Answer `\"0\"` if the\nresult starts with 0 (all pieces were 0). O(n log n · L) for L digits.",
+ "question": [
+  {
+   "md": "Arrange all the number pieces side by side to make the largest possible number, returned as a string with no\nleading zeros.\n\n- **Every piece is used**, each exactly once.\n- **Plain numeric order fails:** 30 is bigger than 3, but `330` beats `303`.\n- **All zeros** must give `\"0\"`, not `\"000\"`."
+  },
+  {
+   "md": "**Edge cases to keep in mind**\n\n- All pieces are 0: return `\"0\"`, not `\"000\"`.\n- Plain numeric or plain string order is wrong: `3` must come before `30` (`330 > 303`), although `\"30\" > \"3\"`.\n- Pieces up to 10⁹ and up to 10⁴ of them: the result has up to 10⁵ digits, so build a string."
+  }
+ ],
+ "think": [
+  {
+   "md": "**Every custom order is a sort with the right key.** Decide what makes one item come before another, and express it\neither as a **key** (a tuple compared element by element: first key, then the next to break ties) or as a\n**comparator** (a rule for two items). The sort then does the rest in O(n log n). The thinking is all in choosing a key\nor rule that really produces the required order."
+  },
+  {
+   "md": "**The glue rule.** Look at two neighbouring pieces `a` then `b`. Swapping them only changes that stretch of the\nnumber, `a + b` vs `b + a` (string concatenation), and both have the same length. So `a` should come first exactly\nwhen `a + b > b + a`."
+  },
+  {
+   "table": {
+    "head": [
+     "a",
+     "b",
+     "a + b",
+     "b + a",
+     "first"
+    ],
+    "rows": [
+     [
+      "3",
+      "30",
+      "330",
+      "303",
+      "3"
+     ],
+     [
+      "34",
+      "3",
+      "343",
+      "334",
+      "34"
+     ],
+     [
+      "9",
+      "5",
+      "95",
+      "59",
+      "9"
+     ],
+     [
+      "30",
+      "34",
+      "3034",
+      "3430",
+      "34"
+     ]
+    ]
+   }
+  },
+  {
+   "md": "**Why sorting by this rule is valid.** The rule is consistent (transitive): `a` before `b` and `b` before `c`\nimplies `a` before `c`, so it defines a proper order that a sort can use. And in the best arrangement no\nneighbouring pair can be improved by swapping, which is exactly what the sorted order guarantees (an exchange\nargument).\n\nFor `[30, 3, 34, 5, 9]`: `['9', '5', '34', '3', '30']` → **`9534330`**."
+  }
+ ],
+ "approaches": [
+  {
+   "title": "Bubble sort with the glue rule",
+   "kind": "brute",
+   "time": "O(n² · L)",
+   "space": "O(n · L)",
+   "idea": [
+    {
+     "md": "Bubble sort with the glue rule: repeatedly swap neighbouring pieces whenever `b + a > a + b`, until no swap happens."
+    }
+   ],
+   "build": [
+    "Pieces as strings.",
+    "Bubble passes with the glue rule.",
+    "Join; fix all-zero output."
+   ],
+   "code": {
+    "python": "class Solution:\n    def largestNumber(self, pieces: List[int]) -> str:\n        s = [str(p) for p in pieces]\n        changed = True\n        while changed:\n            changed = False\n            for i in range(len(s) - 1):\n                if s[i] + s[i + 1] < s[i + 1] + s[i]:\n                    s[i], s[i + 1] = s[i + 1], s[i]\n                    changed = True\n        out = \"\".join(s)\n        return \"0\" if out[0] == \"0\" else out\n",
+    "java": "class Solution {\n    public String largestNumber(int[] pieces) {\n        String[] s = new String[pieces.length];\n        for (int i = 0; i < s.length; i++) s[i] = String.valueOf(pieces[i]);\n        boolean changed = true;\n        while (changed) {\n            changed = false;\n            for (int i = 0; i + 1 < s.length; i++) {\n                if ((s[i] + s[i + 1]).compareTo(s[i + 1] + s[i]) < 0) {\n                    String t = s[i]; s[i] = s[i + 1]; s[i + 1] = t;\n                    changed = true;\n                }\n            }\n        }\n        String out = String.join(\"\", s);\n        return out.charAt(0) == '0' ? \"0\" : out;\n    }\n}\n",
+    "cpp": "class Solution {\npublic:\n    string largestNumber(vector<int>& pieces) {\n        vector<string> s;\n        for (int p : pieces) s.push_back(to_string(p));\n        bool changed = true;\n        while (changed) {\n            changed = false;\n            for (size_t i = 0; i + 1 < s.size(); i++) {\n                if (s[i] + s[i + 1] < s[i + 1] + s[i]) {\n                    swap(s[i], s[i + 1]);\n                    changed = true;\n                }\n            }\n        }\n        string out;\n        for (auto& x : s) out += x;\n        return out[0] == '0' ? \"0\" : out;\n    }\n};\n",
+    "c": "static int before(int a, int b) {\n    char x[24], y[24];\n    sprintf(x, \"%d%d\", a, b);\n    sprintf(y, \"%d%d\", b, a);\n    return strcmp(x, y) > 0;\n}\n\nchar* largestNumber(int* pieces, int piecesSize) {\n    int* s = malloc(piecesSize * sizeof(int));\n    memcpy(s, pieces, piecesSize * sizeof(int));\n    int changed = 1;\n    while (changed) {\n        changed = 0;\n        for (int i = 0; i + 1 < piecesSize; i++)\n            if (before(s[i + 1], s[i])) { int t = s[i]; s[i] = s[i + 1]; s[i + 1] = t; changed = 1; }\n    }\n    char* out = malloc(piecesSize * 11 + 1);\n    int w = 0;\n    for (int i = 0; i < piecesSize; i++) w += sprintf(out + w, \"%d\", s[i]);\n    if (out[0] == '0') strcpy(out, \"0\");\n    free(s);\n    return out;\n}\n"
+   },
+   "lines": [
+    {
+     "text": "Work with the pieces' digits.",
+     "at": {
+      "python": [
+       [
+        3,
+        3
+       ]
+      ],
+      "java": [
+       [
+        3,
+        4
+       ]
+      ],
+      "cpp": [
+       [
+        4,
+        5
+       ]
+      ],
+      "c": [
+       [
+        9,
+        10
+       ]
+      ]
+     },
+     "notes": {
+      "c": "Keep the numbers; the rule prints both glued orders to compare them."
+     }
+    },
+    {
+     "text": "Pass over the pieces until nothing moves.",
+     "at": {
+      "python": [
+       [
+        4,
+        7
+       ]
+      ],
+      "java": [
+       [
+        5,
+        8
+       ]
+      ],
+      "cpp": [
+       [
+        6,
+        9
+       ]
+      ],
+      "c": [
+       [
+        11,
+        15
+       ]
+      ]
+     }
+    },
+    {
+     "text": "`b` should come first when `b + a` is the bigger number. Both glued strings have the same length, so comparing them as text compares them as numbers.",
+     "at": {
+      "python": [
+       [
+        8,
+        10
+       ]
+      ],
+      "java": [
+       [
+        9,
+        11
+       ]
+      ],
+      "cpp": [
+       [
+        10,
+        12
+       ]
+      ],
+      "c": [
+       [
+        1,
+        6
+       ]
+      ]
+     }
+    },
+    {
+     "text": "Join; if the biggest arrangement starts with 0, every piece was 0.",
+     "at": {
+      "python": [
+       [
+        11,
+        12
+       ]
+      ],
+      "java": [
+       [
+        15,
+        16
+       ]
+      ],
+      "cpp": [
+       [
+        16,
+        18
+       ]
+      ],
+      "c": [
+       [
+        17,
+        22
+       ]
+      ]
+     }
+    }
+   ],
+   "complexity": [
+    {
+     "md": "**Time O(n² · L)** for pieces of length up to `L` (10 digits). **Space O(n · L).**"
+    }
+   ],
+   "walk": {
+    "steps": [
+     {
+      "text": "Start.",
+      "panels": [
+       {
+        "type": "row",
+        "cells": [
+         "30",
+         "3",
+         "34",
+         "5",
+         "9"
+        ]
+       }
+      ]
+     },
+     {
+      "text": "303 < 330, so swap.",
+      "panels": [
+       {
+        "type": "row",
+        "cells": [
+         "30",
+         "3",
+         "34",
+         "5",
+         "9"
+        ],
+        "states": {
+         "0": "mark",
+         "1": "mark"
+        }
+       }
+      ]
+     },
+     {
+      "text": "3034 < 3430, so swap.",
+      "panels": [
+       {
+        "type": "row",
+        "cells": [
+         "3",
+         "30",
+         "34",
+         "5",
+         "9"
+        ],
+        "states": {
+         "1": "mark",
+         "2": "mark"
+        }
+       }
+      ]
+     },
+     {
+      "text": "305 < 530, so swap.",
+      "panels": [
+       {
+        "type": "row",
+        "cells": [
+         "3",
+         "34",
+         "30",
+         "5",
+         "9"
+        ],
+        "states": {
+         "2": "mark",
+         "3": "mark"
+        }
+       }
+      ]
+     },
+     {
+      "text": "309 < 930, so swap.",
+      "panels": [
+       {
+        "type": "row",
+        "cells": [
+         "3",
+         "34",
+         "5",
+         "30",
+         "9"
+        ],
+        "states": {
+         "3": "mark",
+         "4": "mark"
+        }
+       }
+      ]
+     },
+     {
+      "text": "334 < 343, so swap.",
+      "panels": [
+       {
+        "type": "row",
+        "cells": [
+         "3",
+         "34",
+         "5",
+         "9",
+         "30"
+        ],
+        "states": {
+         "0": "mark",
+         "1": "mark"
+        }
+       }
+      ]
+     },
+     {
+      "text": "35 < 53, so swap.",
+      "panels": [
+       {
+        "type": "row",
+        "cells": [
+         "34",
+         "3",
+         "5",
+         "9",
+         "30"
+        ],
+        "states": {
+         "1": "mark",
+         "2": "mark"
+        }
+       }
+      ]
+     },
+     {
+      "text": "39 < 93, so swap.",
+      "panels": [
+       {
+        "type": "row",
+        "cells": [
+         "34",
+         "5",
+         "3",
+         "9",
+         "30"
+        ],
+        "states": {
+         "2": "mark",
+         "3": "mark"
+        }
+       }
+      ]
+     },
+     {
+      "text": "345 < 534, so swap.",
+      "panels": [
+       {
+        "type": "row",
+        "cells": [
+         "34",
+         "5",
+         "9",
+         "3",
+         "30"
+        ],
+        "states": {
+         "0": "mark",
+         "1": "mark"
+        }
+       }
+      ]
+     },
+     {
+      "text": "349 < 934, so swap.",
+      "panels": [
+       {
+        "type": "row",
+        "cells": [
+         "5",
+         "34",
+         "9",
+         "3",
+         "30"
+        ],
+        "states": {
+         "1": "mark",
+         "2": "mark"
+        }
+       }
+      ]
+     },
+     {
+      "text": "59 < 95, so swap.",
+      "panels": [
+       {
+        "type": "row",
+        "cells": [
+         "5",
+         "9",
+         "34",
+         "3",
+         "30"
+        ],
+        "states": {
+         "0": "mark",
+         "1": "mark"
+        }
+       }
+      ]
+     },
+     {
+      "text": "No more swaps: 9534330.",
+      "panels": [
+       {
+        "type": "row",
+        "cells": [
+         "9",
+         "5",
+         "34",
+         "3",
+         "30"
+        ]
+       }
+      ],
+      "result": "9534330"
+     }
+    ],
+    "title": "Bubble sort with the rule 'a goes before b when a+b is the bigger number'. Repeatedly swap neighbours that break the rule."
+   },
+   "limits": [
+    {
+     "md": "Bubble sort is quadratic. The same rule plugged into an O(n log n) sort does the job."
+    }
+   ],
+   "slow": true
+  },
+  {
+   "title": "Sort with the glue comparator",
+   "kind": "best",
+   "time": "O(n log n · L)",
+   "space": "O(n · L)",
+   "idea": [
+    {
+     "md": "Convert to strings, sort with the comparator \"`a` first if `a + b > b + a`\", join, and return `\"0\"` if the result starts with 0."
+    }
+   ],
+   "build": [
+    "Strings.",
+    "Sort with the glue comparator.",
+    "Join and handle the all-zero case."
+   ],
+   "code": {
+    "python": "import functools\n\nclass Solution:\n    def largestNumber(self, pieces: List[int]) -> str:\n        s = [str(p) for p in pieces]\n        rule = lambda a, b: -1 if a + b > b + a else (1 if a + b < b + a else 0)\n        s.sort(key=functools.cmp_to_key(rule))\n        out = \"\".join(s)\n        return \"0\" if out[0] == \"0\" else out\n",
+    "java": "class Solution {\n    public String largestNumber(int[] pieces) {\n        String[] s = new String[pieces.length];\n        for (int i = 0; i < s.length; i++) s[i] = String.valueOf(pieces[i]);\n        Arrays.sort(s, (a, b) -> (b + a).compareTo(a + b));\n        String out = String.join(\"\", s);\n        return out.charAt(0) == '0' ? \"0\" : out;\n    }\n}\n",
+    "cpp": "class Solution {\npublic:\n    string largestNumber(vector<int>& pieces) {\n        vector<string> s;\n        for (int p : pieces) s.push_back(to_string(p));\n        sort(s.begin(), s.end(), [](const string& a, const string& b) { return a + b > b + a; });\n        string out;\n        for (auto& x : s) out += x;\n        return out[0] == '0' ? \"0\" : out;\n    }\n};\n",
+    "c": "static int rule(const void* p, const void* q) {\n    char x[24], y[24];\n    sprintf(x, \"%d%d\", *(const int*) p, *(const int*) q);\n    sprintf(y, \"%d%d\", *(const int*) q, *(const int*) p);\n    return strcmp(y, x);\n}\n\nchar* largestNumber(int* pieces, int piecesSize) {\n    int* s = malloc(piecesSize * sizeof(int));\n    memcpy(s, pieces, piecesSize * sizeof(int));\n    qsort(s, piecesSize, sizeof(int), rule);\n    char* out = malloc(piecesSize * 11 + 1);\n    int w = 0;\n    for (int i = 0; i < piecesSize; i++) w += sprintf(out + w, \"%d\", s[i]);\n    if (out[0] == '0') strcpy(out, \"0\");\n    free(s);\n    return out;\n}\n"
+   },
+   "lines": [
+    {
+     "text": "Pieces as digit strings.",
+     "at": {
+      "python": [
+       [
+        5,
+        5
+       ]
+      ],
+      "java": [
+       [
+        3,
+        4
+       ]
+      ],
+      "cpp": [
+       [
+        4,
+        5
+       ]
+      ],
+      "c": [
+       [
+        9,
+        10
+       ]
+      ]
+     },
+     "notes": {
+      "c": "Keep the numbers; the comparator prints them glued both ways."
+     }
+    },
+    {
+     "text": "`a` before `b` when `a + b` is the bigger number (same length, so text comparison works).",
+     "at": {
+      "python": [
+       [
+        6,
+        6
+       ]
+      ],
+      "java": [
+       [
+        5,
+        5
+       ]
+      ],
+      "cpp": [
+       [
+        6,
+        6
+       ]
+      ],
+      "c": [
+       [
+        1,
+        6
+       ]
+      ]
+     },
+     "notes": {
+      "java": "Comparing `b + a` with `a + b` puts the larger glued order first.",
+      "cpp": "The comparator returns true when `a` should come first.",
+      "c": "`strcmp(y, x)` is negative when `x = a b` is bigger, which puts `a` first."
+     }
+    },
+    {
+     "text": "Any comparison sort works, because the rule is a consistent ordering.",
+     "at": {
+      "python": [
+       [
+        7,
+        7
+       ]
+      ],
+      "c": [
+       [
+        11,
+        11
+       ]
+      ]
+     }
+    },
+    {
+     "text": "Join; all zeros collapse to `\"0\"`.",
+     "at": {
+      "python": [
+       [
+        8,
+        9
+       ]
+      ],
+      "java": [
+       [
+        6,
+        7
+       ]
+      ],
+      "cpp": [
+       [
+        7,
+        9
+       ]
+      ],
+      "c": [
+       [
+        12,
+        17
+       ]
+      ]
+     }
+    }
+   ],
+   "complexity": [
+    {
+     "md": "**Time O(n log n · L).** **Space O(n · L).**"
+    }
+   ],
+   "walk": {
+    "steps": [
+     {
+      "text": "Why not just sort by digits? '3' vs '30': '330' beats '303', so 3 goes first, even though 30 is bigger.",
+      "panels": [
+       {
+        "type": "row",
+        "cells": [
+         "3",
+         "30"
+        ]
+       },
+       {
+        "type": "vars",
+        "items": {
+         "3+30": "330",
+         "30+3": "303"
+        }
+       }
+      ]
+     },
+     {
+      "text": "'3' vs '34': '343' beats '334', so 34 goes first.",
+      "panels": [
+       {
+        "type": "row",
+        "cells": [
+         "34",
+         "3"
+        ]
+       },
+       {
+        "type": "vars",
+        "items": {
+         "34+3": "343",
+         "3+34": "334"
+        }
+       }
+      ]
+     },
+     {
+      "text": "Sort every piece with the rule: ['9', '5', '34', '3', '30'].",
+      "panels": [
+       {
+        "type": "row",
+        "cells": [
+         "9",
+         "5",
+         "34",
+         "3",
+         "30"
+        ]
+       }
+      ]
+     },
+     {
+      "text": "Join: 9534330.",
+      "panels": [],
+      "result": "9534330"
+     }
+    ],
+    "title": "Compare two pieces by gluing them both ways: put first whichever glued order makes the bigger number. Sort with that rule."
+   }
+  }
+ ],
+ "takeaways": [
+  {
+   "md": "- **Arrange pieces to make the largest concatenation:** compare `a + b` with `b + a`.\n- Pairwise \"which goes first\" rules work when they're transitive (exchange argument).\n- **Pitfall:** returning `\"00…0\"` instead of `\"0\"`."
+  }
+ ]
+}

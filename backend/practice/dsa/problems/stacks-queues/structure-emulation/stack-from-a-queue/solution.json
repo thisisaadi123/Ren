@@ -1,0 +1,680 @@
+{
+ "version": 1,
+ "summary": "A queue can rotate: move the front to the back, repeatedly. After adding a new item at the back, rotate the\n`size − 1` older items behind it, and the new item sits at the front. The queue is then always in stack order,\nso `pop` and `top` just use the front. `push` is O(n), everything else O(1).",
+ "question": [
+  {
+   "md": "Implement a stack (`push`, `pop`, `top`, `empty`) with a single queue and only queue operations: add to the back,\nlook at or remove the front, size, is-empty.\n\n- **A queue gives back the oldest item; a stack must give back the newest.**\n- **One queue only**, no second container.\n- **At most 3000 calls**, so O(n) per call is acceptable."
+  }
+ ],
+ "think": [
+  {
+   "md": "Push 1, 2, 3 into a queue: front 1, back 3. The stack's top is 3, at the back, out of reach. But a queue can\n**rotate**: removing the front and adding it to the back keeps the cyclic order. Rotate twice and the queue\nreads 3, 1, 2, with 3 at the front."
+  },
+  {
+   "panels": [
+    {
+     "type": "row",
+     "cells": [
+      1,
+      2,
+      3
+     ],
+     "label": "queue"
+    },
+    {
+     "type": "row",
+     "cells": [
+      3,
+      1,
+      2
+     ],
+     "label": "after 2 rotations"
+    }
+   ]
+  },
+  {
+   "md": "We can pay for the rotation when reading (every `pop`/`top`) or when writing (every `push`). If we rotate right\nafter each push, the queue is always in exact stack order (newest first), so reads cost nothing."
+  }
+ ],
+ "approaches": [
+  {
+   "title": "Rotate when reading",
+   "kind": "better",
+   "time": "O(n) per pop/top",
+   "space": "O(n)",
+   "idea": [
+    {
+     "md": "`push` adds to the back (O(1)). `pop`/`top` rotate `size − 1` items to the back so the newest is at the front; `pop` removes it, `top` reads it and rotates it to the back as well, restoring the original order."
+    }
+   ],
+   "build": [
+    "`push`: add to the back.",
+    "`pop`: rotate `size − 1` times, remove the front.",
+    "`top`: rotate `size − 1` times, read the front, rotate once more.",
+    "`empty`: queue empty."
+   ],
+   "code": {
+    "python": "from collections import deque\n\nclass QueueStack:\n    def __init__(self):\n        self.q = deque()\n\n    def push(self, x: int) -> None:\n        self.q.append(x)\n\n    def _bring_newest_forward(self):\n        for _ in range(len(self.q) - 1):\n            self.q.append(self.q.popleft())\n\n    def pop(self) -> int:\n        self._bring_newest_forward()\n        return self.q.popleft()\n\n    def top(self) -> int:\n        self._bring_newest_forward()\n        value = self.q.popleft()\n        self.q.append(value)\n        return value\n\n    def empty(self) -> bool:\n        return not self.q\n",
+    "java": "class QueueStack {\n    private final ArrayDeque<Integer> q = new ArrayDeque<>();\n\n    public QueueStack() {\n    }\n\n    public void push(int x) {\n        q.offer(x);\n    }\n\n    private void bringNewestForward() {\n        for (int i = 0; i < q.size() - 1; i++) q.offer(q.poll());\n    }\n\n    public int pop() {\n        bringNewestForward();\n        return q.poll();\n    }\n\n    public int top() {\n        bringNewestForward();\n        int value = q.poll();\n        q.offer(value);\n        return value;\n    }\n\n    public boolean empty() {\n        return q.isEmpty();\n    }\n}\n",
+    "cpp": "class QueueStack {\n    queue<int> q;\n\n    void bringNewestForward() {\n        for (size_t i = 0; i + 1 < q.size(); i++) { q.push(q.front()); q.pop(); }\n    }\n\npublic:\n    QueueStack() {\n    }\n\n    void push(int x) {\n        q.push(x);\n    }\n\n    int pop() {\n        bringNewestForward();\n        int value = q.front();\n        q.pop();\n        return value;\n    }\n\n    int top() {\n        bringNewestForward();\n        int value = q.front();\n        q.pop();\n        q.push(value);\n        return value;\n    }\n\n    bool empty() {\n        return q.empty();\n    }\n};\n"
+   },
+   "lines": [
+    {
+     "text": "One queue, items in arrival order.",
+     "at": {
+      "python": [
+       [
+        5,
+        5
+       ]
+      ],
+      "java": [
+       [
+        2,
+        2
+       ]
+      ],
+      "cpp": [
+       [
+        2,
+        2
+       ]
+      ]
+     },
+     "notes": {
+      "java": "`ArrayDeque` used strictly as a queue: `offer` at the back, `poll` from the front.",
+      "python": "`deque` used strictly as a queue: `append` at the back, `popleft` from the front."
+     }
+    },
+    {
+     "text": "New item at the back.",
+     "at": {
+      "python": [
+       [
+        8,
+        8
+       ]
+      ],
+      "java": [
+       [
+        8,
+        8
+       ]
+      ],
+      "cpp": [
+       [
+        13,
+        13
+       ]
+      ]
+     }
+    },
+    {
+     "text": "Move everything except the newest from the front to the back; the newest is now at the front.",
+     "at": {
+      "python": [
+       [
+        10,
+        12
+       ]
+      ],
+      "java": [
+       [
+        11,
+        13
+       ]
+      ],
+      "cpp": [
+       [
+        4,
+        6
+       ]
+      ]
+     }
+    },
+    {
+     "text": "Remove the newest. The remaining items are still in arrival order (just rotated), so the next read works the same way.",
+     "at": {
+      "python": [
+       [
+        15,
+        16
+       ]
+      ],
+      "java": [
+       [
+        16,
+        17
+       ]
+      ],
+      "cpp": [
+       [
+        17,
+        20
+       ]
+      ]
+     }
+    },
+    {
+     "text": "Read the newest, then put it back at the back, which restores arrival order exactly.",
+     "at": {
+      "python": [
+       [
+        19,
+        22
+       ]
+      ],
+      "java": [
+       [
+        21,
+        24
+       ]
+      ],
+      "cpp": [
+       [
+        24,
+        28
+       ]
+      ]
+     }
+    },
+    {
+     "text": "Nothing in the queue.",
+     "at": {
+      "python": [
+       [
+        25,
+        25
+       ]
+      ],
+      "java": [
+       [
+        28,
+        28
+       ]
+      ],
+      "cpp": [
+       [
+        32,
+        32
+       ]
+      ]
+     }
+    }
+   ],
+   "complexity": [
+    {
+     "md": "**Time:** `push` O(1); `pop` and `top` O(n). **Space O(n).**"
+    }
+   ],
+   "walk": {
+    "steps": [
+     {
+      "text": "push(1): add to the back.",
+      "panels": [
+       {
+        "type": "row",
+        "cells": [
+         1
+        ],
+        "label": "queue (front → back)"
+       }
+      ]
+     },
+     {
+      "text": "push(2): add to the back.",
+      "panels": [
+       {
+        "type": "row",
+        "cells": [
+         1,
+         2
+        ],
+        "label": "queue (front → back)"
+       }
+      ]
+     },
+     {
+      "text": "push(3): add to the back.",
+      "panels": [
+       {
+        "type": "row",
+        "cells": [
+         1,
+         2,
+         3
+        ],
+        "label": "queue (front → back)"
+       }
+      ]
+     },
+     {
+      "text": "top(): rotate so the newest (3) is at the front, read it, then send it to the back too, restoring the order.",
+      "panels": [
+       {
+        "type": "row",
+        "cells": [
+         1,
+         2,
+         3
+        ],
+        "label": "queue (front → back)"
+       },
+       {
+        "type": "vars",
+        "items": {
+         "returned": 3
+        }
+       }
+      ]
+     },
+     {
+      "text": "pop(): rotate 2 item(s) to the back so the newest (3) is at the front; remove it.",
+      "panels": [
+       {
+        "type": "row",
+        "cells": [
+         1,
+         2
+        ],
+        "label": "queue (front → back)"
+       },
+       {
+        "type": "vars",
+        "items": {
+         "returned": 3
+        }
+       }
+      ]
+     },
+     {
+      "text": "push(4): add to the back.",
+      "panels": [
+       {
+        "type": "row",
+        "cells": [
+         1,
+         2,
+         4
+        ],
+        "label": "queue (front → back)"
+       }
+      ]
+     },
+     {
+      "text": "pop(): rotate 2 item(s) to the back so the newest (4) is at the front; remove it.",
+      "panels": [
+       {
+        "type": "row",
+        "cells": [
+         1,
+         2
+        ],
+        "label": "queue (front → back)"
+       },
+       {
+        "type": "vars",
+        "items": {
+         "returned": 4
+        }
+       }
+      ]
+     },
+     {
+      "text": "top(): rotate so the newest (2) is at the front, read it, then send it to the back too, restoring the order.",
+      "panels": [
+       {
+        "type": "row",
+        "cells": [
+         1,
+         2
+        ],
+        "label": "queue (front → back)"
+       },
+       {
+        "type": "vars",
+        "items": {
+         "returned": 2
+        }
+       }
+      ]
+     },
+     {
+      "text": "Each pop or top rotated almost the whole queue.",
+      "panels": [],
+      "result": "done"
+     }
+    ],
+    "title": "Keep items in arrival order (newest at the back). To reach the top, rotate everything in front of it to the back."
+   },
+   "limits": [
+    {
+     "md": "Every read pays a full rotation, and `top` is usually called more often than `push`. Rotating once per push instead keeps the queue permanently in stack order, so both reads become O(1)."
+    }
+   ]
+  },
+  {
+   "title": "Rotate after every push",
+   "kind": "best",
+   "time": "O(n) push, O(1) pop/top",
+   "space": "O(n)",
+   "idea": [
+    {
+     "md": "`push(x)`: add `x` at the back, then move the `size − 1` older items from the front to the back. Now the queue's front is the newest item and the order behind it is newest-to-oldest. `pop` removes the front; `top` reads it."
+    }
+   ],
+   "build": [
+    "`push`: add at the back, rotate `size − 1` times.",
+    "`pop`: remove and return the front.",
+    "`top`: return the front.",
+    "`empty`: queue empty."
+   ],
+   "code": {
+    "python": "from collections import deque\n\nclass QueueStack:\n    def __init__(self):\n        self.q = deque()\n\n    def push(self, x: int) -> None:\n        self.q.append(x)\n        for _ in range(len(self.q) - 1):\n            self.q.append(self.q.popleft())\n\n    def pop(self) -> int:\n        return self.q.popleft()\n\n    def top(self) -> int:\n        return self.q[0]\n\n    def empty(self) -> bool:\n        return not self.q\n",
+    "java": "class QueueStack {\n    private final ArrayDeque<Integer> q = new ArrayDeque<>();\n\n    public QueueStack() {\n    }\n\n    public void push(int x) {\n        q.offer(x);\n        for (int i = 0; i < q.size() - 1; i++) q.offer(q.poll());\n    }\n\n    public int pop() {\n        return q.poll();\n    }\n\n    public int top() {\n        return q.peek();\n    }\n\n    public boolean empty() {\n        return q.isEmpty();\n    }\n}\n",
+    "cpp": "class QueueStack {\n    queue<int> q;\n\npublic:\n    QueueStack() {\n    }\n\n    void push(int x) {\n        q.push(x);\n        for (size_t i = 0; i + 1 < q.size(); i++) { q.push(q.front()); q.pop(); }\n    }\n\n    int pop() {\n        int value = q.front();\n        q.pop();\n        return value;\n    }\n\n    int top() {\n        return q.front();\n    }\n\n    bool empty() {\n        return q.empty();\n    }\n};\n"
+   },
+   "lines": [
+    {
+     "text": "One queue, kept in stack order: front = top.",
+     "at": {
+      "python": [
+       [
+        5,
+        5
+       ]
+      ],
+      "java": [
+       [
+        2,
+        2
+       ]
+      ],
+      "cpp": [
+       [
+        2,
+        2
+       ]
+      ]
+     },
+     "notes": {
+      "java": "`ArrayDeque` used strictly as a queue: `offer`, `poll`, `peek`.",
+      "python": "`deque` used strictly as a queue: `append`, `popleft`, and reading `[0]`."
+     }
+    },
+    {
+     "text": "The new item joins at the back.",
+     "at": {
+      "python": [
+       [
+        8,
+        8
+       ]
+      ],
+      "java": [
+       [
+        8,
+        8
+       ]
+      ],
+      "cpp": [
+       [
+        9,
+        9
+       ]
+      ]
+     }
+    },
+    {
+     "text": "Move every older item from the front to the back, behind the new one. The new item is now at the front, and the older ones keep their newest-first order behind it.",
+     "at": {
+      "python": [
+       [
+        9,
+        10
+       ]
+      ],
+      "java": [
+       [
+        9,
+        9
+       ]
+      ],
+      "cpp": [
+       [
+        10,
+        10
+       ]
+      ]
+     }
+    },
+    {
+     "text": "The front is the top of the stack.",
+     "at": {
+      "python": [
+       [
+        13,
+        13
+       ],
+       [
+        16,
+        16
+       ]
+      ],
+      "java": [
+       [
+        13,
+        13
+       ],
+       [
+        17,
+        17
+       ]
+      ],
+      "cpp": [
+       [
+        14,
+        16
+       ],
+       [
+        20,
+        20
+       ]
+      ]
+     }
+    },
+    {
+     "text": "Nothing in the queue.",
+     "at": {
+      "python": [
+       [
+        19,
+        19
+       ]
+      ],
+      "java": [
+       [
+        21,
+        21
+       ]
+      ],
+      "cpp": [
+       [
+        24,
+        24
+       ]
+      ]
+     }
+    }
+   ],
+   "complexity": [
+    {
+     "md": "**Time:** `push` O(n); `pop`, `top`, `empty` O(1). With at most 3000 calls, that's at most ~4.5 × 10⁶ rotations. **Space O(n).**"
+    }
+   ],
+   "walk": {
+    "steps": [
+     {
+      "text": "push(1): add at the back, then move the 0 older item(s) from the front to the back. 1 is now at the front.",
+      "panels": [
+       {
+        "type": "row",
+        "cells": [
+         1
+        ],
+        "states": {
+         "0": "new"
+        },
+        "label": "queue (front = top)"
+       }
+      ]
+     },
+     {
+      "text": "push(2): add at the back, then move the 1 older item(s) from the front to the back. 2 is now at the front.",
+      "panels": [
+       {
+        "type": "row",
+        "cells": [
+         2,
+         1
+        ],
+        "states": {
+         "0": "new"
+        },
+        "label": "queue (front = top)"
+       }
+      ]
+     },
+     {
+      "text": "push(3): add at the back, then move the 2 older item(s) from the front to the back. 3 is now at the front.",
+      "panels": [
+       {
+        "type": "row",
+        "cells": [
+         3,
+         2,
+         1
+        ],
+        "states": {
+         "0": "new"
+        },
+        "label": "queue (front = top)"
+       }
+      ]
+     },
+     {
+      "text": "top(): the front, 3.",
+      "panels": [
+       {
+        "type": "row",
+        "cells": [
+         3,
+         2,
+         1
+        ],
+        "states": {
+         "0": "found"
+        },
+        "label": "queue (front = top)"
+       },
+       {
+        "type": "vars",
+        "items": {
+         "returned": 3
+        }
+       }
+      ]
+     },
+     {
+      "text": "pop(): remove the front, 3.",
+      "panels": [
+       {
+        "type": "row",
+        "cells": [
+         2,
+         1
+        ],
+        "label": "queue (front = top)"
+       },
+       {
+        "type": "vars",
+        "items": {
+         "returned": 3
+        }
+       }
+      ]
+     },
+     {
+      "text": "push(4): add at the back, then move the 2 older item(s) from the front to the back. 4 is now at the front.",
+      "panels": [
+       {
+        "type": "row",
+        "cells": [
+         4,
+         2,
+         1
+        ],
+        "states": {
+         "0": "new"
+        },
+        "label": "queue (front = top)"
+       }
+      ]
+     },
+     {
+      "text": "pop(): remove the front, 4.",
+      "panels": [
+       {
+        "type": "row",
+        "cells": [
+         2,
+         1
+        ],
+        "label": "queue (front = top)"
+       },
+       {
+        "type": "vars",
+        "items": {
+         "returned": 4
+        }
+       }
+      ]
+     },
+     {
+      "text": "top(): the front, 2.",
+      "panels": [
+       {
+        "type": "row",
+        "cells": [
+         2,
+         1
+        ],
+        "states": {
+         "0": "found"
+        },
+        "label": "queue (front = top)"
+       },
+       {
+        "type": "vars",
+        "items": {
+         "returned": 2
+        }
+       }
+      ]
+     },
+     {
+      "text": "Pushes cost O(n); pops and tops are O(1).",
+      "panels": [],
+      "result": "done"
+     }
+    ],
+    "title": "Keep the queue in stack order: newest at the front. Each push adds at the back and then rotates everything older behind it."
+   }
+  }
+ ],
+ "takeaways": [
+  {
+   "md": "- A queue can **rotate** (front to back) without changing its cyclic order; that's enough to reach any item.\n- Decide where to pay: on writes or on reads. Pay where calls are rarer.\n- Unlike two stacks → queue, one queue → stack can't be amortised O(1): every push really reorders everything."
+  }
+ ]
+}

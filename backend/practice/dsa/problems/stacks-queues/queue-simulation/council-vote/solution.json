@@ -1,0 +1,635 @@
+{
+ "version": 1,
+ "summary": "The best move is always to silence the next opponent due to speak: that removes the most immediate threat,\nand any other target is no better. With that rule, keep each party's speaking turns in a queue. The earlier\nfront speaks, silences the other party's front, and rejoins at the back with its turn plus `n` (next round).\nThe party whose queue survives wins. O(n).",
+ "question": [
+  {
+   "md": "Members of two parties speak in a fixed order, round after round. On their turn, a member who hasn't been\nsilenced either silences any member of the other party, or declares victory if only their own party can still\nspeak. Both parties play optimally. Who wins?\n\n- **Silenced members are gone for good**, in this round and later ones.\n- **Rounds wrap around**: after the last member, the first surviving member speaks again.\n- **Up to 10⁵ members.**"
+  }
+ ],
+ "think": [
+  {
+   "md": "Council `LOOLLO`. Member 0 (Lark) silences member 1, the next Owl due to speak. Member 2 (Owl) silences\nmember 3, the next Lark. Member 4 (Lark) silences member 5. Round two: member 0 silences member 2, and the\nLarks win. Winner: **Larks**."
+  },
+  {
+   "panels": [
+    {
+     "type": "row",
+     "cells": [
+      "L",
+      "O",
+      "O",
+      "L",
+      "L",
+      "O"
+     ],
+     "label": "speaking order"
+    }
+   ]
+  },
+  {
+   "md": "Why silence the **next** opponent due to speak? An opponent who speaks soon is about to silence one of us;\nremoving them now prevents that. Silencing an opponent further away instead leaves the nearer one free to act\nfirst. Any member of the other party who has already spoken this round will speak again only after the ones\nstill to come, so the next one in speaking order (wrapping) is always the most urgent.\n\nWith that rule fixed, it's pure bookkeeping: whose turn comes first? Give each member a turn number, keep each\nparty's turns in a queue, and let survivors take turn `t + n` in the next round."
+  }
+ ],
+ "approaches": [
+  {
+   "title": "Replay rounds, scanning for the next opponent",
+   "kind": "brute",
+   "time": "O(n²)",
+   "space": "O(n)",
+   "idea": [
+    {
+     "md": "Loop over the members round after round. A member who isn't silenced checks whether the other party still has speakers (keep counts); if not, their party wins. Otherwise scan forward (wrapping) for the next unsilenced opponent and silence them."
+    }
+   ],
+   "build": [
+    "Counts of active Larks and Owls; a `silenced` flag per member.",
+    "Repeat rounds; skip silenced members.",
+    "If the other party's count is 0, return this party.",
+    "Else scan forward from `i + 1` (mod n) for the next active opponent; silence them."
+   ],
+   "code": {
+    "python": "class Solution:\n    def councilWinner(self, council: str) -> str:\n        n = len(council)\n        silenced = [False] * n\n        active = {\"L\": council.count(\"L\"), \"O\": council.count(\"O\")}\n        while True:\n            for i, c in enumerate(council):\n                if silenced[i]:\n                    continue\n                other = \"O\" if c == \"L\" else \"L\"\n                if active[other] == 0:\n                    return \"Larks\" if c == \"L\" else \"Owls\"\n                j = (i + 1) % n\n                while silenced[j] or council[j] != other:\n                    j = (j + 1) % n\n                silenced[j] = True\n                active[other] -= 1\n",
+    "java": "class Solution {\n    public String councilWinner(String council) {\n        int n = council.length();\n        boolean[] silenced = new boolean[n];\n        int[] active = new int[2];\n        for (int i = 0; i < n; i++) active[council.charAt(i) == 'L' ? 0 : 1]++;\n        while (true) {\n            for (int i = 0; i < n; i++) {\n                if (silenced[i]) continue;\n                char c = council.charAt(i);\n                int me = c == 'L' ? 0 : 1, other = 1 - me;\n                if (active[other] == 0) return me == 0 ? \"Larks\" : \"Owls\";\n                int j = (i + 1) % n;\n                while (silenced[j] || council.charAt(j) == c) j = (j + 1) % n;\n                silenced[j] = true;\n                active[other]--;\n            }\n        }\n    }\n}\n",
+    "cpp": "class Solution {\npublic:\n    string councilWinner(string& council) {\n        int n = council.size();\n        vector<char> silenced(n, 0);\n        int active[2] = {0, 0};\n        for (char c : council) active[c == 'L' ? 0 : 1]++;\n        while (true) {\n            for (int i = 0; i < n; i++) {\n                if (silenced[i]) continue;\n                int me = council[i] == 'L' ? 0 : 1, other = 1 - me;\n                if (active[other] == 0) return me == 0 ? \"Larks\" : \"Owls\";\n                int j = (i + 1) % n;\n                while (silenced[j] || council[j] == council[i]) j = (j + 1) % n;\n                silenced[j] = 1;\n                active[other]--;\n            }\n        }\n    }\n};\n",
+    "c": "static char* answer(const char* party) {\n    char* out = malloc(6);\n    strcpy(out, party);\n    return out;\n}\n\nchar* councilWinner(char* council) {\n    int n = strlen(council);\n    bool* silenced = calloc(n, sizeof(bool));\n    int active[2] = {0, 0};\n    for (int i = 0; i < n; i++) active[council[i] == 'L' ? 0 : 1]++;\n    while (1) {\n        for (int i = 0; i < n; i++) {\n            if (silenced[i]) continue;\n            int me = council[i] == 'L' ? 0 : 1, other = 1 - me;\n            if (active[other] == 0) { free(silenced); return answer(me == 0 ? \"Larks\" : \"Owls\"); }\n            int j = (i + 1) % n;\n            while (silenced[j] || council[j] == council[i]) j = (j + 1) % n;\n            silenced[j] = true;\n            active[other]--;\n        }\n    }\n}\n"
+   },
+   "lines": [
+    {
+     "text": "Who's been silenced, and how many of each party can still speak.",
+     "at": {
+      "python": [
+       [
+        3,
+        5
+       ]
+      ],
+      "java": [
+       [
+        3,
+        6
+       ]
+      ],
+      "cpp": [
+       [
+        4,
+        7
+       ]
+      ],
+      "c": [
+       [
+        8,
+        11
+       ]
+      ]
+     }
+    },
+    {
+     "text": "Round after round, in speaking order; silenced members are skipped.",
+     "at": {
+      "python": [
+       [
+        6,
+        9
+       ]
+      ],
+      "java": [
+       [
+        7,
+        9
+       ]
+      ],
+      "cpp": [
+       [
+        8,
+        10
+       ]
+      ],
+      "c": [
+       [
+        12,
+        14
+       ]
+      ]
+     }
+    },
+    {
+     "text": "Nobody from the other party can speak: declare victory.",
+     "at": {
+      "python": [
+       [
+        10,
+        12
+       ]
+      ],
+      "java": [
+       [
+        10,
+        12
+       ]
+      ],
+      "cpp": [
+       [
+        11,
+        12
+       ]
+      ],
+      "c": [
+       [
+        1,
+        5
+       ],
+       [
+        15,
+        16
+       ]
+      ]
+     },
+     "notes": {
+      "c": "A string answer must be `malloc`ed; `answer` copies the party name."
+     }
+    },
+    {
+     "text": "Find the next opponent due to speak, wrapping into the next round. One exists, since the other party's count isn't 0.",
+     "at": {
+      "python": [
+       [
+        13,
+        15
+       ]
+      ],
+      "java": [
+       [
+        13,
+        14
+       ]
+      ],
+      "cpp": [
+       [
+        13,
+        14
+       ]
+      ],
+      "c": [
+       [
+        17,
+        18
+       ]
+      ]
+     }
+    },
+    {
+     "text": "Silence them.",
+     "at": {
+      "python": [
+       [
+        16,
+        17
+       ]
+      ],
+      "java": [
+       [
+        15,
+        16
+       ]
+      ],
+      "cpp": [
+       [
+        15,
+        16
+       ]
+      ],
+      "c": [
+       [
+        19,
+        20
+       ]
+      ]
+     }
+    }
+   ],
+   "complexity": [
+    {
+     "md": "**Time O(n²):** each silencing may scan past many members. **Space O(n).**"
+    }
+   ],
+   "walk": {
+    "steps": [
+     {
+      "text": "Round 1, member 0 (Lark) silences member 1, the next Owl due to speak.",
+      "panels": [
+       {
+        "type": "row",
+        "cells": [
+         "L",
+         "O",
+         "O",
+         "L",
+         "L",
+         "O"
+        ],
+        "states": {
+         "1": "mark",
+         "0": "active"
+        }
+       },
+       {
+        "type": "vars",
+        "items": {
+         "larks": 3,
+         "owls": 2
+        }
+       }
+      ]
+     },
+     {
+      "text": "Round 1, member 2 (Owl) silences member 3, the next Lark due to speak.",
+      "panels": [
+       {
+        "type": "row",
+        "cells": [
+         "L",
+         "O",
+         "O",
+         "L",
+         "L",
+         "O"
+        ],
+        "states": {
+         "1": "mark",
+         "3": "mark",
+         "2": "active"
+        }
+       },
+       {
+        "type": "vars",
+        "items": {
+         "larks": 2,
+         "owls": 2
+        }
+       }
+      ]
+     },
+     {
+      "text": "Round 1, member 4 (Lark) silences member 5, the next Owl due to speak.",
+      "panels": [
+       {
+        "type": "row",
+        "cells": [
+         "L",
+         "O",
+         "O",
+         "L",
+         "L",
+         "O"
+        ],
+        "states": {
+         "1": "mark",
+         "3": "mark",
+         "5": "mark",
+         "4": "active"
+        }
+       },
+       {
+        "type": "vars",
+        "items": {
+         "larks": 2,
+         "owls": 1
+        }
+       }
+      ]
+     },
+     {
+      "text": "Round 2, member 0 (Lark) silences member 2, the next Owl due to speak.",
+      "panels": [
+       {
+        "type": "row",
+        "cells": [
+         "L",
+         "O",
+         "O",
+         "L",
+         "L",
+         "O"
+        ],
+        "states": {
+         "1": "mark",
+         "2": "mark",
+         "3": "mark",
+         "5": "mark",
+         "0": "active"
+        }
+       },
+       {
+        "type": "vars",
+        "items": {
+         "larks": 2,
+         "owls": 0
+        }
+       }
+      ]
+     },
+     {
+      "text": "Round 2, member 4 (Lark): no Owls can speak. Victory for the Larks.",
+      "panels": [
+       {
+        "type": "row",
+        "cells": [
+         "L",
+         "O",
+         "O",
+         "L",
+         "L",
+         "O"
+        ],
+        "states": {
+         "1": "mark",
+         "2": "mark",
+         "3": "mark",
+         "5": "mark",
+         "4": "found"
+        }
+       }
+      ],
+      "result": "Larks"
+     }
+    ],
+    "title": "Replay the rounds. Each speaker silences the next opponent who would speak after them (wrapping into the next round)."
+   },
+   "limits": [
+    {
+     "md": "The scans step over the same silenced members again and again. Keeping each party's upcoming turns in its own queue makes 'the next opponent' simply the front of the other queue."
+    }
+   ],
+   "slow": true
+  },
+  {
+   "title": "Two queues of turns",
+   "kind": "best",
+   "time": "O(n)",
+   "space": "O(n)",
+   "idea": [
+    {
+     "md": "Queue the indices of the Larks and of the Owls. While both are non-empty, pop both fronts; the smaller index speaks first and silences the other; the speaker rejoins its queue with index + n (its turn in the next round). When a queue empties, the other party wins."
+    }
+   ],
+   "build": [
+    "Two queues of turn numbers.",
+    "Pop both fronts; the smaller turn wins the duel and is re-queued at turn + n.",
+    "Return the party whose queue is non-empty."
+   ],
+   "code": {
+    "python": "from collections import deque\n\nclass Solution:\n    def councilWinner(self, council: str) -> str:\n        n = len(council)\n        larks = deque(i for i, c in enumerate(council) if c == \"L\")\n        owls = deque(i for i, c in enumerate(council) if c == \"O\")\n        while larks and owls:\n            a, b = larks.popleft(), owls.popleft()\n            if a < b:\n                larks.append(a + n)\n            else:\n                owls.append(b + n)\n        return \"Larks\" if larks else \"Owls\"\n",
+    "java": "class Solution {\n    public String councilWinner(String council) {\n        int n = council.length();\n        ArrayDeque<Integer> larks = new ArrayDeque<>(), owls = new ArrayDeque<>();\n        for (int i = 0; i < n; i++) (council.charAt(i) == 'L' ? larks : owls).add(i);\n        while (!larks.isEmpty() && !owls.isEmpty()) {\n            int a = larks.poll(), b = owls.poll();\n            if (a < b) larks.add(a + n);\n            else owls.add(b + n);\n        }\n        return larks.isEmpty() ? \"Owls\" : \"Larks\";\n    }\n}\n",
+    "cpp": "class Solution {\npublic:\n    string councilWinner(string& council) {\n        int n = council.size();\n        queue<int> larks, owls;\n        for (int i = 0; i < n; i++) (council[i] == 'L' ? larks : owls).push(i);\n        while (!larks.empty() && !owls.empty()) {\n            int a = larks.front(), b = owls.front();\n            larks.pop();\n            owls.pop();\n            if (a < b) larks.push(a + n);\n            else owls.push(b + n);\n        }\n        return larks.empty() ? \"Owls\" : \"Larks\";\n    }\n};\n",
+    "c": "char* councilWinner(char* council) {\n    int n = strlen(council);\n    int* larks = malloc(2 * n * sizeof(int));\n    int* owls = malloc(2 * n * sizeof(int));\n    int lh = 0, lt = 0, oh = 0, ot = 0;\n    for (int i = 0; i < n; i++) {\n        if (council[i] == 'L') larks[lt++] = i;\n        else owls[ot++] = i;\n    }\n    while (lh < lt && oh < ot) {\n        int a = larks[lh++], b = owls[oh++];\n        if (a < b) larks[lt++] = a + n;\n        else owls[ot++] = b + n;\n    }\n    char* out = malloc(6);\n    strcpy(out, lh < lt ? \"Larks\" : \"Owls\");\n    free(larks);\n    free(owls);\n    return out;\n}\n"
+   },
+   "lines": [
+    {
+     "text": "Each party's speaking turns, in order.",
+     "at": {
+      "python": [
+       [
+        5,
+        7
+       ]
+      ],
+      "java": [
+       [
+        3,
+        5
+       ]
+      ],
+      "cpp": [
+       [
+        4,
+        6
+       ]
+      ],
+      "c": [
+       [
+        2,
+        8
+       ]
+      ]
+     },
+     "notes": {
+      "c": "Plain arrays as queues: every duel removes one member for good, so at most `n` re-entries happen and `2n` slots suffice."
+     }
+    },
+    {
+     "text": "The next speaker of each party.",
+     "at": {
+      "python": [
+       [
+        8,
+        9
+       ]
+      ],
+      "java": [
+       [
+        6,
+        7
+       ]
+      ],
+      "cpp": [
+       [
+        7,
+        10
+       ]
+      ],
+      "c": [
+       [
+        10,
+        11
+       ]
+      ]
+     }
+    },
+    {
+     "text": "The earlier turn speaks first and silences the other party's next speaker (the optimal move). The speaker will speak again next round, at turn + n, after everyone still due this round.",
+     "at": {
+      "python": [
+       [
+        10,
+        13
+       ]
+      ],
+      "java": [
+       [
+        8,
+        9
+       ]
+      ],
+      "cpp": [
+       [
+        11,
+        12
+       ]
+      ],
+      "c": [
+       [
+        12,
+        13
+       ]
+      ]
+     }
+    },
+    {
+     "text": "The party with members left declares victory.",
+     "at": {
+      "python": [
+       [
+        14,
+        14
+       ]
+      ],
+      "java": [
+       [
+        11,
+        11
+       ]
+      ],
+      "cpp": [
+       [
+        14,
+        14
+       ]
+      ],
+      "c": [
+       [
+        15,
+        19
+       ]
+      ]
+     }
+    }
+   ],
+   "complexity": [
+    {
+     "md": "**Time O(n):** every duel silences one member, so there are fewer than `n` duels. **Space O(n).** Turn numbers stay small: everyone still standing after a round silenced someone during it, so each round at least halves the council. That means at most about log₂ n + 1 rounds, and turns stay below n · (log₂ n + 2), about 2 × 10⁶."
+    }
+   ],
+   "walk": {
+    "steps": [
+     {
+      "text": "Turn numbers per party.",
+      "panels": [
+       {
+        "type": "row",
+        "cells": [
+         0,
+         3,
+         4
+        ],
+        "label": "Larks"
+       },
+       {
+        "type": "row",
+        "cells": [
+         1,
+         2,
+         5
+        ],
+        "label": "Owls"
+       }
+      ]
+     },
+     {
+      "text": "Lark at turn 0 speaks before Owl at turn 1: silences them, and speaks again at turn 6.",
+      "panels": [
+       {
+        "type": "row",
+        "cells": [
+         3,
+         4,
+         6
+        ],
+        "label": "Larks"
+       },
+       {
+        "type": "row",
+        "cells": [
+         2,
+         5
+        ],
+        "label": "Owls"
+       }
+      ]
+     },
+     {
+      "text": "Owl at turn 2 speaks before Lark at turn 3: silences them, and speaks again at turn 8.",
+      "panels": [
+       {
+        "type": "row",
+        "cells": [
+         4,
+         6
+        ],
+        "label": "Larks"
+       },
+       {
+        "type": "row",
+        "cells": [
+         5,
+         8
+        ],
+        "label": "Owls"
+       }
+      ]
+     },
+     {
+      "text": "Lark at turn 4 speaks before Owl at turn 5: silences them, and speaks again at turn 10.",
+      "panels": [
+       {
+        "type": "row",
+        "cells": [
+         6,
+         10
+        ],
+        "label": "Larks"
+       },
+       {
+        "type": "row",
+        "cells": [
+         8
+        ],
+        "label": "Owls"
+       }
+      ]
+     },
+     {
+      "text": "Lark at turn 6 speaks before Owl at turn 8: silences them, and speaks again at turn 12.",
+      "panels": [
+       {
+        "type": "row",
+        "cells": [
+         10,
+         12
+        ],
+        "label": "Larks"
+       },
+       {
+        "type": "row",
+        "cells": [
+         "·"
+        ],
+        "label": "Owls"
+       }
+      ]
+     },
+     {
+      "text": "Only Larks remain.",
+      "panels": [],
+      "result": "Larks"
+     }
+    ],
+    "title": "Two queues of speaking turns. The earlier of the two front members speaks first, silences the other front member, and rejoins its queue for the next round (turn + n)."
+   }
+  }
+ ],
+ "takeaways": [
+  {
+   "md": "- Prove the greedy move first (silence the next opponent due to act); then the simulation is simple.\n- **Round-robin with removals = queues with \"turn + n\"** to mark the next round.\n- Each step removes someone, which bounds the total work at O(n)."
+  }
+ ]
+}

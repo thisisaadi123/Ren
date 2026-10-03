@@ -1,0 +1,53 @@
+{
+  "id": "monthly-cohorts",
+  "title": "Monthly Cohorts",
+  "topic": "reporting",
+  "pattern": "retention",
+  "difficulty": "hard",
+  "statement": "Group users into **cohorts** by the month they signed up (written `YYYY-MM`). A user is **retained** if they logged in\nat least once during the **next calendar month** after their signup month.\n\nReturn `cohort`, `users` (how many signed up that month) and `retained`, ordered by `cohort`.",
+  "notes": "`strftime('%Y-%m', '2024-01-30', 'start of month', '+1 month')` gives `'2024-02'`. Adding a month to January 30 directly would overflow into March.",
+  "tables": [
+    {
+      "name": "users",
+      "columns": [
+        [
+          "id",
+          "INTEGER",
+          "pk"
+        ],
+        [
+          "name",
+          "TEXT"
+        ],
+        [
+          "country",
+          "TEXT"
+        ],
+        [
+          "signed_up",
+          "TEXT"
+        ]
+      ]
+    },
+    {
+      "name": "logins",
+      "columns": [
+        [
+          "user_id",
+          "INTEGER",
+          "fk users.id"
+        ],
+        [
+          "login_on",
+          "TEXT"
+        ]
+      ]
+    }
+  ],
+  "ordered": true,
+  "reference": "SELECT strftime('%Y-%m', u.signed_up) AS cohort,\n       COUNT(*) AS users,\n       SUM(EXISTS (\n         SELECT 1 FROM logins l\n         WHERE l.user_id = u.id\n           AND strftime('%Y-%m', l.login_on) = strftime('%Y-%m', u.signed_up, 'start of month', '+1 month')\n       )) AS retained\nFROM users u\nGROUP BY cohort\nORDER BY cohort",
+  "wrong": [
+    "SELECT strftime('%Y-%m', u.signed_up) AS cohort, COUNT(*) AS users, SUM(EXISTS (SELECT 1 FROM logins l WHERE l.user_id = u.id AND l.login_on > u.signed_up AND l.login_on <= date(u.signed_up, '+30 days'))) AS retained FROM users u GROUP BY cohort ORDER BY cohort",
+    "SELECT strftime('%Y-%m', u.signed_up) AS cohort, COUNT(*) AS users, COUNT(l.user_id) AS retained FROM users u LEFT JOIN logins l ON l.user_id = u.id AND strftime('%Y-%m', l.login_on) = strftime('%Y-%m', u.signed_up, 'start of month', '+1 month') GROUP BY cohort ORDER BY cohort"
+  ]
+}

@@ -1,0 +1,340 @@
+{
+ "version": 1,
+ "summary": "Length-prefixed decoding with one pointer: read digits up to the next `#` to get the length `k`, then the next\n`k` characters are the string, regardless of what they contain. Jump past them and repeat. The first `#` after\na length is always the length's terminator, because digits come first. O(n).",
+ "question": [
+  {
+   "md": "Each string was written as `<length>#<string>`, all concatenated. The strings may contain `#` and digits and may\nbe empty. Recover the list.\n\n- **Bundle up to 10⁵ characters.**\n- **Always a correct packing.**"
+  },
+  {
+   "md": "**Edge cases to keep in mind**\n\n- Empty strings in the list (`0#`), which take no characters after the `#`.\n- Strings that contain `#` or digits; these must be copied, not interpreted.\n- Lengths with several digits (`12#…`).\n- An empty bundle means an empty list."
+  }
+ ],
+ "think": [
+  {
+   "md": "**Why splitting on `#` fails.** `['a#1', '', '12#']` packs as `\"3#a#10#3#12#\"`. Splitting on `#` would cut inside `a#1` and\n`12#`. The `#` is only trustworthy in one place: right after a length.\n\n**The format as phases.** Each item is: digits (the length `k`), a `#`, then exactly `k` characters. Because the\nlength is read first, we always know where the current item ends, so we never have to look inside it."
+  },
+  {
+   "md": "**Trace:**"
+  },
+  {
+   "table": {
+    "head": [
+     "item starts at",
+     "length text",
+     "# at",
+     "length",
+     "item",
+     "next item starts at"
+    ],
+    "rows": [
+     [
+      "0",
+      "3",
+      "1",
+      "3",
+      "\"a#1\"",
+      "5"
+     ],
+     [
+      "5",
+      "0",
+      "6",
+      "0",
+      "\"\"",
+      "7"
+     ],
+     [
+      "7",
+      "3",
+      "8",
+      "3",
+      "\"12#\"",
+      "12"
+     ]
+    ]
+   }
+  },
+  {
+   "md": "**Why the first `#` after the digits is the separator.** At the start of an item we're reading the length, and\nlengths contain only digits. The first non-digit we meet is therefore the separator; a `#` inside the item comes\nafter it and is never examined."
+  }
+ ],
+ "approaches": [
+  {
+   "title": "Read the length, then jump",
+   "kind": "best",
+   "time": "O(n)",
+   "space": "O(n)",
+   "idea": [
+    {
+     "md": "Keep a pointer `i`. Read digits up to the next `#` to get the length `k`. The item is the `k` characters\nafter the `#`. Jump to just past them and repeat until the end."
+    }
+   ],
+   "build": [
+    "Pointer at 0.",
+    "Parse the length up to `#`.",
+    "Take the next `k` characters as one item.",
+    "Jump past it."
+   ],
+   "code": {
+    "python": "class Solution:\n    def unpack(self, bundle: str) -> List[str]:\n        out, i, n = [], 0, len(bundle)\n        while i < n:\n            j, size = i, 0\n            while bundle[j] != \"#\":\n                size = size * 10 + int(bundle[j])\n                j += 1\n            out.append(bundle[j + 1:j + 1 + size])\n            i = j + 1 + size\n        return out\n",
+    "java": "class Solution {\n    public List<String> unpack(String bundle) {\n        List<String> out = new ArrayList<>();\n        int i = 0, n = bundle.length();\n        while (i < n) {\n            int j = i, size = 0;\n            while (bundle.charAt(j) != '#') size = size * 10 + (bundle.charAt(j++) - '0');\n            out.add(bundle.substring(j + 1, j + 1 + size));\n            i = j + 1 + size;\n        }\n        return out;\n    }\n}\n",
+    "cpp": "class Solution {\npublic:\n    vector<string> unpack(string& bundle) {\n        vector<string> out;\n        int i = 0, n = bundle.size();\n        while (i < n) {\n            int j = i, size = 0;\n            while (bundle[j] != '#') size = size * 10 + (bundle[j++] - '0');\n            out.push_back(bundle.substr(j + 1, size));\n            i = j + 1 + size;\n        }\n        return out;\n    }\n};\n",
+    "c": "char** unpack(char* bundle, int* returnSize) {\n    int n = strlen(bundle), i = 0, count = 0;\n    char** out = malloc((n / 2 + 1) * sizeof(char*));\n    while (i < n) {\n        int j = i, size = 0;\n        while (bundle[j] != '#') size = size * 10 + (bundle[j++] - '0');\n        char* item = malloc(size + 1);\n        memcpy(item, bundle + j + 1, size);\n        item[size] = '\\0';\n        out[count++] = item;\n        i = j + 1 + size;\n    }\n    *returnSize = count;\n    return out;\n}\n"
+   },
+   "lines": [
+    {
+     "text": "The output list and the read pointer. C allocates `n / 2 + 1` slots, since every item takes at least two characters (`0#`).",
+     "at": {
+      "python": [
+       [
+        3,
+        3
+       ]
+      ],
+      "java": [
+       [
+        3,
+        4
+       ]
+      ],
+      "cpp": [
+       [
+        4,
+        5
+       ]
+      ],
+      "c": [
+       [
+        2,
+        3
+       ]
+      ]
+     },
+     "notes": {
+      "c": "Every item takes at least 2 characters (`0#`), so `n / 2 + 1` slots are enough."
+     }
+    },
+    {
+     "text": "Each pass decodes exactly one item.",
+     "at": {
+      "python": [
+       [
+        4,
+        4
+       ]
+      ],
+      "java": [
+       [
+        5,
+        5
+       ]
+      ],
+      "cpp": [
+       [
+        6,
+        6
+       ]
+      ],
+      "c": [
+       [
+        4,
+        4
+       ]
+      ]
+     }
+    },
+    {
+     "text": "Read the length one digit at a time until the `#`. This `#` is guaranteed to be the separator, because the item's content hasn't started yet.",
+     "at": {
+      "python": [
+       [
+        5,
+        8
+       ]
+      ],
+      "java": [
+       [
+        6,
+        7
+       ]
+      ],
+      "cpp": [
+       [
+        7,
+        8
+       ]
+      ],
+      "c": [
+       [
+        5,
+        6
+       ]
+      ]
+     }
+    },
+    {
+     "text": "The next `size` characters are the item, whatever they contain. Then jump past them to the next item's length.",
+     "at": {
+      "python": [
+       [
+        9,
+        10
+       ]
+      ],
+      "java": [
+       [
+        8,
+        9
+       ]
+      ],
+      "cpp": [
+       [
+        9,
+        10
+       ]
+      ],
+      "c": [
+       [
+        7,
+        11
+       ]
+      ]
+     }
+    },
+    {
+     "text": "The items in order, empty ones included.",
+     "at": {
+      "python": [
+       [
+        11,
+        11
+       ]
+      ],
+      "java": [
+       [
+        11,
+        11
+       ]
+      ],
+      "cpp": [
+       [
+        12,
+        12
+       ]
+      ],
+      "c": [
+       [
+        13,
+        14
+       ]
+      ]
+     }
+    }
+   ],
+   "complexity": [
+    {
+     "md": "**Time O(n):** each character is read once, either as a digit, the `#`, or copied as content. **Space O(n)** for the output."
+    }
+   ],
+   "walk": {
+    "steps": [
+     {
+      "text": "Length '3' = 3; take 'a#1'.",
+      "panels": [
+       {
+        "type": "row",
+        "cells": [
+         "3",
+         "#",
+         "a",
+         "#",
+         "1",
+         "0",
+         "#",
+         "3",
+         "#",
+         "1",
+         "2",
+         "#"
+        ],
+        "states": {
+         "0": "active",
+         "1": "active",
+         "2": "found",
+         "3": "found",
+         "4": "found"
+        }
+       }
+      ]
+     },
+     {
+      "text": "Length '0' = 0; take ''.",
+      "panels": [
+       {
+        "type": "row",
+        "cells": [
+         "3",
+         "#",
+         "a",
+         "#",
+         "1",
+         "0",
+         "#",
+         "3",
+         "#",
+         "1",
+         "2",
+         "#"
+        ],
+        "states": {
+         "5": "active",
+         "6": "active"
+        }
+       }
+      ]
+     },
+     {
+      "text": "Length '3' = 3; take '12#'.",
+      "panels": [
+       {
+        "type": "row",
+        "cells": [
+         "3",
+         "#",
+         "a",
+         "#",
+         "1",
+         "0",
+         "#",
+         "3",
+         "#",
+         "1",
+         "2",
+         "#"
+        ],
+        "states": {
+         "7": "active",
+         "8": "active",
+         "9": "found",
+         "10": "found",
+         "11": "found"
+        }
+       }
+      ]
+     },
+     {
+      "text": "The pointer reached the end: ['a#1', '', '12#'].",
+      "panels": [],
+      "result": "[\"a#1\", \"\", \"12#\"]"
+     }
+    ],
+    "title": "Read a length up to the next '#', then take exactly that many characters, whatever they are."
+   }
+  }
+ ],
+ "takeaways": [
+  {
+   "md": "- **Length-prefixed encoding** handles any content: never search inside the payload.\n- Trust a delimiter only where the format guarantees it.\n- **Pitfalls:** splitting on the delimiter; reading only one digit of the length."
+  }
+ ]
+}

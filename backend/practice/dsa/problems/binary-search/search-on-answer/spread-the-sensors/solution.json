@@ -1,0 +1,550 @@
+{
+ "version": 1,
+ "summary": "Fix a minimum spacing g. Whether k sensors fit is a greedy question: sort the spots, place one at the first spot\nand each next one at the first spot at least g further. Larger g can only fit fewer sensors, so binary-search\nthe **largest** g that still fits. O(n log n + n log(range)).",
+ "question": [
+  {
+   "md": "Choose `sensors` distinct spots to maximise the smallest distance between any two chosen spots. Return that\ndistance.\n\n- **Spots are unsorted:** sort them first.\n- **Maximise the minimum:** the answer is a spacing, not a set of spots.\n- **Upper bound:** with k sensors spread over a span of (last − first), some gap is at most span / (k − 1)."
+  }
+ ],
+ "think": [
+  {
+   "md": "Take spots `[1, 9, 4, 12, 7, 20]` (sorted `[1, 4, 7, 9, 12, 20]`) and 3 sensors. With spacing 9: place at 1, then the first spot ≥ 10 is 12,\nthen the first ≥ 21 doesn't exist: only 2 sensors. With spacing 8: [1, 9, 20], which is 3. So the\nanswer is 8."
+  },
+  {
+   "panels": [
+    {
+     "type": "row",
+     "cells": [
+      1,
+      4,
+      7,
+      9,
+      12,
+      20
+     ],
+     "states": {
+      "0": "answer",
+      "3": "answer",
+      "5": "answer"
+     },
+     "slots": true
+    }
+   ],
+   "caption": "Greedy placement with spacing 8."
+  },
+  {
+   "md": "**Checking a spacing:** greedy from the left is optimal. Putting the first sensor at the leftmost spot leaves the\nmost room for the rest, and each next sensor goes as early as allowed for the same reason.\n\n**Searching:** if spacing g fits, every smaller spacing fits too. So \"g fits\" is true up to the answer and false\nbeyond it. This time we want the **last** true, so use the upper midpoint `(lo + hi + 1) / 2` with `lo = mid` on\nsuccess."
+  }
+ ],
+ "approaches": [
+  {
+   "title": "Try spacings from the top down",
+   "kind": "brute",
+   "time": "O(n log n + range · n)",
+   "space": "O(n)",
+   "idea": [
+    {
+     "md": "Sort the spots. For g = span/(k − 1) down to 1, run the greedy check; the first g that fits is the largest."
+    }
+   ],
+   "build": [
+    "Sort.",
+    "For g from the upper bound down, greedily count sensors.",
+    "Return the first g that fits."
+   ],
+   "code": {
+    "python": "class Solution:\n    def widestSpacing(self, spots: List[int], sensors: int) -> int:\n        s = sorted(spots)\n        def fits(gap):\n            placed, last = 1, s[0]\n            for x in s[1:]:\n                if x - last >= gap:\n                    placed += 1\n                    last = x\n            return placed >= sensors\n        gap = (s[-1] - s[0]) // (sensors - 1)\n        while not fits(gap):\n            gap -= 1\n        return gap\n",
+    "java": "class Solution {\n    public int widestSpacing(int[] spots, int sensors) {\n        int[] s = spots.clone();\n        Arrays.sort(s);\n        int gap = (s[s.length - 1] - s[0]) / (sensors - 1);\n        while (!fits(s, gap, sensors)) gap--;\n        return gap;\n    }\n\n    private boolean fits(int[] s, int gap, int sensors) {\n        int placed = 1, last = s[0];\n        for (int i = 1; i < s.length; i++) if (s[i] - last >= gap) { placed++; last = s[i]; }\n        return placed >= sensors;\n    }\n}\n",
+    "cpp": "class Solution {\npublic:\n    int widestSpacing(vector<int>& spots, int sensors) {\n        vector<int> s = spots;\n        sort(s.begin(), s.end());\n        auto fits = [&](int gap) {\n            int placed = 1, last = s[0];\n            for (size_t i = 1; i < s.size(); i++) if (s[i] - last >= gap) { placed++; last = s[i]; }\n            return placed >= sensors;\n        };\n        int gap = (s.back() - s[0]) / (sensors - 1);\n        while (!fits(gap)) gap--;\n        return gap;\n    }\n};\n",
+    "c": "static int cmpInt(const void* a, const void* b) {\n    int p = *(const int*) a, q = *(const int*) b;\n    return (p > q) - (p < q);\n}\n\nstatic bool fits(const int* s, int n, int gap, int sensors) {\n    int placed = 1, last = s[0];\n    for (int i = 1; i < n; i++) if (s[i] - last >= gap) { placed++; last = s[i]; }\n    return placed >= sensors;\n}\n\nint widestSpacing(int* spots, int spotsSize, int sensors) {\n    int* s = malloc(spotsSize * sizeof(int));\n    memcpy(s, spots, spotsSize * sizeof(int));\n    qsort(s, spotsSize, sizeof(int), cmpInt);\n    int gap = (s[spotsSize - 1] - s[0]) / (sensors - 1);\n    while (!fits(s, spotsSize, gap, sensors)) gap--;\n    free(s);\n    return gap;\n}\n"
+   },
+   "lines": [
+    {
+     "text": "Positions in order.",
+     "at": {
+      "python": [
+       [
+        3,
+        3
+       ]
+      ],
+      "java": [
+       [
+        3,
+        4
+       ]
+      ],
+      "cpp": [
+       [
+        4,
+        5
+       ]
+      ],
+      "c": [
+       [
+        1,
+        4
+       ],
+       [
+        13,
+        15
+       ]
+      ]
+     }
+    },
+    {
+     "text": "Greedy check: first sensor at the leftmost spot, each next one at the earliest spot at least `gap` away. Differences of positions ≤ 10⁹ fit in `int`.",
+     "at": {
+      "python": [
+       [
+        4,
+        10
+       ]
+      ],
+      "java": [
+       [
+        10,
+        14
+       ]
+      ],
+      "cpp": [
+       [
+        6,
+        10
+       ]
+      ],
+      "c": [
+       [
+        6,
+        10
+       ]
+      ]
+     }
+    },
+    {
+     "text": "Start from the largest spacing that could possibly work and step down. Spacing 1 always fits (spots are distinct), so the loop ends.",
+     "at": {
+      "python": [
+       [
+        11,
+        13
+       ]
+      ],
+      "java": [
+       [
+        5,
+        6
+       ]
+      ],
+      "cpp": [
+       [
+        11,
+        12
+       ]
+      ],
+      "c": [
+       [
+        16,
+        17
+       ]
+      ]
+     }
+    },
+    {
+     "text": "The first (largest) spacing that fits.",
+     "at": {
+      "python": [
+       [
+        14,
+        14
+       ]
+      ],
+      "java": [
+       [
+        7,
+        7
+       ]
+      ],
+      "cpp": [
+       [
+        13,
+        13
+       ]
+      ],
+      "c": [
+       [
+        18,
+        19
+       ]
+      ]
+     }
+    }
+   ],
+   "complexity": [
+    {
+     "md": "**Time O(n log n + range · n):** the range can be 10⁹. **Space O(n).**"
+    }
+   ],
+   "walk": {
+    "steps": [
+     {
+      "text": "Spacing 9: greedy placement [1, 12] → only 2 sensors.",
+      "panels": [
+       {
+        "type": "row",
+        "cells": [
+         1,
+         4,
+         7,
+         9,
+         12,
+         20
+        ],
+        "states": {
+         "0": "found",
+         "4": "found"
+        },
+        "slots": true
+       },
+       {
+        "type": "vars",
+        "items": {
+         "spacing": 9
+        }
+       }
+      ]
+     },
+     {
+      "text": "Spacing 8: greedy placement [1, 9, 20] → 3 sensors ≥ 3. Done.",
+      "panels": [
+       {
+        "type": "row",
+        "cells": [
+         1,
+         4,
+         7,
+         9,
+         12,
+         20
+        ],
+        "states": {
+         "0": "answer",
+         "3": "answer",
+         "5": "answer"
+        },
+        "slots": true
+       },
+       {
+        "type": "vars",
+        "items": {
+         "spacing": 8
+        }
+       }
+      ],
+      "result": "8"
+     }
+    ],
+    "title": "Try spacings from the largest possible downward; the first that fits is the answer."
+   },
+   "limits": [
+    {
+     "md": "Steps one unit at a time through a range of up to 10⁹; the fits test is monotonic, so bisect it."
+    }
+   ],
+   "slow": true
+  },
+  {
+   "title": "Binary search for the largest spacing",
+   "kind": "best",
+   "time": "O(n log n + n log(range))",
+   "space": "O(n)",
+   "idea": [
+    {
+     "md": "Sort. Search g in `[1, span / (k − 1)]` for the **last** g that fits: upper midpoint; fits → `lo = mid`, else `hi = mid − 1`."
+    }
+   ],
+   "build": [
+    "Sort the spots.",
+    "`lo = 1`, `hi = span / (k − 1)`.",
+    "`mid = (lo + hi + 1) / 2`; greedy check; move.",
+    "Return `lo`."
+   ],
+   "code": {
+    "python": "class Solution:\n    def widestSpacing(self, spots: List[int], sensors: int) -> int:\n        s = sorted(spots)\n        def fits(gap):\n            placed, last = 1, s[0]\n            for x in s[1:]:\n                if x - last >= gap:\n                    placed += 1\n                    last = x\n            return placed >= sensors\n        lo, hi = 1, (s[-1] - s[0]) // (sensors - 1)\n        while lo < hi:\n            mid = (lo + hi + 1) // 2\n            if fits(mid):\n                lo = mid\n            else:\n                hi = mid - 1\n        return lo\n",
+    "java": "class Solution {\n    public int widestSpacing(int[] spots, int sensors) {\n        int[] s = spots.clone();\n        Arrays.sort(s);\n        int lo = 1, hi = (s[s.length - 1] - s[0]) / (sensors - 1);\n        while (lo < hi) {\n            int mid = lo + (hi - lo + 1) / 2;\n            if (fits(s, mid, sensors)) lo = mid;\n            else hi = mid - 1;\n        }\n        return lo;\n    }\n\n    private boolean fits(int[] s, int gap, int sensors) {\n        int placed = 1, last = s[0];\n        for (int i = 1; i < s.length; i++) if (s[i] - last >= gap) { placed++; last = s[i]; }\n        return placed >= sensors;\n    }\n}\n",
+    "cpp": "class Solution {\npublic:\n    int widestSpacing(vector<int>& spots, int sensors) {\n        vector<int> s = spots;\n        sort(s.begin(), s.end());\n        auto fits = [&](int gap) {\n            int placed = 1, last = s[0];\n            for (size_t i = 1; i < s.size(); i++) if (s[i] - last >= gap) { placed++; last = s[i]; }\n            return placed >= sensors;\n        };\n        int lo = 1, hi = (s.back() - s[0]) / (sensors - 1);\n        while (lo < hi) {\n            int mid = lo + (hi - lo + 1) / 2;\n            if (fits(mid)) lo = mid;\n            else hi = mid - 1;\n        }\n        return lo;\n    }\n};\n",
+    "c": "static int cmpInt(const void* a, const void* b) {\n    int p = *(const int*) a, q = *(const int*) b;\n    return (p > q) - (p < q);\n}\n\nstatic bool fits(const int* s, int n, int gap, int sensors) {\n    int placed = 1, last = s[0];\n    for (int i = 1; i < n; i++) if (s[i] - last >= gap) { placed++; last = s[i]; }\n    return placed >= sensors;\n}\n\nint widestSpacing(int* spots, int spotsSize, int sensors) {\n    int* s = malloc(spotsSize * sizeof(int));\n    memcpy(s, spots, spotsSize * sizeof(int));\n    qsort(s, spotsSize, sizeof(int), cmpInt);\n    int lo = 1, hi = (s[spotsSize - 1] - s[0]) / (sensors - 1);\n    while (lo < hi) {\n        int mid = lo + (hi - lo + 1) / 2;\n        if (fits(s, spotsSize, mid, sensors)) lo = mid;\n        else hi = mid - 1;\n    }\n    free(s);\n    return lo;\n}\n"
+   },
+   "lines": [
+    {
+     "text": "Positions in order.",
+     "at": {
+      "python": [
+       [
+        3,
+        3
+       ]
+      ],
+      "java": [
+       [
+        3,
+        4
+       ]
+      ],
+      "cpp": [
+       [
+        4,
+        5
+       ]
+      ],
+      "c": [
+       [
+        1,
+        4
+       ],
+       [
+        13,
+        15
+       ]
+      ]
+     }
+    },
+    {
+     "text": "Greedy feasibility check for a spacing.",
+     "at": {
+      "python": [
+       [
+        4,
+        10
+       ]
+      ],
+      "java": [
+       [
+        14,
+        18
+       ]
+      ],
+      "cpp": [
+       [
+        6,
+        10
+       ]
+      ],
+      "c": [
+       [
+        6,
+        10
+       ]
+      ]
+     }
+    },
+    {
+     "text": "Spacing 1 always fits; no spacing above span / (k − 1) can (k − 1 gaps must cover at most the span).",
+     "at": {
+      "python": [
+       [
+        11,
+        11
+       ]
+      ],
+      "java": [
+       [
+        5,
+        5
+       ]
+      ],
+      "cpp": [
+       [
+        11,
+        11
+       ]
+      ],
+      "c": [
+       [
+        16,
+        16
+       ]
+      ]
+     }
+    },
+    {
+     "text": "Upper midpoint, because we keep `lo = mid` on success and must still make progress when `hi = lo + 1`.",
+     "at": {
+      "python": [
+       [
+        12,
+        13
+       ]
+      ],
+      "java": [
+       [
+        6,
+        7
+       ]
+      ],
+      "cpp": [
+       [
+        12,
+        13
+       ]
+      ],
+      "c": [
+       [
+        17,
+        18
+       ]
+      ]
+     }
+    },
+    {
+     "text": "Fits → the answer is mid or larger. Doesn't → smaller.",
+     "at": {
+      "python": [
+       [
+        14,
+        17
+       ]
+      ],
+      "java": [
+       [
+        8,
+        9
+       ]
+      ],
+      "cpp": [
+       [
+        14,
+        15
+       ]
+      ],
+      "c": [
+       [
+        19,
+        20
+       ]
+      ]
+     }
+    },
+    {
+     "text": "The largest spacing that fits.",
+     "at": {
+      "python": [
+       [
+        18,
+        18
+       ]
+      ],
+      "java": [
+       [
+        11,
+        11
+       ]
+      ],
+      "cpp": [
+       [
+        17,
+        17
+       ]
+      ],
+      "c": [
+       [
+        22,
+        23
+       ]
+      ]
+     }
+    }
+   ],
+   "complexity": [
+    {
+     "md": "**Time O(n log n + n log(range)).** **Space O(n)** for the sorted copy."
+    }
+   ],
+   "walk": {
+    "steps": [
+     {
+      "text": "lo=1, hi=9, try 5: greedy places [1, 7, 12, 20] → works, so the answer is ≥ 5.",
+      "panels": [
+       {
+        "type": "vars",
+        "items": {
+         "lo": 1,
+         "mid": 5,
+         "hi": 9
+        }
+       }
+      ]
+     },
+     {
+      "text": "lo=5, hi=9, try 7: greedy places [1, 9, 20] → works, so the answer is ≥ 7.",
+      "panels": [
+       {
+        "type": "vars",
+        "items": {
+         "lo": 5,
+         "mid": 7,
+         "hi": 9
+        }
+       }
+      ]
+     },
+     {
+      "text": "lo=7, hi=9, try 8: greedy places [1, 9, 20] → works, so the answer is ≥ 8.",
+      "panels": [
+       {
+        "type": "vars",
+        "items": {
+         "lo": 7,
+         "mid": 8,
+         "hi": 9
+        }
+       }
+      ]
+     },
+     {
+      "text": "lo=8, hi=9, try 9: greedy places [1, 12] → fails, so the answer is < 9.",
+      "panels": [
+       {
+        "type": "vars",
+        "items": {
+         "lo": 8,
+         "mid": 9,
+         "hi": 9
+        }
+       }
+      ]
+     },
+     {
+      "text": "Largest spacing: 8.",
+      "panels": [
+       {
+        "type": "row",
+        "cells": [
+         1,
+         4,
+         7,
+         9,
+         12,
+         20
+        ],
+        "states": {
+         "0": "answer",
+         "3": "answer",
+         "5": "answer"
+        },
+        "slots": true
+       }
+      ],
+      "result": "8"
+     }
+    ],
+    "title": "Binary-search the spacing (find the largest that still fits). Check a spacing greedily: place at the first spot, then at the next spot at least that far away."
+   }
+  }
+ ],
+ "takeaways": [
+  {
+   "md": "- **Maximise the minimum distance** → binary-search the distance, check with a greedy left-to-right placement.\n- For the *largest* feasible value use the upper midpoint and `lo = mid`."
+  }
+ ]
+}

@@ -1,6 +1,8 @@
 """Arrays & Hashing: frequency counting."""
 from collections import Counter
 
+import textwrap
+
 from sol import Grid, Row, Steps, Vars, approach, fig, problem, sol, table  # noqa: F401
 
 C_INT_SET = """
@@ -13,6 +15,8 @@ C_INT_SET = """
         return (unsigned) (h >> 32) & mask;  //@set
     }  //@set
 """
+C_INT_SET = textwrap.indent(C_INT_SET, " " * 20)  # match the code strings it is joined to
+
 
 
 @problem

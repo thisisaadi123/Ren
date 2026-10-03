@@ -1,0 +1,907 @@
+{
+ "version": 1,
+ "summary": "Split the answer in two. Customers served in non-moody minutes are happy regardless. The calm stretch adds the\ncustomers of moody minutes inside it, so slide a window of length `minutes` over `customers[i] · moody[i]` and\ntake the largest window total. Answer: the fixed part plus the best window. O(n).",
+ "question": [
+  {
+   "md": "Customers served in a minute with `moody[i] = 1` leave unhappy, unless that minute is inside the owner's single\ncalm stretch of `minutes` consecutive minutes. Return the most customers that can leave happy.\n\n- **n up to 10⁵.**"
+  },
+  {
+   "md": "**Edge cases to keep in mind**\n\n- `minutes = n`: the owner is calm all day, so every customer is happy.\n- The owner is never moody: the calm stretch changes nothing; the answer is the total of all customers.\n- Several placements tie: any of them gives the same count, so ties don't matter."
+  }
+ ],
+ "think": [
+  {
+   "md": "**Restating it.** Each minute is either \"happy anyway\" (owner not moody) or \"lost unless covered\" (owner moody).\nWe place one block of `minutes` consecutive minutes; inside it, lost customers are rescued. Maximise happy\ncustomers.\n\n**Separate what you control from what you don't.** Customers in non-moody minutes are happy whatever we do:\nthat's `4` here. The only thing our choice changes is how many moody-minute customers fall inside the block.\nSo:\n\n`answer = (customers in non-moody minutes) + (most rescued customers by one block)`\n\n**Turn the condition into a number.** A customer at minute `i` can be rescued only if `moody[i] = 1`, so the\nnumber rescued at that minute is `customers[i] · moody[i]`:"
+  },
+  {
+   "table": {
+    "head": [
+     "minute",
+     "customers",
+     "moody",
+     "rescuable"
+    ],
+    "rows": [
+     [
+      "0",
+      "2",
+      "0",
+      "0"
+     ],
+     [
+      "1",
+      "0",
+      "1",
+      "0"
+     ],
+     [
+      "2",
+      "4",
+      "1",
+      "4"
+     ],
+     [
+      "3",
+      "1",
+      "0",
+      "0"
+     ],
+     [
+      "4",
+      "3",
+      "1",
+      "3"
+     ],
+     [
+      "5",
+      "5",
+      "1",
+      "5"
+     ],
+     [
+      "6",
+      "1",
+      "0",
+      "0"
+     ],
+     [
+      "7",
+      "2",
+      "1",
+      "2"
+     ]
+    ]
+   }
+  },
+  {
+   "md": "Now the second part is an ordinary fixed-size window: the block of `2` minutes with the largest sum of\n`rescuable`. The block sums are `[0, 4, 4, 3, 8, 5, 2]`; the best starts at minute 4 and rescues 8. Answer\n4 + 8 = **12**.\n\n**Why the split is valid.** The two parts don't interact: a non-moody minute counts the same inside or outside\nthe block, so including it in the window sum would double-count it. Multiplying by `moody[i]` makes such minutes\ncontribute 0 to the window."
+  }
+ ],
+ "approaches": [
+  {
+   "title": "Try every stretch, recount the day",
+   "kind": "brute",
+   "time": "O(n²)",
+   "space": "O(1)",
+   "idea": [
+    {
+     "md": "Try every placement of the calm block, `start = 0 .. n − minutes`. For each placement, walk the whole day\nand count a minute's customers as happy if the owner isn't moody **or** the minute falls in\n`[start, start + minutes)`. Keep the best count.\n\nIt's correct by definition, but each placement recounts the entire day, including the \"happy anyway\" part\nthat never changes."
+    }
+   ],
+   "build": [
+    "Every placement.",
+    "Full recount.",
+    "Keep the best."
+   ],
+   "code": {
+    "python": "class Solution:\n    def mostServed(self, customers: List[int], moody: List[int], minutes: int) -> int:\n        n, best = len(customers), 0\n        for i in range(n - minutes + 1):\n            happy = sum(customers[j] for j in range(n) if not moody[j] or i <= j < i + minutes)\n            best = max(best, happy)\n        return best\n",
+    "java": "class Solution {\n    public int mostServed(int[] customers, int[] moody, int minutes) {\n        int n = customers.length, best = 0;\n        for (int i = 0; i + minutes <= n; i++) {\n            int happy = 0;\n            for (int j = 0; j < n; j++) if (moody[j] == 0 || (j >= i && j < i + minutes)) happy += customers[j];\n            best = Math.max(best, happy);\n        }\n        return best;\n    }\n}\n",
+    "cpp": "class Solution {\npublic:\n    int mostServed(vector<int>& customers, vector<int>& moody, int minutes) {\n        int n = customers.size(), best = 0;\n        for (int i = 0; i + minutes <= n; i++) {\n            int happy = 0;\n            for (int j = 0; j < n; j++) if (moody[j] == 0 || (j >= i && j < i + minutes)) happy += customers[j];\n            best = max(best, happy);\n        }\n        return best;\n    }\n};\n",
+    "c": "int mostServed(int* customers, int customersSize, int* moody, int moodySize, int minutes) {\n    int n = customersSize, best = 0;\n    (void) moodySize;\n    for (int i = 0; i + minutes <= n; i++) {\n        int happy = 0;\n        for (int j = 0; j < n; j++) if (moody[j] == 0 || (j >= i && j < i + minutes)) happy += customers[j];\n        if (happy > best) best = happy;\n    }\n    return best;\n}\n"
+   },
+   "lines": [
+    {
+     "text": "The best number of happy customers over all placements.",
+     "at": {
+      "python": [
+       [
+        3,
+        3
+       ]
+      ],
+      "java": [
+       [
+        3,
+        3
+       ]
+      ],
+      "cpp": [
+       [
+        4,
+        4
+       ]
+      ],
+      "c": [
+       [
+        2,
+        3
+       ]
+      ]
+     }
+    },
+    {
+     "text": "Each possible first minute of the calm stretch: `0 … n − minutes`. Every index is tried as the left end of the window. Nothing learned from one start is reused for the next, which is exactly the waste the better approaches remove.",
+     "at": {
+      "python": [
+       [
+        4,
+        4
+       ]
+      ],
+      "java": [
+       [
+        4,
+        4
+       ]
+      ],
+      "cpp": [
+       [
+        5,
+        5
+       ]
+      ],
+      "c": [
+       [
+        4,
+        4
+       ]
+      ]
+     }
+    },
+    {
+     "text": "Recount the whole day for this placement: a minute's customers are happy if the owner isn't moody **or** the minute lies inside the stretch. The \"happy anyway\" part is recomputed every time even though it never changes.",
+     "at": {
+      "python": [
+       [
+        5,
+        6
+       ]
+      ],
+      "java": [
+       [
+        5,
+        7
+       ]
+      ],
+      "cpp": [
+       [
+        6,
+        8
+       ]
+      ],
+      "c": [
+       [
+        5,
+        7
+       ]
+      ]
+     }
+    },
+    {
+     "text": "The best placement's count.",
+     "at": {
+      "python": [
+       [
+        7,
+        7
+       ]
+      ],
+      "java": [
+       [
+        9,
+        9
+       ]
+      ],
+      "cpp": [
+       [
+        10,
+        10
+       ]
+      ],
+      "c": [
+       [
+        9,
+        9
+       ]
+      ]
+     }
+    }
+   ],
+   "complexity": [
+    {
+     "md": "**Time O(n²):** `n − minutes + 1` placements × `n` minutes each, up to 10¹⁰. **Space O(1).**"
+    }
+   ],
+   "walk": {
+    "steps": [
+     {
+      "text": "Calm during 0..1: 4 happy.",
+      "panels": [
+       {
+        "type": "row",
+        "cells": [
+         2,
+         0,
+         4,
+         1,
+         3,
+         5,
+         1,
+         2
+        ],
+        "states": {
+         "0": "active",
+         "1": "active"
+        },
+        "label": "customers"
+       },
+       {
+        "type": "row",
+        "cells": [
+         0,
+         1,
+         1,
+         0,
+         1,
+         1,
+         0,
+         1
+        ],
+        "label": "moody"
+       }
+      ]
+     },
+     {
+      "text": "Calm during 1..2: 8 happy.",
+      "panels": [
+       {
+        "type": "row",
+        "cells": [
+         2,
+         0,
+         4,
+         1,
+         3,
+         5,
+         1,
+         2
+        ],
+        "states": {
+         "1": "active",
+         "2": "active"
+        },
+        "label": "customers"
+       },
+       {
+        "type": "row",
+        "cells": [
+         0,
+         1,
+         1,
+         0,
+         1,
+         1,
+         0,
+         1
+        ],
+        "label": "moody"
+       }
+      ]
+     },
+     {
+      "text": "Calm during 2..3: 8 happy.",
+      "panels": [
+       {
+        "type": "row",
+        "cells": [
+         2,
+         0,
+         4,
+         1,
+         3,
+         5,
+         1,
+         2
+        ],
+        "states": {
+         "2": "active",
+         "3": "active"
+        },
+        "label": "customers"
+       },
+       {
+        "type": "row",
+        "cells": [
+         0,
+         1,
+         1,
+         0,
+         1,
+         1,
+         0,
+         1
+        ],
+        "label": "moody"
+       }
+      ]
+     },
+     {
+      "text": "Calm during 3..4: 7 happy.",
+      "panels": [
+       {
+        "type": "row",
+        "cells": [
+         2,
+         0,
+         4,
+         1,
+         3,
+         5,
+         1,
+         2
+        ],
+        "states": {
+         "3": "active",
+         "4": "active"
+        },
+        "label": "customers"
+       },
+       {
+        "type": "row",
+        "cells": [
+         0,
+         1,
+         1,
+         0,
+         1,
+         1,
+         0,
+         1
+        ],
+        "label": "moody"
+       }
+      ]
+     },
+     {
+      "text": "Calm during 4..5: 12 happy.",
+      "panels": [
+       {
+        "type": "row",
+        "cells": [
+         2,
+         0,
+         4,
+         1,
+         3,
+         5,
+         1,
+         2
+        ],
+        "states": {
+         "4": "active",
+         "5": "active"
+        },
+        "label": "customers"
+       },
+       {
+        "type": "row",
+        "cells": [
+         0,
+         1,
+         1,
+         0,
+         1,
+         1,
+         0,
+         1
+        ],
+        "label": "moody"
+       }
+      ]
+     },
+     {
+      "text": "Calm during 5..6: 9 happy.",
+      "panels": [
+       {
+        "type": "row",
+        "cells": [
+         2,
+         0,
+         4,
+         1,
+         3,
+         5,
+         1,
+         2
+        ],
+        "states": {
+         "5": "active",
+         "6": "active"
+        },
+        "label": "customers"
+       },
+       {
+        "type": "row",
+        "cells": [
+         0,
+         1,
+         1,
+         0,
+         1,
+         1,
+         0,
+         1
+        ],
+        "label": "moody"
+       }
+      ]
+     },
+     {
+      "text": "Calm during 6..7: 6 happy.",
+      "panels": [
+       {
+        "type": "row",
+        "cells": [
+         2,
+         0,
+         4,
+         1,
+         3,
+         5,
+         1,
+         2
+        ],
+        "states": {
+         "6": "active",
+         "7": "active"
+        },
+        "label": "customers"
+       },
+       {
+        "type": "row",
+        "cells": [
+         0,
+         1,
+         1,
+         0,
+         1,
+         1,
+         0,
+         1
+        ],
+        "label": "moody"
+       }
+      ]
+     },
+     {
+      "text": "Best: 12.",
+      "panels": [],
+      "result": "12"
+     }
+    ],
+    "title": "For every placement of the calm stretch, count the happy customers over the whole day."
+   },
+   "limits": [
+    {
+     "md": "**Two kinds of repetition.** The customers in non-moody minutes are recounted for every placement, and neighbouring placements differ by just two minutes. At `n = 10⁵` this is 10¹⁰ steps. Splitting the answer into a fixed part plus a sliding window removes both."
+    }
+   ],
+   "slow": true
+  },
+  {
+   "title": "Fixed part + best sliding window of rescues",
+   "kind": "best",
+   "time": "O(n)",
+   "space": "O(1)",
+   "idea": [
+    {
+     "md": "Compute `base` (customers in non-moody minutes) once. Then slide a window of length `minutes` over the\nrescuable counts `customers[i] · moody[i]`, keeping the window total `gain` and the best `gain` seen.\n\n**Invariant.** After processing minute `i ≥ minutes − 1`, `gain` is the number rescued by the block that\nends at `i`.\n\n**Why it's right.** Every placement of the block ends at some `i` and is evaluated exactly once, and\n`base + gain` is exactly the number of happy customers for that placement, because `base` and `gain`\ncount disjoint sets of minutes."
+    }
+   ],
+   "build": [
+    "`base` = total customers over minutes with `moody[i] = 0`.",
+    "`gain` = rescuable customers in minutes `0 .. minutes − 1`; `best = gain`.",
+    "For each later minute `i`: add `customers[i] · moody[i]`, subtract `customers[i − minutes] · moody[i − minutes]`, update `best`.",
+    "Return `base + best`."
+   ],
+   "code": {
+    "python": "class Solution:\n    def mostServed(self, customers: List[int], moody: List[int], minutes: int) -> int:\n        base = sum(c for c, m in zip(customers, moody) if m == 0)\n        gain = sum(customers[i] * moody[i] for i in range(minutes))\n        best = gain\n        for i in range(minutes, len(customers)):\n            gain += customers[i] * moody[i] - customers[i - minutes] * moody[i - minutes]\n            best = max(best, gain)\n        return base + best\n",
+    "java": "class Solution {\n    public int mostServed(int[] customers, int[] moody, int minutes) {\n        int n = customers.length, base = 0, gain = 0;\n        for (int i = 0; i < n; i++) if (moody[i] == 0) base += customers[i];\n        for (int i = 0; i < minutes; i++) gain += customers[i] * moody[i];\n        int best = gain;\n        for (int i = minutes; i < n; i++) {\n            gain += customers[i] * moody[i] - customers[i - minutes] * moody[i - minutes];\n            best = Math.max(best, gain);\n        }\n        return base + best;\n    }\n}\n",
+    "cpp": "class Solution {\npublic:\n    int mostServed(vector<int>& customers, vector<int>& moody, int minutes) {\n        int n = customers.size(), base = 0, gain = 0;\n        for (int i = 0; i < n; i++) if (moody[i] == 0) base += customers[i];\n        for (int i = 0; i < minutes; i++) gain += customers[i] * moody[i];\n        int best = gain;\n        for (int i = minutes; i < n; i++) {\n            gain += customers[i] * moody[i] - customers[i - minutes] * moody[i - minutes];\n            best = max(best, gain);\n        }\n        return base + best;\n    }\n};\n",
+    "c": "int mostServed(int* customers, int customersSize, int* moody, int moodySize, int minutes) {\n    int n = customersSize, base = 0, gain = 0;\n    (void) moodySize;\n    for (int i = 0; i < n; i++) if (moody[i] == 0) base += customers[i];\n    for (int i = 0; i < minutes; i++) gain += customers[i] * moody[i];\n    int best = gain;\n    for (int i = minutes; i < n; i++) {\n        gain += customers[i] * moody[i] - customers[i - minutes] * moody[i - minutes];\n        if (gain > best) best = gain;\n    }\n    return base + best;\n}\n"
+   },
+   "lines": [
+    {
+     "text": "Customers served while the owner isn't moody. They're happy no matter where the calm stretch goes, so they're counted once, up front.",
+     "at": {
+      "python": [
+       [
+        3,
+        3
+       ]
+      ],
+      "java": [
+       [
+        3,
+        4
+       ]
+      ],
+      "cpp": [
+       [
+        4,
+        5
+       ]
+      ],
+      "c": [
+       [
+        2,
+        4
+       ]
+      ]
+     }
+    },
+    {
+     "text": "Customers the stretch would rescue if it covered minutes `0 … minutes − 1`. Multiplying by `moody[i]` gives 0 for non-moody minutes, so they aren't counted twice. This is the first window and the best so far.",
+     "at": {
+      "python": [
+       [
+        4,
+        5
+       ]
+      ],
+      "java": [
+       [
+        5,
+        6
+       ]
+      ],
+      "cpp": [
+       [
+        6,
+        7
+       ]
+      ],
+      "c": [
+       [
+        5,
+        6
+       ]
+      ]
+     }
+    },
+    {
+     "text": "Shift the stretch one minute right: minute `i` is added (if it's moody) and minute `i − minutes` is removed (if it was moody). `best` keeps the largest rescue seen.",
+     "at": {
+      "python": [
+       [
+        6,
+        8
+       ]
+      ],
+      "java": [
+       [
+        7,
+        9
+       ]
+      ],
+      "cpp": [
+       [
+        8,
+        10
+       ]
+      ],
+      "c": [
+       [
+        7,
+        9
+       ]
+      ]
+     }
+    },
+    {
+     "text": "Happy anyway plus the best possible rescue. The two parts count disjoint minutes, so adding them is exact.",
+     "at": {
+      "python": [
+       [
+        9,
+        9
+       ]
+      ],
+      "java": [
+       [
+        11,
+        11
+       ]
+      ],
+      "cpp": [
+       [
+        12,
+        12
+       ]
+      ],
+      "c": [
+       [
+        11,
+        11
+       ]
+      ]
+     }
+    }
+   ],
+   "complexity": [
+    {
+     "md": "**Time O(n):** one pass for `base`, one for the window. **Space O(1).**\n\nThe largest possible answer is `10⁵ · 1000 = 10⁸`, which fits in a 32-bit int."
+    }
+   ],
+   "walk": {
+    "steps": [
+     {
+      "text": "First window 0..1: computed directly, 0.",
+      "panels": [
+       {
+        "type": "row",
+        "cells": [
+         0,
+         0,
+         4,
+         0,
+         3,
+         5,
+         0,
+         2
+        ],
+        "states": {
+         "0": "active",
+         "1": "active"
+        },
+        "pointers": {
+         "L": 0,
+         "R": 1
+        },
+        "label": "rescuable"
+       },
+       {
+        "type": "vars",
+        "items": {
+         "window": 0,
+         "best": 0
+        }
+       }
+      ]
+     },
+     {
+      "text": "Slide: 4 enters, 0 leaves, so 0 + 4 − 0 = 4. New best.",
+      "panels": [
+       {
+        "type": "row",
+        "cells": [
+         0,
+         0,
+         4,
+         0,
+         3,
+         5,
+         0,
+         2
+        ],
+        "states": {
+         "1": "active",
+         "2": "found",
+         "0": "dim"
+        },
+        "pointers": {
+         "L": 1,
+         "R": 2
+        },
+        "label": "rescuable"
+       },
+       {
+        "type": "vars",
+        "items": {
+         "window": 4,
+         "best": 4
+        }
+       }
+      ]
+     },
+     {
+      "text": "Slide: 0 enters, 0 leaves, so 4 + 0 − 0 = 4.",
+      "panels": [
+       {
+        "type": "row",
+        "cells": [
+         0,
+         0,
+         4,
+         0,
+         3,
+         5,
+         0,
+         2
+        ],
+        "states": {
+         "2": "active",
+         "3": "found",
+         "1": "dim"
+        },
+        "pointers": {
+         "L": 2,
+         "R": 3
+        },
+        "label": "rescuable"
+       },
+       {
+        "type": "vars",
+        "items": {
+         "window": 4,
+         "best": 4
+        }
+       }
+      ]
+     },
+     {
+      "text": "Slide: 3 enters, 4 leaves, so 4 + 3 − 4 = 3.",
+      "panels": [
+       {
+        "type": "row",
+        "cells": [
+         0,
+         0,
+         4,
+         0,
+         3,
+         5,
+         0,
+         2
+        ],
+        "states": {
+         "3": "active",
+         "4": "found",
+         "2": "dim"
+        },
+        "pointers": {
+         "L": 3,
+         "R": 4
+        },
+        "label": "rescuable"
+       },
+       {
+        "type": "vars",
+        "items": {
+         "window": 3,
+         "best": 4
+        }
+       }
+      ]
+     },
+     {
+      "text": "Slide: 5 enters, 0 leaves, so 3 + 5 − 0 = 8. New best.",
+      "panels": [
+       {
+        "type": "row",
+        "cells": [
+         0,
+         0,
+         4,
+         0,
+         3,
+         5,
+         0,
+         2
+        ],
+        "states": {
+         "4": "active",
+         "5": "found",
+         "3": "dim"
+        },
+        "pointers": {
+         "L": 4,
+         "R": 5
+        },
+        "label": "rescuable"
+       },
+       {
+        "type": "vars",
+        "items": {
+         "window": 8,
+         "best": 8
+        }
+       }
+      ]
+     },
+     {
+      "text": "Slide: 0 enters, 3 leaves, so 8 + 0 − 3 = 5.",
+      "panels": [
+       {
+        "type": "row",
+        "cells": [
+         0,
+         0,
+         4,
+         0,
+         3,
+         5,
+         0,
+         2
+        ],
+        "states": {
+         "5": "active",
+         "6": "found",
+         "4": "dim"
+        },
+        "pointers": {
+         "L": 5,
+         "R": 6
+        },
+        "label": "rescuable"
+       },
+       {
+        "type": "vars",
+        "items": {
+         "window": 5,
+         "best": 8
+        }
+       }
+      ]
+     },
+     {
+      "text": "Slide: 2 enters, 5 leaves, so 5 + 2 − 5 = 2.",
+      "panels": [
+       {
+        "type": "row",
+        "cells": [
+         0,
+         0,
+         4,
+         0,
+         3,
+         5,
+         0,
+         2
+        ],
+        "states": {
+         "6": "active",
+         "7": "found",
+         "5": "dim"
+        },
+        "pointers": {
+         "L": 6,
+         "R": 7
+        },
+        "label": "rescuable"
+       },
+       {
+        "type": "vars",
+        "items": {
+         "window": 2,
+         "best": 8
+        }
+       }
+      ]
+     },
+     {
+      "text": "4 always happy + 8 rescued = 12.",
+      "panels": [],
+      "result": "12"
+     }
+    ],
+    "title": "Customers in non-moody minutes are happy no matter what: 4. The calm stretch only rescues moody minutes, so slide a window over the rescued counts customers[i]·moody[i]."
+   }
+  }
+ ],
+ "takeaways": [
+  {
+   "md": "- **Split the objective** into a fixed part and a part your choice controls; optimise only the second.\n- **Weights instead of conditions:** `value · flag` turns \"count only when …\" into a plain sum.\n- Then it's the fixed-window maximum: first window, then `+ entering − leaving`.\n- **Pitfall:** adding non-moody customers into the window as well, which double-counts them."
+  }
+ ]
+}

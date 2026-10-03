@@ -1,0 +1,1039 @@
+{
+ "version": 1,
+ "summary": "For each end `i`, track the last position of `a`, `b` and `c`. A substring ending at `i` is a full set exactly\nwhen its start is at or before the earliest of those three positions, which gives `min(last) + 1` starts\n(zero while some letter hasn't appeared). Sum over all ends. O(n).",
+ "question": [
+  {
+   "md": "Count the substrings of `s` (letters `a`, `b`, `c` only) that contain at least one of each letter.\n\n- **n up to 10⁵**; the count needs 64 bits."
+  },
+  {
+   "md": "**Edge cases to keep in mind**\n\n- A letter missing from the whole album: 0.\n- Each end contributes 0 until all three letters have appeared.\n- Up to ~5 × 10⁹ substrings: 64-bit count."
+  }
+ ],
+ "think": [
+  {
+   "md": "**Fix the end, count the starts.** For a substring ending at `i`, moving its start further left only adds stamps,\nso \"contains a, b and c\" stays true. The good starts are therefore `0, 1, …, x` for some `x`.\n\n**What is `x`?** The start must be at or before the last `a`, the last `b` and the last `c` seen up to `i`;\notherwise that letter is missing. So `x = min(last a, last b, last c)`, giving `x + 1` full sets ending at `i`\n(and 0 while some letter hasn't appeared, since its last position is −1)."
+  },
+  {
+   "table": {
+    "head": [
+     "i",
+     "stamp",
+     "last a",
+     "last b",
+     "last c",
+     "full sets ending here",
+     "total"
+    ],
+    "rows": [
+     [
+      "0",
+      "a",
+      "0",
+      "-1",
+      "-1",
+      "0",
+      "0"
+     ],
+     [
+      "1",
+      "b",
+      "0",
+      "1",
+      "-1",
+      "0",
+      "0"
+     ],
+     [
+      "2",
+      "c",
+      "0",
+      "1",
+      "2",
+      "1",
+      "1"
+     ],
+     [
+      "3",
+      "a",
+      "3",
+      "1",
+      "2",
+      "2",
+      "3"
+     ],
+     [
+      "4",
+      "b",
+      "3",
+      "4",
+      "2",
+      "3",
+      "6"
+     ],
+     [
+      "5",
+      "b",
+      "3",
+      "5",
+      "2",
+      "3",
+      "9"
+     ],
+     [
+      "6",
+      "c",
+      "3",
+      "5",
+      "6",
+      "4",
+      "13"
+     ],
+     [
+      "7",
+      "a",
+      "7",
+      "5",
+      "6",
+      "6",
+      "19"
+     ],
+     [
+      "8",
+      "b",
+      "7",
+      "8",
+      "6",
+      "7",
+      "26"
+     ]
+    ]
+   }
+  },
+  {
+   "md": "Total **26**.\n\nThis is a counting window in disguise: `min(last) + 1` plays the role of the left edge, computed directly instead\nof moved step by step. You could also count \"at least one of each\" as all substrings minus those missing a\nletter, but the direct count is simpler."
+  }
+ ],
+ "approaches": [
+  {
+   "title": "First full end from every start",
+   "kind": "brute",
+   "time": "O(n²)",
+   "space": "O(1)",
+   "idea": [
+    {
+     "md": "For each start, extend until all three letters have appeared, at position `j`. Every substring from that\nstart ending at `j` or later is full, so add `n − j` and move to the next start."
+    }
+   ],
+   "build": [
+    "Loop over starts.",
+    "Extend until all three appear.",
+    "Add the runs that extend further."
+   ],
+   "code": {
+    "python": "class Solution:\n    def countFullSets(self, s: str) -> int:\n        n, total = len(s), 0\n        for i in range(n):\n            seen = set()\n            for j in range(i, n):\n                seen.add(s[j])\n                if len(seen) == 3:\n                    total += n - j\n                    break\n        return total\n",
+    "java": "class Solution {\n    public long countFullSets(String s) {\n        int n = s.length();\n        long total = 0;\n        for (int i = 0; i < n; i++) {\n            int mask = 0;\n            for (int j = i; j < n; j++) {\n                mask |= 1 << (s.charAt(j) - 'a');\n                if (mask == 7) { total += n - j; break; }\n            }\n        }\n        return total;\n    }\n}\n",
+    "cpp": "class Solution {\npublic:\n    long long countFullSets(string& s) {\n        int n = s.size();\n        long long total = 0;\n        for (int i = 0; i < n; i++) {\n            int mask = 0;\n            for (int j = i; j < n; j++) {\n                mask |= 1 << (s[j] - 'a');\n                if (mask == 7) { total += n - j; break; }\n            }\n        }\n        return total;\n    }\n};\n",
+    "c": "long long countFullSets(char* s) {\n    int n = strlen(s);\n    long long total = 0;\n    for (int i = 0; i < n; i++) {\n        int mask = 0;\n        for (int j = i; j < n; j++) {\n            mask |= 1 << (s[j] - 'a');\n            if (mask == 7) { total += n - j; break; }\n        }\n    }\n    return total;\n}\n"
+   },
+   "lines": [
+    {
+     "text": "The running count.",
+     "at": {
+      "python": [
+       [
+        3,
+        3
+       ]
+      ],
+      "java": [
+       [
+        3,
+        4
+       ]
+      ],
+      "cpp": [
+       [
+        4,
+        5
+       ]
+      ],
+      "c": [
+       [
+        2,
+        3
+       ]
+      ]
+     }
+    },
+    {
+     "text": "Each stamp as the left end. Every index is tried as the left end of the window. Nothing learned from one start is reused for the next, which is exactly the waste the better approaches remove.",
+     "at": {
+      "python": [
+       [
+        4,
+        4
+       ]
+      ],
+      "java": [
+       [
+        5,
+        5
+       ]
+      ],
+      "cpp": [
+       [
+        6,
+        6
+       ]
+      ],
+      "c": [
+       [
+        4,
+        4
+       ]
+      ]
+     }
+    },
+    {
+     "text": "Collect letters until all three are present. Java, C++ and C use a 3-bit mask, where 7 means a, b and c have all been seen.",
+     "at": {
+      "python": [
+       [
+        5,
+        7
+       ]
+      ],
+      "java": [
+       [
+        6,
+        8
+       ]
+      ],
+      "cpp": [
+       [
+        7,
+        9
+       ]
+      ],
+      "c": [
+       [
+        5,
+        7
+       ]
+      ]
+     },
+     "notes": {
+      "java": "A 3-bit mask; 7 means all three.",
+      "cpp": "A 3-bit mask; 7 means all three.",
+      "c": "A 3-bit mask; 7 means all three."
+     }
+    },
+    {
+     "text": "Once full at `j`, every substring from this start ending at `j` or later is full too: `n − j` of them.",
+     "at": {
+      "python": [
+       [
+        8,
+        10
+       ]
+      ],
+      "java": [
+       [
+        9,
+        9
+       ]
+      ],
+      "cpp": [
+       [
+        10,
+        10
+       ]
+      ],
+      "c": [
+       [
+        8,
+        8
+       ]
+      ]
+     }
+    },
+    {
+     "text": "The total.",
+     "at": {
+      "python": [
+       [
+        11,
+        11
+       ]
+      ],
+      "java": [
+       [
+        12,
+        12
+       ]
+      ],
+      "cpp": [
+       [
+        13,
+        13
+       ]
+      ],
+      "c": [
+       [
+        11,
+        11
+       ]
+      ]
+     }
+    }
+   ],
+   "complexity": [
+    {
+     "md": "**Time O(n²)** when one letter is missing over long stretches. **Space O(1).**"
+    }
+   ],
+   "walk": {
+    "steps": [
+     {
+      "text": "From 0: first full at 2, so 7 full set(s) start here.",
+      "panels": [
+       {
+        "type": "row",
+        "cells": [
+         "a",
+         "b",
+         "c",
+         "a",
+         "b",
+         "b",
+         "c",
+         "a",
+         "b"
+        ],
+        "states": {
+         "0": "active",
+         "1": "active",
+         "2": "found",
+         "3": "found",
+         "4": "found",
+         "5": "found",
+         "6": "found",
+         "7": "found",
+         "8": "found"
+        }
+       },
+       {
+        "type": "vars",
+        "items": {
+         "total": 7
+        }
+       }
+      ]
+     },
+     {
+      "text": "From 1: first full at 3, so 6 full set(s) start here.",
+      "panels": [
+       {
+        "type": "row",
+        "cells": [
+         "a",
+         "b",
+         "c",
+         "a",
+         "b",
+         "b",
+         "c",
+         "a",
+         "b"
+        ],
+        "states": {
+         "1": "active",
+         "2": "active",
+         "3": "found",
+         "4": "found",
+         "5": "found",
+         "6": "found",
+         "7": "found",
+         "8": "found"
+        }
+       },
+       {
+        "type": "vars",
+        "items": {
+         "total": 13
+        }
+       }
+      ]
+     },
+     {
+      "text": "From 2: first full at 4, so 5 full set(s) start here.",
+      "panels": [
+       {
+        "type": "row",
+        "cells": [
+         "a",
+         "b",
+         "c",
+         "a",
+         "b",
+         "b",
+         "c",
+         "a",
+         "b"
+        ],
+        "states": {
+         "2": "active",
+         "3": "active",
+         "4": "found",
+         "5": "found",
+         "6": "found",
+         "7": "found",
+         "8": "found"
+        }
+       },
+       {
+        "type": "vars",
+        "items": {
+         "total": 18
+        }
+       }
+      ]
+     },
+     {
+      "text": "From 3: first full at 6, so 3 full set(s) start here.",
+      "panels": [
+       {
+        "type": "row",
+        "cells": [
+         "a",
+         "b",
+         "c",
+         "a",
+         "b",
+         "b",
+         "c",
+         "a",
+         "b"
+        ],
+        "states": {
+         "3": "active",
+         "4": "active",
+         "5": "active",
+         "6": "found",
+         "7": "found",
+         "8": "found"
+        }
+       },
+       {
+        "type": "vars",
+        "items": {
+         "total": 21
+        }
+       }
+      ]
+     },
+     {
+      "text": "From 4: first full at 7, so 2 full set(s) start here.",
+      "panels": [
+       {
+        "type": "row",
+        "cells": [
+         "a",
+         "b",
+         "c",
+         "a",
+         "b",
+         "b",
+         "c",
+         "a",
+         "b"
+        ],
+        "states": {
+         "4": "active",
+         "5": "active",
+         "6": "active",
+         "7": "found",
+         "8": "found"
+        }
+       },
+       {
+        "type": "vars",
+        "items": {
+         "total": 23
+        }
+       }
+      ]
+     },
+     {
+      "text": "From 5: first full at 7, so 2 full set(s) start here.",
+      "panels": [
+       {
+        "type": "row",
+        "cells": [
+         "a",
+         "b",
+         "c",
+         "a",
+         "b",
+         "b",
+         "c",
+         "a",
+         "b"
+        ],
+        "states": {
+         "5": "active",
+         "6": "active",
+         "7": "found",
+         "8": "found"
+        }
+       },
+       {
+        "type": "vars",
+        "items": {
+         "total": 25
+        }
+       }
+      ]
+     },
+     {
+      "text": "From 6: first full at 8, so 1 full set(s) start here.",
+      "panels": [
+       {
+        "type": "row",
+        "cells": [
+         "a",
+         "b",
+         "c",
+         "a",
+         "b",
+         "b",
+         "c",
+         "a",
+         "b"
+        ],
+        "states": {
+         "6": "active",
+         "7": "active",
+         "8": "found"
+        }
+       },
+       {
+        "type": "vars",
+        "items": {
+         "total": 26
+        }
+       }
+      ]
+     },
+     {
+      "text": "From 7: first full at —, so 0 full set(s) start here.",
+      "panels": [
+       {
+        "type": "row",
+        "cells": [
+         "a",
+         "b",
+         "c",
+         "a",
+         "b",
+         "b",
+         "c",
+         "a",
+         "b"
+        ],
+        "states": {
+         "7": "active",
+         "8": "active"
+        }
+       },
+       {
+        "type": "vars",
+        "items": {
+         "total": 26
+        }
+       }
+      ]
+     },
+     {
+      "text": "From 8: first full at —, so 0 full set(s) start here.",
+      "panels": [
+       {
+        "type": "row",
+        "cells": [
+         "a",
+         "b",
+         "c",
+         "a",
+         "b",
+         "b",
+         "c",
+         "a",
+         "b"
+        ],
+        "states": {
+         "8": "active"
+        }
+       },
+       {
+        "type": "vars",
+        "items": {
+         "total": 26
+        }
+       }
+      ]
+     },
+     {
+      "text": "Total: 26.",
+      "panels": [],
+      "result": "26"
+     }
+    ],
+    "title": "From each start, find the first end where all three stamps appear; every longer run from that start is full too."
+   },
+   "limits": [
+    {
+     "md": "A start may scan far when a letter is missing for a long stretch: O(n²)."
+    }
+   ],
+   "slow": true
+  },
+  {
+   "title": "Last positions per end",
+   "kind": "best",
+   "time": "O(n)",
+   "space": "O(1)",
+   "idea": [
+    {
+     "md": "Track the last index of each letter (initially −1). At each `i`, update the current letter's last index\nand add `min(last) + 1`.\n\n**Why it's exact.** Substrings ending at `i` with start `≤ min(last)` contain all three letters; any start\nafter `min(last)` misses the letter whose last occurrence is `min(last)`."
+    }
+   ],
+   "build": [
+    "`last = [−1, −1, −1]`, `total = 0`.",
+    "For each `i`: `last[s[i]] = i`.",
+    "`total += min(last) + 1`."
+   ],
+   "code": {
+    "python": "class Solution:\n    def countFullSets(self, s: str) -> int:\n        last = {\"a\": -1, \"b\": -1, \"c\": -1}\n        total = 0\n        for i, c in enumerate(s):\n            last[c] = i\n            total += min(last.values()) + 1\n        return total\n",
+    "java": "class Solution {\n    public long countFullSets(String s) {\n        int[] last = {-1, -1, -1};\n        long total = 0;\n        for (int i = 0; i < s.length(); i++) {\n            last[s.charAt(i) - 'a'] = i;\n            total += Math.min(last[0], Math.min(last[1], last[2])) + 1;\n        }\n        return total;\n    }\n}\n",
+    "cpp": "class Solution {\npublic:\n    long long countFullSets(string& s) {\n        int last[3] = {-1, -1, -1};\n        long long total = 0;\n        for (int i = 0; i < (int) s.size(); i++) {\n            last[s[i] - 'a'] = i;\n            total += min({last[0], last[1], last[2]}) + 1;\n        }\n        return total;\n    }\n};\n",
+    "c": "long long countFullSets(char* s) {\n    int last[3] = {-1, -1, -1}, n = strlen(s);\n    long long total = 0;\n    for (int i = 0; i < n; i++) {\n        last[s[i] - 'a'] = i;\n        int m = last[0] < last[1] ? last[0] : last[1];\n        if (last[2] < m) m = last[2];\n        total += m + 1;\n    }\n    return total;\n}\n"
+   },
+   "lines": [
+    {
+     "text": "The last position of `a`, `b` and `c`; −1 means not seen yet.",
+     "at": {
+      "python": [
+       [
+        3,
+        4
+       ]
+      ],
+      "java": [
+       [
+        3,
+        4
+       ]
+      ],
+      "cpp": [
+       [
+        4,
+        5
+       ]
+      ],
+      "c": [
+       [
+        2,
+        3
+       ]
+      ]
+     }
+    },
+    {
+     "text": "Position `i` is now the latest of its letter.",
+     "at": {
+      "python": [
+       [
+        5,
+        6
+       ]
+      ],
+      "java": [
+       [
+        5,
+        6
+       ]
+      ],
+      "cpp": [
+       [
+        6,
+        7
+       ]
+      ],
+      "c": [
+       [
+        4,
+        5
+       ]
+      ]
+     }
+    },
+    {
+     "text": "A substring ending at `i` contains all three letters exactly when it starts at or before the earliest of the three last positions. That's `min(last) + 1` substrings, or 0 while a letter is still unseen.",
+     "at": {
+      "python": [
+       [
+        7,
+        7
+       ]
+      ],
+      "java": [
+       [
+        7,
+        7
+       ]
+      ],
+      "cpp": [
+       [
+        8,
+        8
+       ]
+      ],
+      "c": [
+       [
+        6,
+        8
+       ]
+      ]
+     }
+    },
+    {
+     "text": "The total.",
+     "at": {
+      "python": [
+       [
+        8,
+        8
+       ]
+      ],
+      "java": [
+       [
+        9,
+        9
+       ]
+      ],
+      "cpp": [
+       [
+        10,
+        10
+       ]
+      ],
+      "c": [
+       [
+        10,
+        10
+       ]
+      ]
+     }
+    }
+   ],
+   "complexity": [
+    {
+     "md": "**Time O(n).** **Space O(1).**"
+    }
+   ],
+   "walk": {
+    "steps": [
+     {
+      "text": "'a' at 0: last a, b, c at 0, -1, -1; 0 full set(s) end here.",
+      "panels": [
+       {
+        "type": "row",
+        "cells": [
+         "a",
+         "b",
+         "c",
+         "a",
+         "b",
+         "b",
+         "c",
+         "a",
+         "b"
+        ],
+        "states": {
+         "0": "active"
+        }
+       },
+       {
+        "type": "vars",
+        "items": {
+         "total": 0
+        }
+       }
+      ]
+     },
+     {
+      "text": "'b' at 1: last a, b, c at 0, 1, -1; 0 full set(s) end here.",
+      "panels": [
+       {
+        "type": "row",
+        "cells": [
+         "a",
+         "b",
+         "c",
+         "a",
+         "b",
+         "b",
+         "c",
+         "a",
+         "b"
+        ],
+        "states": {
+         "1": "active"
+        }
+       },
+       {
+        "type": "vars",
+        "items": {
+         "total": 0
+        }
+       }
+      ]
+     },
+     {
+      "text": "'c' at 2: last a, b, c at 0, 1, 2; 1 full set(s) end here.",
+      "panels": [
+       {
+        "type": "row",
+        "cells": [
+         "a",
+         "b",
+         "c",
+         "a",
+         "b",
+         "b",
+         "c",
+         "a",
+         "b"
+        ],
+        "states": {
+         "0": "found",
+         "2": "active"
+        }
+       },
+       {
+        "type": "vars",
+        "items": {
+         "total": 1
+        }
+       }
+      ]
+     },
+     {
+      "text": "'a' at 3: last a, b, c at 3, 1, 2; 2 full set(s) end here.",
+      "panels": [
+       {
+        "type": "row",
+        "cells": [
+         "a",
+         "b",
+         "c",
+         "a",
+         "b",
+         "b",
+         "c",
+         "a",
+         "b"
+        ],
+        "states": {
+         "0": "found",
+         "1": "found",
+         "3": "active"
+        }
+       },
+       {
+        "type": "vars",
+        "items": {
+         "total": 3
+        }
+       }
+      ]
+     },
+     {
+      "text": "'b' at 4: last a, b, c at 3, 4, 2; 3 full set(s) end here.",
+      "panels": [
+       {
+        "type": "row",
+        "cells": [
+         "a",
+         "b",
+         "c",
+         "a",
+         "b",
+         "b",
+         "c",
+         "a",
+         "b"
+        ],
+        "states": {
+         "0": "found",
+         "1": "found",
+         "2": "found",
+         "4": "active"
+        }
+       },
+       {
+        "type": "vars",
+        "items": {
+         "total": 6
+        }
+       }
+      ]
+     },
+     {
+      "text": "'b' at 5: last a, b, c at 3, 5, 2; 3 full set(s) end here.",
+      "panels": [
+       {
+        "type": "row",
+        "cells": [
+         "a",
+         "b",
+         "c",
+         "a",
+         "b",
+         "b",
+         "c",
+         "a",
+         "b"
+        ],
+        "states": {
+         "0": "found",
+         "1": "found",
+         "2": "found",
+         "5": "active"
+        }
+       },
+       {
+        "type": "vars",
+        "items": {
+         "total": 9
+        }
+       }
+      ]
+     },
+     {
+      "text": "'c' at 6: last a, b, c at 3, 5, 6; 4 full set(s) end here.",
+      "panels": [
+       {
+        "type": "row",
+        "cells": [
+         "a",
+         "b",
+         "c",
+         "a",
+         "b",
+         "b",
+         "c",
+         "a",
+         "b"
+        ],
+        "states": {
+         "0": "found",
+         "1": "found",
+         "2": "found",
+         "3": "found",
+         "6": "active"
+        }
+       },
+       {
+        "type": "vars",
+        "items": {
+         "total": 13
+        }
+       }
+      ]
+     },
+     {
+      "text": "'a' at 7: last a, b, c at 7, 5, 6; 6 full set(s) end here.",
+      "panels": [
+       {
+        "type": "row",
+        "cells": [
+         "a",
+         "b",
+         "c",
+         "a",
+         "b",
+         "b",
+         "c",
+         "a",
+         "b"
+        ],
+        "states": {
+         "0": "found",
+         "1": "found",
+         "2": "found",
+         "3": "found",
+         "4": "found",
+         "5": "found",
+         "7": "active"
+        }
+       },
+       {
+        "type": "vars",
+        "items": {
+         "total": 19
+        }
+       }
+      ]
+     },
+     {
+      "text": "'b' at 8: last a, b, c at 7, 8, 6; 7 full set(s) end here.",
+      "panels": [
+       {
+        "type": "row",
+        "cells": [
+         "a",
+         "b",
+         "c",
+         "a",
+         "b",
+         "b",
+         "c",
+         "a",
+         "b"
+        ],
+        "states": {
+         "0": "found",
+         "1": "found",
+         "2": "found",
+         "3": "found",
+         "4": "found",
+         "5": "found",
+         "6": "found",
+         "8": "active"
+        }
+       },
+       {
+        "type": "vars",
+        "items": {
+         "total": 26
+        }
+       }
+      ]
+     },
+     {
+      "text": "Total: 26.",
+      "panels": [],
+      "result": "26"
+     }
+    ],
+    "title": "For each end, remember the last position of a, b and c. A run ending here is full exactly when it starts at or before the earliest of the three: min(last) + 1 choices."
+   }
+  }
+ ],
+ "takeaways": [
+  {
+   "md": "- **\"At least one of each\" counts:** for every end, valid starts are `0..min(last positions)`.\n- Counting per right end is the backbone of window counting.\n- **Pitfall:** adding `min(last)` instead of `min(last) + 1`."
+  }
+ ]
+}

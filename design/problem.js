@@ -3,10 +3,19 @@
 // (/api/dsa/run and /api/dsa/submit). Code, cases and the pane sizes are
 // kept in this browser. Ren's pane has a chat tab (blank for now) and the
 // problem's full solution (solution.js), shown only when asked for.
+// sql-problem.html uses the same workspace for SQL: tables instead of
+// arguments, SQLite as the only language, and /api/sql for the judge.
 (() => {
   const main = document.getElementById("ws");
   const $ = (sel, root = main) => root.querySelector(sel);
   const id = new URLSearchParams(location.search).get("id") || "";
+  const SQL = main.dataset.track === "sql";
+  // A SQL "change" problem is answered with an UPDATE, DELETE or INSERT and
+  // judged on the table it leaves behind.
+  const CHANGE = () => SQL && problem && problem.mode === "change";
+  const API = SQL ? "/api/sql" : "/api/dsa";
+  const SHEET = SQL ? "sql.html" : "dsa.html";
+  const sid = SQL ? `sql:${id}` : id; // what this browser keys the problem's code, cases and timer by
 
   const esc = (s) =>
     String(s).replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" })[c]);
@@ -68,6 +77,41 @@
     return out.join("");
   }
 
+  /* SQL: the tables a problem works with, and data as grids ------------------ */
+
+  const ICON_TABLE = '<svg viewBox="0 0 24 24" aria-hidden="true"><rect x="3" y="4" width="18" height="16" rx="2"/><path d="M3 10h18M9 10v10"/></svg>';
+
+  // A table's columns, the way the landing's SQL window lists them.
+  function schemaHTML(t) {
+    const cols = t.columns
+      .map(([name, type, key = ""]) => {
+        const ref = key.startsWith("fk ") ? `<em class="col-ref" title="Refers to ${esc(key.slice(3))}">→ ${esc(key.slice(3))}</em>` : "";
+        const pk = key === "pk" ? '<em class="col-key" title="Primary key: unique for every row">key</em>' : "";
+        return `<li><span>${esc(name)}${pk}${ref}</span><i>${esc(type.toLowerCase())}</i></li>`;
+      })
+      .join("");
+    return `<div class="schema-table"><b>${ICON_TABLE}${esc(t.name)}</b><ul>${cols}</ul></div>`;
+  }
+
+  const cellHTML = (v) =>
+    v === null ? '<td class="null">NULL</td>' : `<td${typeof v === "number" ? ' class="num"' : ""}>${esc(v)}</td>`;
+
+  // Rows as a grid, cut off past `max` rows.
+  function tableHTML(t, { max = 40, bad = false } = {}) {
+    const head = t.columns.map((c) => `<th>${esc(c)}</th>`).join("");
+    const body = t.rows.length
+      ? t.rows.slice(0, max).map((r) => `<tr>${r.map(cellHTML).join("")}</tr>`).join("")
+      : `<tr><td class="empty" colspan="${Math.max(1, t.columns.length)}">No rows</td></tr>`;
+    const more = t.rows.length > max ? `<p class="rtable-more">${t.rows.length - max} more ${t.rows.length - max === 1 ? "row" : "rows"} not shown</p>` : "";
+    return `<div class="rtable${bad ? " bad" : ""}"><table><thead><tr>${head}</tr></thead><tbody>${body}</tbody></table></div>${more}`;
+  }
+
+  // A dataset: every table of the problem, with its rows.
+  const datasetHTML = (data) =>
+    problem.tables
+      .map((t) => `<div class="data-table"><h3>${esc(t.name)}</h3>${tableHTML({ columns: t.columns.map((c) => c[0]), rows: data[t.name] || [] })}</div>`)
+      .join("");
+
   const argsText = (args) =>
     problem.params.map((p) => `${p.name} = ${show(args[p.name])}`).join(", ");
 
@@ -84,7 +128,20 @@
     $("[data-title]").textContent = problem.title;
     $("[data-statement]").innerHTML = markdown(problem.statement);
     $("[data-notes]").innerHTML = markdown(problem.notes);
-    $("[data-examples]").innerHTML = problem.examples
+    if (SQL) {
+      $("[data-tables]").innerHTML = `<h2 class="prob-label">Tables</h2><div class="schema">${problem.tables.map(schemaHTML).join("")}</div>`;
+      $("[data-examples]").innerHTML = problem.examples
+        .map(
+          (ex, i) => `
+          <h2 class="prob-label">Example ${i + 1}</h2>
+          <div class="sql-example">
+            ${datasetHTML(ex.data)}
+            <div class="data-table"><h3>${CHANGE() ? `${esc(problem.result_table)} afterwards` : "Output"}</h3>${tableHTML(ex.expected)}</div>
+            ${ex.explanation ? `<p class="sql-why">${inline(ex.explanation)}</p>` : ""}
+          </div>`
+        )
+        .join("");
+    } else $("[data-examples]").innerHTML = problem.examples
       .map(
         (ex, i) => `
           <h2 class="prob-label">Example ${i + 1}</h2>
@@ -99,7 +156,9 @@
 
     const walk = $("[data-walk]");
     const spec = problem.visual && problem.visual.walkthrough;
-    if (spec && window.renVisual) {
+    if (!walk) {
+      // The SQL page has no walkthrough.
+    } else if (spec && window.renVisual) {
       walk.innerHTML = `<h2 class="prob-label">Walkthrough</h2>${spec.title ? `<p class="walk-intro">${inline(spec.title)}</p>` : ""}<div data-walk-player></div>`;
       renVisual.walkthrough($("[data-walk-player]"), spec);
     } else {
@@ -110,7 +169,7 @@
     const topicLink = document.querySelector("[data-topic-link]");
     if (problem.topic) {
       topicLink.textContent = problem.topic.name;
-      topicLink.href = `dsa.html?q=${encodeURIComponent(problem.topic.name)}`;
+      topicLink.href = `${SHEET}?q=${encodeURIComponent(problem.topic.name)}`;
     } else {
       document.querySelectorAll(".ws-topic").forEach((el) => el.remove());
     }
@@ -148,6 +207,23 @@
       ].join("|"),
       "g"
     );
+  const SQL_KEYWORDS = [
+    "select", "from", "where", "and", "or", "not", "in", "is", "null", "as", "on", "join", "left", "right", "full",
+    "inner", "outer", "cross", "natural", "using", "group", "by", "order", "having", "limit", "offset", "distinct",
+    "union", "all", "intersect", "except", "case", "when", "then", "else", "end", "with", "recursive", "over",
+    "partition", "rows", "range", "between", "preceding", "following", "current", "row", "unbounded", "asc", "desc",
+    "like", "glob", "exists", "values", "cast", "filter", "window", "nulls", "first", "last", "true", "false",
+  ].join("|");
+  const SQL_TOKENS = new RegExp(
+    [
+      "(--[^\\n]*)", // 1 comment
+      "('(?:[^']|'')*')", // 2 string
+      `\\b(${SQL_KEYWORDS})\\b`, // 3 keyword
+      "\\b(\\d+(?:\\.\\d+)?)\\b", // 4 number
+      "\\b([A-Za-z_]\\w*)(?=\\()", // 5 function call
+    ].join("|"),
+    "gi"
+  );
   const CLASS = [null, "tk-c", "tk-s", "tk-k", "tk-n", "tk-f"];
   let tokens = tokensFor("#");
   let lang;
@@ -175,7 +251,7 @@
     input.style.height = `${hl.offsetHeight}px`;
   };
 
-  const codeKey = (l) => `ren:code:${id}:${l}`;
+  const codeKey = (l) => `ren:code:${sid}:${l}`;
   const language = () => problem.languages.find((l) => l.id === lang);
 
   let saveTimer;
@@ -276,11 +352,11 @@
 
   function setLanguage(next, { focus = false } = {}) {
     lang = next;
-    store.set("ren:lang", lang);
+    if (!SQL) store.set("ren:lang", lang);
     const l = language();
     langSelect.value = lang;
     fileLabel.textContent = l.file;
-    tokens = tokensFor(lang === "python" ? "#" : "//");
+    tokens = SQL ? SQL_TOKENS : tokensFor(lang === "python" ? "#" : "//");
     input.value = store.get(codeKey(lang), l.starter);
     savedNote.textContent = store.get(codeKey(lang)) ? "Saved in this browser" : "";
     render();
@@ -331,7 +407,7 @@
 
   /* Test cases ---------------------------------------------------------------- */
 
-  const casesKey = `ren:cases:${id}`;
+  const casesKey = `ren:cases:${sid}`;
   const MAX_CASES = 8;
   // Each case keeps its fields as text, so a half-typed value survives.
   let cases = [];
@@ -354,7 +430,19 @@
     } else store.set(casesKey, cases);
   }
 
+  // SQL cases are the examples' tables, to look at (not edit).
+  function renderSqlCases() {
+    const bar = problem.examples
+      .map((_, i) => `<button type="button" class="case-btn" role="tab" aria-selected="${i === caseAt}" data-case="${i}">Case ${i + 1}</button>`)
+      .join("");
+    panels.cases.innerHTML = `
+      <div class="cases-bar" role="tablist" aria-label="Test cases">${bar}</div>
+      <div class="sql-cases">${datasetHTML(problem.examples[caseAt].data)}</div>
+      <p class="result-note sql-cases-note">Run checks your ${CHANGE() ? "statement" : "query"} on these tables. Submit also runs it on hidden ones.</p>`;
+  }
+
   function renderCases() {
+    if (SQL) return renderSqlCases();
     const panel = panels.cases;
     const bar = cases
       .map(
@@ -497,6 +585,16 @@
 
   async function runCases() {
     if (busy) return;
+    if (SQL) {
+      const n = problem.examples.length;
+      setBusy(true, runBtn);
+      showPanel("result");
+      message(`Running your ${CHANGE() ? "statement" : "query"} on ${n} example ${n === 1 ? "dataset" : "datasets"}…`);
+      const data = await send(`${API}/run`, { id, code: input.value });
+      setBusy(false);
+      if (data.error) return message(data.error);
+      return renderRun(data, Math.max(0, data.cases.findIndex((c) => c.verdict !== "passed")));
+    }
     const parsed = parseCases();
     if (parsed.error) {
       caseErrors = new Map([[parsed.error.index, parsed.error.message]]);
@@ -529,6 +627,8 @@
   // How answers are checked decides what "Expected" means.
   const SUP = { "-": "⁻", 0: "⁰", 1: "¹", 2: "²", 3: "³", 4: "⁴", 5: "⁵", 6: "⁶", 7: "⁷", 8: "⁸", 9: "⁹" };
   function expectedLabel() {
+    if (CHANGE()) return `Expected ${problem.result_table} (rows in any order)`;
+    if (SQL) return problem.ordered ? "Expected (rows in this order)" : "Expected (rows in any order)";
     const c = problem.checker || { type: "exact" };
     if (c.type === "unordered") return "Expected (in any order)";
     if (c.type === "custom") return "One right answer";
@@ -540,6 +640,10 @@
   }
 
   const ms = (n) => (n < 1 ? "under 1 ms" : `${Math.round(n)} ms`);
+  // A query that SQLite rejects is a query error, not a runtime error.
+  const titleOf = (verdict) => (SQL && verdict === "error" ? "Query error" : TITLES[verdict]);
+  const outputHTML = (c) =>
+    `<div class="out-block"><h3>${CHANGE() ? `Your ${esc(problem.result_table)} afterwards` : "Output"}${c.why ? ` <span class="why">· ${esc(c.why)}</span>` : ""}</h3>${tableHTML(c.output, { bad: c.verdict === "wrong" })}</div>`;
 
   let runView = { data: null, at: 0 };
 
@@ -566,6 +670,19 @@
           `<button type="button" class="case-btn" role="tab" aria-selected="${i === at}" data-result-case="${i}"><span class="dot ${x.verdict === "passed" ? "ok" : "bad"}" aria-hidden="true"></span>Case ${i + 1}<span class="sr-only">, ${x.verdict === "passed" ? "passed" : "failed"}</span></button>`
       )
       .join("");
+    if (SQL) {
+      resultPanel.innerHTML = `
+        <div class="verdict">
+          <h2 class="${worst === "passed" ? "ok" : "bad"}">${titleOf(worst)}</h2>
+          <span>${passed} of ${list.length} ${list.length === 1 ? "case" : "cases"} passed${time}</span>
+        </div>
+        <div class="cases-bar" role="tablist" aria-label="Results">${bar}</div>
+        ${c.error ? block("Error", c.error, "error") : ""}
+        ${c.verdict === "time" ? `<p class="result-note">The query ran for too long and was stopped. Look for a recursive query that never ends, or a join that multiplies rows.</p>` : ""}
+        ${c.output ? outputHTML(c) : ""}
+        <div class="out-block"><h3>${expectedLabel()}</h3>${tableHTML(c.expected)}</div>`;
+      return;
+    }
     resultPanel.innerHTML = `
       <div class="verdict">
         <h2 class="${worst === "passed" ? "ok" : "bad"}">${TITLES[worst]}</h2>
@@ -589,7 +706,7 @@
     setBusy(true, submitBtn);
     showPanel("result");
     message("Submitting: running every test, hidden ones included…");
-    const data = await send("/api/dsa/submit", { id, lang, code: input.value });
+    const data = await send(`${API}/submit`, SQL ? { id, code: input.value } : { id, lang, code: input.value });
     setBusy(false);
     runView = { data: null, at: 0 };
     if (data.error) return message(data.error);
@@ -598,10 +715,22 @@
     const time = data.ms != null ? ` · ${ms(data.ms)}` : "";
     let body = "";
     if (ok) {
-      const hidden = data.total - problem.cases.length;
+      const hidden = data.total - (SQL ? problem.examples : problem.cases).length;
       body = `<p class="result-note">Your code passed every test${hidden > 0 ? `, including ${hidden} hidden ones` : ""}.</p>`;
-      store.set(`ren:solved:${id}`, Date.now());
+      store.set(`ren:solved:${sid}`, Date.now());
       timer.finish();
+    } else if (SQL && data.verdict === "time") {
+      body = `<p class="result-note">The query ran for too long and was stopped. Look for a recursive query that never ends, or a join that multiplies rows.</p>`;
+    } else if (SQL && data.failed) {
+      const f = data.failed;
+      const where = `<p class="result-note">Failed on test ${f.number} of ${data.total}${f.hidden ? ", a hidden test" : ""}.</p>`;
+      if (f.error) body = where + block("Error", f.error, "error");
+      else {
+        const input = f.data
+          ? `<div class="out-block"><h3>Tables</h3><div class="sql-cases">${datasetHTML(f.data)}</div></div>`
+          : `<p class="result-note">This test's tables hold ${f.rows} rows, too many to show here.</p>`;
+        body = where + input + outputHTML(f) + `<div class="out-block"><h3>${expectedLabel()}</h3>${tableHTML(f.expected)}</div>`;
+      }
     } else if (data.failed) {
       const f = data.failed;
       const where = data.verdict === "compile" ? "" : `<p class="result-note">Failed on test ${f.number} of ${data.total}${f.hidden ? ", a hidden test" : ""}.</p>`;
@@ -619,7 +748,7 @@
     }
     resultPanel.innerHTML = `
       <div class="verdict">
-        <h2 class="${ok ? "ok" : "bad"}">${TITLES[data.verdict] || "Not accepted"}</h2>
+        <h2 class="${ok ? "ok" : "bad"}">${titleOf(data.verdict) || "Not accepted"}</h2>
         ${data.verdict === "compile" ? "" : `<span>${data.passed} of ${data.total} tests passed${time}</span>`}
       </div>
       ${body}`;
@@ -634,7 +763,7 @@
   // for good once a submission is accepted.
   const timer = (() => {
     const el = document.querySelector("[data-timer]");
-    const key = `ren:timer:${id}`;
+    const key = `ren:timer:${sid}`;
     let { spent = 0, paused = false, done = false } = store.get(key, {}) || {};
     let tick;
     const fmt = (s) => {
@@ -806,7 +935,7 @@
 
     function pick(name) {
       current = name;
-      store.set("ren:ren-tab", name);
+      if (solution || name === "solution") store.set("ren:ren-tab", name);
       const tab = renTabs.find((t) => t.dataset.renTab === name);
       if (tab.getAttribute("aria-selected") !== "true") tab.click(); // moves the underline
       Object.entries(panelsOf).forEach(([k, p]) => (p.hidden = k !== name));
@@ -816,13 +945,15 @@
     const visible = () => wide.matches || main.dataset.view === "ren";
 
     renTabs.forEach((t) => t.addEventListener("click", () => current !== t.dataset.renTab && pick(t.dataset.renTab)));
-    panelsOf.solution.addEventListener("sol:close", () => pick("chat"));
+    panelsOf.solution?.addEventListener("sol:close", () => pick("chat"));
     wide.addEventListener?.("change", () => current === "solution" && solution && visible() && solution.open());
 
     return {
       start() {
-        solution = renSolution.mount(panelsOf.solution, { id, problem, highlight: highlightAs, lang });
-        pick(store.get("ren:ren-tab") === "solution" ? "solution" : "chat");
+        if (panelsOf.solution && window.renSolution) {
+          solution = renSolution.mount(panelsOf.solution, { id, problem, highlight: highlightAs, lang });
+        }
+        pick(solution && store.get("ren:ren-tab") === "solution" ? "solution" : "chat");
       },
       shown() {
         if (current === "solution" && solution) solution.open();
@@ -838,12 +969,12 @@
       <div class="state">
         <h1>${esc(title)}</h1>
         <p>${esc(line)}</p>
-        <a href="dsa.html" class="btn btn-secondary">Back to DSA</a>
+        <a href="${SHEET}" class="btn btn-secondary">Back to ${SQL ? "SQL" : "DSA"}</a>
       </div>`;
   }
 
   const request = id
-    ? renApi(`/api/dsa/problem?id=${encodeURIComponent(id)}`).catch(() => ({ ok: false, status: 0 }))
+    ? renApi(`${API}/problem?id=${encodeURIComponent(id)}`).catch(() => ({ ok: false, status: 0 }))
     : Promise.resolve({ ok: false, status: 404 });
 
   Promise.all([renSession(main), request, renLoader.page]).then(([, res]) => {
@@ -858,10 +989,12 @@
       const saved = store.get("ren:lang");
       setLanguage(ready.some((l) => l.id === saved) ? saved : (ready[0] || problem.languages[0]).id);
 
-      cases = store.get(casesKey) || defaultCases();
-      if (!Array.isArray(cases) || !cases.length) cases = defaultCases();
+      if (!SQL) {
+        cases = store.get(casesKey) || defaultCases();
+        if (!Array.isArray(cases) || !cases.length) cases = defaultCases();
+      }
       renderCases();
-      message("Run your code to see the results here.");
+      message(CHANGE() ? "Run your statement to see the table it leaves behind." : SQL ? "Run your query to see its rows here." : "Run your code to see the results here.");
       renPane.start();
       fitView();
       applyLayout();

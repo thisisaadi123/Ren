@@ -1,0 +1,783 @@
+{
+ "version": 1,
+ "summary": "Read/write pointers with a look-back of two: keep value `x` if fewer than two values are kept, or if\n`a[write − 2] ≠ x`. Since the list is sorted, `a[write − 2] == x` means the last two kept values are both `x`\nalready. O(n), in place.",
+ "question": [
+  {
+   "md": "In a sorted list, keep each value **at most twice**, preserving order, in place with O(1) extra space.\n\n- **Sorted** input: copies are adjacent.\n- **Up to 10⁵ values.**"
+  },
+  {
+   "md": "**Edge cases to keep in mind**\n\n- Lists of length 1 or 2 are always fine.\n- Values appearing once or twice are kept in full.\n- Negative values are allowed; only equality matters."
+  }
+ ],
+ "think": [
+  {
+   "md": "**The read/write idea.** One pointer, `read`, visits every element once. A second pointer, `write`, marks the end of\nthe part we're keeping, which always sits at the **front** of the array. Each kept element is copied to `a[write]`\nand `write` moves on; a dropped element is simply not copied.\n\n**Why it's safe to overwrite in place.** `write` never gets ahead of `read` (it moves at most once per element read),\nso every write lands on a slot that has already been read. Nothing unread is ever lost.\n\n**Invariant.** After reading the first `r` elements, `a[0 .. write)` holds exactly the elements that should be kept\namong those `r`, in their original order."
+  },
+  {
+   "md": "**When is a value one copy too many?** When the kept part already ends with two copies of it. Because the input\nis sorted and the kept part is too, checking just **the element two back**, `a[write − 2]`, is enough: if it\nequals `x`, then `a[write − 1]` (which lies between it and `x` in sorted order) equals `x` as well, so two copies\nare already kept.\n\nThe same check generalises: to keep at most `k` copies, compare with `a[write − k]`."
+  },
+  {
+   "md": "**Trace on `[1, 1, 1, 2, 2, 3, 3, 3, 3]`:**"
+  },
+  {
+   "table": {
+    "head": [
+     "read",
+     "value",
+     "decision",
+     "write after",
+     "kept part"
+    ],
+    "rows": [
+     [
+      "0",
+      "1",
+      "fewer than 2 kept: keep",
+      "1",
+      "[1]"
+     ],
+     [
+      "1",
+      "1",
+      "fewer than 2 kept: keep",
+      "2",
+      "[1, 1]"
+     ],
+     [
+      "2",
+      "1",
+      "a[write−2] = 1 = 1: third copy, skip",
+      "2",
+      "[1, 1]"
+     ],
+     [
+      "3",
+      "2",
+      "a[write−2] = 1 ≠ 2: keep",
+      "3",
+      "[1, 1, 2]"
+     ],
+     [
+      "4",
+      "2",
+      "a[write−2] = 1 ≠ 2: keep",
+      "4",
+      "[1, 1, 2, 2]"
+     ],
+     [
+      "5",
+      "3",
+      "a[write−2] = 2 ≠ 3: keep",
+      "5",
+      "[1, 1, 2, 2, 3]"
+     ],
+     [
+      "6",
+      "3",
+      "a[write−2] = 2 ≠ 3: keep",
+      "6",
+      "[1, 1, 2, 2, 3, 3]"
+     ],
+     [
+      "7",
+      "3",
+      "a[write−2] = 3 = 3: third copy, skip",
+      "6",
+      "[1, 1, 2, 2, 3, 3]"
+     ],
+     [
+      "8",
+      "3",
+      "a[write−2] = 3 = 3: third copy, skip",
+      "6",
+      "[1, 1, 2, 2, 3, 3]"
+     ]
+    ]
+   }
+  }
+ ],
+ "approaches": [
+  {
+   "title": "Copy at most two per run",
+   "kind": "better",
+   "time": "O(n)",
+   "space": "O(n)",
+   "idea": [
+    {
+     "md": "Walk the runs of equal values; for each run, append `min(2, run length)` copies to a new list. Simple, but it builds a separate output."
+    }
+   ],
+   "build": [
+    "Find each run's end.",
+    "Append up to two copies.",
+    "Jump to the next run."
+   ],
+   "code": {
+    "python": "class Solution:\n    def keepAtMostTwo(self, values: List[int]) -> List[int]:\n        out, i = [], 0\n        while i < len(values):\n            j = i\n            while j < len(values) and values[j] == values[i]:\n                j += 1\n            out += [values[i]] * min(2, j - i)\n            i = j\n        return out\n",
+    "java": "class Solution {\n    public int[] keepAtMostTwo(int[] values) {\n        List<Integer> out = new ArrayList<>();\n        int i = 0;\n        while (i < values.length) {\n            int j = i;\n            while (j < values.length && values[j] == values[i]) j++;\n            for (int c = 0; c < Math.min(2, j - i); c++) out.add(values[i]);\n            i = j;\n        }\n        return out.stream().mapToInt(Integer::intValue).toArray();\n    }\n}\n",
+    "cpp": "class Solution {\npublic:\n    vector<int> keepAtMostTwo(vector<int>& values) {\n        vector<int> out;\n        size_t i = 0;\n        while (i < values.size()) {\n            size_t j = i;\n            while (j < values.size() && values[j] == values[i]) j++;\n            out.insert(out.end(), min<size_t>(2, j - i), values[i]);\n            i = j;\n        }\n        return out;\n    }\n};\n",
+    "c": "int* keepAtMostTwo(int* values, int valuesSize, int* returnSize) {\n    int* out = malloc(valuesSize * sizeof(int));\n    int w = 0, i = 0;\n    while (i < valuesSize) {\n        int j = i;\n        while (j < valuesSize && values[j] == values[i]) j++;\n        for (int c = 0; c < 2 && c < j - i; c++) out[w++] = values[i];\n        i = j;\n    }\n    *returnSize = w;\n    return out;\n}\n"
+   },
+   "lines": [
+    {
+     "text": "The output list and the start of the current run.",
+     "at": {
+      "python": [
+       [
+        3,
+        3
+       ]
+      ],
+      "java": [
+       [
+        3,
+        4
+       ]
+      ],
+      "cpp": [
+       [
+        4,
+        5
+       ]
+      ],
+      "c": [
+       [
+        2,
+        3
+       ]
+      ]
+     }
+    },
+    {
+     "text": "Advance `j` to the end of the run of equal values.",
+     "at": {
+      "python": [
+       [
+        4,
+        7
+       ]
+      ],
+      "java": [
+       [
+        5,
+        7
+       ]
+      ],
+      "cpp": [
+       [
+        6,
+        8
+       ]
+      ],
+      "c": [
+       [
+        4,
+        6
+       ]
+      ]
+     }
+    },
+    {
+     "text": "Append at most two copies of the run's value, then continue after the run.",
+     "at": {
+      "python": [
+       [
+        8,
+        9
+       ]
+      ],
+      "java": [
+       [
+        8,
+        9
+       ]
+      ],
+      "cpp": [
+       [
+        9,
+        10
+       ]
+      ],
+      "c": [
+       [
+        7,
+        8
+       ]
+      ]
+     }
+    },
+    {
+     "text": "The trimmed list.",
+     "at": {
+      "python": [
+       [
+        10,
+        10
+       ]
+      ],
+      "java": [
+       [
+        11,
+        11
+       ]
+      ],
+      "cpp": [
+       [
+        12,
+        12
+       ]
+      ],
+      "c": [
+       [
+        10,
+        11
+       ]
+      ]
+     }
+    }
+   ],
+   "complexity": [
+    {
+     "md": "**Time O(n).** **Space O(n)** for the new list."
+    }
+   ],
+   "walk": {
+    "steps": [
+     {
+      "text": "Run of 3 × 1: keep 2.",
+      "panels": [
+       {
+        "type": "row",
+        "cells": [
+         1,
+         1,
+         1,
+         2,
+         2,
+         3,
+         3,
+         3,
+         3
+        ],
+        "states": {
+         "0": "found",
+         "1": "found",
+         "2": "mark"
+        }
+       },
+       {
+        "type": "row",
+        "cells": [
+         1,
+         1
+        ],
+        "label": "output"
+       }
+      ]
+     },
+     {
+      "text": "Run of 2 × 2: keep 2.",
+      "panels": [
+       {
+        "type": "row",
+        "cells": [
+         1,
+         1,
+         1,
+         2,
+         2,
+         3,
+         3,
+         3,
+         3
+        ],
+        "states": {
+         "3": "found",
+         "4": "found"
+        }
+       },
+       {
+        "type": "row",
+        "cells": [
+         1,
+         1,
+         2,
+         2
+        ],
+        "label": "output"
+       }
+      ]
+     },
+     {
+      "text": "Run of 4 × 3: keep 2.",
+      "panels": [
+       {
+        "type": "row",
+        "cells": [
+         1,
+         1,
+         1,
+         2,
+         2,
+         3,
+         3,
+         3,
+         3
+        ],
+        "states": {
+         "5": "found",
+         "6": "found",
+         "7": "mark",
+         "8": "mark"
+        }
+       },
+       {
+        "type": "row",
+        "cells": [
+         1,
+         1,
+         2,
+         2,
+         3,
+         3
+        ],
+        "label": "output"
+       }
+      ]
+     },
+     {
+      "text": "Result: [1, 1, 2, 2, 3, 3].",
+      "panels": [],
+      "result": "[1, 1, 2, 2, 3, 3]"
+     }
+    ],
+    "title": "Walk the runs of equal values and copy at most two of each into a new list."
+   },
+   "limits": [
+    {
+     "md": "The task asks for O(1) extra space. The look-back-two check does it in place."
+    }
+   ]
+  },
+  {
+   "title": "Write pointer, look back two",
+   "kind": "best",
+   "time": "O(n)",
+   "space": "O(1)",
+   "idea": [
+    {
+     "md": "Read every value; keep it if fewer than two values have been kept so far, or if `a[write − 2] ≠ x`.\n\n**Why it's correct.** If `a[write − 2] = x`, the last two kept values are both `x` (sorted order), so `x`\nwould be a third copy. Otherwise at most one `x` is kept so far, and keeping this one is fine."
+    }
+   ],
+   "build": [
+    "`write = 0`.",
+    "Keep `x` if `write < 2` or `a[write − 2] ≠ x`.",
+    "Return the first `write` values."
+   ],
+   "code": {
+    "python": "class Solution:\n    def keepAtMostTwo(self, values: List[int]) -> List[int]:\n        a, write = values[:], 0\n        for x in values:\n            if write < 2 or a[write - 2] != x:\n                a[write] = x\n                write += 1\n        return a[:write]\n",
+    "java": "class Solution {\n    public int[] keepAtMostTwo(int[] values) {\n        int[] a = values.clone();\n        int write = 0;\n        for (int x : values)\n            if (write < 2 || a[write - 2] != x) a[write++] = x;\n        return Arrays.copyOf(a, write);\n    }\n}\n",
+    "cpp": "class Solution {\npublic:\n    vector<int> keepAtMostTwo(vector<int>& values) {\n        vector<int> a = values;\n        int write = 0;\n        for (int x : values)\n            if (write < 2 || a[write - 2] != x) a[write++] = x;\n        a.resize(write);\n        return a;\n    }\n};\n",
+    "c": "int* keepAtMostTwo(int* values, int valuesSize, int* returnSize) {\n    int* a = malloc(valuesSize * sizeof(int));\n    int write = 0;\n    for (int i = 0; i < valuesSize; i++)\n        if (write < 2 || a[write - 2] != values[i]) a[write++] = values[i];\n    *returnSize = write;\n    return a;\n}\n"
+   },
+   "lines": [
+    {
+     "text": "A working copy and the write position.",
+     "at": {
+      "python": [
+       [
+        3,
+        3
+       ]
+      ],
+      "java": [
+       [
+        3,
+        4
+       ]
+      ],
+      "cpp": [
+       [
+        4,
+        5
+       ]
+      ],
+      "c": [
+       [
+        2,
+        3
+       ]
+      ]
+     }
+    },
+    {
+     "text": "Every value, in order.",
+     "at": {
+      "python": [
+       [
+        4,
+        4
+       ]
+      ],
+      "java": [
+       [
+        5,
+        5
+       ]
+      ],
+      "cpp": [
+       [
+        6,
+        6
+       ]
+      ],
+      "c": [
+       [
+        4,
+        4
+       ]
+      ]
+     }
+    },
+    {
+     "text": "The first two values are always kept. After that, a value equal to the one two places back would be a third copy, so it's skipped.",
+     "at": {
+      "python": [
+       [
+        5,
+        7
+       ]
+      ],
+      "java": [
+       [
+        6,
+        6
+       ]
+      ],
+      "cpp": [
+       [
+        7,
+        7
+       ]
+      ],
+      "c": [
+       [
+        5,
+        5
+       ]
+      ]
+     }
+    },
+    {
+     "text": "The kept prefix.",
+     "at": {
+      "python": [
+       [
+        8,
+        8
+       ]
+      ],
+      "java": [
+       [
+        7,
+        7
+       ]
+      ],
+      "cpp": [
+       [
+        8,
+        9
+       ]
+      ],
+      "c": [
+       [
+        6,
+        7
+       ]
+      ]
+     }
+    }
+   ],
+   "complexity": [
+    {
+     "md": "**Time O(n).** **Space O(1)** besides the output copy."
+    }
+   ],
+   "walk": {
+    "steps": [
+     {
+      "text": "Read 1: fewer than two kept so far, write it at 0.",
+      "panels": [
+       {
+        "type": "row",
+        "cells": [
+         1,
+         1,
+         1,
+         2,
+         2,
+         3,
+         3,
+         3,
+         3
+        ],
+        "states": {
+         "0": "found"
+        },
+        "pointers": {
+         "read": 0,
+         "write": 0
+        }
+       }
+      ]
+     },
+     {
+      "text": "Read 1: fewer than two kept so far, write it at 1.",
+      "panels": [
+       {
+        "type": "row",
+        "cells": [
+         1,
+         1,
+         1,
+         2,
+         2,
+         3,
+         3,
+         3,
+         3
+        ],
+        "states": {
+         "0": "found",
+         "1": "found"
+        },
+        "pointers": {
+         "read": 1,
+         "write": 1
+        }
+       }
+      ]
+     },
+     {
+      "text": "Read 1: two already kept, skip it.",
+      "panels": [
+       {
+        "type": "row",
+        "cells": [
+         1,
+         1,
+         1,
+         2,
+         2,
+         3,
+         3,
+         3,
+         3
+        ],
+        "states": {
+         "0": "found",
+         "1": "found"
+        },
+        "pointers": {
+         "read": 2,
+         "write": 2
+        }
+       }
+      ]
+     },
+     {
+      "text": "Read 2: fewer than two kept so far, write it at 2.",
+      "panels": [
+       {
+        "type": "row",
+        "cells": [
+         1,
+         1,
+         2,
+         2,
+         2,
+         3,
+         3,
+         3,
+         3
+        ],
+        "states": {
+         "0": "found",
+         "1": "found",
+         "2": "found"
+        },
+        "pointers": {
+         "read": 3,
+         "write": 2
+        }
+       }
+      ]
+     },
+     {
+      "text": "Read 2: fewer than two kept so far, write it at 3.",
+      "panels": [
+       {
+        "type": "row",
+        "cells": [
+         1,
+         1,
+         2,
+         2,
+         2,
+         3,
+         3,
+         3,
+         3
+        ],
+        "states": {
+         "0": "found",
+         "1": "found",
+         "2": "found",
+         "3": "found"
+        },
+        "pointers": {
+         "read": 4,
+         "write": 3
+        }
+       }
+      ]
+     },
+     {
+      "text": "Read 3: fewer than two kept so far, write it at 4.",
+      "panels": [
+       {
+        "type": "row",
+        "cells": [
+         1,
+         1,
+         2,
+         2,
+         3,
+         3,
+         3,
+         3,
+         3
+        ],
+        "states": {
+         "0": "found",
+         "1": "found",
+         "2": "found",
+         "3": "found",
+         "4": "found"
+        },
+        "pointers": {
+         "read": 5,
+         "write": 4
+        }
+       }
+      ]
+     },
+     {
+      "text": "Read 3: fewer than two kept so far, write it at 5.",
+      "panels": [
+       {
+        "type": "row",
+        "cells": [
+         1,
+         1,
+         2,
+         2,
+         3,
+         3,
+         3,
+         3,
+         3
+        ],
+        "states": {
+         "0": "found",
+         "1": "found",
+         "2": "found",
+         "3": "found",
+         "4": "found",
+         "5": "found"
+        },
+        "pointers": {
+         "read": 6,
+         "write": 5
+        }
+       }
+      ]
+     },
+     {
+      "text": "Read 3: two already kept, skip it.",
+      "panels": [
+       {
+        "type": "row",
+        "cells": [
+         1,
+         1,
+         2,
+         2,
+         3,
+         3,
+         3,
+         3,
+         3
+        ],
+        "states": {
+         "0": "found",
+         "1": "found",
+         "2": "found",
+         "3": "found",
+         "4": "found",
+         "5": "found"
+        },
+        "pointers": {
+         "read": 7,
+         "write": 6
+        }
+       }
+      ]
+     },
+     {
+      "text": "Read 3: two already kept, skip it.",
+      "panels": [
+       {
+        "type": "row",
+        "cells": [
+         1,
+         1,
+         2,
+         2,
+         3,
+         3,
+         3,
+         3,
+         3
+        ],
+        "states": {
+         "0": "found",
+         "1": "found",
+         "2": "found",
+         "3": "found",
+         "4": "found",
+         "5": "found"
+        },
+        "pointers": {
+         "read": 8,
+         "write": 6
+        }
+       }
+      ]
+     },
+     {
+      "text": "Result: [1, 1, 2, 2, 3, 3].",
+      "panels": [],
+      "result": "[1, 1, 2, 2, 3, 3]"
+     }
+    ],
+    "title": "Keep a value unless the kept part already ends with two copies of it: compare with the element two places back in the kept part."
+   }
+  }
+ ],
+ "takeaways": [
+  {
+   "md": "- **At most k copies in a sorted array:** compare with `a[write − k]`.\n- The comparison is against the kept prefix, never the original positions.\n- **Pitfall:** comparing with `a[read − 2]`, which may already have been overwritten."
+  }
+ ]
+}

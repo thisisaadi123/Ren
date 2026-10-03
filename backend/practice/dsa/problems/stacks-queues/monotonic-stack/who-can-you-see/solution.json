@@ -1,0 +1,944 @@
+{
+ "version": 1,
+ "summary": "Go from the back of the line forward with a stack of people still visible from the front, getting taller from\ntop to bottom. The current person sees every shorter person on top (and hides them from everyone further\nforward, so pop them), plus the first person at least as tall, if any. An equal-height person gets hidden too.\nO(n).",
+ "question": [
+  {
+   "md": "Everyone faces the back of the line. Person `i` sees person `j > i` if everyone strictly between them is shorter\nthan both. Return how many people each person sees.\n\n- **Neighbours always see each other** (nobody is between them).\n- **Heights repeat:** someone of equal height between you and `j` blocks the view (they're not strictly\n  shorter).\n- **Up to 10⁵ people.**"
+  }
+ ],
+ "think": [
+  {
+   "md": "Heights `[5, 3, 4, 4, 1, 6]`. Person 0 (5) sees 3 and the first 4 (everyone between is shorter than both), then the 6\n(everyone between is shorter than 5 and 6), but not the second 4 (the first 4 is between them and isn't shorter\nthan 4). Counts: `[3, 1, 1, 2, 1, 0]`."
+  },
+  {
+   "panels": [
+    {
+     "type": "row",
+     "cells": [
+      5,
+      3,
+      4,
+      4,
+      1,
+      6
+     ],
+     "states": {
+      "1": "found",
+      "2": "found",
+      "5": "found",
+      "0": "active"
+     }
+    }
+   ],
+   "caption": "What person 0 sees."
+  },
+  {
+   "md": "Two facts about person `i` looking back:\n\n1. They see a sequence of people that keep getting taller: each person seen must be taller than everyone\n   between, including the earlier ones seen.\n2. Once they see someone at least as tall as themselves, nobody past that person is visible.\n\nAnd for the people in front of `i`: anyone shorter than `i` standing behind `i` is now hidden from them for good\n(`i` is between, and taller). So walking from the back, a stack of 'still visible' people does it: the current\nperson counts and removes the shorter ones on top, counts the next one if any, and joins the stack."
+  }
+ ],
+ "approaches": [
+  {
+   "title": "Look back from each person",
+   "kind": "brute",
+   "time": "O(n²)",
+   "space": "O(1)",
+   "idea": [
+    {
+     "md": "For each person `i`, walk `j = i+1, i+2, …` keeping `tallest` = the tallest person strictly between `i` and `j`. Person `j` is visible if `tallest < min(h[i], h[j])`. Stop once `tallest ≥ h[i]`: nobody further can be seen."
+    }
+   ],
+   "build": [
+    "For each `i`: `tallest = 0`, `count = 0`.",
+    "For each `j > i`: check visibility, then fold `h[j]` into `tallest`.",
+    "Stop early when `tallest ≥ h[i]`."
+   ],
+   "code": {
+    "python": "class Solution:\n    def canSee(self, heights: List[int]) -> List[int]:\n        n = len(heights)\n        res = [0] * n\n        for i in range(n):\n            tallest = 0\n            for j in range(i + 1, n):\n                if tallest < min(heights[i], heights[j]):\n                    res[i] += 1\n                tallest = max(tallest, heights[j])\n                if tallest >= heights[i]:\n                    break\n        return res\n",
+    "java": "class Solution {\n    public int[] canSee(int[] heights) {\n        int n = heights.length;\n        int[] res = new int[n];\n        for (int i = 0; i < n; i++) {\n            int tallest = 0;\n            for (int j = i + 1; j < n; j++) {\n                if (tallest < Math.min(heights[i], heights[j])) res[i]++;\n                tallest = Math.max(tallest, heights[j]);\n                if (tallest >= heights[i]) break;\n            }\n        }\n        return res;\n    }\n}\n",
+    "cpp": "class Solution {\npublic:\n    vector<int> canSee(vector<int>& heights) {\n        int n = heights.size();\n        vector<int> res(n, 0);\n        for (int i = 0; i < n; i++) {\n            int tallest = 0;\n            for (int j = i + 1; j < n; j++) {\n                if (tallest < min(heights[i], heights[j])) res[i]++;\n                tallest = max(tallest, heights[j]);\n                if (tallest >= heights[i]) break;\n            }\n        }\n        return res;\n    }\n};\n",
+    "c": "int* canSee(int* heights, int heightsSize, int* returnSize) {\n    int n = heightsSize;\n    int* res = calloc(n, sizeof(int));\n    for (int i = 0; i < n; i++) {\n        int tallest = 0;\n        for (int j = i + 1; j < n; j++) {\n            int lower = heights[i] < heights[j] ? heights[i] : heights[j];\n            if (tallest < lower) res[i]++;\n            if (heights[j] > tallest) tallest = heights[j];\n            if (tallest >= heights[i]) break;\n        }\n    }\n    *returnSize = n;\n    return res;\n}\n"
+   },
+   "lines": [
+    {
+     "text": "One count per person.",
+     "at": {
+      "python": [
+       [
+        3,
+        4
+       ]
+      ],
+      "java": [
+       [
+        3,
+        4
+       ]
+      ],
+      "cpp": [
+       [
+        4,
+        5
+       ]
+      ],
+      "c": [
+       [
+        2,
+        3
+       ]
+      ]
+     }
+    },
+    {
+     "text": "`tallest` = tallest person between `i` and the current `j` (nobody yet; heights are ≥ 1).",
+     "at": {
+      "python": [
+       [
+        5,
+        6
+       ]
+      ],
+      "java": [
+       [
+        5,
+        6
+       ]
+      ],
+      "cpp": [
+       [
+        6,
+        7
+       ]
+      ],
+      "c": [
+       [
+        4,
+        5
+       ]
+      ]
+     }
+    },
+    {
+     "text": "People behind `i`, nearest first.",
+     "at": {
+      "python": [
+       [
+        7,
+        7
+       ]
+      ],
+      "java": [
+       [
+        7,
+        7
+       ]
+      ],
+      "cpp": [
+       [
+        8,
+        8
+       ]
+      ],
+      "c": [
+       [
+        6,
+        6
+       ]
+      ]
+     }
+    },
+    {
+     "text": "Everyone between is shorter than both.",
+     "at": {
+      "python": [
+       [
+        8,
+        9
+       ]
+      ],
+      "java": [
+       [
+        8,
+        8
+       ]
+      ],
+      "cpp": [
+       [
+        9,
+        9
+       ]
+      ],
+      "c": [
+       [
+        7,
+        8
+       ]
+      ]
+     }
+    },
+    {
+     "text": "Person `j` now stands between `i` and everyone further. If they're at least as tall as `i`, nobody further is visible.",
+     "at": {
+      "python": [
+       [
+        10,
+        12
+       ]
+      ],
+      "java": [
+       [
+        9,
+        10
+       ]
+      ],
+      "cpp": [
+       [
+        10,
+        11
+       ]
+      ],
+      "c": [
+       [
+        9,
+        10
+       ]
+      ]
+     }
+    },
+    {
+     "text": "All counts.",
+     "at": {
+      "python": [
+       [
+        13,
+        13
+       ]
+      ],
+      "java": [
+       [
+        13,
+        13
+       ]
+      ],
+      "cpp": [
+       [
+        14,
+        14
+       ]
+      ],
+      "c": [
+       [
+        13,
+        14
+       ]
+      ]
+     }
+    }
+   ],
+   "complexity": [
+    {
+     "md": "**Time O(n²)** in the worst case (heights rising toward the front: nobody blocks early). **Space O(1).**"
+    }
+   ],
+   "walk": {
+    "steps": [
+     {
+      "text": "Person 0 (height 5) sees [1, 2, 5]: 3.",
+      "panels": [
+       {
+        "type": "row",
+        "cells": [
+         5,
+         3,
+         4,
+         4,
+         1,
+         6
+        ],
+        "states": {
+         "1": "found",
+         "2": "found",
+         "5": "found",
+         "0": "active"
+        }
+       },
+       {
+        "type": "row",
+        "cells": [
+         3,
+         "·",
+         "·",
+         "·",
+         "·",
+         "·"
+        ],
+        "label": "can see"
+       }
+      ]
+     },
+     {
+      "text": "Person 1 (height 3) sees [2]: 1.",
+      "panels": [
+       {
+        "type": "row",
+        "cells": [
+         5,
+         3,
+         4,
+         4,
+         1,
+         6
+        ],
+        "states": {
+         "2": "found",
+         "1": "active"
+        }
+       },
+       {
+        "type": "row",
+        "cells": [
+         3,
+         1,
+         "·",
+         "·",
+         "·",
+         "·"
+        ],
+        "label": "can see"
+       }
+      ]
+     },
+     {
+      "text": "Person 2 (height 4) sees [3]: 1.",
+      "panels": [
+       {
+        "type": "row",
+        "cells": [
+         5,
+         3,
+         4,
+         4,
+         1,
+         6
+        ],
+        "states": {
+         "3": "found",
+         "2": "active"
+        }
+       },
+       {
+        "type": "row",
+        "cells": [
+         3,
+         1,
+         1,
+         "·",
+         "·",
+         "·"
+        ],
+        "label": "can see"
+       }
+      ]
+     },
+     {
+      "text": "Person 3 (height 4) sees [4, 5]: 2.",
+      "panels": [
+       {
+        "type": "row",
+        "cells": [
+         5,
+         3,
+         4,
+         4,
+         1,
+         6
+        ],
+        "states": {
+         "4": "found",
+         "5": "found",
+         "3": "active"
+        }
+       },
+       {
+        "type": "row",
+        "cells": [
+         3,
+         1,
+         1,
+         2,
+         "·",
+         "·"
+        ],
+        "label": "can see"
+       }
+      ]
+     },
+     {
+      "text": "Person 4 (height 1) sees [5]: 1.",
+      "panels": [
+       {
+        "type": "row",
+        "cells": [
+         5,
+         3,
+         4,
+         4,
+         1,
+         6
+        ],
+        "states": {
+         "5": "found",
+         "4": "active"
+        }
+       },
+       {
+        "type": "row",
+        "cells": [
+         3,
+         1,
+         1,
+         2,
+         1,
+         "·"
+        ],
+        "label": "can see"
+       }
+      ]
+     },
+     {
+      "text": "Person 5 (height 6) sees nobody: 0.",
+      "panels": [
+       {
+        "type": "row",
+        "cells": [
+         5,
+         3,
+         4,
+         4,
+         1,
+         6
+        ],
+        "states": {
+         "5": "active"
+        }
+       },
+       {
+        "type": "row",
+        "cells": [
+         3,
+         1,
+         1,
+         2,
+         1,
+         0
+        ],
+        "label": "can see"
+       }
+      ]
+     },
+     {
+      "text": "Counts: [3, 1, 1, 2, 1, 0].",
+      "panels": [],
+      "result": "[3, 1, 1, 2, 1, 0]"
+     }
+    ],
+    "title": "For each person, walk back down the line, tracking the tallest person passed so far. Someone is visible if everyone passed is shorter than both; once someone at least as tall as you has been passed, nobody further is visible."
+   },
+   "limits": [
+    {
+     "md": "Each person re-walks people that a taller person in front of them already hid. Processing from the back with a stack removes hidden people once and for all."
+    }
+   ],
+   "slow": true
+  },
+  {
+   "title": "Stack of still-visible people, from the back",
+   "kind": "best",
+   "time": "O(n)",
+   "space": "O(n)",
+   "idea": [
+    {
+     "md": "Process people from the last to the first with a stack (nearest on top, taller below). For person `i`: pop and count everyone shorter. If the stack isn't empty, count the top too (the first one at least as tall), and pop it if its height equals `h[i]`. Push `i`."
+    }
+   ],
+   "build": [
+    "Empty stack; go from the back.",
+    "Pop and count shorter people.",
+    "Count the next one if any; pop it if equal height.",
+    "Push the current person."
+   ],
+   "code": {
+    "python": "class Solution:\n    def canSee(self, heights: List[int]) -> List[int]:\n        n = len(heights)\n        res, stack = [0] * n, []\n        for i in range(n - 1, -1, -1):\n            h = heights[i]\n            while stack and stack[-1] < h:\n                stack.pop()\n                res[i] += 1\n            if stack:\n                res[i] += 1\n                if stack[-1] == h:\n                    stack.pop()\n            stack.append(h)\n        return res\n",
+    "java": "class Solution {\n    public int[] canSee(int[] heights) {\n        int n = heights.length;\n        int[] res = new int[n], stack = new int[n];\n        int top = 0;\n        for (int i = n - 1; i >= 0; i--) {\n            int h = heights[i];\n            while (top > 0 && stack[top - 1] < h) { top--; res[i]++; }\n            if (top > 0) {\n                res[i]++;\n                if (stack[top - 1] == h) top--;\n            }\n            stack[top++] = h;\n        }\n        return res;\n    }\n}\n",
+    "cpp": "class Solution {\npublic:\n    vector<int> canSee(vector<int>& heights) {\n        int n = heights.size();\n        vector<int> res(n, 0), stack;\n        for (int i = n - 1; i >= 0; i--) {\n            int h = heights[i];\n            while (!stack.empty() && stack.back() < h) { stack.pop_back(); res[i]++; }\n            if (!stack.empty()) {\n                res[i]++;\n                if (stack.back() == h) stack.pop_back();\n            }\n            stack.push_back(h);\n        }\n        return res;\n    }\n};\n",
+    "c": "int* canSee(int* heights, int heightsSize, int* returnSize) {\n    int n = heightsSize;\n    int* res = calloc(n, sizeof(int));\n    int* stack = malloc(n * sizeof(int));\n    int top = 0;\n    for (int i = n - 1; i >= 0; i--) {\n        int h = heights[i];\n        while (top > 0 && stack[top - 1] < h) { top--; res[i]++; }\n        if (top > 0) {\n            res[i]++;\n            if (stack[top - 1] == h) top--;\n        }\n        stack[top++] = h;\n    }\n    free(stack);\n    *returnSize = n;\n    return res;\n}\n"
+   },
+   "lines": [
+    {
+     "text": "Counts, and a stack of heights still visible from the front of the line (nearest on top).",
+     "at": {
+      "python": [
+       [
+        3,
+        4
+       ]
+      ],
+      "java": [
+       [
+        3,
+        5
+       ]
+      ],
+      "cpp": [
+       [
+        4,
+        5
+       ]
+      ],
+      "c": [
+       [
+        2,
+        5
+       ]
+      ]
+     }
+    },
+    {
+     "text": "From the back of the line to the front.",
+     "at": {
+      "python": [
+       [
+        5,
+        6
+       ]
+      ],
+      "java": [
+       [
+        6,
+        7
+       ]
+      ],
+      "cpp": [
+       [
+        6,
+        7
+       ]
+      ],
+      "c": [
+       [
+        6,
+        7
+       ]
+      ]
+     }
+    },
+    {
+     "text": "Each shorter person on top is visible to `i` (everyone between them was shorter still, or they'd have been popped). After `i`, they're hidden from everyone in front: pop them.",
+     "at": {
+      "python": [
+       [
+        7,
+        9
+       ]
+      ],
+      "java": [
+       [
+        8,
+        8
+       ]
+      ],
+      "cpp": [
+       [
+        8,
+        8
+       ]
+      ],
+      "c": [
+       [
+        8,
+        8
+       ]
+      ]
+     }
+    },
+    {
+     "text": "The first person at least as tall as `i` is visible too; nobody beyond them is.",
+     "at": {
+      "python": [
+       [
+        10,
+        11
+       ]
+      ],
+      "java": [
+       [
+        9,
+        10
+       ]
+      ],
+      "cpp": [
+       [
+        9,
+        10
+       ]
+      ],
+      "c": [
+       [
+        9,
+        10
+       ]
+      ]
+     }
+    },
+    {
+     "text": "An equal-height person is hidden from everyone in front of `i` (`i` stands between and isn't shorter). A strictly taller one stays visible.",
+     "at": {
+      "python": [
+       [
+        12,
+        13
+       ]
+      ],
+      "java": [
+       [
+        11,
+        11
+       ]
+      ],
+      "cpp": [
+       [
+        11,
+        11
+       ]
+      ],
+      "c": [
+       [
+        11,
+        11
+       ]
+      ]
+     }
+    },
+    {
+     "text": "`i` is visible from the person directly in front.",
+     "at": {
+      "python": [
+       [
+        14,
+        14
+       ]
+      ],
+      "java": [
+       [
+        13,
+        13
+       ]
+      ],
+      "cpp": [
+       [
+        13,
+        13
+       ]
+      ],
+      "c": [
+       [
+        13,
+        13
+       ]
+      ]
+     }
+    },
+    {
+     "text": "All counts.",
+     "at": {
+      "python": [
+       [
+        15,
+        15
+       ]
+      ],
+      "java": [
+       [
+        15,
+        15
+       ]
+      ],
+      "cpp": [
+       [
+        15,
+        15
+       ]
+      ],
+      "c": [
+       [
+        15,
+        17
+       ]
+      ]
+     }
+    }
+   ],
+   "complexity": [
+    {
+     "md": "**Time O(n):** each person is pushed once and popped at most once. **Space O(n).**"
+    }
+   ],
+   "walk": {
+    "steps": [
+     {
+      "text": "Person 5 (height 6): nobody taller behind. Count 0.",
+      "panels": [
+       {
+        "type": "row",
+        "cells": [
+         5,
+         3,
+         4,
+         4,
+         1,
+         6
+        ],
+        "states": {
+         "5": "active"
+        }
+       },
+       {
+        "type": "row",
+        "cells": [
+         "5:6"
+        ],
+        "label": "stack (top first)"
+       },
+       {
+        "type": "row",
+        "cells": [
+         "·",
+         "·",
+         "·",
+         "·",
+         "·",
+         0
+        ],
+        "label": "can see"
+       }
+      ]
+     },
+     {
+      "text": "Person 4 (height 1): also sees 5 (height 6), the first one at least as tall, and nobody past them. Count 1.",
+      "panels": [
+       {
+        "type": "row",
+        "cells": [
+         5,
+         3,
+         4,
+         4,
+         1,
+         6
+        ],
+        "states": {
+         "4": "active",
+         "5": "found"
+        }
+       },
+       {
+        "type": "row",
+        "cells": [
+         "4:1",
+         "5:6"
+        ],
+        "label": "stack (top first)"
+       },
+       {
+        "type": "row",
+        "cells": [
+         "·",
+         "·",
+         "·",
+         "·",
+         1,
+         0
+        ],
+        "label": "can see"
+       }
+      ]
+     },
+     {
+      "text": "Person 3 (height 4): sees shorter [4], who are now hidden from everyone further forward; also sees 5 (height 6), the first one at least as tall, and nobody past them. Count 2.",
+      "panels": [
+       {
+        "type": "row",
+        "cells": [
+         5,
+         3,
+         4,
+         4,
+         1,
+         6
+        ],
+        "states": {
+         "3": "active",
+         "4": "found",
+         "5": "found"
+        }
+       },
+       {
+        "type": "row",
+        "cells": [
+         "3:4",
+         "5:6"
+        ],
+        "label": "stack (top first)"
+       },
+       {
+        "type": "row",
+        "cells": [
+         "·",
+         "·",
+         "·",
+         2,
+         1,
+         0
+        ],
+        "label": "can see"
+       }
+      ]
+     },
+     {
+      "text": "Person 2 (height 4): also sees 3 (height 4), the first one at least as tall, and nobody past them; equal height, so person 3 is hidden from now on. Count 1.",
+      "panels": [
+       {
+        "type": "row",
+        "cells": [
+         5,
+         3,
+         4,
+         4,
+         1,
+         6
+        ],
+        "states": {
+         "2": "active",
+         "3": "found"
+        }
+       },
+       {
+        "type": "row",
+        "cells": [
+         "2:4",
+         "5:6"
+        ],
+        "label": "stack (top first)"
+       },
+       {
+        "type": "row",
+        "cells": [
+         "·",
+         "·",
+         1,
+         2,
+         1,
+         0
+        ],
+        "label": "can see"
+       }
+      ]
+     },
+     {
+      "text": "Person 1 (height 3): also sees 2 (height 4), the first one at least as tall, and nobody past them. Count 1.",
+      "panels": [
+       {
+        "type": "row",
+        "cells": [
+         5,
+         3,
+         4,
+         4,
+         1,
+         6
+        ],
+        "states": {
+         "1": "active",
+         "2": "found"
+        }
+       },
+       {
+        "type": "row",
+        "cells": [
+         "1:3",
+         "2:4",
+         "5:6"
+        ],
+        "label": "stack (top first)"
+       },
+       {
+        "type": "row",
+        "cells": [
+         "·",
+         1,
+         1,
+         2,
+         1,
+         0
+        ],
+        "label": "can see"
+       }
+      ]
+     },
+     {
+      "text": "Person 0 (height 5): sees shorter [1, 2], who are now hidden from everyone further forward; also sees 5 (height 6), the first one at least as tall, and nobody past them. Count 3.",
+      "panels": [
+       {
+        "type": "row",
+        "cells": [
+         5,
+         3,
+         4,
+         4,
+         1,
+         6
+        ],
+        "states": {
+         "0": "active",
+         "1": "found",
+         "2": "found",
+         "5": "found"
+        }
+       },
+       {
+        "type": "row",
+        "cells": [
+         "0:5",
+         "5:6"
+        ],
+        "label": "stack (top first)"
+       },
+       {
+        "type": "row",
+        "cells": [
+         3,
+         1,
+         1,
+         2,
+         1,
+         0
+        ],
+        "label": "can see"
+       }
+      ]
+     },
+     {
+      "text": "Counts: [3, 1, 1, 2, 1, 0].",
+      "panels": [],
+      "result": "[3, 1, 1, 2, 1, 0]"
+     }
+    ],
+    "title": "Go from the back of the line to the front. The stack holds the people the current person could possibly see, nearest on top, getting taller downwards."
+   }
+  }
+ ],
+ "takeaways": [
+  {
+   "md": "- **Visibility in a line = monotonic stack:** a taller person permanently hides shorter people behind them.\n- Count what you pop: the popped elements are often exactly the answer.\n- Decide ties explicitly; here an equal height blocks the view, so equals are popped as well."
+  }
+ ]
+}

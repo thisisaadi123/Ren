@@ -1,0 +1,39 @@
+{
+  "id": "instant-first-orders",
+  "title": "Instant First Orders",
+  "topic": "product-analytics",
+  "pattern": "activity-metrics",
+  "difficulty": "medium",
+  "statement": "An order is **instant** if the customer wanted it the day they ordered (`wanted_on = ordered_on`). A customer's\n**first** order is their earliest by `ordered_on`, then smallest `id`.\n\nReturn one row with `instant_pct`: the percentage of customers whose first order was instant, rounded to 2 decimal\nplaces.",
+  "notes": "",
+  "tables": [
+    {
+      "name": "deliveries",
+      "columns": [
+        [
+          "id",
+          "INTEGER",
+          "pk"
+        ],
+        [
+          "customer_id",
+          "INTEGER"
+        ],
+        [
+          "ordered_on",
+          "TEXT"
+        ],
+        [
+          "wanted_on",
+          "TEXT"
+        ]
+      ]
+    }
+  ],
+  "ordered": false,
+  "reference": "WITH firsts AS (\n  SELECT ordered_on, wanted_on,\n         ROW_NUMBER() OVER (PARTITION BY customer_id ORDER BY ordered_on, id) AS rn\n  FROM deliveries\n)\nSELECT ROUND(100.0 * SUM(wanted_on = ordered_on) / COUNT(*), 2) AS instant_pct\nFROM firsts\nWHERE rn = 1",
+  "wrong": [
+    "SELECT ROUND(100.0 * SUM(wanted_on = ordered_on) / COUNT(*), 2) AS instant_pct FROM deliveries",
+    "WITH firsts AS (SELECT ordered_on, wanted_on, ROW_NUMBER() OVER (PARTITION BY customer_id ORDER BY ordered_on DESC, id) AS rn FROM deliveries) SELECT ROUND(100.0 * SUM(wanted_on = ordered_on) / COUNT(*), 2) AS instant_pct FROM firsts WHERE rn = 1"
+  ]
+}

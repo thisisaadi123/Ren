@@ -1,0 +1,981 @@
+{
+ "version": 1,
+ "summary": "Without parentheses, the expression is a sum of **terms**, where each term is a run of numbers joined by `*`\nand `/`. Read left to right: `+`/`−` start a new term, `*`/`/` modify the current one. Keep a running total of\nfinished terms plus the current term: O(n) time, O(1) space.",
+ "question": [
+  {
+   "md": "Evaluate an expression of non-negative integers with `+ - * /` and spaces: `*` and `/` before `+` and `-`, left to\nright otherwise. Division truncates toward zero.\n\n- **No parentheses, no leading minus.**\n- **Spaces can appear anywhere between tokens**, never inside a number.\n- **Truncation toward zero:** 1 − 7 / 2 = 1 − 3 = −2. Since only non-negative numbers are divided directly, but\n  terms can be negative (`−8/3`), the truncation rule matters.\n- **Everything fits in 32 bits.**"
+  }
+ ],
+ "think": [
+  {
+   "md": "Take `14 - 3*4/5 + 2*3`. Group it into terms: `14`, `−3*4/5`, `+2*3`. Evaluate each: 14, −(12/5) = −2, 6. Sum: 18."
+  },
+  {
+   "panels": [
+    {
+     "type": "row",
+     "cells": [
+      "14",
+      "−3*4/5",
+      "+2*3"
+     ],
+     "label": "terms"
+    },
+    {
+     "type": "row",
+     "cells": [
+      "14",
+      "−2",
+      "6"
+     ],
+     "label": "values"
+    }
+   ],
+   "caption": "Sum: 18."
+  },
+  {
+   "md": "While reading, only the **current term** can still change (a following `*` or `/` modifies it); any earlier\nterm is final as soon as a `+` or `−` arrives. So keep the finished terms (a stack, or just their running sum)\nplus the current term. Treat the sign as part of the term: `−3*4/5` is the term −3, then ×4, then /5,\ntruncated toward zero."
+  }
+ ],
+ "approaches": [
+  {
+   "title": "Tokenise and reduce by precedence",
+   "kind": "brute",
+   "time": "O(n²)",
+   "space": "O(n)",
+   "idea": [
+    {
+     "md": "Split into numbers and operators. Repeatedly replace the leftmost `*` or `/` with its result; then repeatedly replace the leftmost `+` or `-`. Each replacement rebuilds the token list."
+    }
+   ],
+   "build": [
+    "Tokenise (skip spaces, read whole numbers).",
+    "Pass 1: reduce `*` and `/` from the left.",
+    "Pass 2: reduce `+` and `-` from the left.",
+    "Return the last token."
+   ],
+   "code": {
+    "python": "class Solution:\n    def calculate(self, expr: str) -> int:\n        toks, num = [], None\n        for c in expr:\n            if c.isdigit():\n                num = (num or 0) * 10 + int(c)\n            elif c != \" \":\n                toks += [num, c]\n                num = None\n        toks.append(num)\n        for ops in (\"*/\", \"+-\"):\n            i = 1\n            while i < len(toks):\n                if toks[i] in ops:\n                    a, op, b = toks[i - 1], toks[i], toks[i + 1]\n                    if op == \"*\": r = a * b\n                    elif op == \"/\": r = abs(a) // b * (1 if a >= 0 else -1)\n                    elif op == \"+\": r = a + b\n                    else: r = a - b\n                    toks[i - 1:i + 2] = [r]\n                else:\n                    i += 2\n        return toks[0]\n",
+    "java": "class Solution {\n    public int calculate(String expr) {\n        List<Object> toks = new ArrayList<>();\n        int num = 0;\n        for (char c : expr.toCharArray()) {\n            if (Character.isDigit(c)) num = num * 10 + (c - '0');\n            else if (c != ' ') { toks.add(num); toks.add(c); num = 0; }\n        }\n        toks.add(num);\n        for (String ops : new String[] {\"*/\", \"+-\"}) {\n            int i = 1;\n            while (i < toks.size()) {\n                char op = (Character) toks.get(i);\n                if (ops.indexOf(op) < 0) { i += 2; continue; }\n                int a = (Integer) toks.get(i - 1), b = (Integer) toks.get(i + 1);\n                int r = op == '*' ? a * b : op == '/' ? a / b : op == '+' ? a + b : a - b;\n                toks.subList(i - 1, i + 2).clear();\n                toks.add(i - 1, r);\n            }\n        }\n        return (Integer) toks.get(0);\n    }\n}\n",
+    "cpp": "class Solution {\npublic:\n    int calculate(string& expr) {\n        vector<int> nums;\n        vector<char> ops;\n        int num = 0;\n        for (char c : expr) {\n            if (isdigit(c)) num = num * 10 + (c - '0');\n            else if (c != ' ') { nums.push_back(num); ops.push_back(c); num = 0; }\n        }\n        nums.push_back(num);\n        for (string level : {\"*/\", \"+-\"}) {\n            size_t i = 0;\n            while (i < ops.size()) {\n                char op = ops[i];\n                if (level.find(op) == string::npos) { i++; continue; }\n                int a = nums[i], b = nums[i + 1];\n                nums[i] = op == '*' ? a * b : op == '/' ? a / b : op == '+' ? a + b : a - b;\n                nums.erase(nums.begin() + i + 1);\n                ops.erase(ops.begin() + i);\n            }\n        }\n        return nums[0];\n    }\n};\n",
+    "c": "int calculate(char* expr) {\n    int n = strlen(expr), cnt = 0, num = 0;\n    int* nums = malloc((n + 1) * sizeof(int));\n    char* ops = malloc(n + 1);\n    for (int i = 0; i < n; i++) {\n        char c = expr[i];\n        if (c >= '0' && c <= '9') num = num * 10 + (c - '0');\n        else if (c != ' ') { nums[cnt] = num; ops[cnt++] = c; num = 0; }\n    }\n    nums[cnt] = num;\n    const char* levels[] = {\"*/\", \"+-\"};\n    for (int lv = 0; lv < 2; lv++) {\n        int i = 0;\n        while (i < cnt) {\n            char op = ops[i];\n            if (!strchr(levels[lv], op)) { i++; continue; }\n            int a = nums[i], b = nums[i + 1];\n            nums[i] = op == '*' ? a * b : op == '/' ? a / b : op == '+' ? a + b : a - b;\n            memmove(nums + i + 1, nums + i + 2, (cnt - i - 1) * sizeof(int));\n            memmove(ops + i, ops + i + 1, cnt - i - 1);\n            cnt--;\n        }\n    }\n    int answer = nums[0];\n    free(nums);\n    free(ops);\n    return answer;\n}\n"
+   },
+   "lines": [
+    {
+     "text": "Numbers and operators in order, spaces skipped, multi-digit numbers assembled.",
+     "at": {
+      "python": [
+       [
+        3,
+        10
+       ]
+      ],
+      "java": [
+       [
+        3,
+        9
+       ]
+      ],
+      "cpp": [
+       [
+        4,
+        11
+       ]
+      ],
+      "c": [
+       [
+        3,
+        10
+       ]
+      ]
+     }
+    },
+    {
+     "text": "Higher precedence first: all `*` and `/`, then all `+` and `-`.",
+     "at": {
+      "python": [
+       [
+        11,
+        11
+       ]
+      ],
+      "java": [
+       [
+        10,
+        10
+       ]
+      ],
+      "cpp": [
+       [
+        12,
+        12
+       ]
+      ],
+      "c": [
+       [
+        11,
+        12
+       ]
+      ]
+     }
+    },
+    {
+     "text": "Replace `a op b` (leftmost first) with its value and shift the rest of the list left. Division truncates toward zero.",
+     "at": {
+      "python": [
+       [
+        12,
+        22
+       ]
+      ],
+      "java": [
+       [
+        11,
+        19
+       ]
+      ],
+      "cpp": [
+       [
+        13,
+        21
+       ]
+      ],
+      "c": [
+       [
+        13,
+        22
+       ]
+      ]
+     },
+     "notes": {
+      "python": "Python's `//` floors; with `a` possibly negative after earlier steps, divide the absolute value and restore the sign."
+     }
+    },
+    {
+     "text": "One number remains.",
+     "at": {
+      "python": [
+       [
+        23,
+        23
+       ]
+      ],
+      "java": [
+       [
+        21,
+        21
+       ]
+      ],
+      "cpp": [
+       [
+        23,
+        23
+       ]
+      ],
+      "c": [
+       [
+        24,
+        27
+       ]
+      ]
+     }
+    }
+   ],
+   "complexity": [
+    {
+     "md": "**Time O(n²):** each reduction shifts the list. **Space O(n).**"
+    }
+   ],
+   "walk": {
+    "steps": [
+     {
+      "text": "Tokens: 14 - 3 * 4 / 5 + 2 * 3",
+      "panels": [
+       {
+        "type": "row",
+        "cells": [
+         "14",
+         "-",
+         "3",
+         "*",
+         "4",
+         "/",
+         "5",
+         "+",
+         "2",
+         "*",
+         "3"
+        ]
+       }
+      ]
+     },
+     {
+      "text": "'3 * 4' → 12.",
+      "panels": [
+       {
+        "type": "row",
+        "cells": [
+         "14",
+         "-",
+         "3",
+         "*",
+         "4",
+         "/",
+         "5",
+         "+",
+         "2",
+         "*",
+         "3"
+        ],
+        "states": {
+         "2": "mark",
+         "3": "active",
+         "4": "mark"
+        }
+       }
+      ]
+     },
+     {
+      "text": "'12 / 5' → 2.",
+      "panels": [
+       {
+        "type": "row",
+        "cells": [
+         "14",
+         "-",
+         "12",
+         "/",
+         "5",
+         "+",
+         "2",
+         "*",
+         "3"
+        ],
+        "states": {
+         "2": "mark",
+         "3": "active",
+         "4": "mark"
+        }
+       }
+      ]
+     },
+     {
+      "text": "'2 * 3' → 6.",
+      "panels": [
+       {
+        "type": "row",
+        "cells": [
+         "14",
+         "-",
+         "2",
+         "+",
+         "2",
+         "*",
+         "3"
+        ],
+        "states": {
+         "4": "mark",
+         "5": "active",
+         "6": "mark"
+        }
+       }
+      ]
+     },
+     {
+      "text": "'14 - 2' → 12.",
+      "panels": [
+       {
+        "type": "row",
+        "cells": [
+         "14",
+         "-",
+         "2",
+         "+",
+         "6"
+        ],
+        "states": {
+         "0": "mark",
+         "1": "active",
+         "2": "mark"
+        }
+       }
+      ]
+     },
+     {
+      "text": "'12 + 6' → 18.",
+      "panels": [
+       {
+        "type": "row",
+        "cells": [
+         "12",
+         "+",
+         "6"
+        ],
+        "states": {
+         "0": "mark",
+         "1": "active",
+         "2": "mark"
+        }
+       }
+      ]
+     },
+     {
+      "text": "Result 18.",
+      "panels": [
+       {
+        "type": "row",
+        "cells": [
+         "18"
+        ]
+       }
+      ],
+      "result": "18"
+     }
+    ],
+    "title": "Tokenise. First collapse every * and / (leftmost first), then every + and -."
+   },
+   "limits": [
+    {
+     "md": "Shifting lists after every operator costs O(n) each time. The expression's shape (a sum of products) can be evaluated in a single left-to-right pass."
+    }
+   ],
+   "slow": true
+  },
+  {
+   "title": "Stack of signed terms",
+   "kind": "better",
+   "time": "O(n)",
+   "space": "O(n)",
+   "idea": [
+    {
+     "md": "Remember the operator before the current number. When the number ends: after `+` push it; after `−` push its negative; after `*` or `/` combine it with the top of the stack. The answer is the sum of the stack."
+    }
+   ],
+   "build": [
+    "`op = '+'`, `num = 0`, empty stack.",
+    "Read digits into num; at each operator (and at the end), apply the previous op to num, then remember the new op.",
+    "Return the stack's sum."
+   ],
+   "code": {
+    "python": "class Solution:\n    def calculate(self, expr: str) -> int:\n        stack, num, op = [], 0, \"+\"\n        for c in expr + \"+\":\n            if c == \" \":\n                continue\n            if c.isdigit():\n                num = num * 10 + int(c)\n                continue\n            if op == \"+\":\n                stack.append(num)\n            elif op == \"-\":\n                stack.append(-num)\n            elif op == \"*\":\n                stack[-1] *= num\n            else:\n                q = abs(stack[-1]) // num\n                stack[-1] = q if stack[-1] >= 0 else -q\n            op, num = c, 0\n        return sum(stack)\n",
+    "java": "class Solution {\n    public int calculate(String expr) {\n        Deque<Integer> stack = new ArrayDeque<>();\n        int num = 0;\n        char op = '+';\n        for (int i = 0; i <= expr.length(); i++) {\n            char c = i < expr.length() ? expr.charAt(i) : '+';\n            if (c == ' ') continue;\n            if (Character.isDigit(c)) { num = num * 10 + (c - '0'); continue; }\n            if (op == '+') stack.push(num);\n            else if (op == '-') stack.push(-num);\n            else if (op == '*') stack.push(stack.pop() * num);\n            else stack.push(stack.pop() / num);\n            op = c;\n            num = 0;\n        }\n        int sum = 0;\n        for (int v : stack) sum += v;\n        return sum;\n    }\n}\n",
+    "cpp": "class Solution {\npublic:\n    int calculate(string& expr) {\n        vector<int> stack;\n        int num = 0;\n        char op = '+';\n        for (size_t i = 0; i <= expr.size(); i++) {\n            char c = i < expr.size() ? expr[i] : '+';\n            if (c == ' ') continue;\n            if (isdigit(c)) { num = num * 10 + (c - '0'); continue; }\n            if (op == '+') stack.push_back(num);\n            else if (op == '-') stack.push_back(-num);\n            else if (op == '*') stack.back() *= num;\n            else stack.back() /= num;\n            op = c;\n            num = 0;\n        }\n        return accumulate(stack.begin(), stack.end(), 0);\n    }\n};\n",
+    "c": "int calculate(char* expr) {\n    int n = strlen(expr), top = 0, num = 0;\n    int* stack = malloc((n + 1) * sizeof(int));\n    char op = '+';\n    for (int i = 0; i <= n; i++) {\n        char c = i < n ? expr[i] : '+';\n        if (c == ' ') continue;\n        if (c >= '0' && c <= '9') { num = num * 10 + (c - '0'); continue; }\n        if (op == '+') stack[top++] = num;\n        else if (op == '-') stack[top++] = -num;\n        else if (op == '*') stack[top - 1] *= num;\n        else stack[top - 1] /= num;\n        op = c;\n        num = 0;\n    }\n    int sum = 0;\n    for (int i = 0; i < top; i++) sum += stack[i];\n    free(stack);\n    return sum;\n}\n"
+   },
+   "lines": [
+    {
+     "text": "The operator before the first number is effectively `+`.",
+     "at": {
+      "python": [
+       [
+        3,
+        3
+       ]
+      ],
+      "java": [
+       [
+        3,
+        5
+       ]
+      ],
+      "cpp": [
+       [
+        4,
+        6
+       ]
+      ],
+      "c": [
+       [
+        3,
+        4
+       ]
+      ]
+     }
+    },
+    {
+     "text": "Read characters, with a sentinel `+` at the end so the last number is applied too; spaces are skipped.",
+     "at": {
+      "python": [
+       [
+        4,
+        6
+       ]
+      ],
+      "java": [
+       [
+        6,
+        8
+       ]
+      ],
+      "cpp": [
+       [
+        7,
+        9
+       ]
+      ],
+      "c": [
+       [
+        5,
+        7
+       ]
+      ]
+     }
+    },
+    {
+     "text": "Build multi-digit numbers.",
+     "at": {
+      "python": [
+       [
+        7,
+        9
+       ]
+      ],
+      "java": [
+       [
+        9,
+        9
+       ]
+      ],
+      "cpp": [
+       [
+        10,
+        10
+       ]
+      ],
+      "c": [
+       [
+        8,
+        8
+       ]
+      ]
+     }
+    },
+    {
+     "text": "The number just finished is applied with the operator *before* it: `+`/`−` start a new signed term; `*`/`/` change the latest term. Integer division truncates toward zero.",
+     "at": {
+      "python": [
+       [
+        10,
+        18
+       ]
+      ],
+      "java": [
+       [
+        10,
+        13
+       ]
+      ],
+      "cpp": [
+       [
+        11,
+        14
+       ]
+      ],
+      "c": [
+       [
+        9,
+        12
+       ]
+      ]
+     },
+     "notes": {
+      "python": "Python's `//` floors, so the sign is handled separately."
+     }
+    },
+    {
+     "text": "Remember this operator for the next number.",
+     "at": {
+      "python": [
+       [
+        19,
+        19
+       ]
+      ],
+      "java": [
+       [
+        14,
+        15
+       ]
+      ],
+      "cpp": [
+       [
+        15,
+        16
+       ]
+      ],
+      "c": [
+       [
+        13,
+        14
+       ]
+      ]
+     }
+    },
+    {
+     "text": "Add up the terms.",
+     "at": {
+      "python": [
+       [
+        20,
+        20
+       ]
+      ],
+      "java": [
+       [
+        17,
+        19
+       ]
+      ],
+      "cpp": [
+       [
+        18,
+        18
+       ]
+      ],
+      "c": [
+       [
+        16,
+        19
+       ]
+      ]
+     }
+    }
+   ],
+   "complexity": [
+    {
+     "md": "**Time O(n).** **Space O(n)** for the terms."
+    }
+   ],
+   "walk": {
+    "steps": [
+     {
+      "text": "14 after '+': push 14.",
+      "panels": [
+       {
+        "type": "row",
+        "cells": [
+         14
+        ],
+        "label": "terms"
+       }
+      ]
+     },
+     {
+      "text": "3 after '−': push −3.",
+      "panels": [
+       {
+        "type": "row",
+        "cells": [
+         14,
+         -3
+        ],
+        "label": "terms"
+       }
+      ]
+     },
+     {
+      "text": "4 after '*': top becomes -12.",
+      "panels": [
+       {
+        "type": "row",
+        "cells": [
+         14,
+         -12
+        ],
+        "label": "terms"
+       }
+      ]
+     },
+     {
+      "text": "5 after '/': top becomes -2.",
+      "panels": [
+       {
+        "type": "row",
+        "cells": [
+         14,
+         -2
+        ],
+        "label": "terms"
+       }
+      ]
+     },
+     {
+      "text": "2 after '+': push 2.",
+      "panels": [
+       {
+        "type": "row",
+        "cells": [
+         14,
+         -2,
+         2
+        ],
+        "label": "terms"
+       }
+      ]
+     },
+     {
+      "text": "3 after '*': top becomes 6.",
+      "panels": [
+       {
+        "type": "row",
+        "cells": [
+         14,
+         -2,
+         6
+        ],
+        "label": "terms"
+       }
+      ]
+     },
+     {
+      "text": "Add the terms: 14 + -2 + 6 = 18.",
+      "panels": [
+       {
+        "type": "row",
+        "cells": [
+         14,
+         -2,
+         6
+        ],
+        "label": "terms"
+       }
+      ],
+      "result": "18"
+     }
+    ],
+    "title": "Stack of terms to be added. '+' pushes the next number, '−' pushes its negative, '*' and '/' combine with the top term."
+   },
+   "limits": [
+    {
+     "md": "Terms below the top of the stack never change again, so storing them is unnecessary: a running sum holds them just as well."
+    }
+   ]
+  },
+  {
+   "title": "Running total and current term",
+   "kind": "best",
+   "time": "O(n)",
+   "space": "O(1)",
+   "idea": [
+    {
+     "md": "Keep `total` (sum of finished terms) and `last` (the current term). When a number ends: after `+`/`−`, add `last` to total and start a new term `±num`; after `*`/`/`, update `last`. At the end, return `total + last`."
+    }
+   ],
+   "build": [
+    "`total = last = 0`, `op = '+'`.",
+    "At each operator (and the end sentinel), apply the previous op to the finished number.",
+    "Return `total + last`."
+   ],
+   "code": {
+    "python": "class Solution:\n    def calculate(self, expr: str) -> int:\n        total = last = num = 0\n        op = \"+\"\n        for c in expr + \"+\":\n            if c == \" \":\n                continue\n            if c.isdigit():\n                num = num * 10 + int(c)\n                continue\n            if op in \"+-\":\n                total += last\n                last = num if op == \"+\" else -num\n            elif op == \"*\":\n                last *= num\n            else:\n                q = abs(last) // num\n                last = q if last >= 0 else -q\n            op, num = c, 0\n        return total + last\n",
+    "java": "class Solution {\n    public int calculate(String expr) {\n        int total = 0, last = 0, num = 0;\n        char op = '+';\n        for (int i = 0; i <= expr.length(); i++) {\n            char c = i < expr.length() ? expr.charAt(i) : '+';\n            if (c == ' ') continue;\n            if (Character.isDigit(c)) { num = num * 10 + (c - '0'); continue; }\n            if (op == '+' || op == '-') {\n                total += last;\n                last = op == '+' ? num : -num;\n            } else if (op == '*') last *= num;\n            else last /= num;\n            op = c;\n            num = 0;\n        }\n        return total + last;\n    }\n}\n",
+    "cpp": "class Solution {\npublic:\n    int calculate(string& expr) {\n        int total = 0, last = 0, num = 0;\n        char op = '+';\n        for (size_t i = 0; i <= expr.size(); i++) {\n            char c = i < expr.size() ? expr[i] : '+';\n            if (c == ' ') continue;\n            if (isdigit(c)) { num = num * 10 + (c - '0'); continue; }\n            if (op == '+' || op == '-') {\n                total += last;\n                last = op == '+' ? num : -num;\n            } else if (op == '*') last *= num;\n            else last /= num;\n            op = c;\n            num = 0;\n        }\n        return total + last;\n    }\n};\n",
+    "c": "int calculate(char* expr) {\n    int n = strlen(expr), total = 0, last = 0, num = 0;\n    char op = '+';\n    for (int i = 0; i <= n; i++) {\n        char c = i < n ? expr[i] : '+';\n        if (c == ' ') continue;\n        if (c >= '0' && c <= '9') { num = num * 10 + (c - '0'); continue; }\n        if (op == '+' || op == '-') {\n            total += last;\n            last = op == '+' ? num : -num;\n        } else if (op == '*') last *= num;\n        else last /= num;\n        op = c;\n        num = 0;\n    }\n    return total + last;\n}\n"
+   },
+   "lines": [
+    {
+     "text": "No finished terms, an empty current term, and an implicit leading `+`.",
+     "at": {
+      "python": [
+       [
+        3,
+        4
+       ]
+      ],
+      "java": [
+       [
+        3,
+        4
+       ]
+      ],
+      "cpp": [
+       [
+        4,
+        5
+       ]
+      ],
+      "c": [
+       [
+        2,
+        3
+       ]
+      ]
+     }
+    },
+    {
+     "text": "Characters plus an end sentinel `+`; spaces skipped.",
+     "at": {
+      "python": [
+       [
+        5,
+        7
+       ]
+      ],
+      "java": [
+       [
+        5,
+        7
+       ]
+      ],
+      "cpp": [
+       [
+        6,
+        8
+       ]
+      ],
+      "c": [
+       [
+        4,
+        6
+       ]
+      ]
+     }
+    },
+    {
+     "text": "Build the number.",
+     "at": {
+      "python": [
+       [
+        8,
+        10
+       ]
+      ],
+      "java": [
+       [
+        8,
+        8
+       ]
+      ],
+      "cpp": [
+       [
+        9,
+        9
+       ]
+      ],
+      "c": [
+       [
+        7,
+        7
+       ]
+      ]
+     }
+    },
+    {
+     "text": "`+`/`−` before this number: the previous term is final, bank it; this number starts a new signed term.",
+     "at": {
+      "python": [
+       [
+        11,
+        13
+       ]
+      ],
+      "java": [
+       [
+        9,
+        11
+       ]
+      ],
+      "cpp": [
+       [
+        10,
+        12
+       ]
+      ],
+      "c": [
+       [
+        8,
+        10
+       ]
+      ]
+     }
+    },
+    {
+     "text": "`*`/`/` before this number: it continues the current term. Truncation toward zero comes free in Java, C++ and C; Python needs the sign handled separately.",
+     "at": {
+      "python": [
+       [
+        14,
+        18
+       ]
+      ],
+      "java": [
+       [
+        12,
+        13
+       ]
+      ],
+      "cpp": [
+       [
+        13,
+        14
+       ]
+      ],
+      "c": [
+       [
+        11,
+        12
+       ]
+      ]
+     }
+    },
+    {
+     "text": "Remember the operator for the next number.",
+     "at": {
+      "python": [
+       [
+        19,
+        19
+       ]
+      ],
+      "java": [
+       [
+        14,
+        15
+       ]
+      ],
+      "cpp": [
+       [
+        15,
+        16
+       ]
+      ],
+      "c": [
+       [
+        13,
+        14
+       ]
+      ]
+     }
+    },
+    {
+     "text": "Bank the last term.",
+     "at": {
+      "python": [
+       [
+        20,
+        20
+       ]
+      ],
+      "java": [
+       [
+        17,
+        17
+       ]
+      ],
+      "cpp": [
+       [
+        18,
+        18
+       ]
+      ],
+      "c": [
+       [
+        16,
+        16
+       ]
+      ]
+     }
+    }
+   ],
+   "complexity": [
+    {
+     "md": "**Time O(n).** **Space O(1).**"
+    }
+   ],
+   "walk": {
+    "steps": [
+     {
+      "text": "14 starts a new term (14); bank the previous one: total 0.",
+      "panels": [
+       {
+        "type": "vars",
+        "items": {
+         "total": 0,
+         "term": 14
+        }
+       }
+      ]
+     },
+     {
+      "text": "3 starts a new term (-3); bank the previous one: total 14.",
+      "panels": [
+       {
+        "type": "vars",
+        "items": {
+         "total": 14,
+         "term": -3
+        }
+       }
+      ]
+     },
+     {
+      "text": "4 multiplies the current term: -12.",
+      "panels": [
+       {
+        "type": "vars",
+        "items": {
+         "total": 14,
+         "term": -12
+        }
+       }
+      ]
+     },
+     {
+      "text": "5 divides the current term: -2.",
+      "panels": [
+       {
+        "type": "vars",
+        "items": {
+         "total": 14,
+         "term": -2
+        }
+       }
+      ]
+     },
+     {
+      "text": "2 starts a new term (2); bank the previous one: total 12.",
+      "panels": [
+       {
+        "type": "vars",
+        "items": {
+         "total": 12,
+         "term": 2
+        }
+       }
+      ]
+     },
+     {
+      "text": "3 multiplies the current term: 6.",
+      "panels": [
+       {
+        "type": "vars",
+        "items": {
+         "total": 12,
+         "term": 6
+        }
+       }
+      ]
+     },
+     {
+      "text": "Bank the last term: 12 + 6 = 18.",
+      "panels": [
+       {
+        "type": "vars",
+        "items": {
+         "answer": 18
+        }
+       }
+      ],
+      "result": "18"
+     }
+    ],
+    "title": "Only the last term can still change, so keep it in a variable; everything before it is already final in a running total."
+   }
+  }
+ ],
+ "takeaways": [
+  {
+   "md": "- Precedence without parentheses: the expression is a **sum of products**. `+`/`−` close a term; `*`/`/` extend it.\n- Apply each number with the operator **before** it, and add a sentinel at the end to flush the last number.\n- Only the current term can still change, so a running total replaces the stack."
+  }
+ ]
+}

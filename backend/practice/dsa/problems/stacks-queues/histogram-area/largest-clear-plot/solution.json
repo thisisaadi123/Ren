@@ -1,0 +1,2346 @@
+{
+ "version": 1,
+ "summary": "Treat each row as the bottom edge of the plot. For every column, count the clear cells stacked up to and\nincluding this row; that turns the row into a histogram, and the largest plot with this bottom edge is the\nlargest rectangle in that histogram (the stack method). Heights update in O(1) per cell from the row above.\nO(rows × cols).",
+ "question": [
+  {
+   "md": "The field is a grid of `'1'` (clear) and `'0'` (rocks). Find the largest axis-aligned rectangle made only of\nclear cells, and return its area. If there are no clear cells, return 0.\n\n- **Cells are characters**, `'0'` and `'1'`, not numbers.\n- **Up to 500 × 500 cells**: there are about 1.6 × 10¹⁰ rectangles, so they can't all be checked."
+  }
+ ],
+ "think": [
+  {
+   "md": "Here is a 4 × 5 field. The largest clear plot has area **8**: for example, rows 1–2 × columns 0–3."
+  },
+  {
+   "panels": [
+    {
+     "type": "grid",
+     "cells": [
+      [
+       "0",
+       "1",
+       "1",
+       "0",
+       "1"
+      ],
+      [
+       "1",
+       "1",
+       "1",
+       "1",
+       "0"
+      ],
+      [
+       "1",
+       "1",
+       "1",
+       "1",
+       "1"
+      ],
+      [
+       "0",
+       "1",
+       "1",
+       "0",
+       "1"
+      ]
+     ],
+     "states": {
+      "1,0": "found",
+      "1,1": "found",
+      "1,2": "found",
+      "1,3": "found",
+      "2,0": "found",
+      "2,1": "found",
+      "2,2": "found",
+      "2,3": "found"
+     }
+    }
+   ],
+   "caption": "A clear 2 × 4 plot."
+  },
+  {
+   "md": "Every plot has a bottom row. Fix that row: going up from it, each column has some number of consecutive clear\ncells (its height). A plot sitting on this row, spanning some columns, can be as tall as the shortest of those\ncolumns' heights. That's exactly the largest-rectangle-in-a-histogram problem, once per row.\n\nThe heights are easy to keep up to date: going down one row, a clear cell adds 1 to its column's height and a\nrock resets it to 0."
+  }
+ ],
+ "approaches": [
+  {
+   "title": "Check every rectangle",
+   "kind": "brute",
+   "time": "O(R²·C²·R·C)",
+   "space": "O(1)",
+   "idea": [
+    {
+     "md": "Enumerate every top-left and bottom-right corner, check every cell inside for rocks, and keep the largest all-clear area. (2-D prefix sums of rocks would make each check O(1), but the number of rectangles alone is already too large.)"
+    }
+   ],
+   "build": [
+    "Loop over top-left (`r1`, `c1`) and bottom-right (`r2`, `c2`).",
+    "Check every cell inside; stop at the first rock.",
+    "Track the largest clear area."
+   ],
+   "code": {
+    "python": "class Solution:\n    def largestClearPlot(self, land: List[List[str]]) -> int:\n        R, C = len(land), len(land[0])\n        best = 0\n        for r1 in range(R):\n            for c1 in range(C):\n                for r2 in range(r1, R):\n                    for c2 in range(c1, C):\n                        if all(land[r][c] == \"1\" for r in range(r1, r2 + 1) for c in range(c1, c2 + 1)):\n                            best = max(best, (r2 - r1 + 1) * (c2 - c1 + 1))\n        return best\n",
+    "java": "class Solution {\n    public int largestClearPlot(char[][] land) {\n        int R = land.length, C = land[0].length;\n        int best = 0;\n        for (int r1 = 0; r1 < R; r1++)\n            for (int c1 = 0; c1 < C; c1++)\n                for (int r2 = r1; r2 < R; r2++)\n                    for (int c2 = c1; c2 < C; c2++) {\n                        boolean clear = true;\n                        for (int r = r1; r <= r2 && clear; r++)\n                            for (int c = c1; c <= c2 && clear; c++)\n                                if (land[r][c] != '1') clear = false;\n                        if (clear) best = Math.max(best, (r2 - r1 + 1) * (c2 - c1 + 1));\n                    }\n        return best;\n    }\n}\n",
+    "cpp": "class Solution {\npublic:\n    int largestClearPlot(vector<vector<char>>& land) {\n        int R = land.size(), C = land[0].size();\n        int best = 0;\n        for (int r1 = 0; r1 < R; r1++)\n            for (int c1 = 0; c1 < C; c1++)\n                for (int r2 = r1; r2 < R; r2++)\n                    for (int c2 = c1; c2 < C; c2++) {\n                        bool clear = true;\n                        for (int r = r1; r <= r2 && clear; r++)\n                            for (int c = c1; c <= c2 && clear; c++)\n                                if (land[r][c] != '1') clear = false;\n                        if (clear) best = max(best, (r2 - r1 + 1) * (c2 - c1 + 1));\n                    }\n        return best;\n    }\n};\n",
+    "c": "int largestClearPlot(char** land, int landSize, int* landColSize) {\n    int R = landSize, C = landColSize[0];\n    int best = 0;\n    for (int r1 = 0; r1 < R; r1++)\n        for (int c1 = 0; c1 < C; c1++)\n            for (int r2 = r1; r2 < R; r2++)\n                for (int c2 = c1; c2 < C; c2++) {\n                    bool clear = true;\n                    for (int r = r1; r <= r2 && clear; r++)\n                        for (int c = c1; c <= c2 && clear; c++)\n                            if (land[r][c] != '1') clear = false;\n                    int area = (r2 - r1 + 1) * (c2 - c1 + 1);\n                    if (clear && area > best) best = area;\n                }\n    return best;\n}\n"
+   },
+   "lines": [
+    {
+     "text": "Grid size and the best area.",
+     "at": {
+      "python": [
+       [
+        3,
+        4
+       ]
+      ],
+      "java": [
+       [
+        3,
+        4
+       ]
+      ],
+      "cpp": [
+       [
+        4,
+        5
+       ]
+      ],
+      "c": [
+       [
+        2,
+        3
+       ]
+      ]
+     }
+    },
+    {
+     "text": "Every rectangle, by its top-left and bottom-right corners.",
+     "at": {
+      "python": [
+       [
+        5,
+        8
+       ]
+      ],
+      "java": [
+       [
+        5,
+        8
+       ]
+      ],
+      "cpp": [
+       [
+        6,
+        9
+       ]
+      ],
+      "c": [
+       [
+        4,
+        7
+       ]
+      ]
+     }
+    },
+    {
+     "text": "Is every cell inside clear? Stop at the first rock.",
+     "at": {
+      "python": [
+       [
+        9,
+        9
+       ]
+      ],
+      "java": [
+       [
+        9,
+        12
+       ]
+      ],
+      "cpp": [
+       [
+        10,
+        13
+       ]
+      ],
+      "c": [
+       [
+        8,
+        11
+       ]
+      ]
+     }
+    },
+    {
+     "text": "Clear: compare its area with the best.",
+     "at": {
+      "python": [
+       [
+        10,
+        10
+       ]
+      ],
+      "java": [
+       [
+        13,
+        13
+       ]
+      ],
+      "cpp": [
+       [
+        14,
+        14
+       ]
+      ],
+      "c": [
+       [
+        12,
+        13
+       ]
+      ]
+     }
+    },
+    {
+     "text": "The largest clear area.",
+     "at": {
+      "python": [
+       [
+        11,
+        11
+       ]
+      ],
+      "java": [
+       [
+        15,
+        15
+       ]
+      ],
+      "cpp": [
+       [
+        16,
+        16
+       ]
+      ],
+      "c": [
+       [
+        15,
+        15
+       ]
+      ]
+     }
+    }
+   ],
+   "complexity": [
+    {
+     "md": "**Time O(R²C²)** rectangles, each checked in up to O(RC). **Space O(1).**"
+    }
+   ],
+   "walk": {
+    "steps": [
+     {
+      "text": "Top-left (0, 1): the biggest clear rectangle reaches (3, 2), area 8.",
+      "panels": [
+       {
+        "type": "grid",
+        "cells": [
+         [
+          "0",
+          "1",
+          "1",
+          "0",
+          "1"
+         ],
+         [
+          "1",
+          "1",
+          "1",
+          "1",
+          "0"
+         ],
+         [
+          "1",
+          "1",
+          "1",
+          "1",
+          "1"
+         ],
+         [
+          "0",
+          "1",
+          "1",
+          "0",
+          "1"
+         ]
+        ],
+        "states": {
+         "0,1": "active",
+         "0,2": "mark",
+         "1,1": "mark",
+         "1,2": "mark",
+         "2,1": "mark",
+         "2,2": "mark",
+         "3,1": "mark",
+         "3,2": "mark"
+        }
+       },
+       {
+        "type": "vars",
+        "items": {
+         "best": 8
+        }
+       }
+      ]
+     },
+     {
+      "text": "Top-left (0, 2): the biggest clear rectangle reaches (3, 2), area 4.",
+      "panels": [
+       {
+        "type": "grid",
+        "cells": [
+         [
+          "0",
+          "1",
+          "1",
+          "0",
+          "1"
+         ],
+         [
+          "1",
+          "1",
+          "1",
+          "1",
+          "0"
+         ],
+         [
+          "1",
+          "1",
+          "1",
+          "1",
+          "1"
+         ],
+         [
+          "0",
+          "1",
+          "1",
+          "0",
+          "1"
+         ]
+        ],
+        "states": {
+         "0,2": "active",
+         "1,2": "mark",
+         "2,2": "mark",
+         "3,2": "mark"
+        }
+       },
+       {
+        "type": "vars",
+        "items": {
+         "best": 8
+        }
+       }
+      ]
+     },
+     {
+      "text": "Top-left (0, 4): the biggest clear rectangle reaches (0, 4), area 1.",
+      "panels": [
+       {
+        "type": "grid",
+        "cells": [
+         [
+          "0",
+          "1",
+          "1",
+          "0",
+          "1"
+         ],
+         [
+          "1",
+          "1",
+          "1",
+          "1",
+          "0"
+         ],
+         [
+          "1",
+          "1",
+          "1",
+          "1",
+          "1"
+         ],
+         [
+          "0",
+          "1",
+          "1",
+          "0",
+          "1"
+         ]
+        ],
+        "states": {
+         "0,4": "active"
+        }
+       },
+       {
+        "type": "vars",
+        "items": {
+         "best": 8
+        }
+       }
+      ]
+     },
+     {
+      "text": "Top-left (1, 0): the biggest clear rectangle reaches (2, 3), area 8.",
+      "panels": [
+       {
+        "type": "grid",
+        "cells": [
+         [
+          "0",
+          "1",
+          "1",
+          "0",
+          "1"
+         ],
+         [
+          "1",
+          "1",
+          "1",
+          "1",
+          "0"
+         ],
+         [
+          "1",
+          "1",
+          "1",
+          "1",
+          "1"
+         ],
+         [
+          "0",
+          "1",
+          "1",
+          "0",
+          "1"
+         ]
+        ],
+        "states": {
+         "1,0": "active",
+         "1,1": "mark",
+         "1,2": "mark",
+         "1,3": "mark",
+         "2,0": "mark",
+         "2,1": "mark",
+         "2,2": "mark",
+         "2,3": "mark"
+        }
+       },
+       {
+        "type": "vars",
+        "items": {
+         "best": 8
+        }
+       }
+      ]
+     },
+     {
+      "text": "Top-left (1, 1): the biggest clear rectangle reaches (2, 3), area 6.",
+      "panels": [
+       {
+        "type": "grid",
+        "cells": [
+         [
+          "0",
+          "1",
+          "1",
+          "0",
+          "1"
+         ],
+         [
+          "1",
+          "1",
+          "1",
+          "1",
+          "0"
+         ],
+         [
+          "1",
+          "1",
+          "1",
+          "1",
+          "1"
+         ],
+         [
+          "0",
+          "1",
+          "1",
+          "0",
+          "1"
+         ]
+        ],
+        "states": {
+         "1,1": "active",
+         "1,2": "mark",
+         "1,3": "mark",
+         "2,1": "mark",
+         "2,2": "mark",
+         "2,3": "mark"
+        }
+       },
+       {
+        "type": "vars",
+        "items": {
+         "best": 8
+        }
+       }
+      ]
+     },
+     {
+      "text": "Top-left (1, 2): the biggest clear rectangle reaches (2, 3), area 4.",
+      "panels": [
+       {
+        "type": "grid",
+        "cells": [
+         [
+          "0",
+          "1",
+          "1",
+          "0",
+          "1"
+         ],
+         [
+          "1",
+          "1",
+          "1",
+          "1",
+          "0"
+         ],
+         [
+          "1",
+          "1",
+          "1",
+          "1",
+          "1"
+         ],
+         [
+          "0",
+          "1",
+          "1",
+          "0",
+          "1"
+         ]
+        ],
+        "states": {
+         "1,2": "active",
+         "1,3": "mark",
+         "2,2": "mark",
+         "2,3": "mark"
+        }
+       },
+       {
+        "type": "vars",
+        "items": {
+         "best": 8
+        }
+       }
+      ]
+     },
+     {
+      "text": "Top-left (1, 3): the biggest clear rectangle reaches (2, 3), area 2.",
+      "panels": [
+       {
+        "type": "grid",
+        "cells": [
+         [
+          "0",
+          "1",
+          "1",
+          "0",
+          "1"
+         ],
+         [
+          "1",
+          "1",
+          "1",
+          "1",
+          "0"
+         ],
+         [
+          "1",
+          "1",
+          "1",
+          "1",
+          "1"
+         ],
+         [
+          "0",
+          "1",
+          "1",
+          "0",
+          "1"
+         ]
+        ],
+        "states": {
+         "1,3": "active",
+         "2,3": "mark"
+        }
+       },
+       {
+        "type": "vars",
+        "items": {
+         "best": 8
+        }
+       }
+      ]
+     },
+     {
+      "text": "Top-left (2, 0): the biggest clear rectangle reaches (2, 4), area 5.",
+      "panels": [
+       {
+        "type": "grid",
+        "cells": [
+         [
+          "0",
+          "1",
+          "1",
+          "0",
+          "1"
+         ],
+         [
+          "1",
+          "1",
+          "1",
+          "1",
+          "0"
+         ],
+         [
+          "1",
+          "1",
+          "1",
+          "1",
+          "1"
+         ],
+         [
+          "0",
+          "1",
+          "1",
+          "0",
+          "1"
+         ]
+        ],
+        "states": {
+         "2,0": "active",
+         "2,1": "mark",
+         "2,2": "mark",
+         "2,3": "mark",
+         "2,4": "mark"
+        }
+       },
+       {
+        "type": "vars",
+        "items": {
+         "best": 8
+        }
+       }
+      ]
+     },
+     {
+      "text": "Top-left (2, 1): the biggest clear rectangle reaches (2, 4), area 4.",
+      "panels": [
+       {
+        "type": "grid",
+        "cells": [
+         [
+          "0",
+          "1",
+          "1",
+          "0",
+          "1"
+         ],
+         [
+          "1",
+          "1",
+          "1",
+          "1",
+          "0"
+         ],
+         [
+          "1",
+          "1",
+          "1",
+          "1",
+          "1"
+         ],
+         [
+          "0",
+          "1",
+          "1",
+          "0",
+          "1"
+         ]
+        ],
+        "states": {
+         "2,1": "active",
+         "2,2": "mark",
+         "2,3": "mark",
+         "2,4": "mark"
+        }
+       },
+       {
+        "type": "vars",
+        "items": {
+         "best": 8
+        }
+       }
+      ]
+     },
+     {
+      "text": "Top-left (2, 2): the biggest clear rectangle reaches (2, 4), area 3.",
+      "panels": [
+       {
+        "type": "grid",
+        "cells": [
+         [
+          "0",
+          "1",
+          "1",
+          "0",
+          "1"
+         ],
+         [
+          "1",
+          "1",
+          "1",
+          "1",
+          "0"
+         ],
+         [
+          "1",
+          "1",
+          "1",
+          "1",
+          "1"
+         ],
+         [
+          "0",
+          "1",
+          "1",
+          "0",
+          "1"
+         ]
+        ],
+        "states": {
+         "2,2": "active",
+         "2,3": "mark",
+         "2,4": "mark"
+        }
+       },
+       {
+        "type": "vars",
+        "items": {
+         "best": 8
+        }
+       }
+      ]
+     },
+     {
+      "text": "Top-left (2, 3): the biggest clear rectangle reaches (2, 4), area 2.",
+      "panels": [
+       {
+        "type": "grid",
+        "cells": [
+         [
+          "0",
+          "1",
+          "1",
+          "0",
+          "1"
+         ],
+         [
+          "1",
+          "1",
+          "1",
+          "1",
+          "0"
+         ],
+         [
+          "1",
+          "1",
+          "1",
+          "1",
+          "1"
+         ],
+         [
+          "0",
+          "1",
+          "1",
+          "0",
+          "1"
+         ]
+        ],
+        "states": {
+         "2,3": "active",
+         "2,4": "mark"
+        }
+       },
+       {
+        "type": "vars",
+        "items": {
+         "best": 8
+        }
+       }
+      ]
+     },
+     {
+      "text": "Top-left (2, 4): the biggest clear rectangle reaches (3, 4), area 2.",
+      "panels": [
+       {
+        "type": "grid",
+        "cells": [
+         [
+          "0",
+          "1",
+          "1",
+          "0",
+          "1"
+         ],
+         [
+          "1",
+          "1",
+          "1",
+          "1",
+          "0"
+         ],
+         [
+          "1",
+          "1",
+          "1",
+          "1",
+          "1"
+         ],
+         [
+          "0",
+          "1",
+          "1",
+          "0",
+          "1"
+         ]
+        ],
+        "states": {
+         "2,4": "active",
+         "3,4": "mark"
+        }
+       },
+       {
+        "type": "vars",
+        "items": {
+         "best": 8
+        }
+       }
+      ]
+     },
+     {
+      "text": "Top-left (3, 1): the biggest clear rectangle reaches (3, 2), area 2.",
+      "panels": [
+       {
+        "type": "grid",
+        "cells": [
+         [
+          "0",
+          "1",
+          "1",
+          "0",
+          "1"
+         ],
+         [
+          "1",
+          "1",
+          "1",
+          "1",
+          "0"
+         ],
+         [
+          "1",
+          "1",
+          "1",
+          "1",
+          "1"
+         ],
+         [
+          "0",
+          "1",
+          "1",
+          "0",
+          "1"
+         ]
+        ],
+        "states": {
+         "3,1": "active",
+         "3,2": "mark"
+        }
+       },
+       {
+        "type": "vars",
+        "items": {
+         "best": 8
+        }
+       }
+      ]
+     },
+     {
+      "text": "Top-left (3, 2): the biggest clear rectangle reaches (3, 2), area 1.",
+      "panels": [
+       {
+        "type": "grid",
+        "cells": [
+         [
+          "0",
+          "1",
+          "1",
+          "0",
+          "1"
+         ],
+         [
+          "1",
+          "1",
+          "1",
+          "1",
+          "0"
+         ],
+         [
+          "1",
+          "1",
+          "1",
+          "1",
+          "1"
+         ],
+         [
+          "0",
+          "1",
+          "1",
+          "0",
+          "1"
+         ]
+        ],
+        "states": {
+         "3,2": "active"
+        }
+       },
+       {
+        "type": "vars",
+        "items": {
+         "best": 8
+        }
+       }
+      ]
+     },
+     {
+      "text": "Top-left (3, 4): the biggest clear rectangle reaches (3, 4), area 1.",
+      "panels": [
+       {
+        "type": "grid",
+        "cells": [
+         [
+          "0",
+          "1",
+          "1",
+          "0",
+          "1"
+         ],
+         [
+          "1",
+          "1",
+          "1",
+          "1",
+          "0"
+         ],
+         [
+          "1",
+          "1",
+          "1",
+          "1",
+          "1"
+         ],
+         [
+          "0",
+          "1",
+          "1",
+          "0",
+          "1"
+         ]
+        ],
+        "states": {
+         "3,4": "active"
+        }
+       },
+       {
+        "type": "vars",
+        "items": {
+         "best": 8
+        }
+       }
+      ]
+     },
+     {
+      "text": "Largest clear plot: 8.",
+      "panels": [],
+      "result": "8"
+     }
+    ],
+    "title": "Try every rectangle, checking that it has no rocks. Here: for each clear top-left cell, the biggest clear rectangle starting there."
+   },
+   "limits": [
+    {
+     "md": "Hopeless beyond tiny fields: a 500 × 500 grid has ~1.6 × 10¹⁰ rectangles before even checking them. Fixing two rows and reusing the work between bands removes most of it."
+    }
+   ],
+   "slow": true
+  },
+  {
+   "title": "Fix the top and bottom rows",
+   "kind": "better",
+   "time": "O(R²·C)",
+   "space": "O(C)",
+   "idea": [
+    {
+     "md": "For each top row, grow the bottom row downward while keeping, per column, whether the column is clear in every row of the band (AND it with the new row). The best plot in the band is the longest run of usable columns times the band's height."
+    }
+   ],
+   "build": [
+    "For each `top`: reset `usable[c] = true`.",
+    "For each `bottom` from `top` down: `usable[c] &= land[bottom][c] == '1'`.",
+    "Scan the columns for the longest run of usable ones; area = run × (bottom − top + 1)."
+   ],
+   "code": {
+    "python": "class Solution:\n    def largestClearPlot(self, land: List[List[str]]) -> int:\n        R, C = len(land), len(land[0])\n        best = 0\n        for top in range(R):\n            usable = [True] * C\n            for bottom in range(top, R):\n                run = 0\n                for c in range(C):\n                    usable[c] = usable[c] and land[bottom][c] == \"1\"\n                    run = run + 1 if usable[c] else 0\n                    best = max(best, run * (bottom - top + 1))\n        return best\n",
+    "java": "class Solution {\n    public int largestClearPlot(char[][] land) {\n        int R = land.length, C = land[0].length;\n        int best = 0;\n        boolean[] usable = new boolean[C];\n        for (int top = 0; top < R; top++) {\n            Arrays.fill(usable, true);\n            for (int bottom = top; bottom < R; bottom++) {\n                int run = 0;\n                for (int c = 0; c < C; c++) {\n                    usable[c] = usable[c] && land[bottom][c] == '1';\n                    run = usable[c] ? run + 1 : 0;\n                    best = Math.max(best, run * (bottom - top + 1));\n                }\n            }\n        }\n        return best;\n    }\n}\n",
+    "cpp": "class Solution {\npublic:\n    int largestClearPlot(vector<vector<char>>& land) {\n        int R = land.size(), C = land[0].size();\n        int best = 0;\n        vector<char> usable(C);\n        for (int top = 0; top < R; top++) {\n            fill(usable.begin(), usable.end(), 1);\n            for (int bottom = top; bottom < R; bottom++) {\n                int run = 0;\n                for (int c = 0; c < C; c++) {\n                    usable[c] = usable[c] && land[bottom][c] == '1';\n                    run = usable[c] ? run + 1 : 0;\n                    best = max(best, run * (bottom - top + 1));\n                }\n            }\n        }\n        return best;\n    }\n};\n",
+    "c": "int largestClearPlot(char** land, int landSize, int* landColSize) {\n    int R = landSize, C = landColSize[0];\n    int best = 0;\n    bool* usable = malloc(C * sizeof(bool));\n    for (int top = 0; top < R; top++) {\n        for (int c = 0; c < C; c++) usable[c] = true;\n        for (int bottom = top; bottom < R; bottom++) {\n            int run = 0;\n            for (int c = 0; c < C; c++) {\n                usable[c] = usable[c] && land[bottom][c] == '1';\n                run = usable[c] ? run + 1 : 0;\n                if (run * (bottom - top + 1) > best) best = run * (bottom - top + 1);\n            }\n        }\n    }\n    free(usable);\n    return best;\n}\n"
+   },
+   "lines": [
+    {
+     "text": "Grid size, the best area, and a per-column flag.",
+     "at": {
+      "python": [
+       [
+        3,
+        4
+       ]
+      ],
+      "java": [
+       [
+        3,
+        5
+       ]
+      ],
+      "cpp": [
+       [
+        4,
+        6
+       ]
+      ],
+      "c": [
+       [
+        2,
+        4
+       ]
+      ]
+     },
+     "notes": {
+      "cpp": "`vector<char>` instead of `vector<bool>`, which packs bits and is slower to index."
+     }
+    },
+    {
+     "text": "A new top row: every column starts usable.",
+     "at": {
+      "python": [
+       [
+        5,
+        6
+       ]
+      ],
+      "java": [
+       [
+        6,
+        7
+       ]
+      ],
+      "cpp": [
+       [
+        7,
+        8
+       ]
+      ],
+      "c": [
+       [
+        5,
+        6
+       ]
+      ]
+     }
+    },
+    {
+     "text": "Grow the band one row down.",
+     "at": {
+      "python": [
+       [
+        7,
+        8
+       ]
+      ],
+      "java": [
+       [
+        8,
+        9
+       ]
+      ],
+      "cpp": [
+       [
+        9,
+        10
+       ]
+      ],
+      "c": [
+       [
+        7,
+        8
+       ]
+      ]
+     }
+    },
+    {
+     "text": "A column stays usable only if the new row is clear there too.",
+     "at": {
+      "python": [
+       [
+        9,
+        10
+       ]
+      ],
+      "java": [
+       [
+        10,
+        11
+       ]
+      ],
+      "cpp": [
+       [
+        11,
+        12
+       ]
+      ],
+      "c": [
+       [
+        9,
+        10
+       ]
+      ]
+     }
+    },
+    {
+     "text": "The current run of usable columns ending at `c` gives a clear plot of `run × band height`.",
+     "at": {
+      "python": [
+       [
+        11,
+        12
+       ]
+      ],
+      "java": [
+       [
+        12,
+        13
+       ]
+      ],
+      "cpp": [
+       [
+        13,
+        14
+       ]
+      ],
+      "c": [
+       [
+        11,
+        12
+       ]
+      ]
+     }
+    },
+    {
+     "text": "The largest clear area.",
+     "at": {
+      "python": [
+       [
+        13,
+        13
+       ]
+      ],
+      "java": [
+       [
+        17,
+        17
+       ]
+      ],
+      "cpp": [
+       [
+        18,
+        18
+       ]
+      ],
+      "c": [
+       [
+        16,
+        17
+       ]
+      ]
+     }
+    }
+   ],
+   "complexity": [
+    {
+     "md": "**Time O(R²C):** each (top, bottom) band costs one pass over the columns, about 6 × 10⁷ steps for 500 × 500. **Space O(C).**"
+    }
+   ],
+   "walk": {
+    "steps": [
+     {
+      "text": "Rows 0..0: usable columns [1, 2, 4]; widest run 2 × height 1 = 2.",
+      "panels": [
+       {
+        "type": "grid",
+        "cells": [
+         [
+          "0",
+          "1",
+          "1",
+          "0",
+          "1"
+         ],
+         [
+          "1",
+          "1",
+          "1",
+          "1",
+          "0"
+         ],
+         [
+          "1",
+          "1",
+          "1",
+          "1",
+          "1"
+         ],
+         [
+          "0",
+          "1",
+          "1",
+          "0",
+          "1"
+         ]
+        ],
+        "states": {
+         "0,0": "mark",
+         "0,1": "found",
+         "0,2": "found",
+         "0,3": "mark",
+         "0,4": "found"
+        }
+       },
+       {
+        "type": "row",
+        "cells": [
+         "·",
+         "✓",
+         "✓",
+         "·",
+         "✓"
+        ],
+        "label": "usable"
+       },
+       {
+        "type": "vars",
+        "items": {
+         "best": 2
+        }
+       }
+      ]
+     },
+     {
+      "text": "Rows 0..1: usable columns [1, 2]; widest run 2 × height 2 = 4.",
+      "panels": [
+       {
+        "type": "grid",
+        "cells": [
+         [
+          "0",
+          "1",
+          "1",
+          "0",
+          "1"
+         ],
+         [
+          "1",
+          "1",
+          "1",
+          "1",
+          "0"
+         ],
+         [
+          "1",
+          "1",
+          "1",
+          "1",
+          "1"
+         ],
+         [
+          "0",
+          "1",
+          "1",
+          "0",
+          "1"
+         ]
+        ],
+        "states": {
+         "0,0": "mark",
+         "0,1": "found",
+         "0,2": "found",
+         "0,3": "mark",
+         "0,4": "mark",
+         "1,0": "mark",
+         "1,1": "found",
+         "1,2": "found",
+         "1,3": "mark",
+         "1,4": "mark"
+        }
+       },
+       {
+        "type": "row",
+        "cells": [
+         "·",
+         "✓",
+         "✓",
+         "·",
+         "·"
+        ],
+        "label": "usable"
+       },
+       {
+        "type": "vars",
+        "items": {
+         "best": 4
+        }
+       }
+      ]
+     },
+     {
+      "text": "Rows 0..2: usable columns [1, 2]; widest run 2 × height 3 = 6.",
+      "panels": [
+       {
+        "type": "grid",
+        "cells": [
+         [
+          "0",
+          "1",
+          "1",
+          "0",
+          "1"
+         ],
+         [
+          "1",
+          "1",
+          "1",
+          "1",
+          "0"
+         ],
+         [
+          "1",
+          "1",
+          "1",
+          "1",
+          "1"
+         ],
+         [
+          "0",
+          "1",
+          "1",
+          "0",
+          "1"
+         ]
+        ],
+        "states": {
+         "0,0": "mark",
+         "0,1": "found",
+         "0,2": "found",
+         "0,3": "mark",
+         "0,4": "mark",
+         "1,0": "mark",
+         "1,1": "found",
+         "1,2": "found",
+         "1,3": "mark",
+         "1,4": "mark",
+         "2,0": "mark",
+         "2,1": "found",
+         "2,2": "found",
+         "2,3": "mark",
+         "2,4": "mark"
+        }
+       },
+       {
+        "type": "row",
+        "cells": [
+         "·",
+         "✓",
+         "✓",
+         "·",
+         "·"
+        ],
+        "label": "usable"
+       },
+       {
+        "type": "vars",
+        "items": {
+         "best": 6
+        }
+       }
+      ]
+     },
+     {
+      "text": "Rows 0..3: usable columns [1, 2]; widest run 2 × height 4 = 8.",
+      "panels": [
+       {
+        "type": "grid",
+        "cells": [
+         [
+          "0",
+          "1",
+          "1",
+          "0",
+          "1"
+         ],
+         [
+          "1",
+          "1",
+          "1",
+          "1",
+          "0"
+         ],
+         [
+          "1",
+          "1",
+          "1",
+          "1",
+          "1"
+         ],
+         [
+          "0",
+          "1",
+          "1",
+          "0",
+          "1"
+         ]
+        ],
+        "states": {
+         "0,0": "mark",
+         "0,1": "found",
+         "0,2": "found",
+         "0,3": "mark",
+         "0,4": "mark",
+         "1,0": "mark",
+         "1,1": "found",
+         "1,2": "found",
+         "1,3": "mark",
+         "1,4": "mark",
+         "2,0": "mark",
+         "2,1": "found",
+         "2,2": "found",
+         "2,3": "mark",
+         "2,4": "mark",
+         "3,0": "mark",
+         "3,1": "found",
+         "3,2": "found",
+         "3,3": "mark",
+         "3,4": "mark"
+        }
+       },
+       {
+        "type": "row",
+        "cells": [
+         "·",
+         "✓",
+         "✓",
+         "·",
+         "·"
+        ],
+        "label": "usable"
+       },
+       {
+        "type": "vars",
+        "items": {
+         "best": 8
+        }
+       }
+      ]
+     },
+     {
+      "text": "Rows 1..1: usable columns [0, 1, 2, 3]; widest run 4 × height 1 = 4.",
+      "panels": [
+       {
+        "type": "grid",
+        "cells": [
+         [
+          "0",
+          "1",
+          "1",
+          "0",
+          "1"
+         ],
+         [
+          "1",
+          "1",
+          "1",
+          "1",
+          "0"
+         ],
+         [
+          "1",
+          "1",
+          "1",
+          "1",
+          "1"
+         ],
+         [
+          "0",
+          "1",
+          "1",
+          "0",
+          "1"
+         ]
+        ],
+        "states": {
+         "1,0": "found",
+         "1,1": "found",
+         "1,2": "found",
+         "1,3": "found",
+         "1,4": "mark"
+        }
+       },
+       {
+        "type": "row",
+        "cells": [
+         "✓",
+         "✓",
+         "✓",
+         "✓",
+         "·"
+        ],
+        "label": "usable"
+       },
+       {
+        "type": "vars",
+        "items": {
+         "best": 8
+        }
+       }
+      ]
+     },
+     {
+      "text": "Rows 1..2: usable columns [0, 1, 2, 3]; widest run 4 × height 2 = 8.",
+      "panels": [
+       {
+        "type": "grid",
+        "cells": [
+         [
+          "0",
+          "1",
+          "1",
+          "0",
+          "1"
+         ],
+         [
+          "1",
+          "1",
+          "1",
+          "1",
+          "0"
+         ],
+         [
+          "1",
+          "1",
+          "1",
+          "1",
+          "1"
+         ],
+         [
+          "0",
+          "1",
+          "1",
+          "0",
+          "1"
+         ]
+        ],
+        "states": {
+         "1,0": "found",
+         "1,1": "found",
+         "1,2": "found",
+         "1,3": "found",
+         "1,4": "mark",
+         "2,0": "found",
+         "2,1": "found",
+         "2,2": "found",
+         "2,3": "found",
+         "2,4": "mark"
+        }
+       },
+       {
+        "type": "row",
+        "cells": [
+         "✓",
+         "✓",
+         "✓",
+         "✓",
+         "·"
+        ],
+        "label": "usable"
+       },
+       {
+        "type": "vars",
+        "items": {
+         "best": 8
+        }
+       }
+      ]
+     },
+     {
+      "text": "Rows 1..3: usable columns [1, 2]; widest run 2 × height 3 = 6.",
+      "panels": [
+       {
+        "type": "grid",
+        "cells": [
+         [
+          "0",
+          "1",
+          "1",
+          "0",
+          "1"
+         ],
+         [
+          "1",
+          "1",
+          "1",
+          "1",
+          "0"
+         ],
+         [
+          "1",
+          "1",
+          "1",
+          "1",
+          "1"
+         ],
+         [
+          "0",
+          "1",
+          "1",
+          "0",
+          "1"
+         ]
+        ],
+        "states": {
+         "1,0": "mark",
+         "1,1": "found",
+         "1,2": "found",
+         "1,3": "mark",
+         "1,4": "mark",
+         "2,0": "mark",
+         "2,1": "found",
+         "2,2": "found",
+         "2,3": "mark",
+         "2,4": "mark",
+         "3,0": "mark",
+         "3,1": "found",
+         "3,2": "found",
+         "3,3": "mark",
+         "3,4": "mark"
+        }
+       },
+       {
+        "type": "row",
+        "cells": [
+         "·",
+         "✓",
+         "✓",
+         "·",
+         "·"
+        ],
+        "label": "usable"
+       },
+       {
+        "type": "vars",
+        "items": {
+         "best": 8
+        }
+       }
+      ]
+     },
+     {
+      "text": "Rows 2..2: usable columns [0, 1, 2, 3, 4]; widest run 5 × height 1 = 5.",
+      "panels": [
+       {
+        "type": "grid",
+        "cells": [
+         [
+          "0",
+          "1",
+          "1",
+          "0",
+          "1"
+         ],
+         [
+          "1",
+          "1",
+          "1",
+          "1",
+          "0"
+         ],
+         [
+          "1",
+          "1",
+          "1",
+          "1",
+          "1"
+         ],
+         [
+          "0",
+          "1",
+          "1",
+          "0",
+          "1"
+         ]
+        ],
+        "states": {
+         "2,0": "found",
+         "2,1": "found",
+         "2,2": "found",
+         "2,3": "found",
+         "2,4": "found"
+        }
+       },
+       {
+        "type": "row",
+        "cells": [
+         "✓",
+         "✓",
+         "✓",
+         "✓",
+         "✓"
+        ],
+        "label": "usable"
+       },
+       {
+        "type": "vars",
+        "items": {
+         "best": 8
+        }
+       }
+      ]
+     },
+     {
+      "text": "Rows 2..3: usable columns [1, 2, 4]; widest run 2 × height 2 = 4.",
+      "panels": [
+       {
+        "type": "grid",
+        "cells": [
+         [
+          "0",
+          "1",
+          "1",
+          "0",
+          "1"
+         ],
+         [
+          "1",
+          "1",
+          "1",
+          "1",
+          "0"
+         ],
+         [
+          "1",
+          "1",
+          "1",
+          "1",
+          "1"
+         ],
+         [
+          "0",
+          "1",
+          "1",
+          "0",
+          "1"
+         ]
+        ],
+        "states": {
+         "2,0": "mark",
+         "2,1": "found",
+         "2,2": "found",
+         "2,3": "mark",
+         "2,4": "found",
+         "3,0": "mark",
+         "3,1": "found",
+         "3,2": "found",
+         "3,3": "mark",
+         "3,4": "found"
+        }
+       },
+       {
+        "type": "row",
+        "cells": [
+         "·",
+         "✓",
+         "✓",
+         "·",
+         "✓"
+        ],
+        "label": "usable"
+       },
+       {
+        "type": "vars",
+        "items": {
+         "best": 8
+        }
+       }
+      ]
+     },
+     {
+      "text": "Rows 3..3: usable columns [1, 2, 4]; widest run 2 × height 1 = 2.",
+      "panels": [
+       {
+        "type": "grid",
+        "cells": [
+         [
+          "0",
+          "1",
+          "1",
+          "0",
+          "1"
+         ],
+         [
+          "1",
+          "1",
+          "1",
+          "1",
+          "0"
+         ],
+         [
+          "1",
+          "1",
+          "1",
+          "1",
+          "1"
+         ],
+         [
+          "0",
+          "1",
+          "1",
+          "0",
+          "1"
+         ]
+        ],
+        "states": {
+         "3,0": "mark",
+         "3,1": "found",
+         "3,2": "found",
+         "3,3": "mark",
+         "3,4": "found"
+        }
+       },
+       {
+        "type": "row",
+        "cells": [
+         "·",
+         "✓",
+         "✓",
+         "·",
+         "✓"
+        ],
+        "label": "usable"
+       },
+       {
+        "type": "vars",
+        "items": {
+         "best": 8
+        }
+       }
+      ]
+     },
+     {
+      "text": "Largest clear plot: 8.",
+      "panels": [],
+      "result": "8"
+     }
+    ],
+    "title": "Fix the top and bottom rows of the plot. A column is usable if it's clear in every row between them; the widest run of usable columns gives the best plot for that band."
+   },
+   "limits": [
+    {
+     "md": "Fine in a compiled language at this size, but still quadratic in the rows. A band from `top` to `bottom` is just 'columns whose clear streak above `bottom` is at least the band height', so tracking the streak heights per row and solving a histogram removes the `top` loop entirely."
+    }
+   ],
+   "slow": true
+  },
+  {
+   "title": "One histogram per row",
+   "kind": "best",
+   "time": "O(R·C)",
+   "space": "O(C)",
+   "idea": [
+    {
+     "md": "Keep `h[c]`: the number of consecutive clear cells in column `c` ending at the current row. For each row, update `h` (clear → +1, rock → 0) and run the one-pass largest-rectangle stack over `h`, with a height-0 sentinel at the end. The best rectangle over all rows is the answer."
+    }
+   ],
+   "build": [
+    "`h` has `C + 1` entries; the last stays 0 as a sentinel.",
+    "For each row: update `h`.",
+    "Stack pass: pop while the top is at least as tall as `h[i]`; width = `i − newTop − 1` (or `i` if the stack is empty); update the best.",
+    "Return the best."
+   ],
+   "code": {
+    "python": "class Solution:\n    def largestClearPlot(self, land: List[List[str]]) -> int:\n        C = len(land[0])\n        h = [0] * (C + 1)\n        best = 0\n        for row in land:\n            for c in range(C):\n                h[c] = h[c] + 1 if row[c] == \"1\" else 0\n            stack = []\n            for i in range(C + 1):\n                while stack and h[stack[-1]] >= h[i]:\n                    height = h[stack.pop()]\n                    width = i - stack[-1] - 1 if stack else i\n                    best = max(best, height * width)\n                stack.append(i)\n        return best\n",
+    "java": "class Solution {\n    public int largestClearPlot(char[][] land) {\n        int C = land[0].length;\n        int[] h = new int[C + 1], stack = new int[C + 1];\n        int best = 0;\n        for (char[] row : land) {\n            for (int c = 0; c < C; c++) h[c] = row[c] == '1' ? h[c] + 1 : 0;\n            int top = 0;\n            for (int i = 0; i <= C; i++) {\n                while (top > 0 && h[stack[top - 1]] >= h[i]) {\n                    int height = h[stack[--top]];\n                    int width = top > 0 ? i - stack[top - 1] - 1 : i;\n                    best = Math.max(best, height * width);\n                }\n                stack[top++] = i;\n            }\n        }\n        return best;\n    }\n}\n",
+    "cpp": "class Solution {\npublic:\n    int largestClearPlot(vector<vector<char>>& land) {\n        int C = land[0].size();\n        vector<int> h(C + 1, 0), stack;\n        int best = 0;\n        for (auto& row : land) {\n            for (int c = 0; c < C; c++) h[c] = row[c] == '1' ? h[c] + 1 : 0;\n            stack.clear();\n            for (int i = 0; i <= C; i++) {\n                while (!stack.empty() && h[stack.back()] >= h[i]) {\n                    int height = h[stack.back()];\n                    stack.pop_back();\n                    int width = stack.empty() ? i : i - stack.back() - 1;\n                    best = max(best, height * width);\n                }\n                stack.push_back(i);\n            }\n        }\n        return best;\n    }\n};\n",
+    "c": "int largestClearPlot(char** land, int landSize, int* landColSize) {\n    int C = landColSize[0];\n    int* h = calloc(C + 1, sizeof(int));\n    int* stack = malloc((C + 1) * sizeof(int));\n    int best = 0;\n    for (int r = 0; r < landSize; r++) {\n        for (int c = 0; c < C; c++) h[c] = land[r][c] == '1' ? h[c] + 1 : 0;\n        int top = 0;\n        for (int i = 0; i <= C; i++) {\n            while (top > 0 && h[stack[top - 1]] >= h[i]) {\n                int height = h[stack[--top]];\n                int width = top > 0 ? i - stack[top - 1] - 1 : i;\n                if (height * width > best) best = height * width;\n            }\n            stack[top++] = i;\n        }\n    }\n    free(h);\n    free(stack);\n    return best;\n}\n"
+   },
+   "lines": [
+    {
+     "text": "Column heights with one extra 0 at the end (the sentinel that flushes the stack), and the best area.",
+     "at": {
+      "python": [
+       [
+        3,
+        5
+       ]
+      ],
+      "java": [
+       [
+        3,
+        5
+       ]
+      ],
+      "cpp": [
+       [
+        4,
+        6
+       ]
+      ],
+      "c": [
+       [
+        2,
+        5
+       ]
+      ]
+     }
+    },
+    {
+     "text": "Clear cell: the column's clear streak grows by one. Rock: the streak is broken.",
+     "at": {
+      "python": [
+       [
+        6,
+        8
+       ]
+      ],
+      "java": [
+       [
+        6,
+        7
+       ]
+      ],
+      "cpp": [
+       [
+        7,
+        8
+       ]
+      ],
+      "c": [
+       [
+        6,
+        7
+       ]
+      ]
+     }
+    },
+    {
+     "text": "Largest rectangle in this row's histogram, with a stack of increasing heights.",
+     "at": {
+      "python": [
+       [
+        9,
+        10
+       ],
+       [
+        15,
+        15
+       ]
+      ],
+      "java": [
+       [
+        8,
+        9
+       ],
+       [
+        15,
+        15
+       ]
+      ],
+      "cpp": [
+       [
+        9,
+        10
+       ],
+       [
+        17,
+        17
+       ]
+      ],
+      "c": [
+       [
+        8,
+        9
+       ],
+       [
+        15,
+        15
+       ]
+      ]
+     }
+    },
+    {
+     "text": "A column popped by a no-taller one has its right stopper at `i` and its left stopper at the new top (or the left edge, giving width `i`). That's the best plot with this bottom row whose height is that column's streak.",
+     "at": {
+      "python": [
+       [
+        11,
+        14
+       ]
+      ],
+      "java": [
+       [
+        10,
+        13
+       ]
+      ],
+      "cpp": [
+       [
+        11,
+        15
+       ]
+      ],
+      "c": [
+       [
+        10,
+        13
+       ]
+      ]
+     }
+    },
+    {
+     "text": "The best plot over every possible bottom row.",
+     "at": {
+      "python": [
+       [
+        16,
+        16
+       ]
+      ],
+      "java": [
+       [
+        18,
+        18
+       ]
+      ],
+      "cpp": [
+       [
+        20,
+        20
+       ]
+      ],
+      "c": [
+       [
+        18,
+        20
+       ]
+      ]
+     }
+    }
+   ],
+   "complexity": [
+    {
+     "md": "**Time O(R·C):** each row updates C heights and runs an O(C) stack pass. **Space O(C).**"
+    }
+   ],
+   "walk": {
+    "steps": [
+     {
+      "text": "Row 0: column heights [0, 1, 1, 0, 1]. Biggest rectangle in this histogram: 2.",
+      "panels": [
+       {
+        "type": "grid",
+        "cells": [
+         [
+          "0",
+          "1",
+          "1",
+          "0",
+          "1"
+         ],
+         [
+          "1",
+          "1",
+          "1",
+          "1",
+          "0"
+         ],
+         [
+          "1",
+          "1",
+          "1",
+          "1",
+          "1"
+         ],
+         [
+          "0",
+          "1",
+          "1",
+          "0",
+          "1"
+         ]
+        ],
+        "states": {
+         "0,0": "active",
+         "0,1": "active",
+         "0,2": "active",
+         "0,3": "active",
+         "0,4": "active"
+        }
+       },
+       {
+        "type": "row",
+        "cells": [
+         0,
+         1,
+         1,
+         0,
+         1
+        ],
+        "label": "heights"
+       },
+       {
+        "type": "vars",
+        "items": {
+         "best": 2
+        }
+       }
+      ]
+     },
+     {
+      "text": "Row 1: column heights [1, 2, 2, 1, 0]. Biggest rectangle in this histogram: 4.",
+      "panels": [
+       {
+        "type": "grid",
+        "cells": [
+         [
+          "0",
+          "1",
+          "1",
+          "0",
+          "1"
+         ],
+         [
+          "1",
+          "1",
+          "1",
+          "1",
+          "0"
+         ],
+         [
+          "1",
+          "1",
+          "1",
+          "1",
+          "1"
+         ],
+         [
+          "0",
+          "1",
+          "1",
+          "0",
+          "1"
+         ]
+        ],
+        "states": {
+         "1,0": "active",
+         "1,1": "active",
+         "1,2": "active",
+         "1,3": "active",
+         "1,4": "active"
+        }
+       },
+       {
+        "type": "row",
+        "cells": [
+         1,
+         2,
+         2,
+         1,
+         0
+        ],
+        "label": "heights"
+       },
+       {
+        "type": "vars",
+        "items": {
+         "best": 4
+        }
+       }
+      ]
+     },
+     {
+      "text": "Row 2: column heights [2, 3, 3, 2, 1]. Biggest rectangle in this histogram: 8.",
+      "panels": [
+       {
+        "type": "grid",
+        "cells": [
+         [
+          "0",
+          "1",
+          "1",
+          "0",
+          "1"
+         ],
+         [
+          "1",
+          "1",
+          "1",
+          "1",
+          "0"
+         ],
+         [
+          "1",
+          "1",
+          "1",
+          "1",
+          "1"
+         ],
+         [
+          "0",
+          "1",
+          "1",
+          "0",
+          "1"
+         ]
+        ],
+        "states": {
+         "2,0": "active",
+         "2,1": "active",
+         "2,2": "active",
+         "2,3": "active",
+         "2,4": "active"
+        }
+       },
+       {
+        "type": "row",
+        "cells": [
+         2,
+         3,
+         3,
+         2,
+         1
+        ],
+        "label": "heights"
+       },
+       {
+        "type": "vars",
+        "items": {
+         "best": 8
+        }
+       }
+      ]
+     },
+     {
+      "text": "Row 3: column heights [0, 4, 4, 0, 2]. Biggest rectangle in this histogram: 8.",
+      "panels": [
+       {
+        "type": "grid",
+        "cells": [
+         [
+          "0",
+          "1",
+          "1",
+          "0",
+          "1"
+         ],
+         [
+          "1",
+          "1",
+          "1",
+          "1",
+          "0"
+         ],
+         [
+          "1",
+          "1",
+          "1",
+          "1",
+          "1"
+         ],
+         [
+          "0",
+          "1",
+          "1",
+          "0",
+          "1"
+         ]
+        ],
+        "states": {
+         "3,0": "active",
+         "3,1": "active",
+         "3,2": "active",
+         "3,3": "active",
+         "3,4": "active"
+        }
+       },
+       {
+        "type": "row",
+        "cells": [
+         0,
+         4,
+         4,
+         0,
+         2
+        ],
+        "label": "heights"
+       },
+       {
+        "type": "vars",
+        "items": {
+         "best": 8
+        }
+       }
+      ]
+     },
+     {
+      "text": "Largest clear plot: 8.",
+      "panels": [],
+      "result": "8"
+     }
+    ],
+    "title": "Row by row, count how many clear cells stand directly above-and-including each cell. Each row is then a histogram, and the biggest rectangle in it is the biggest plot whose bottom edge is that row."
+   }
+  }
+ ],
+ "takeaways": [
+  {
+   "md": "- **Maximal rectangle in a 0/1 grid = one histogram per row**, solved with the largest-rectangle stack.\n- Column streak heights update in O(1) per cell from the previous row.\n- Reducing a 2-D problem to a 1-D one, row by row, is a pattern worth trying first."
+  }
+ ]
+}

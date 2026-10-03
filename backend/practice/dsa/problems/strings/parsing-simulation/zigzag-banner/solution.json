@@ -1,0 +1,796 @@
+{
+ "version": 1,
+ "summary": "The zigzag repeats every `cycle = 2·(rows − 1)` characters. Row `r` receives the characters at positions\n`k·cycle + r`, and every middle row also gets `k·cycle + cycle − r` (the way back up). Emitting rows in order\nbuilds the code directly. One row is a special case (cycle 0). O(n).",
+ "question": [
+  {
+   "md": "Write `text` in a zigzag over `rows` rows (down from row 0 to the last row, back up, and so on), then read the\nrows top to bottom.\n\n- **One row** means the text is unchanged.\n- **n up to 10⁵**, rows up to 1000."
+  },
+  {
+   "md": "**Edge cases to keep in mind**\n\n- `rows = 1`: the text is unchanged (and the cycle length would be 0).\n- `rows ≥ n`: every character is on its own row going down, so the text is unchanged.\n- The top and bottom rows get one character per cycle; middle rows get two."
+  }
+ ],
+ "think": [
+  {
+   "md": "**Draw it first.** `\"SUMMERFAIR\"` over 4 rows:"
+  },
+  {
+   "table": {
+    "head": [
+     "row",
+     "0",
+     "1",
+     "2",
+     "3",
+     "4",
+     "5",
+     "6",
+     "7",
+     "8",
+     "9"
+    ],
+    "rows": [
+     [
+      "0",
+      "S",
+      "·",
+      "·",
+      "·",
+      "·",
+      "·",
+      "F",
+      "·",
+      "·",
+      "·"
+     ],
+     [
+      "1",
+      "·",
+      "U",
+      "·",
+      "·",
+      "·",
+      "R",
+      "·",
+      "A",
+      "·",
+      "·"
+     ],
+     [
+      "2",
+      "·",
+      "·",
+      "M",
+      "·",
+      "E",
+      "·",
+      "·",
+      "·",
+      "I",
+      "·"
+     ],
+     [
+      "3",
+      "·",
+      "·",
+      "·",
+      "M",
+      "·",
+      "·",
+      "·",
+      "·",
+      "·",
+      "R"
+     ]
+    ]
+   }
+  },
+  {
+   "md": "**The pattern repeats.** Going down takes `rows` steps and coming back up (not counting row 0 again) takes\n`rows − 2`, so a full cycle is `2·(rows − 1) = 6` characters. Within a cycle starting at position `k`:\n\n- the way down puts position `k + r` on row `r`;\n- the way up puts position `k + cycle − r` on row `r`, for the middle rows only.\n\n**Row by row:**"
+  },
+  {
+   "table": {
+    "head": [
+     "row",
+     "positions",
+     "characters"
+    ],
+    "rows": [
+     [
+      "0",
+      "[0, 6]",
+      "SF"
+     ],
+     [
+      "1",
+      "[1, 5, 7]",
+      "URA"
+     ],
+     [
+      "2",
+      "[2, 4, 8]",
+      "MEI"
+     ],
+     [
+      "3",
+      "[3, 9]",
+      "MR"
+     ]
+    ]
+   }
+  },
+  {
+   "md": "Reading the rows in order gives **`SFURAMEIMR`**."
+  }
+ ],
+ "approaches": [
+  {
+   "title": "Simulate with a buffer per row",
+   "kind": "better",
+   "time": "O(n)",
+   "space": "O(n)",
+   "idea": [
+    {
+     "md": "Simulate the drawing: keep a buffer per row, a current row and a direction. Append each character to its\nrow, flip the direction at the top and bottom rows, then concatenate the buffers.\n\nEasy to get right, and already O(n), but it builds an intermediate copy of the text."
+    }
+   ],
+   "build": [
+    "One row: return the text.",
+    "Row buffers, current row 0, direction down.",
+    "Place each character and bounce at the ends.",
+    "Join the rows."
+   ],
+   "code": {
+    "python": "class Solution:\n    def zigzagCode(self, text: str, rows: int) -> str:\n        if rows == 1:\n            return text\n        lines = [[] for _ in range(rows)]\n        r, step = 0, 1\n        for c in text:\n            lines[r].append(c)\n            if r == 0:\n                step = 1\n            elif r == rows - 1:\n                step = -1\n            r += step\n        return \"\".join(\"\".join(line) for line in lines)\n",
+    "java": "class Solution {\n    public String zigzagCode(String text, int rows) {\n        if (rows == 1) return text;\n        StringBuilder[] lines = new StringBuilder[rows];\n        for (int q = 0; q < rows; q++) lines[q] = new StringBuilder();\n        int r = 0, step = 1;\n        for (char c : text.toCharArray()) {\n            lines[r].append(c);\n            if (r == 0) step = 1;\n            else if (r == rows - 1) step = -1;\n            r += step;\n        }\n        StringBuilder out = new StringBuilder();\n        for (StringBuilder line : lines) out.append(line);\n        return out.toString();\n    }\n}\n",
+    "cpp": "class Solution {\npublic:\n    string zigzagCode(string& text, int rows) {\n        if (rows == 1) return text;\n        vector<string> lines(rows);\n        int r = 0, step = 1;\n        for (char c : text) {\n            lines[r] += c;\n            if (r == 0) step = 1;\n            else if (r == rows - 1) step = -1;\n            r += step;\n        }\n        string out;\n        for (string& line : lines) out += line;\n        return out;\n    }\n};\n",
+    "c": "char* zigzagCode(char* text, int rows) {\n    int n = strlen(text);\n    char* out = malloc(n + 1);\n    if (rows == 1) { memcpy(out, text, n + 1); return out; }\n    int* rowOf = malloc(n * sizeof(int));\n    int r = 0, step = 1, pos = 0;\n    for (int k = 0; k < n; k++) {\n        rowOf[k] = r;\n        if (r == 0) step = 1;\n        else if (r == rows - 1) step = -1;\n        r += step;\n    }\n    for (int q = 0; q < rows; q++)\n        for (int k = 0; k < n; k++) if (rowOf[k] == q) out[pos++] = text[k];\n    out[pos] = '\\0';\n    free(rowOf);\n    return out;\n}\n"
+   },
+   "lines": [
+    {
+     "text": "With one row there's nothing to zigzag, and the bounce below would never move.",
+     "at": {
+      "python": [
+       [
+        3,
+        4
+       ]
+      ],
+      "java": [
+       [
+        3,
+        3
+       ]
+      ],
+      "cpp": [
+       [
+        4,
+        4
+       ]
+      ],
+      "c": [
+       [
+        2,
+        4
+       ]
+      ]
+     }
+    },
+    {
+     "text": "A buffer per row, starting on row 0 heading down. C records each character's row instead of building buffers.",
+     "at": {
+      "python": [
+       [
+        5,
+        6
+       ]
+      ],
+      "java": [
+       [
+        4,
+        6
+       ]
+      ],
+      "cpp": [
+       [
+        5,
+        6
+       ]
+      ],
+      "c": [
+       [
+        5,
+        6
+       ]
+      ]
+     },
+     "notes": {
+      "c": "Record each character's row instead of growing per-row buffers."
+     }
+    },
+    {
+     "text": "Put the character on the current row, then move one row in the current direction.",
+     "at": {
+      "python": [
+       [
+        7,
+        8
+       ],
+       [
+        13,
+        13
+       ]
+      ],
+      "java": [
+       [
+        7,
+        8
+       ],
+       [
+        11,
+        11
+       ]
+      ],
+      "cpp": [
+       [
+        7,
+        8
+       ],
+       [
+        11,
+        11
+       ]
+      ],
+      "c": [
+       [
+        7,
+        8
+       ],
+       [
+        11,
+        11
+       ]
+      ]
+     }
+    },
+    {
+     "text": "At the top row head down, at the bottom row head up.",
+     "at": {
+      "python": [
+       [
+        9,
+        12
+       ]
+      ],
+      "java": [
+       [
+        9,
+        10
+       ]
+      ],
+      "cpp": [
+       [
+        9,
+        10
+       ]
+      ],
+      "c": [
+       [
+        9,
+        10
+       ]
+      ]
+     }
+    },
+    {
+     "text": "Concatenate the rows from top to bottom. C gathers characters row by row, which costs O(n · rows).",
+     "at": {
+      "python": [
+       [
+        14,
+        14
+       ]
+      ],
+      "java": [
+       [
+        13,
+        15
+       ]
+      ],
+      "cpp": [
+       [
+        13,
+        15
+       ]
+      ],
+      "c": [
+       [
+        13,
+        17
+       ]
+      ]
+     },
+     "notes": {
+      "c": "Gather the characters row by row. This costs O(n · rows) in C, still fine for the limits, but the next approach avoids it."
+     }
+    }
+   ],
+   "complexity": [
+    {
+     "md": "**Time O(n)** (C's simple gathering is O(n · rows)). **Space O(n)** for the buffers."
+    }
+   ],
+   "walk": {
+    "steps": [
+     {
+      "text": "'S' goes on row 0.",
+      "panels": [
+       {
+        "type": "row",
+        "cells": [
+         "S"
+        ],
+        "label": "row 0"
+       },
+       {
+        "type": "row",
+        "cells": [
+         "·"
+        ],
+        "label": "row 1"
+       },
+       {
+        "type": "row",
+        "cells": [
+         "·"
+        ],
+        "label": "row 2"
+       },
+       {
+        "type": "row",
+        "cells": [
+         "·"
+        ],
+        "label": "row 3"
+       }
+      ]
+     },
+     {
+      "text": "'M' goes on row 3.",
+      "panels": [
+       {
+        "type": "row",
+        "cells": [
+         "S"
+        ],
+        "label": "row 0"
+       },
+       {
+        "type": "row",
+        "cells": [
+         "U"
+        ],
+        "label": "row 1"
+       },
+       {
+        "type": "row",
+        "cells": [
+         "M"
+        ],
+        "label": "row 2"
+       },
+       {
+        "type": "row",
+        "cells": [
+         "M"
+        ],
+        "label": "row 3"
+       }
+      ]
+     },
+     {
+      "text": "'F' goes on row 0.",
+      "panels": [
+       {
+        "type": "row",
+        "cells": [
+         "S",
+         "F"
+        ],
+        "label": "row 0"
+       },
+       {
+        "type": "row",
+        "cells": [
+         "U",
+         "R"
+        ],
+        "label": "row 1"
+       },
+       {
+        "type": "row",
+        "cells": [
+         "M",
+         "E"
+        ],
+        "label": "row 2"
+       },
+       {
+        "type": "row",
+        "cells": [
+         "M"
+        ],
+        "label": "row 3"
+       }
+      ]
+     },
+     {
+      "text": "'R' goes on row 3.",
+      "panels": [
+       {
+        "type": "row",
+        "cells": [
+         "S",
+         "F"
+        ],
+        "label": "row 0"
+       },
+       {
+        "type": "row",
+        "cells": [
+         "U",
+         "R",
+         "A"
+        ],
+        "label": "row 1"
+       },
+       {
+        "type": "row",
+        "cells": [
+         "M",
+         "E",
+         "I"
+        ],
+        "label": "row 2"
+       },
+       {
+        "type": "row",
+        "cells": [
+         "M",
+         "R"
+        ],
+        "label": "row 3"
+       }
+      ]
+     },
+     {
+      "text": "Read the rows in order: SFURAMEIMR.",
+      "panels": [],
+      "result": "SFURAMEIMR"
+     }
+    ],
+    "title": "Walk the characters down and up, appending each to its row's buffer."
+   },
+   "limits": [
+    {
+     "md": "It needs buffers for the whole text. The cycle positions say directly which characters belong to each row, so the answer can be written straight out."
+    }
+   ]
+  },
+  {
+   "title": "Read each row by its cycle positions",
+   "kind": "best",
+   "time": "O(n)",
+   "space": "O(1)",
+   "idea": [
+    {
+     "md": "For each row `r`, loop over cycle starts `k = 0, cycle, 2·cycle, …` and emit `text[k + r]` and, for middle\nrows, `text[k + cycle − r]`, skipping positions past the end.\n\n**Why every character is emitted exactly once.** Within a cycle, offsets `0 … rows − 1` are the way down\nand offsets `rows … cycle − 1` are the way up, where offset `cycle − r` belongs to row `r`. These cover each\noffset once, so each position appears in exactly one row's list."
+    }
+   ],
+   "build": [
+    "Handle `rows = 1` or `rows ≥ n`.",
+    "Compute the cycle length.",
+    "For each row, walk the cycles and emit the down and up positions."
+   ],
+   "code": {
+    "python": "class Solution:\n    def zigzagCode(self, text: str, rows: int) -> str:\n        n = len(text)\n        if rows == 1 or rows >= n:\n            return text\n        cycle = 2 * (rows - 1)\n        out = []\n        for r in range(rows):\n            for start in range(0, n, cycle):\n                if start + r < n:\n                    out.append(text[start + r])\n                if 0 < r < rows - 1 and start + cycle - r < n:\n                    out.append(text[start + cycle - r])\n        return \"\".join(out)\n",
+    "java": "class Solution {\n    public String zigzagCode(String text, int rows) {\n        int n = text.length();\n        if (rows == 1 || rows >= n) return text;\n        int cycle = 2 * (rows - 1);\n        StringBuilder out = new StringBuilder();\n        for (int r = 0; r < rows; r++)\n            for (int start = 0; start < n; start += cycle) {\n                if (start + r < n) out.append(text.charAt(start + r));\n                if (r > 0 && r < rows - 1 && start + cycle - r < n) out.append(text.charAt(start + cycle - r));\n            }\n        return out.toString();\n    }\n}\n",
+    "cpp": "class Solution {\npublic:\n    string zigzagCode(string& text, int rows) {\n        int n = text.size();\n        if (rows == 1 || rows >= n) return text;\n        int cycle = 2 * (rows - 1);\n        string out;\n        for (int r = 0; r < rows; r++)\n            for (int start = 0; start < n; start += cycle) {\n                if (start + r < n) out += text[start + r];\n                if (r > 0 && r < rows - 1 && start + cycle - r < n) out += text[start + cycle - r];\n            }\n        return out;\n    }\n};\n",
+    "c": "char* zigzagCode(char* text, int rows) {\n    int n = strlen(text), pos = 0;\n    char* out = malloc(n + 1);\n    if (rows == 1 || rows >= n) { memcpy(out, text, n + 1); return out; }\n    int cycle = 2 * (rows - 1);\n    for (int r = 0; r < rows; r++)\n        for (int start = 0; start < n; start += cycle) {\n            if (start + r < n) out[pos++] = text[start + r];\n            if (r > 0 && r < rows - 1 && start + cycle - r < n) out[pos++] = text[start + cycle - r];\n        }\n    out[pos] = '\\0';\n    return out;\n}\n"
+   },
+   "lines": [
+    {
+     "text": "No zigzag happens with one row or with at least as many rows as characters.",
+     "at": {
+      "python": [
+       [
+        3,
+        5
+       ]
+      ],
+      "java": [
+       [
+        3,
+        4
+       ]
+      ],
+      "cpp": [
+       [
+        4,
+        5
+       ]
+      ],
+      "c": [
+       [
+        2,
+        4
+       ]
+      ]
+     }
+    },
+    {
+     "text": "The length of one full down-and-up trip.",
+     "at": {
+      "python": [
+       [
+        6,
+        7
+       ]
+      ],
+      "java": [
+       [
+        5,
+        6
+       ]
+      ],
+      "cpp": [
+       [
+        6,
+        7
+       ]
+      ],
+      "c": [
+       [
+        5,
+        5
+       ]
+      ]
+     }
+    },
+    {
+     "text": "Build the answer row by row; within a row, cycle by cycle from left to right.",
+     "at": {
+      "python": [
+       [
+        8,
+        9
+       ]
+      ],
+      "java": [
+       [
+        7,
+        8
+       ]
+      ],
+      "cpp": [
+       [
+        8,
+        9
+       ]
+      ],
+      "c": [
+       [
+        6,
+        7
+       ]
+      ]
+     }
+    },
+    {
+     "text": "On the way down, row `r` is reached at offset `r` of each cycle.",
+     "at": {
+      "python": [
+       [
+        10,
+        11
+       ]
+      ],
+      "java": [
+       [
+        9,
+        9
+       ]
+      ],
+      "cpp": [
+       [
+        10,
+        10
+       ]
+      ],
+      "c": [
+       [
+        8,
+        8
+       ]
+      ]
+     }
+    },
+    {
+     "text": "On the way up, middle rows are reached again at offset `cycle − r`. The top and bottom rows aren't revisited.",
+     "at": {
+      "python": [
+       [
+        12,
+        13
+       ]
+      ],
+      "java": [
+       [
+        10,
+        10
+       ]
+      ],
+      "cpp": [
+       [
+        11,
+        11
+       ]
+      ],
+      "c": [
+       [
+        9,
+        9
+       ]
+      ]
+     }
+    },
+    {
+     "text": "The code.",
+     "at": {
+      "python": [
+       [
+        14,
+        14
+       ]
+      ],
+      "java": [
+       [
+        12,
+        12
+       ]
+      ],
+      "cpp": [
+       [
+        13,
+        13
+       ]
+      ],
+      "c": [
+       [
+        11,
+        12
+       ]
+      ]
+     }
+    }
+   ],
+   "complexity": [
+    {
+     "md": "**Time O(n):** each character is emitted once, plus O(rows) loop overhead. **Space O(1)** besides the output."
+    }
+   ],
+   "walk": {
+    "steps": [
+     {
+      "text": "Row 0: positions [0, 6] → SF.",
+      "panels": [
+       {
+        "type": "row",
+        "cells": [
+         "S",
+         "U",
+         "M",
+         "M",
+         "E",
+         "R",
+         "F",
+         "A",
+         "I",
+         "R"
+        ],
+        "states": {
+         "0": "found",
+         "6": "found"
+        }
+       }
+      ]
+     },
+     {
+      "text": "Row 1: positions [1, 5, 7] → URA.",
+      "panels": [
+       {
+        "type": "row",
+        "cells": [
+         "S",
+         "U",
+         "M",
+         "M",
+         "E",
+         "R",
+         "F",
+         "A",
+         "I",
+         "R"
+        ],
+        "states": {
+         "1": "found",
+         "5": "found",
+         "7": "found"
+        }
+       }
+      ]
+     },
+     {
+      "text": "Row 2: positions [2, 4, 8] → MEI.",
+      "panels": [
+       {
+        "type": "row",
+        "cells": [
+         "S",
+         "U",
+         "M",
+         "M",
+         "E",
+         "R",
+         "F",
+         "A",
+         "I",
+         "R"
+        ],
+        "states": {
+         "2": "found",
+         "4": "found",
+         "8": "found"
+        }
+       }
+      ]
+     },
+     {
+      "text": "Row 3: positions [3, 9] → MR.",
+      "panels": [
+       {
+        "type": "row",
+        "cells": [
+         "S",
+         "U",
+         "M",
+         "M",
+         "E",
+         "R",
+         "F",
+         "A",
+         "I",
+         "R"
+        ],
+        "states": {
+         "3": "found",
+         "9": "found"
+        }
+       }
+      ]
+     },
+     {
+      "text": "Code: SFURAMEIMR.",
+      "panels": [],
+      "result": "SFURAMEIMR"
+     }
+    ],
+    "title": "A full down-and-up trip is cycle = 2·(rows − 1) = 6 characters. Row r takes positions k·6 + r, and middle rows also k·6 + 6 − r."
+   }
+  }
+ ],
+ "takeaways": [
+  {
+   "md": "- **Periodic layouts → index arithmetic:** find the period, then write each row as a formula.\n- Simulation is a fine first answer when it's already linear.\n- **Pitfalls:** `rows = 1` (cycle 0, infinite loop); emitting the top or bottom row twice per cycle."
+  }
+ ]
+}

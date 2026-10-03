@@ -1,0 +1,1569 @@
+{
+ "version": 1,
+ "summary": "All words have length `L`, so a chain starting at `i` is made of the chunks at `i, i + L, i + 2L, …`. Group the\nstart positions by `i mod L`; within one group, slide a window over consecutive chunks with a count per word.\nGrow by one chunk; shrink from the left while that word is over-used; reset after an unknown chunk. A window of\nexactly all words is a match. O(n · L) chunk work instead of O(n · words · L).",
+ "question": [
+  {
+   "md": "`words` all have the same length. Return every index of `s` where some ordering of all the words (with their\nmultiplicities) appears concatenated.\n\n- **s up to 10⁴**, **up to 5000 words**, word length up to 30."
+  },
+  {
+   "md": "**Edge cases to keep in mind**\n\n- Duplicate words in the list must be used as many times as they appear.\n- A chunk that isn't a word breaks every chain through it.\n- Results from different offsets interleave, so they must be sorted."
+  }
+ ],
+ "think": [
+  {
+   "md": "**Chains are made of fixed-size chunks.** All words have length `L = 3`, so a chain starting at `i` consists of\nthe chunks at `i, i + L, i + 2L, …`. A start `i` and a start `i + L` share every chunk but one: a sliding\nwindow, but stepping a whole word at a time.\n\n**Split by offset.** Starts with different remainders mod `L` never share chunks. So run `L` separate windows,\none per offset. Here are the chunk sequences for `s = \"catdogcatcatdogdog\"`:"
+  },
+  {
+   "table": {
+    "head": [
+     "offset",
+     "chunks"
+    ],
+    "rows": [
+     [
+      "0",
+      "cat | dog | cat | cat | dog | dog"
+     ],
+     [
+      "1",
+      "atd | ogc | atc | atd | ogd"
+     ],
+     [
+      "2",
+      "tdo | gca | tca | tdo | gdo"
+     ]
+    ]
+   }
+  },
+  {
+   "md": "In each sequence we look for `2` consecutive chunks that use every word the right number of times.\nThat's an anagram-style window over words. Matches start at **[0, 3, 9]**.\n\n**Three moves per chunk:**\n\n1. **Unknown chunk:** no chain can contain it, so empty the window and restart after it.\n2. **Over-used word:** the window holds this word more often than allowed; drop words from the left until it\n   doesn't. Every chain containing the current chunk must start after the dropped part.\n3. **Window holds all words:** record its start, then drop its first word to keep searching."
+  }
+ ],
+ "approaches": [
+  {
+   "title": "Check every start",
+   "kind": "brute",
+   "time": "O(n · w · L)",
+   "space": "O(w · L)",
+   "idea": [
+    {
+     "md": "For every start, cut the next `w` chunks and compare their counts with the word counts. Correct, but neighbouring starts that share almost every chunk are checked from scratch."
+    }
+   ],
+   "build": [
+    "Word counts.",
+    "Every start.",
+    "Chunk counts and compare."
+   ],
+   "code": {
+    "python": "from collections import Counter\n\n\nclass Solution:\n    def everyWordOnce(self, s: str, words: List[str]) -> List[int]:\n        L, w = len(words[0]), len(words)\n        need = Counter(words)\n        out = []\n        for i in range(len(s) - w * L + 1):\n            have = Counter(s[i + j * L:i + (j + 1) * L] for j in range(w))\n            if have == need:\n                out.append(i)\n        return out\n",
+    "java": "class Solution {\n    public List<Integer> everyWordOnce(String s, String[] words) {\n        int L = words[0].length(), w = words.length;\n        Map<String, Integer> need = new HashMap<>();\n        for (String x : words) need.merge(x, 1, Integer::sum);\n        List<Integer> out = new ArrayList<>();\n        for (int i = 0; i + w * L <= s.length(); i++) {\n            Map<String, Integer> have = new HashMap<>();\n            int j = 0;\n            for (; j < w; j++) {\n                String chunk = s.substring(i + j * L, i + (j + 1) * L);\n                if (have.merge(chunk, 1, Integer::sum) > need.getOrDefault(chunk, 0)) break;\n            }\n            if (j == w) out.add(i);\n        }\n        return out;\n    }\n}\n",
+    "cpp": "class Solution {\npublic:\n    vector<int> everyWordOnce(string& s, vector<string>& words) {\n        int L = words[0].size(), w = words.size();\n        unordered_map<string, int> need;\n        for (auto& x : words) need[x]++;\n        vector<int> out;\n        for (int i = 0; i + w * L <= (int) s.size(); i++) {\n            unordered_map<string, int> have;\n            int j = 0;\n            for (; j < w; j++) {\n                string chunk = s.substr(i + j * L, L);\n                auto it = need.find(chunk);\n                if (it == need.end() || ++have[chunk] > it->second) break;\n            }\n            if (j == w) out.push_back(i);\n        }\n        return out;\n    }\n};\n",
+    "c": "static int L_;\n\nstatic int cmp_word(const void* a, const void* b) {\n    return strcmp(*(char* const*) a, *(char* const*) b);\n}\n\nstatic int cmp_chunk(const void* key, const void* item) {\n    return strncmp((const char*) key, *(char* const*) item, L_);\n}\n\nstatic int* chunk_ids(const char* s, int n, char** words, int w, int L, int** need, int* distinct) {\n    char** uniq = malloc(w * sizeof(char*));\n    memcpy(uniq, words, w * sizeof(char*));\n    qsort(uniq, w, sizeof(char*), cmp_word);\n    int d = 0;\n    *need = calloc(w, sizeof(int));\n    for (int i = 0; i < w; i++) {\n        if (d == 0 || strcmp(uniq[d - 1], uniq[i]) != 0) uniq[d++] = uniq[i];\n        (*need)[d - 1]++;\n    }\n    L_ = L;\n    int* id = malloc((n + 1) * sizeof(int));\n    for (int j = 0; j + L <= n; j++) {\n        char** hit = bsearch(s + j, uniq, d, sizeof(char*), cmp_chunk);\n        id[j] = hit ? (int) (hit - uniq) : -1;\n    }\n    free(uniq);\n    *distinct = d;\n    return id;\n}\n\nint* everyWordOnce(char* s, char** words, int wordsSize, int* returnSize) {\n    int n = strlen(s), L = strlen(words[0]), w = wordsSize, d, count = 0;\n    int* need;\n    int* id = chunk_ids(s, n, words, w, L, &need, &d);\n    int* have = calloc(d, sizeof(int));\n    int* out = malloc((n + 1) * sizeof(int));\n    for (int i = 0; i + w * L <= n; i++) {\n        int j = 0;\n        for (; j < w; j++) {\n            int c = id[i + j * L];\n            if (c < 0 || ++have[c] > need[c]) { if (c >= 0) have[c]--; break; }\n        }\n        for (int t = 0; t < j; t++) have[id[i + t * L]]--;\n        if (j == w) out[count++] = i;\n    }\n    free(id); free(need); free(have);\n    *returnSize = count;\n    return out;\n}\n"
+   },
+   "lines": [
+    {
+     "text": "Word length, word count, and how often each word is required. C first converts words and chunks to ids (see the next row).",
+     "at": {
+      "python": [
+       [
+        6,
+        8
+       ]
+      ],
+      "java": [
+       [
+        3,
+        6
+       ]
+      ],
+      "cpp": [
+       [
+        4,
+        7
+       ]
+      ],
+      "c": [
+       [
+        33,
+        37
+       ]
+      ]
+     },
+     "notes": {
+      "c": "Give each distinct word an id, and precompute the id of the chunk starting at every position (−1 if it isn't a word)."
+     }
+    },
+    {
+     "text": "C has no string map: sort the words, merge duplicates into counts, then binary-search the chunk at every position of `s` to get its word id (−1 if it isn't a word).",
+     "at": {
+      "c": [
+       [
+        1,
+        1
+       ],
+       [
+        3,
+        5
+       ],
+       [
+        7,
+        9
+       ],
+       [
+        11,
+        19
+       ],
+       [
+        21,
+        25
+       ],
+       [
+        27,
+        30
+       ]
+      ]
+     }
+    },
+    {
+     "text": "Every position where a full chain would fit.",
+     "at": {
+      "python": [
+       [
+        9,
+        9
+       ]
+      ],
+      "java": [
+       [
+        7,
+        7
+       ]
+      ],
+      "cpp": [
+       [
+        8,
+        8
+       ]
+      ],
+      "c": [
+       [
+        38,
+        38
+       ]
+      ]
+     }
+    },
+    {
+     "text": "Cut the chunks one by one and count them; a chunk that isn't a word, or one used more often than required, rules this start out.",
+     "at": {
+      "python": [
+       [
+        10,
+        12
+       ]
+      ],
+      "java": [
+       [
+        8,
+        12
+       ],
+       [
+        14,
+        14
+       ]
+      ],
+      "cpp": [
+       [
+        9,
+        14
+       ],
+       [
+        16,
+        16
+       ]
+      ],
+      "c": [
+       [
+        39,
+        42
+       ],
+       [
+        44,
+        45
+       ]
+      ]
+     },
+     "notes": {
+      "c": "Undo the counts after each start instead of clearing the whole array."
+     }
+    },
+    {
+     "text": "The starts, already in increasing order.",
+     "at": {
+      "python": [
+       [
+        13,
+        13
+       ]
+      ],
+      "java": [
+       [
+        16,
+        16
+       ]
+      ],
+      "cpp": [
+       [
+        18,
+        18
+       ]
+      ],
+      "c": [
+       [
+        47,
+        49
+       ]
+      ]
+     }
+    }
+   ],
+   "complexity": [
+    {
+     "md": "**Time O(n · w · L):** `n` starts, `w` chunks each, `L` characters to hash per chunk. **Space O(w · L).**"
+    }
+   ],
+   "walk": {
+    "steps": [
+     {
+      "text": "Start 0: ['cat', 'dog'] → a full chain.",
+      "panels": [
+       {
+        "type": "row",
+        "cells": [
+         "c",
+         "a",
+         "t",
+         "d",
+         "o",
+         "g",
+         "c",
+         "a",
+         "t",
+         "c",
+         "a",
+         "t",
+         "d",
+         "o",
+         "g",
+         "d",
+         "o",
+         "g"
+        ],
+        "states": {
+         "0": "found",
+         "1": "found",
+         "2": "found",
+         "3": "found",
+         "4": "found",
+         "5": "found"
+        }
+       }
+      ]
+     },
+     {
+      "text": "Start 1: ['atd', 'ogc'] → no.",
+      "panels": [
+       {
+        "type": "row",
+        "cells": [
+         "c",
+         "a",
+         "t",
+         "d",
+         "o",
+         "g",
+         "c",
+         "a",
+         "t",
+         "c",
+         "a",
+         "t",
+         "d",
+         "o",
+         "g",
+         "d",
+         "o",
+         "g"
+        ],
+        "states": {
+         "1": "active",
+         "2": "active",
+         "3": "active",
+         "4": "active",
+         "5": "active",
+         "6": "active"
+        }
+       }
+      ]
+     },
+     {
+      "text": "Start 2: ['tdo', 'gca'] → no.",
+      "panels": [
+       {
+        "type": "row",
+        "cells": [
+         "c",
+         "a",
+         "t",
+         "d",
+         "o",
+         "g",
+         "c",
+         "a",
+         "t",
+         "c",
+         "a",
+         "t",
+         "d",
+         "o",
+         "g",
+         "d",
+         "o",
+         "g"
+        ],
+        "states": {
+         "2": "active",
+         "3": "active",
+         "4": "active",
+         "5": "active",
+         "6": "active",
+         "7": "active"
+        }
+       }
+      ]
+     },
+     {
+      "text": "Start 3: ['dog', 'cat'] → a full chain.",
+      "panels": [
+       {
+        "type": "row",
+        "cells": [
+         "c",
+         "a",
+         "t",
+         "d",
+         "o",
+         "g",
+         "c",
+         "a",
+         "t",
+         "c",
+         "a",
+         "t",
+         "d",
+         "o",
+         "g",
+         "d",
+         "o",
+         "g"
+        ],
+        "states": {
+         "3": "found",
+         "4": "found",
+         "5": "found",
+         "6": "found",
+         "7": "found",
+         "8": "found"
+        }
+       }
+      ]
+     },
+     {
+      "text": "Start 4: ['ogc', 'atc'] → no.",
+      "panels": [
+       {
+        "type": "row",
+        "cells": [
+         "c",
+         "a",
+         "t",
+         "d",
+         "o",
+         "g",
+         "c",
+         "a",
+         "t",
+         "c",
+         "a",
+         "t",
+         "d",
+         "o",
+         "g",
+         "d",
+         "o",
+         "g"
+        ],
+        "states": {
+         "4": "active",
+         "5": "active",
+         "6": "active",
+         "7": "active",
+         "8": "active",
+         "9": "active"
+        }
+       }
+      ]
+     },
+     {
+      "text": "Start 5: ['gca', 'tca'] → no.",
+      "panels": [
+       {
+        "type": "row",
+        "cells": [
+         "c",
+         "a",
+         "t",
+         "d",
+         "o",
+         "g",
+         "c",
+         "a",
+         "t",
+         "c",
+         "a",
+         "t",
+         "d",
+         "o",
+         "g",
+         "d",
+         "o",
+         "g"
+        ],
+        "states": {
+         "5": "active",
+         "6": "active",
+         "7": "active",
+         "8": "active",
+         "9": "active",
+         "10": "active"
+        }
+       }
+      ]
+     },
+     {
+      "text": "Start 6: ['cat', 'cat'] → no.",
+      "panels": [
+       {
+        "type": "row",
+        "cells": [
+         "c",
+         "a",
+         "t",
+         "d",
+         "o",
+         "g",
+         "c",
+         "a",
+         "t",
+         "c",
+         "a",
+         "t",
+         "d",
+         "o",
+         "g",
+         "d",
+         "o",
+         "g"
+        ],
+        "states": {
+         "6": "active",
+         "7": "active",
+         "8": "active",
+         "9": "active",
+         "10": "active",
+         "11": "active"
+        }
+       }
+      ]
+     },
+     {
+      "text": "Start 7: ['atc', 'atd'] → no.",
+      "panels": [
+       {
+        "type": "row",
+        "cells": [
+         "c",
+         "a",
+         "t",
+         "d",
+         "o",
+         "g",
+         "c",
+         "a",
+         "t",
+         "c",
+         "a",
+         "t",
+         "d",
+         "o",
+         "g",
+         "d",
+         "o",
+         "g"
+        ],
+        "states": {
+         "7": "active",
+         "8": "active",
+         "9": "active",
+         "10": "active",
+         "11": "active",
+         "12": "active"
+        }
+       }
+      ]
+     },
+     {
+      "text": "Start 8: ['tca', 'tdo'] → no.",
+      "panels": [
+       {
+        "type": "row",
+        "cells": [
+         "c",
+         "a",
+         "t",
+         "d",
+         "o",
+         "g",
+         "c",
+         "a",
+         "t",
+         "c",
+         "a",
+         "t",
+         "d",
+         "o",
+         "g",
+         "d",
+         "o",
+         "g"
+        ],
+        "states": {
+         "8": "active",
+         "9": "active",
+         "10": "active",
+         "11": "active",
+         "12": "active",
+         "13": "active"
+        }
+       }
+      ]
+     },
+     {
+      "text": "Start 9: ['cat', 'dog'] → a full chain.",
+      "panels": [
+       {
+        "type": "row",
+        "cells": [
+         "c",
+         "a",
+         "t",
+         "d",
+         "o",
+         "g",
+         "c",
+         "a",
+         "t",
+         "c",
+         "a",
+         "t",
+         "d",
+         "o",
+         "g",
+         "d",
+         "o",
+         "g"
+        ],
+        "states": {
+         "9": "found",
+         "10": "found",
+         "11": "found",
+         "12": "found",
+         "13": "found",
+         "14": "found"
+        }
+       }
+      ]
+     },
+     {
+      "text": "Start 10: ['atd', 'ogd'] → no.",
+      "panels": [
+       {
+        "type": "row",
+        "cells": [
+         "c",
+         "a",
+         "t",
+         "d",
+         "o",
+         "g",
+         "c",
+         "a",
+         "t",
+         "c",
+         "a",
+         "t",
+         "d",
+         "o",
+         "g",
+         "d",
+         "o",
+         "g"
+        ],
+        "states": {
+         "10": "active",
+         "11": "active",
+         "12": "active",
+         "13": "active",
+         "14": "active",
+         "15": "active"
+        }
+       }
+      ]
+     },
+     {
+      "text": "Start 11: ['tdo', 'gdo'] → no.",
+      "panels": [
+       {
+        "type": "row",
+        "cells": [
+         "c",
+         "a",
+         "t",
+         "d",
+         "o",
+         "g",
+         "c",
+         "a",
+         "t",
+         "c",
+         "a",
+         "t",
+         "d",
+         "o",
+         "g",
+         "d",
+         "o",
+         "g"
+        ],
+        "states": {
+         "11": "active",
+         "12": "active",
+         "13": "active",
+         "14": "active",
+         "15": "active",
+         "16": "active"
+        }
+       }
+      ]
+     },
+     {
+      "text": "Start 12: ['dog', 'dog'] → no.",
+      "panels": [
+       {
+        "type": "row",
+        "cells": [
+         "c",
+         "a",
+         "t",
+         "d",
+         "o",
+         "g",
+         "c",
+         "a",
+         "t",
+         "c",
+         "a",
+         "t",
+         "d",
+         "o",
+         "g",
+         "d",
+         "o",
+         "g"
+        ],
+        "states": {
+         "12": "active",
+         "13": "active",
+         "14": "active",
+         "15": "active",
+         "16": "active",
+         "17": "active"
+        }
+       }
+      ]
+     },
+     {
+      "text": "Starts: [0, 3, 9].",
+      "panels": [],
+      "result": "[0, 3, 9]"
+     }
+    ],
+    "title": "Every start i: cut s[i : i + 6] into 2 pieces of 3 letters and compare their counts with the word list."
+   },
+   "limits": [
+    {
+     "md": "Each start re-cuts and re-hashes `w` chunks of length `L`: O(n · w · L). Starts `L` apart share all but one chunk."
+    }
+   ],
+   "slow": true
+  },
+  {
+   "title": "One word-sized window per offset",
+   "kind": "best",
+   "time": "O(n · L)",
+   "space": "O(w · L)",
+   "idea": [
+    {
+     "md": "For each offset `0..L−1`: walk the chunks, keeping `have[word]`, `used` (words in the window) and `left`.\nApply the three moves above. Collect every recorded `left`, then sort.\n\n**Invariant per offset.** The window `s[left .. j + L)` consists of known words, none used more often\nthan required. When `used == w` it uses every word exactly as required, which is a chain.\n\n**Why no chain is missed.** A chain starting at `x` lies on offset `x mod L`. While the window's right end\nwalks through the chain, `left` never passes `x` (nothing inside the chain is unknown or over-used), so\nwhen the last chunk of the chain arrives, the window is exactly that chain."
+    }
+   ],
+   "build": [
+    "Word counts `need`.",
+    "For each offset: `have = {}`, `left = offset`, `used = 0`.",
+    "Unknown chunk → reset. Known → `have[chunk] += 1`, `used += 1`, then drop from the left while over-used.",
+    "If `used == w`: record `left`, drop the first word.",
+    "Sort and return the starts."
+   ],
+   "code": {
+    "python": "class Solution:\n    def everyWordOnce(self, s: str, words: List[str]) -> List[int]:\n        L, w = len(words[0]), len(words)\n        need = {}\n        for x in words:\n            need[x] = need.get(x, 0) + 1\n        out = []\n        for off in range(L):\n            have, left, used = {}, off, 0\n            for j in range(off, len(s) - L + 1, L):\n                chunk = s[j:j + L]\n                if chunk not in need:\n                    have, left, used = {}, j + L, 0\n                    continue\n                have[chunk] = have.get(chunk, 0) + 1\n                used += 1\n                while have[chunk] > need[chunk]:\n                    have[s[left:left + L]] -= 1\n                    used -= 1\n                    left += L\n                if used == w:\n                    out.append(left)\n                    have[s[left:left + L]] -= 1\n                    used -= 1\n                    left += L\n        return sorted(out)\n",
+    "java": "class Solution {\n    public List<Integer> everyWordOnce(String s, String[] words) {\n        int L = words[0].length(), w = words.length, n = s.length();\n        Map<String, Integer> need = new HashMap<>();\n        for (String x : words) need.merge(x, 1, Integer::sum);\n        List<Integer> out = new ArrayList<>();\n        for (int off = 0; off < L; off++) {\n            Map<String, Integer> have = new HashMap<>();\n            int left = off, used = 0;\n            for (int j = off; j + L <= n; j += L) {\n                String chunk = s.substring(j, j + L);\n                if (!need.containsKey(chunk)) { have.clear(); used = 0; left = j + L; continue; }\n                have.merge(chunk, 1, Integer::sum);\n                used++;\n                while (have.get(chunk) > need.get(chunk)) {\n                    have.merge(s.substring(left, left + L), -1, Integer::sum);\n                    used--;\n                    left += L;\n                }\n                if (used == w) {\n                    out.add(left);\n                    have.merge(s.substring(left, left + L), -1, Integer::sum);\n                    used--;\n                    left += L;\n                }\n            }\n        }\n        Collections.sort(out);\n        return out;\n    }\n}\n",
+    "cpp": "class Solution {\npublic:\n    vector<int> everyWordOnce(string& s, vector<string>& words) {\n        int L = words[0].size(), w = words.size(), n = s.size();\n        unordered_map<string, int> need;\n        for (auto& x : words) need[x]++;\n        vector<int> out;\n        for (int off = 0; off < L; off++) {\n            unordered_map<string, int> have;\n            int left = off, used = 0;\n            for (int j = off; j + L <= n; j += L) {\n                string chunk = s.substr(j, L);\n                if (!need.count(chunk)) { have.clear(); used = 0; left = j + L; continue; }\n                have[chunk]++;\n                used++;\n                while (have[chunk] > need[chunk]) {\n                    have[s.substr(left, L)]--;\n                    used--;\n                    left += L;\n                }\n                if (used == w) {\n                    out.push_back(left);\n                    have[s.substr(left, L)]--;\n                    used--;\n                    left += L;\n                }\n            }\n        }\n        sort(out.begin(), out.end());\n        return out;\n    }\n};\n",
+    "c": "static int L_;\n\nstatic int cmp_word(const void* a, const void* b) {\n    return strcmp(*(char* const*) a, *(char* const*) b);\n}\n\nstatic int cmp_chunk(const void* key, const void* item) {\n    return strncmp((const char*) key, *(char* const*) item, L_);\n}\n\nstatic int* chunk_ids(const char* s, int n, char** words, int w, int L, int** need, int* distinct) {\n    char** uniq = malloc(w * sizeof(char*));\n    memcpy(uniq, words, w * sizeof(char*));\n    qsort(uniq, w, sizeof(char*), cmp_word);\n    int d = 0;\n    *need = calloc(w, sizeof(int));\n    for (int i = 0; i < w; i++) {\n        if (d == 0 || strcmp(uniq[d - 1], uniq[i]) != 0) uniq[d++] = uniq[i];\n        (*need)[d - 1]++;\n    }\n    L_ = L;\n    int* id = malloc((n + 1) * sizeof(int));\n    for (int j = 0; j + L <= n; j++) {\n        char** hit = bsearch(s + j, uniq, d, sizeof(char*), cmp_chunk);\n        id[j] = hit ? (int) (hit - uniq) : -1;\n    }\n    free(uniq);\n    *distinct = d;\n    return id;\n}\n\nstatic int cmp_int(const void* a, const void* b) {\n    return *(const int*) a - *(const int*) b;\n}\n\nint* everyWordOnce(char* s, char** words, int wordsSize, int* returnSize) {\n    int n = strlen(s), L = strlen(words[0]), w = wordsSize, d, count = 0;\n    int* need;\n    int* id = chunk_ids(s, n, words, w, L, &need, &d);\n    int* have = calloc(d, sizeof(int));\n    int* out = malloc((n + 1) * sizeof(int));\n    for (int off = 0; off < L; off++) {\n        int left = off, used = 0;\n        for (int j = off; j + L <= n; j += L) {\n            int c = id[j];\n            if (c < 0) {\n                for (; left < j; left += L) have[id[left]]--;\n                used = 0;\n                left = j + L;\n                continue;\n            }\n            have[c]++;\n            used++;\n            while (have[c] > need[c]) { have[id[left]]--; used--; left += L; }\n            if (used == w) { out[count++] = left; have[id[left]]--; used--; left += L; }\n        }\n        for (; left + L <= n && used > 0; left += L, used--) have[id[left]]--;\n    }\n    qsort(out, count, sizeof(int), cmp_int);\n    free(id); free(need); free(have);\n    *returnSize = count;\n    return out;\n}\n"
+   },
+   "lines": [
+    {
+     "text": "How often each word is required.",
+     "at": {
+      "python": [
+       [
+        3,
+        7
+       ]
+      ],
+      "java": [
+       [
+        3,
+        6
+       ]
+      ],
+      "cpp": [
+       [
+        4,
+        7
+       ]
+      ],
+      "c": [
+       [
+        37,
+        41
+       ]
+      ]
+     },
+     "notes": {
+      "c": "Ids for the distinct words and for the chunk at every position."
+     }
+    },
+    {
+     "text": "C turns words and chunks into small ids once, so the counts can be arrays.",
+     "at": {
+      "c": [
+       [
+        1,
+        1
+       ],
+       [
+        3,
+        5
+       ],
+       [
+        7,
+        9
+       ],
+       [
+        11,
+        19
+       ],
+       [
+        21,
+        25
+       ],
+       [
+        27,
+        30
+       ]
+      ]
+     }
+    },
+    {
+     "text": "Starts with the same remainder mod `L` walk through the same chunks; each offset gets its own window. C also undoes the counts left by one offset before the next.",
+     "at": {
+      "python": [
+       [
+        8,
+        9
+       ]
+      ],
+      "java": [
+       [
+        7,
+        9
+       ]
+      ],
+      "cpp": [
+       [
+        8,
+        10
+       ]
+      ],
+      "c": [
+       [
+        42,
+        43
+       ],
+       [
+        57,
+        57
+       ]
+      ]
+     },
+     "notes": {
+      "c": "Before the next offset, undo the counts still held by this window."
+     }
+    },
+    {
+     "text": "Take the next whole word into the window.",
+     "at": {
+      "python": [
+       [
+        10,
+        11
+       ],
+       [
+        15,
+        16
+       ]
+      ],
+      "java": [
+       [
+        10,
+        11
+       ],
+       [
+        13,
+        14
+       ]
+      ],
+      "cpp": [
+       [
+        11,
+        12
+       ],
+       [
+        14,
+        15
+       ]
+      ],
+      "c": [
+       [
+        44,
+        45
+       ],
+       [
+        52,
+        53
+       ]
+      ]
+     }
+    },
+    {
+     "text": "A chunk that isn't a word can't be in any chain. Empty the window and restart right after it.",
+     "at": {
+      "python": [
+       [
+        12,
+        14
+       ]
+      ],
+      "java": [
+       [
+        12,
+        12
+       ]
+      ],
+      "cpp": [
+       [
+        13,
+        13
+       ]
+      ],
+      "c": [
+       [
+        46,
+        50
+       ]
+      ]
+     }
+    },
+    {
+     "text": "If this word is now used more often than required, drop words from the left until it isn't. Any chain containing the current chunk must start after the dropped part.",
+     "at": {
+      "python": [
+       [
+        17,
+        20
+       ]
+      ],
+      "java": [
+       [
+        15,
+        18
+       ]
+      ],
+      "cpp": [
+       [
+        16,
+        19
+       ]
+      ],
+      "c": [
+       [
+        54,
+        54
+       ]
+      ]
+     }
+    },
+    {
+     "text": "The window uses every word exactly as required: a chain starts at `left`. Drop its first word to keep searching.",
+     "at": {
+      "python": [
+       [
+        21,
+        25
+       ]
+      ],
+      "java": [
+       [
+        20,
+        24
+       ]
+      ],
+      "cpp": [
+       [
+        21,
+        25
+       ]
+      ],
+      "c": [
+       [
+        55,
+        55
+       ]
+      ]
+     }
+    },
+    {
+     "text": "Starts from different offsets interleave, so sort them.",
+     "at": {
+      "python": [
+       [
+        26,
+        26
+       ]
+      ],
+      "java": [
+       [
+        28,
+        29
+       ]
+      ],
+      "cpp": [
+       [
+        29,
+        30
+       ]
+      ],
+      "c": [
+       [
+        32,
+        34
+       ],
+       [
+        59,
+        62
+       ]
+      ]
+     }
+    }
+   ],
+   "complexity": [
+    {
+     "md": "**Time O(n · L):** each offset visits about `n / L` chunks; each enters and leaves once and costs O(L) to\nhash. That's `L · (n / L) · L = n · L`. **Space O(w · L)** for the word table."
+    }
+   ],
+   "walk": {
+    "steps": [
+     {
+      "text": "Offset 0: take 'cat'. Window 'cat'.",
+      "panels": [
+       {
+        "type": "row",
+        "cells": [
+         "c",
+         "a",
+         "t",
+         "d",
+         "o",
+         "g",
+         "c",
+         "a",
+         "t",
+         "c",
+         "a",
+         "t",
+         "d",
+         "o",
+         "g",
+         "d",
+         "o",
+         "g"
+        ],
+        "states": {
+         "0": "active",
+         "1": "active",
+         "2": "active"
+        }
+       }
+      ]
+     },
+     {
+      "text": "Offset 0: take 'dog'. Window 'catdog' uses every word: start 0.",
+      "panels": [
+       {
+        "type": "row",
+        "cells": [
+         "c",
+         "a",
+         "t",
+         "d",
+         "o",
+         "g",
+         "c",
+         "a",
+         "t",
+         "c",
+         "a",
+         "t",
+         "d",
+         "o",
+         "g",
+         "d",
+         "o",
+         "g"
+        ],
+        "states": {
+         "0": "found",
+         "1": "found",
+         "2": "found",
+         "3": "found",
+         "4": "found",
+         "5": "found"
+        }
+       }
+      ]
+     },
+     {
+      "text": "Offset 0: take 'cat'. Window 'dogcat' uses every word: start 3.",
+      "panels": [
+       {
+        "type": "row",
+        "cells": [
+         "c",
+         "a",
+         "t",
+         "d",
+         "o",
+         "g",
+         "c",
+         "a",
+         "t",
+         "c",
+         "a",
+         "t",
+         "d",
+         "o",
+         "g",
+         "d",
+         "o",
+         "g"
+        ],
+        "states": {
+         "3": "found",
+         "4": "found",
+         "5": "found",
+         "6": "found",
+         "7": "found",
+         "8": "found"
+        }
+       }
+      ]
+     },
+     {
+      "text": "Offset 0: take 'cat'. Window 'cat'.",
+      "panels": [
+       {
+        "type": "row",
+        "cells": [
+         "c",
+         "a",
+         "t",
+         "d",
+         "o",
+         "g",
+         "c",
+         "a",
+         "t",
+         "c",
+         "a",
+         "t",
+         "d",
+         "o",
+         "g",
+         "d",
+         "o",
+         "g"
+        ],
+        "states": {
+         "9": "active",
+         "10": "active",
+         "11": "active"
+        }
+       }
+      ]
+     },
+     {
+      "text": "Offset 0: take 'dog'. Window 'catdog' uses every word: start 9.",
+      "panels": [
+       {
+        "type": "row",
+        "cells": [
+         "c",
+         "a",
+         "t",
+         "d",
+         "o",
+         "g",
+         "c",
+         "a",
+         "t",
+         "c",
+         "a",
+         "t",
+         "d",
+         "o",
+         "g",
+         "d",
+         "o",
+         "g"
+        ],
+        "states": {
+         "9": "found",
+         "10": "found",
+         "11": "found",
+         "12": "found",
+         "13": "found",
+         "14": "found"
+        }
+       }
+      ]
+     },
+     {
+      "text": "Offset 0: take 'dog'. Window 'dog'.",
+      "panels": [
+       {
+        "type": "row",
+        "cells": [
+         "c",
+         "a",
+         "t",
+         "d",
+         "o",
+         "g",
+         "c",
+         "a",
+         "t",
+         "c",
+         "a",
+         "t",
+         "d",
+         "o",
+         "g",
+         "d",
+         "o",
+         "g"
+        ],
+        "states": {
+         "15": "active",
+         "16": "active",
+         "17": "active"
+        }
+       }
+      ]
+     },
+     {
+      "text": "Offset 1: 'atd' isn't a word; restart after it.",
+      "panels": [
+       {
+        "type": "row",
+        "cells": [
+         "c",
+         "a",
+         "t",
+         "d",
+         "o",
+         "g",
+         "c",
+         "a",
+         "t",
+         "c",
+         "a",
+         "t",
+         "d",
+         "o",
+         "g",
+         "d",
+         "o",
+         "g"
+        ],
+        "states": {
+         "1": "mark",
+         "2": "mark",
+         "3": "mark"
+        }
+       }
+      ]
+     },
+     {
+      "text": "Offset 1: 'ogc' isn't a word; restart after it.",
+      "panels": [
+       {
+        "type": "row",
+        "cells": [
+         "c",
+         "a",
+         "t",
+         "d",
+         "o",
+         "g",
+         "c",
+         "a",
+         "t",
+         "c",
+         "a",
+         "t",
+         "d",
+         "o",
+         "g",
+         "d",
+         "o",
+         "g"
+        ],
+        "states": {
+         "4": "mark",
+         "5": "mark",
+         "6": "mark"
+        }
+       }
+      ]
+     },
+     {
+      "text": "Offset 1: 'atc' isn't a word; restart after it.",
+      "panels": [
+       {
+        "type": "row",
+        "cells": [
+         "c",
+         "a",
+         "t",
+         "d",
+         "o",
+         "g",
+         "c",
+         "a",
+         "t",
+         "c",
+         "a",
+         "t",
+         "d",
+         "o",
+         "g",
+         "d",
+         "o",
+         "g"
+        ],
+        "states": {
+         "7": "mark",
+         "8": "mark",
+         "9": "mark"
+        }
+       }
+      ]
+     },
+     {
+      "text": "Offset 1: 'atd' isn't a word; restart after it.",
+      "panels": [
+       {
+        "type": "row",
+        "cells": [
+         "c",
+         "a",
+         "t",
+         "d",
+         "o",
+         "g",
+         "c",
+         "a",
+         "t",
+         "c",
+         "a",
+         "t",
+         "d",
+         "o",
+         "g",
+         "d",
+         "o",
+         "g"
+        ],
+        "states": {
+         "10": "mark",
+         "11": "mark",
+         "12": "mark"
+        }
+       }
+      ]
+     },
+     {
+      "text": "Offset 1: 'ogd' isn't a word; restart after it.",
+      "panels": [
+       {
+        "type": "row",
+        "cells": [
+         "c",
+         "a",
+         "t",
+         "d",
+         "o",
+         "g",
+         "c",
+         "a",
+         "t",
+         "c",
+         "a",
+         "t",
+         "d",
+         "o",
+         "g",
+         "d",
+         "o",
+         "g"
+        ],
+        "states": {
+         "13": "mark",
+         "14": "mark",
+         "15": "mark"
+        }
+       }
+      ]
+     },
+     {
+      "text": "Offset 2: 'tdo' isn't a word; restart after it.",
+      "panels": [
+       {
+        "type": "row",
+        "cells": [
+         "c",
+         "a",
+         "t",
+         "d",
+         "o",
+         "g",
+         "c",
+         "a",
+         "t",
+         "c",
+         "a",
+         "t",
+         "d",
+         "o",
+         "g",
+         "d",
+         "o",
+         "g"
+        ],
+        "states": {
+         "2": "mark",
+         "3": "mark",
+         "4": "mark"
+        }
+       }
+      ]
+     },
+     {
+      "text": "Offset 2: 'gca' isn't a word; restart after it.",
+      "panels": [
+       {
+        "type": "row",
+        "cells": [
+         "c",
+         "a",
+         "t",
+         "d",
+         "o",
+         "g",
+         "c",
+         "a",
+         "t",
+         "c",
+         "a",
+         "t",
+         "d",
+         "o",
+         "g",
+         "d",
+         "o",
+         "g"
+        ],
+        "states": {
+         "5": "mark",
+         "6": "mark",
+         "7": "mark"
+        }
+       }
+      ]
+     },
+     {
+      "text": "Offset 2: 'tca' isn't a word; restart after it.",
+      "panels": [
+       {
+        "type": "row",
+        "cells": [
+         "c",
+         "a",
+         "t",
+         "d",
+         "o",
+         "g",
+         "c",
+         "a",
+         "t",
+         "c",
+         "a",
+         "t",
+         "d",
+         "o",
+         "g",
+         "d",
+         "o",
+         "g"
+        ],
+        "states": {
+         "8": "mark",
+         "9": "mark",
+         "10": "mark"
+        }
+       }
+      ]
+     },
+     {
+      "text": "Offset 2: 'tdo' isn't a word; restart after it.",
+      "panels": [
+       {
+        "type": "row",
+        "cells": [
+         "c",
+         "a",
+         "t",
+         "d",
+         "o",
+         "g",
+         "c",
+         "a",
+         "t",
+         "c",
+         "a",
+         "t",
+         "d",
+         "o",
+         "g",
+         "d",
+         "o",
+         "g"
+        ],
+        "states": {
+         "11": "mark",
+         "12": "mark",
+         "13": "mark"
+        }
+       }
+      ]
+     },
+     {
+      "text": "Offset 2: 'gdo' isn't a word; restart after it.",
+      "panels": [
+       {
+        "type": "row",
+        "cells": [
+         "c",
+         "a",
+         "t",
+         "d",
+         "o",
+         "g",
+         "c",
+         "a",
+         "t",
+         "c",
+         "a",
+         "t",
+         "d",
+         "o",
+         "g",
+         "d",
+         "o",
+         "g"
+        ],
+        "states": {
+         "14": "mark",
+         "15": "mark",
+         "16": "mark"
+        }
+       }
+      ]
+     },
+     {
+      "text": "Starts, sorted: [0, 3, 9].",
+      "panels": [],
+      "result": "[0, 3, 9]"
+     }
+    ],
+    "title": "Words start at multiples of 3 from some offset 0..2. For each offset, slide a window over whole words with word counts; shrink when a word is over-used or unknown."
+   }
+  }
+ ],
+ "takeaways": [
+  {
+   "md": "- **Fixed-length tokens → split starts by offset mod `L`** and slide over whole tokens.\n- It's an anagram window over words: counts, shrink on over-use, reset on unknown.\n- Sort at the end when results come from several independent passes."
+  }
+ ]
+}

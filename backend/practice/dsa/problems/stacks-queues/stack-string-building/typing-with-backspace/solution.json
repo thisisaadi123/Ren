@@ -1,0 +1,699 @@
+{
+ "version": 1,
+ "summary": "Simulate each text box with a stack (letters push, `#` pops) and compare the results: O(n + m). To avoid building\nthe texts, read both inputs **backwards**: a `#` means \"skip the next real character to the left\", so the\nsurviving characters come out in reverse order and can be compared on the fly in O(1) space.",
+ "question": [
+  {
+   "md": "`#` is a backspace that deletes the previous character, if any. Return whether both keystroke sequences produce\nthe same text.\n\n- **Backspace on empty text does nothing:** `\"##a\"` shows `a`.\n- **Several backspaces chain:** `\"ab##\"` shows nothing.\n- **Only the final text matters**, not how it was typed."
+  }
+ ],
+ "think": [
+  {
+   "md": "Take `a = \"xy#z##w\"` and `b = \"q#xw\"`. Typing `a`: x, y, ⌫ (removes y), z, ⌫ (removes z), ⌫ (removes x), w → \"w\".\nTyping `b`: q, ⌫, x, w → \"xw\". Different."
+  },
+  {
+   "panels": [
+    {
+     "type": "row",
+     "cells": [
+      "w"
+     ],
+     "label": "a shows"
+    },
+    {
+     "type": "row",
+     "cells": [
+      "x",
+      "w"
+     ],
+     "label": "b shows"
+    }
+   ]
+  },
+  {
+   "md": "The forward simulation is a stack. For O(1) space, notice that a character's fate depends only on what comes\n**after** it: it survives unless there are more unconsumed `#` to its right. So scan from the end, counting\npending backspaces, and you meet the surviving characters last-to-first."
+  }
+ ],
+ "approaches": [
+  {
+   "title": "Build both texts with a stack",
+   "kind": "better",
+   "time": "O(n + m)",
+   "space": "O(n + m)",
+   "idea": [
+    {
+     "md": "For each input: letters are pushed; `#` pops if the stack isn't empty. Compare the two stacks."
+    }
+   ],
+   "build": [
+    "Write `screen(keys)` with a stack.",
+    "Return `screen(a) == screen(b)`."
+   ],
+   "code": {
+    "python": "class Solution:\n    def sameText(self, a: str, b: str) -> bool:\n        def screen(keys):\n            out = []\n            for c in keys:\n                if c == \"#\":\n                    if out:\n                        out.pop()\n                else:\n                    out.append(c)\n            return out\n        return screen(a) == screen(b)\n",
+    "java": "class Solution {\n    public boolean sameText(String a, String b) {\n        return screen(a).equals(screen(b));\n    }\n\n    private String screen(String keys) {\n        StringBuilder out = new StringBuilder();\n        for (char c : keys.toCharArray()) {\n            if (c == '#') { if (out.length() > 0) out.deleteCharAt(out.length() - 1); }\n            else out.append(c);\n        }\n        return out.toString();\n    }\n}\n",
+    "cpp": "class Solution {\n    string screen(const string& keys) {\n        string out;\n        for (char c : keys) {\n            if (c == '#') { if (!out.empty()) out.pop_back(); }\n            else out.push_back(c);\n        }\n        return out;\n    }\n\npublic:\n    bool sameText(string& a, string& b) {\n        return screen(a) == screen(b);\n    }\n};\n",
+    "c": "// Rewrites keys into out (as a stack) and returns the text length.\nstatic int screen(const char* keys, char* out) {\n    int top = 0;\n    for (const char* p = keys; *p; p++) {\n        if (*p == '#') { if (top > 0) top--; }\n        else out[top++] = *p;\n    }\n    return top;\n}\n\nbool sameText(char* a, char* b) {\n    char* x = malloc(strlen(a) + 1);\n    char* y = malloc(strlen(b) + 1);\n    int nx = screen(a, x), ny = screen(b, y);\n    bool same = nx == ny && memcmp(x, y, nx) == 0;\n    free(x);\n    free(y);\n    return same;\n}\n"
+   },
+   "lines": [
+    {
+     "text": "Replay keystrokes: a letter goes on top; `#` removes the top letter if there is one.",
+     "at": {
+      "python": [
+       [
+        3,
+        11
+       ]
+      ],
+      "java": [
+       [
+        6,
+        13
+       ]
+      ],
+      "cpp": [
+       [
+        2,
+        9
+       ]
+      ],
+      "c": [
+       [
+        2,
+        9
+       ]
+      ]
+     }
+    },
+    {
+     "text": "Same final text?",
+     "at": {
+      "python": [
+       [
+        12,
+        12
+       ]
+      ],
+      "java": [
+       [
+        3,
+        3
+       ]
+      ],
+      "cpp": [
+       [
+        13,
+        13
+       ]
+      ],
+      "c": [
+       [
+        12,
+        18
+       ]
+      ]
+     }
+    }
+   ],
+   "complexity": [
+    {
+     "md": "**Time O(n + m).** **Space O(n + m)** for the two texts."
+    }
+   ],
+   "walk": {
+    "steps": [
+     {
+      "text": "a: key 'x' → screen 'x'.",
+      "panels": [
+       {
+        "type": "row",
+        "cells": [
+         "x",
+         "y",
+         "#",
+         "z",
+         "#",
+         "#",
+         "w"
+        ],
+        "states": {
+         "0": "active"
+        },
+        "label": "a"
+       },
+       {
+        "type": "row",
+        "cells": [
+         "x"
+        ],
+        "label": "screen"
+       }
+      ]
+     },
+     {
+      "text": "a: key 'y' → screen 'xy'.",
+      "panels": [
+       {
+        "type": "row",
+        "cells": [
+         "x",
+         "y",
+         "#",
+         "z",
+         "#",
+         "#",
+         "w"
+        ],
+        "states": {
+         "1": "active"
+        },
+        "label": "a"
+       },
+       {
+        "type": "row",
+        "cells": [
+         "x",
+         "y"
+        ],
+        "label": "screen"
+       }
+      ]
+     },
+     {
+      "text": "a: key '#' → screen 'x'.",
+      "panels": [
+       {
+        "type": "row",
+        "cells": [
+         "x",
+         "y",
+         "#",
+         "z",
+         "#",
+         "#",
+         "w"
+        ],
+        "states": {
+         "2": "active"
+        },
+        "label": "a"
+       },
+       {
+        "type": "row",
+        "cells": [
+         "x"
+        ],
+        "label": "screen"
+       }
+      ]
+     },
+     {
+      "text": "a: key 'z' → screen 'xz'.",
+      "panels": [
+       {
+        "type": "row",
+        "cells": [
+         "x",
+         "y",
+         "#",
+         "z",
+         "#",
+         "#",
+         "w"
+        ],
+        "states": {
+         "3": "active"
+        },
+        "label": "a"
+       },
+       {
+        "type": "row",
+        "cells": [
+         "x",
+         "z"
+        ],
+        "label": "screen"
+       }
+      ]
+     },
+     {
+      "text": "a: key '#' → screen 'x'.",
+      "panels": [
+       {
+        "type": "row",
+        "cells": [
+         "x",
+         "y",
+         "#",
+         "z",
+         "#",
+         "#",
+         "w"
+        ],
+        "states": {
+         "4": "active"
+        },
+        "label": "a"
+       },
+       {
+        "type": "row",
+        "cells": [
+         "x"
+        ],
+        "label": "screen"
+       }
+      ]
+     },
+     {
+      "text": "a: key '#' → screen ''.",
+      "panels": [
+       {
+        "type": "row",
+        "cells": [
+         "x",
+         "y",
+         "#",
+         "z",
+         "#",
+         "#",
+         "w"
+        ],
+        "states": {
+         "5": "active"
+        },
+        "label": "a"
+       },
+       {
+        "type": "row",
+        "cells": [],
+        "label": "screen"
+       }
+      ]
+     },
+     {
+      "text": "a: key 'w' → screen 'w'.",
+      "panels": [
+       {
+        "type": "row",
+        "cells": [
+         "x",
+         "y",
+         "#",
+         "z",
+         "#",
+         "#",
+         "w"
+        ],
+        "states": {
+         "6": "active"
+        },
+        "label": "a"
+       },
+       {
+        "type": "row",
+        "cells": [
+         "w"
+        ],
+        "label": "screen"
+       }
+      ]
+     },
+     {
+      "text": "b: key 'q' → screen 'q'.",
+      "panels": [
+       {
+        "type": "row",
+        "cells": [
+         "q",
+         "#",
+         "x",
+         "w"
+        ],
+        "states": {
+         "0": "active"
+        },
+        "label": "b"
+       },
+       {
+        "type": "row",
+        "cells": [
+         "q"
+        ],
+        "label": "screen"
+       }
+      ]
+     },
+     {
+      "text": "b: key '#' → screen ''.",
+      "panels": [
+       {
+        "type": "row",
+        "cells": [
+         "q",
+         "#",
+         "x",
+         "w"
+        ],
+        "states": {
+         "1": "active"
+        },
+        "label": "b"
+       },
+       {
+        "type": "row",
+        "cells": [],
+        "label": "screen"
+       }
+      ]
+     },
+     {
+      "text": "b: key 'x' → screen 'x'.",
+      "panels": [
+       {
+        "type": "row",
+        "cells": [
+         "q",
+         "#",
+         "x",
+         "w"
+        ],
+        "states": {
+         "2": "active"
+        },
+        "label": "b"
+       },
+       {
+        "type": "row",
+        "cells": [
+         "x"
+        ],
+        "label": "screen"
+       }
+      ]
+     },
+     {
+      "text": "b: key 'w' → screen 'xw'.",
+      "panels": [
+       {
+        "type": "row",
+        "cells": [
+         "q",
+         "#",
+         "x",
+         "w"
+        ],
+        "states": {
+         "3": "active"
+        },
+        "label": "b"
+       },
+       {
+        "type": "row",
+        "cells": [
+         "x",
+         "w"
+        ],
+        "label": "screen"
+       }
+      ]
+     },
+     {
+      "text": "Both screens show 'w' and 'xw': different.",
+      "panels": [
+       {
+        "type": "row",
+        "cells": [
+         "w"
+        ],
+        "label": "a"
+       },
+       {
+        "type": "row",
+        "cells": [
+         "x",
+         "w"
+        ],
+        "label": "b"
+       }
+      ],
+      "result": "false"
+     }
+    ],
+    "title": "Replay each person's keystrokes into a stack: letters push, '#' pops."
+   },
+   "limits": [
+    {
+     "md": "Builds both texts in full even when they differ early at the end. Reading backwards needs no extra memory."
+    }
+   ]
+  },
+  {
+   "title": "Two pointers from the end",
+   "kind": "best",
+   "time": "O(n + m)",
+   "space": "O(1)",
+   "idea": [
+    {
+     "md": "Pointers i and j at the ends. For each, skip backwards over characters deleted by later `#` (count pending backspaces: `#` adds one, a letter consumes one). Compare the next survivors; move both on. Equal all the way, and both exhausted together, means equal texts."
+    }
+   ],
+   "build": [
+    "Write `next(s, i)`: from i leftwards, return the index of the next surviving letter (or −1).",
+    "Loop: compare `a[i]` with `b[j]` at the survivors; stop on a mismatch or when either runs out."
+   ],
+   "code": {
+    "python": "class Solution:\n    def sameText(self, a: str, b: str) -> bool:\n        def survivor(s, i):\n            skip = 0\n            while i >= 0:\n                if s[i] == \"#\":\n                    skip += 1\n                elif skip:\n                    skip -= 1\n                else:\n                    return i\n                i -= 1\n            return -1\n        i, j = len(a) - 1, len(b) - 1\n        while True:\n            i, j = survivor(a, i), survivor(b, j)\n            if i < 0 or j < 0:\n                return i < 0 and j < 0\n            if a[i] != b[j]:\n                return False\n            i, j = i - 1, j - 1\n",
+    "java": "class Solution {\n    public boolean sameText(String a, String b) {\n        int i = a.length() - 1, j = b.length() - 1;\n        while (true) {\n            i = survivor(a, i);\n            j = survivor(b, j);\n            if (i < 0 || j < 0) return i < 0 && j < 0;\n            if (a.charAt(i) != b.charAt(j)) return false;\n            i--;\n            j--;\n        }\n    }\n\n    private int survivor(String s, int i) {\n        int skip = 0;\n        for (; i >= 0; i--) {\n            if (s.charAt(i) == '#') skip++;\n            else if (skip > 0) skip--;\n            else return i;\n        }\n        return -1;\n    }\n}\n",
+    "cpp": "class Solution {\n    int survivor(const string& s, int i) {\n        int skip = 0;\n        for (; i >= 0; i--) {\n            if (s[i] == '#') skip++;\n            else if (skip > 0) skip--;\n            else return i;\n        }\n        return -1;\n    }\n\npublic:\n    bool sameText(string& a, string& b) {\n        int i = a.size() - 1, j = b.size() - 1;\n        while (true) {\n            i = survivor(a, i);\n            j = survivor(b, j);\n            if (i < 0 || j < 0) return i < 0 && j < 0;\n            if (a[i] != b[j]) return false;\n            i--;\n            j--;\n        }\n    }\n};\n",
+    "c": "static int survivor(const char* s, int i) {\n    int skip = 0;\n    for (; i >= 0; i--) {\n        if (s[i] == '#') skip++;\n        else if (skip > 0) skip--;\n        else return i;\n    }\n    return -1;\n}\n\nbool sameText(char* a, char* b) {\n    int i = strlen(a) - 1, j = strlen(b) - 1;\n    while (1) {\n        i = survivor(a, i);\n        j = survivor(b, j);\n        if (i < 0 || j < 0) return i < 0 && j < 0;\n        if (a[i] != b[j]) return false;\n        i--;\n        j--;\n    }\n}\n"
+   },
+   "lines": [
+    {
+     "text": "From position i leftwards: each `#` means one more letter to the left is deleted; a letter either cancels a pending backspace or is the next survivor.",
+     "at": {
+      "python": [
+       [
+        3,
+        13
+       ]
+      ],
+      "java": [
+       [
+        14,
+        22
+       ]
+      ],
+      "cpp": [
+       [
+        2,
+        10
+       ]
+      ],
+      "c": [
+       [
+        1,
+        9
+       ]
+      ]
+     }
+    },
+    {
+     "text": "Start at both ends.",
+     "at": {
+      "python": [
+       [
+        14,
+        14
+       ]
+      ],
+      "java": [
+       [
+        3,
+        3
+       ]
+      ],
+      "cpp": [
+       [
+        14,
+        14
+       ]
+      ],
+      "c": [
+       [
+        12,
+        12
+       ]
+      ]
+     }
+    },
+    {
+     "text": "Jump both pointers to their next surviving letters.",
+     "at": {
+      "python": [
+       [
+        15,
+        16
+       ]
+      ],
+      "java": [
+       [
+        4,
+        6
+       ]
+      ],
+      "cpp": [
+       [
+        15,
+        17
+       ]
+      ],
+      "c": [
+       [
+        13,
+        15
+       ]
+      ]
+     }
+    },
+    {
+     "text": "If either text is exhausted, they're equal only if both are.",
+     "at": {
+      "python": [
+       [
+        17,
+        18
+       ]
+      ],
+      "java": [
+       [
+        7,
+        7
+       ]
+      ],
+      "cpp": [
+       [
+        18,
+        18
+       ]
+      ],
+      "c": [
+       [
+        16,
+        16
+       ]
+      ]
+     }
+    },
+    {
+     "text": "Survivors must match; then move past them.",
+     "at": {
+      "python": [
+       [
+        19,
+        21
+       ]
+      ],
+      "java": [
+       [
+        8,
+        10
+       ]
+      ],
+      "cpp": [
+       [
+        19,
+        21
+       ]
+      ],
+      "c": [
+       [
+        17,
+        19
+       ]
+      ]
+     }
+    }
+   ],
+   "complexity": [
+    {
+     "md": "**Time O(n + m):** each character is passed once. **Space O(1).**"
+    }
+   ],
+   "walk": {
+    "steps": [
+     {
+      "text": "Next surviving characters from the end: 'w' and 'w' match.",
+      "panels": [
+       {
+        "type": "row",
+        "cells": [
+         "x",
+         "y",
+         "#",
+         "z",
+         "#",
+         "#",
+         "w"
+        ],
+        "states": {
+         "6": "found"
+        },
+        "label": "a"
+       },
+       {
+        "type": "row",
+        "cells": [
+         "q",
+         "#",
+         "x",
+         "w"
+        ],
+        "states": {
+         "3": "found"
+        },
+        "label": "b"
+       }
+      ]
+     },
+     {
+      "text": "Survivors differ: None vs 'x'.",
+      "panels": [
+       {
+        "type": "row",
+        "cells": [
+         "x",
+         "y",
+         "#",
+         "z",
+         "#",
+         "#",
+         "w"
+        ],
+        "label": "a"
+       },
+       {
+        "type": "row",
+        "cells": [
+         "q",
+         "#",
+         "x",
+         "w"
+        ],
+        "states": {
+         "2": "mark"
+        },
+        "label": "b"
+       }
+      ],
+      "result": "false"
+     }
+    ],
+    "title": "Walk both strings from the end. Skip characters that a later '#' deletes; compare the surviving characters one by one."
+   }
+  }
+ ],
+ "takeaways": [
+  {
+   "md": "- Backspace processing is a stack; reading **backwards** with a pending-deletes counter avoids the stack.\n- When an element's fate depends on what comes after it, try scanning from the end."
+  }
+ ]
+}

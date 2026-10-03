@@ -1,0 +1,806 @@
+{
+ "version": 1,
+ "summary": "Each second sells exactly one ticket, so the answer is how many tickets are sold by the moment person `k`\nbuys their last one. That takes `wants[k]` rounds. Everyone at or in front of `k` gets up to `wants[k]` turns;\neveryone behind gets one fewer, since the line stops mid-round. Sum `min(wants[i], cap)`: O(n).",
+ "question": [
+  {
+   "md": "One ticket is sold per second to the person at the front, who then leaves (if done) or goes to the back. Return\nthe second at which person `k` buys their last ticket.\n\n- **The line cycles**, so a person's turns come once per round, in the original order (people only leave).\n- **Up to 10⁵ people wanting up to 10⁵ tickets**: up to 10¹⁰ seconds, so simulating is too slow and the answer\n  needs 64 bits."
+  }
+ ],
+ "think": [
+  {
+   "md": "Line `[2, 5, 3, 1, 4]`, `k = 2` (wants 3). Person 2 gets one ticket per round, so they finish in round 3.\nIn each round, everyone still in line buys one, in the original order. During rounds 1..3, a person at or\nbefore position 2 buys at most 3 (fewer if they want fewer). A person after position 2 only gets\n2 full rounds, because round 3 stops the moment person 2 is served."
+  },
+  {
+   "table": {
+    "head": [
+     "person",
+     "wants",
+     "turns before k is done",
+     "bought"
+    ],
+    "rows": [
+     [
+      "0",
+      "2",
+      "3",
+      "2"
+     ],
+     [
+      "1",
+      "5",
+      "3",
+      "3"
+     ],
+     [
+      "2",
+      "3",
+      "3",
+      "3"
+     ],
+     [
+      "3",
+      "1",
+      "2",
+      "1"
+     ],
+     [
+      "4",
+      "4",
+      "2",
+      "2"
+     ]
+    ]
+   }
+  },
+  {
+   "md": "Every second sells one ticket, so the answer is the total bought: **11**."
+  }
+ ],
+ "approaches": [
+  {
+   "title": "Simulate the queue",
+   "kind": "brute",
+   "time": "O(total tickets)",
+   "space": "O(n)",
+   "idea": [
+    {
+     "md": "Put `(wants, index)` pairs in a queue. Each second: pop the front, add a second, and either finish them or push them back with one fewer. Stop when person `k` buys their last ticket."
+    }
+   ],
+   "build": [
+    "Queue of `(remaining, index)`.",
+    "Loop: pop, `t += 1`.",
+    "If remaining was 1: if it's `k`, return `t`; else drop. Otherwise push back with one fewer."
+   ],
+   "code": {
+    "python": "from collections import deque\n\nclass Solution:\n    def secondsToFinish(self, wants: List[int], k: int) -> int:\n        line = deque((w, i) for i, w in enumerate(wants))\n        t = 0\n        while True:\n            w, i = line.popleft()\n            t += 1\n            if w == 1:\n                if i == k:\n                    return t\n            else:\n                line.append((w - 1, i))\n",
+    "java": "class Solution {\n    public long secondsToFinish(int[] wants, int k) {\n        int n = wants.length;\n        int[] left = wants.clone();\n        ArrayDeque<Integer> line = new ArrayDeque<>();\n        for (int i = 0; i < n; i++) line.add(i);\n        long t = 0;\n        while (true) {\n            int i = line.poll();\n            t++;\n            left[i]--;\n            if (left[i] == 0) {\n                if (i == k) return t;\n            } else line.add(i);\n        }\n    }\n}\n",
+    "cpp": "class Solution {\npublic:\n    long long secondsToFinish(vector<int>& wants, int k) {\n        vector<int> left = wants;\n        deque<int> line;\n        for (int i = 0; i < (int) wants.size(); i++) line.push_back(i);\n        long long t = 0;\n        while (true) {\n            int i = line.front();\n            line.pop_front();\n            t++;\n            if (--left[i] == 0) {\n                if (i == k) return t;\n            } else line.push_back(i);\n        }\n    }\n};\n",
+    "c": "long long secondsToFinish(int* wants, int wantsSize, int k) {\n    int n = wantsSize;\n    int* left = malloc(n * sizeof(int));\n    int* line = malloc(n * sizeof(int));\n    for (int i = 0; i < n; i++) { left[i] = wants[i]; line[i] = i; }\n    int head = 0, size = n;\n    long long t = 0;\n    while (1) {\n        int i = line[head];\n        head = (head + 1) % n;\n        size--;\n        t++;\n        if (--left[i] == 0) {\n            if (i == k) break;\n        } else {\n            line[(head + size) % n] = i;\n            size++;\n        }\n    }\n    free(left);\n    free(line);\n    return t;\n}\n"
+   },
+   "lines": [
+    {
+     "text": "The line, in order, with each person's remaining tickets.",
+     "at": {
+      "python": [
+       [
+        5,
+        6
+       ]
+      ],
+      "java": [
+       [
+        3,
+        7
+       ]
+      ],
+      "cpp": [
+       [
+        4,
+        7
+       ]
+      ],
+      "c": [
+       [
+        2,
+        7
+       ]
+      ]
+     },
+     "notes": {
+      "c": "A circular buffer of `n` slots: the line never holds more than `n` people."
+     }
+    },
+    {
+     "text": "One second: the front person buys a ticket.",
+     "at": {
+      "python": [
+       [
+        7,
+        9
+       ]
+      ],
+      "java": [
+       [
+        8,
+        11
+       ]
+      ],
+      "cpp": [
+       [
+        8,
+        11
+       ]
+      ],
+      "c": [
+       [
+        8,
+        12
+       ]
+      ]
+     }
+    },
+    {
+     "text": "Their last ticket: if it's person `k`, that's the answer; otherwise they just leave.",
+     "at": {
+      "python": [
+       [
+        10,
+        12
+       ]
+      ],
+      "java": [
+       [
+        12,
+        13
+       ]
+      ],
+      "cpp": [
+       [
+        12,
+        13
+       ]
+      ],
+      "c": [
+       [
+        13,
+        14
+       ]
+      ]
+     }
+    },
+    {
+     "text": "Still wanting more: back of the line.",
+     "at": {
+      "python": [
+       [
+        13,
+        14
+       ]
+      ],
+      "java": [
+       [
+        14,
+        14
+       ]
+      ],
+      "cpp": [
+       [
+        14,
+        14
+       ]
+      ],
+      "c": [
+       [
+        15,
+        17
+       ]
+      ]
+     }
+    },
+    {
+     "text": "Clean up and return the time.",
+     "at": {
+      "c": [
+       [
+        20,
+        22
+       ]
+      ]
+     }
+    }
+   ],
+   "complexity": [
+    {
+     "md": "**Time O(total tickets sold):** up to 10¹⁰ seconds. **Space O(n).**"
+    }
+   ],
+   "walk": {
+    "steps": [
+     {
+      "text": "Second 1: person 0 buys one (1 still wanted), goes to the back.",
+      "panels": [
+       {
+        "type": "row",
+        "cells": [
+         "P1:5",
+         "P2:3",
+         "P3:1",
+         "P4:4",
+         "P0:1"
+        ],
+        "label": "line (person:still wants)"
+       },
+       {
+        "type": "vars",
+        "items": {
+         "seconds": 1
+        }
+       }
+      ]
+     },
+     {
+      "text": "Second 2: person 1 buys one (4 still wanted), goes to the back.",
+      "panels": [
+       {
+        "type": "row",
+        "cells": [
+         "P2:3",
+         "P3:1",
+         "P4:4",
+         "P0:1",
+         "P1:4"
+        ],
+        "label": "line (person:still wants)"
+       },
+       {
+        "type": "vars",
+        "items": {
+         "seconds": 2
+        }
+       }
+      ]
+     },
+     {
+      "text": "Second 3: person 2 buys one (2 still wanted), goes to the back.",
+      "panels": [
+       {
+        "type": "row",
+        "cells": [
+         "P3:1",
+         "P4:4",
+         "P0:1",
+         "P1:4",
+         "P2:2"
+        ],
+        "label": "line (person:still wants)"
+       },
+       {
+        "type": "vars",
+        "items": {
+         "seconds": 3
+        }
+       }
+      ]
+     },
+     {
+      "text": "Second 4: person 3 buys their last ticket and leaves.",
+      "panels": [
+       {
+        "type": "row",
+        "cells": [
+         "P4:4",
+         "P0:1",
+         "P1:4",
+         "P2:2"
+        ],
+        "label": "line (person:still wants)"
+       },
+       {
+        "type": "vars",
+        "items": {
+         "seconds": 4
+        }
+       }
+      ]
+     },
+     {
+      "text": "Second 5: person 4 buys one (3 still wanted), goes to the back.",
+      "panels": [
+       {
+        "type": "row",
+        "cells": [
+         "P0:1",
+         "P1:4",
+         "P2:2",
+         "P4:3"
+        ],
+        "label": "line (person:still wants)"
+       },
+       {
+        "type": "vars",
+        "items": {
+         "seconds": 5
+        }
+       }
+      ]
+     },
+     {
+      "text": "Second 6: person 0 buys their last ticket and leaves.",
+      "panels": [
+       {
+        "type": "row",
+        "cells": [
+         "P1:4",
+         "P2:2",
+         "P4:3"
+        ],
+        "label": "line (person:still wants)"
+       },
+       {
+        "type": "vars",
+        "items": {
+         "seconds": 6
+        }
+       }
+      ]
+     },
+     {
+      "text": "Second 7: person 1 buys one (3 still wanted), goes to the back.",
+      "panels": [
+       {
+        "type": "row",
+        "cells": [
+         "P2:2",
+         "P4:3",
+         "P1:3"
+        ],
+        "label": "line (person:still wants)"
+       },
+       {
+        "type": "vars",
+        "items": {
+         "seconds": 7
+        }
+       }
+      ]
+     },
+     {
+      "text": "Second 8: person 2 buys one (1 still wanted), goes to the back.",
+      "panels": [
+       {
+        "type": "row",
+        "cells": [
+         "P4:3",
+         "P1:3",
+         "P2:1"
+        ],
+        "label": "line (person:still wants)"
+       },
+       {
+        "type": "vars",
+        "items": {
+         "seconds": 8
+        }
+       }
+      ]
+     },
+     {
+      "text": "Second 9: person 4 buys one (2 still wanted), goes to the back.",
+      "panels": [
+       {
+        "type": "row",
+        "cells": [
+         "P1:3",
+         "P2:1",
+         "P4:2"
+        ],
+        "label": "line (person:still wants)"
+       },
+       {
+        "type": "vars",
+        "items": {
+         "seconds": 9
+        }
+       }
+      ]
+     },
+     {
+      "text": "Second 10: person 1 buys one (2 still wanted), goes to the back.",
+      "panels": [
+       {
+        "type": "row",
+        "cells": [
+         "P2:1",
+         "P4:2",
+         "P1:2"
+        ],
+        "label": "line (person:still wants)"
+       },
+       {
+        "type": "vars",
+        "items": {
+         "seconds": 10
+        }
+       }
+      ]
+     },
+     {
+      "text": "Second 11: person 2 buys their last ticket and leaves.",
+      "panels": [
+       {
+        "type": "row",
+        "cells": [
+         "P4:2",
+         "P1:2"
+        ],
+        "label": "line (person:still wants)"
+       },
+       {
+        "type": "vars",
+        "items": {
+         "seconds": 11
+        }
+       }
+      ]
+     },
+     {
+      "text": "Person 2 is done after 11 seconds.",
+      "panels": [],
+      "result": "11"
+     }
+    ],
+    "title": "Simulate second by second: the front person buys one ticket, then leaves or goes to the back."
+   },
+   "limits": [
+    {
+     "md": "Simulating one second at a time is hopeless for large orders. But the order of turns is completely regular (rounds in the original order), so each person's purchases can be counted directly."
+    }
+   ],
+   "slow": true
+  },
+  {
+   "title": "Count each person's purchases",
+   "kind": "best",
+   "time": "O(n)",
+   "space": "O(1)",
+   "idea": [
+    {
+     "md": "Let `need = wants[k]`. Person `i ≤ k` buys `min(wants[i], need)` tickets before `k` is done; person `i > k` buys `min(wants[i], need − 1)`. The answer is the sum."
+    }
+   ],
+   "build": [
+    "`need = wants[k]`.",
+    "Sum `min(wants[i], need)` for `i ≤ k` and `min(wants[i], need − 1)` for `i > k`, in 64 bits."
+   ],
+   "code": {
+    "python": "class Solution:\n    def secondsToFinish(self, wants: List[int], k: int) -> int:\n        need = wants[k]\n        total = 0\n        for i, w in enumerate(wants):\n            total += min(w, need if i <= k else need - 1)\n        return total\n",
+    "java": "class Solution {\n    public long secondsToFinish(int[] wants, int k) {\n        int need = wants[k];\n        long total = 0;\n        for (int i = 0; i < wants.length; i++)\n            total += Math.min(wants[i], i <= k ? need : need - 1);\n        return total;\n    }\n}\n",
+    "cpp": "class Solution {\npublic:\n    long long secondsToFinish(vector<int>& wants, int k) {\n        int need = wants[k];\n        long long total = 0;\n        for (int i = 0; i < (int) wants.size(); i++)\n            total += min(wants[i], i <= k ? need : need - 1);\n        return total;\n    }\n};\n",
+    "c": "long long secondsToFinish(int* wants, int wantsSize, int k) {\n    int need = wants[k];\n    long long total = 0;\n    for (int i = 0; i < wantsSize; i++) {\n        int cap = i <= k ? need : need - 1;\n        total += wants[i] < cap ? wants[i] : cap;\n    }\n    return total;\n}\n"
+   },
+   "lines": [
+    {
+     "text": "Person `k` finishes in round `need`.",
+     "at": {
+      "python": [
+       [
+        3,
+        3
+       ]
+      ],
+      "java": [
+       [
+        3,
+        3
+       ]
+      ],
+      "cpp": [
+       [
+        4,
+        4
+       ]
+      ],
+      "c": [
+       [
+        2,
+        2
+       ]
+      ]
+     }
+    },
+    {
+     "text": "Tickets sold before person `k` is done = seconds elapsed (64-bit).",
+     "at": {
+      "python": [
+       [
+        4,
+        5
+       ]
+      ],
+      "java": [
+       [
+        4,
+        5
+       ]
+      ],
+      "cpp": [
+       [
+        5,
+        6
+       ]
+      ],
+      "c": [
+       [
+        3,
+        4
+       ]
+      ]
+     }
+    },
+    {
+     "text": "People at or in front of `k` get a turn in each of the `need` rounds; people behind miss the last one. Nobody buys more than they want.",
+     "at": {
+      "python": [
+       [
+        6,
+        6
+       ]
+      ],
+      "java": [
+       [
+        6,
+        6
+       ]
+      ],
+      "cpp": [
+       [
+        7,
+        7
+       ]
+      ],
+      "c": [
+       [
+        5,
+        6
+       ]
+      ]
+     }
+    },
+    {
+     "text": "The total.",
+     "at": {
+      "python": [
+       [
+        7,
+        7
+       ]
+      ],
+      "java": [
+       [
+        7,
+        7
+       ]
+      ],
+      "cpp": [
+       [
+        8,
+        8
+       ]
+      ],
+      "c": [
+       [
+        8,
+        8
+       ]
+      ]
+     }
+    }
+   ],
+   "complexity": [
+    {
+     "md": "**Time O(n).** **Space O(1).**"
+    }
+   ],
+   "walk": {
+    "steps": [
+     {
+      "text": "Person 0 wants 2, in front of (or is) person 2: buys min(2, 3) = 2.",
+      "panels": [
+       {
+        "type": "row",
+        "cells": [
+         2,
+         5,
+         3,
+         1,
+         4
+        ],
+        "states": {
+         "0": "active",
+         "2": "found"
+        },
+        "label": "wants"
+       },
+       {
+        "type": "row",
+        "cells": [
+         2,
+         "·",
+         "·",
+         "·",
+         "·"
+        ],
+        "label": "bought"
+       },
+       {
+        "type": "vars",
+        "items": {
+         "seconds": 2
+        }
+       }
+      ]
+     },
+     {
+      "text": "Person 1 wants 5, in front of (or is) person 2: buys min(5, 3) = 3.",
+      "panels": [
+       {
+        "type": "row",
+        "cells": [
+         2,
+         5,
+         3,
+         1,
+         4
+        ],
+        "states": {
+         "1": "active",
+         "2": "found"
+        },
+        "label": "wants"
+       },
+       {
+        "type": "row",
+        "cells": [
+         2,
+         3,
+         "·",
+         "·",
+         "·"
+        ],
+        "label": "bought"
+       },
+       {
+        "type": "vars",
+        "items": {
+         "seconds": 5
+        }
+       }
+      ]
+     },
+     {
+      "text": "Person 2 wants 3, in front of (or is) person 2: buys min(3, 3) = 3.",
+      "panels": [
+       {
+        "type": "row",
+        "cells": [
+         2,
+         5,
+         3,
+         1,
+         4
+        ],
+        "states": {
+         "2": "found"
+        },
+        "label": "wants"
+       },
+       {
+        "type": "row",
+        "cells": [
+         2,
+         3,
+         3,
+         "·",
+         "·"
+        ],
+        "label": "bought"
+       },
+       {
+        "type": "vars",
+        "items": {
+         "seconds": 8
+        }
+       }
+      ]
+     },
+     {
+      "text": "Person 3 wants 1, behind person 2: buys min(1, 2) = 1.",
+      "panels": [
+       {
+        "type": "row",
+        "cells": [
+         2,
+         5,
+         3,
+         1,
+         4
+        ],
+        "states": {
+         "3": "active",
+         "2": "found"
+        },
+        "label": "wants"
+       },
+       {
+        "type": "row",
+        "cells": [
+         2,
+         3,
+         3,
+         1,
+         "·"
+        ],
+        "label": "bought"
+       },
+       {
+        "type": "vars",
+        "items": {
+         "seconds": 9
+        }
+       }
+      ]
+     },
+     {
+      "text": "Person 4 wants 4, behind person 2: buys min(4, 2) = 2.",
+      "panels": [
+       {
+        "type": "row",
+        "cells": [
+         2,
+         5,
+         3,
+         1,
+         4
+        ],
+        "states": {
+         "4": "active",
+         "2": "found"
+        },
+        "label": "wants"
+       },
+       {
+        "type": "row",
+        "cells": [
+         2,
+         3,
+         3,
+         1,
+         2
+        ],
+        "label": "bought"
+       },
+       {
+        "type": "vars",
+        "items": {
+         "seconds": 11
+        }
+       }
+      ]
+     },
+     {
+      "text": "Total: 11 seconds.",
+      "panels": [],
+      "result": "11"
+     }
+    ],
+    "title": "Count each person's purchases until person 2 finishes. Person 2 needs 3 rounds; people in front of them get up to 3 turns, people behind up to 2."
+   }
+  }
+ ],
+ "takeaways": [
+  {
+   "md": "- When a simulation is perfectly regular (round-robin), **count instead of simulating**.\n- \"One unit per second\" turns a time question into a counting question.\n- Be careful about the partial last round: who comes before the target and who comes after."
+  }
+ ]
+}

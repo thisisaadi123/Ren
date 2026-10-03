@@ -1,0 +1,389 @@
+{
+ "version": 1,
+ "summary": "Two independent decisions per line. Which words: take words greedily while letters plus one space between each\nstill fit. How many spaces: on a full line, `spare = width − letters` spaces go into `gaps` gaps, `spare / gaps`\neach and one extra for the first `spare % gaps`. The last line and single-word lines are left-aligned. O(total\noutput).",
+ "question": [
+  {
+   "md": "Lay `words` into lines of exactly `width` characters, each line holding as many words as fit with single spaces.\nThen fully justify every line except the last; spread uneven spaces so the left gaps are wider. The last line,\nand any one-word line, is left-aligned and padded with spaces at the end.\n\n- **Up to 300 words**, `width ≤ 100`.\n- **Every word fits** on a line by itself."
+  },
+  {
+   "md": "**Edge cases to keep in mind**\n\n- A line with a single word is left-aligned even if it isn't the last line.\n- The last line is always left-aligned, however many words it has.\n- A word exactly `width` long fills a line by itself.\n- Spaces that don't divide evenly go to the **leftmost** gaps."
+  }
+ ],
+ "think": [
+  {
+   "md": "**How to approach any parsing task.** Write the format as a sequence of phases, each with a clear rule for which\ncharacters it consumes and what makes it stop. Then walk the text once with an index, handling one phase after\nanother. Most bugs come from the boundaries between phases, so list them explicitly as edge cases before coding."
+  },
+  {
+   "md": "**Two independent decisions per line.**\n\n1. **Which words?** Take words while `letters + (one space between each) ≤ width`. Greedy filling is what the\n   statement asks for, and the spacing chosen later never changes this decision.\n2. **How many spaces?** On a full line with `g` gaps and `spare = width − letters` spaces, every gap gets\n   `spare // g` and the first `spare % g` gaps get one extra."
+  },
+  {
+   "md": "**Line by line** for width 14:"
+  },
+  {
+   "table": {
+    "head": [
+     "words",
+     "letters",
+     "rule",
+     "spaces",
+     "line (· = space)"
+    ],
+    "rows": [
+     [
+      "Rain fell on",
+      "10",
+      "4 spare over 2 gaps",
+      "2 each",
+      "Rain··fell··on"
+     ],
+     [
+      "the old tin",
+      "9",
+      "5 spare over 2 gaps",
+      "2 each, first 1 get +1",
+      "the···old··tin"
+     ],
+     [
+      "roof all",
+      "7",
+      "7 spare over 1 gaps",
+      "7 each",
+      "roof·······all"
+     ],
+     [
+      "night.",
+      "6",
+      "last line",
+      "left-aligned, 8 at the end",
+      "night.········"
+     ]
+    ]
+   }
+  }
+ ],
+ "approaches": [
+  {
+   "title": "Greedy lines, then divide the spare spaces",
+   "kind": "best",
+   "time": "O(L)",
+   "space": "O(L)",
+   "idea": [
+    {
+     "md": "Walk the words with index `i`. For each line, extend `j` while the next word still fits with one space,\ntracking `size` = letters plus single spaces. Then build the line: left-aligned for the last line or a\none-word line, otherwise justified with `divmod(spare, gaps)`. Continue from `j`.\n\n**Why the arithmetic is right.** `size − gaps` is the letter count, so `spare = width − letters` spaces\nmust be distributed. `q = spare // gaps` and `r = spare % gaps` give `q·gaps + r = spare` spaces in total\nwhen the first `r` gaps get `q + 1`, so the line is exactly `width` long."
+    }
+   ],
+   "build": [
+    "Start at word 0.",
+    "Grow the line while `size + 1 + len(next) ≤ width`.",
+    "Last line or one word: join with single spaces, pad the end.",
+    "Otherwise give each gap `q` spaces, the first `r` gaps `q + 1`, no spaces after the last word.",
+    "Store the line and continue after it."
+   ],
+   "code": {
+    "python": "class Solution:\n    def justify(self, words: List[str], width: int) -> List[str]:\n        out, i, n = [], 0, len(words)\n        while i < n:\n            j, size = i + 1, len(words[i])\n            while j < n and size + 1 + len(words[j]) <= width:\n                size += 1 + len(words[j])\n                j += 1\n            gaps = j - i - 1\n            if j == n or gaps == 0:\n                line = \" \".join(words[i:j])\n                out.append(line + \" \" * (width - len(line)))\n            else:\n                q, r = divmod(width - (size - gaps), gaps)\n                parts = [words[k] + \" \" * (q + (1 if k - i < r else 0)) for k in range(i, j - 1)]\n                out.append(\"\".join(parts) + words[j - 1])\n            i = j\n        return out\n",
+    "java": "class Solution {\n    public List<String> justify(String[] words, int width) {\n        List<String> out = new ArrayList<>();\n        int i = 0, n = words.length;\n        while (i < n) {\n            int j = i + 1, size = words[i].length();\n            while (j < n && size + 1 + words[j].length() <= width) size += 1 + words[j++].length();\n            int gaps = j - i - 1;\n            StringBuilder line = new StringBuilder();\n            if (j == n || gaps == 0) {\n                for (int k = i; k < j; k++) line.append(k > i ? \" \" : \"\").append(words[k]);\n                while (line.length() < width) line.append(' ');\n            } else {\n                int spare = width - (size - gaps), q = spare / gaps, r = spare % gaps;\n                for (int k = i; k < j - 1; k++) line.append(words[k]).append(\" \".repeat(q + (k - i < r ? 1 : 0)));\n                line.append(words[j - 1]);\n            }\n            out.add(line.toString());\n            i = j;\n        }\n        return out;\n    }\n}\n",
+    "cpp": "class Solution {\npublic:\n    vector<string> justify(vector<string>& words, int width) {\n        vector<string> out;\n        int i = 0, n = words.size();\n        while (i < n) {\n            int j = i + 1, size = words[i].size();\n            while (j < n && size + 1 + (int) words[j].size() <= width) size += 1 + words[j++].size();\n            int gaps = j - i - 1;\n            string line;\n            if (j == n || gaps == 0) {\n                for (int k = i; k < j; k++) line += (k > i ? \" \" : \"\") + words[k];\n                line.resize(width, ' ');\n            } else {\n                int spare = width - (size - gaps), q = spare / gaps, r = spare % gaps;\n                for (int k = i; k < j - 1; k++) line += words[k] + string(q + (k - i < r ? 1 : 0), ' ');\n                line += words[j - 1];\n            }\n            out.push_back(line);\n            i = j;\n        }\n        return out;\n    }\n};\n",
+    "c": "char** justify(char** words, int wordsSize, int width, int* returnSize) {\n    char** out = malloc(wordsSize * sizeof(char*));\n    int count = 0, i = 0, n = wordsSize;\n    while (i < n) {\n        int j = i + 1, size = strlen(words[i]);\n        while (j < n && size + 1 + (int) strlen(words[j]) <= width) size += 1 + strlen(words[j++]);\n        int gaps = j - i - 1, pos = 0;\n        char* line = malloc(width + 1);\n        if (j == n || gaps == 0) {\n            for (int k = i; k < j; k++) {\n                if (k > i) line[pos++] = ' ';\n                int len = strlen(words[k]);\n                memcpy(line + pos, words[k], len);\n                pos += len;\n            }\n            while (pos < width) line[pos++] = ' ';\n        } else {\n            int spare = width - (size - gaps), q = spare / gaps, r = spare % gaps;\n            for (int k = i; k < j; k++) {\n                int len = strlen(words[k]);\n                memcpy(line + pos, words[k], len);\n                pos += len;\n                if (k < j - 1) for (int t = q + (k - i < r ? 1 : 0); t > 0; t--) line[pos++] = ' ';\n            }\n        }\n        line[pos] = '\\0';\n        out[count++] = line;\n        i = j;\n    }\n    *returnSize = count;\n    return out;\n}\n"
+   },
+   "lines": [
+    {
+     "text": "The output and the index of the first word not yet placed. C allocates one slot per word, the most lines there can be.",
+     "at": {
+      "python": [
+       [
+        3,
+        3
+       ]
+      ],
+      "java": [
+       [
+        3,
+        4
+       ]
+      ],
+      "cpp": [
+       [
+        4,
+        5
+       ]
+      ],
+      "c": [
+       [
+        2,
+        3
+       ]
+      ]
+     },
+     "notes": {
+      "c": "At most one line per word."
+     }
+    },
+    {
+     "text": "Grow the line greedily. `size` counts letters plus one space between neighbours, which is the narrowest the line can be; `gaps` is the number of spaces between its words.",
+     "at": {
+      "python": [
+       [
+        4,
+        9
+       ]
+      ],
+      "java": [
+       [
+        5,
+        9
+       ]
+      ],
+      "cpp": [
+       [
+        6,
+        10
+       ]
+      ],
+      "c": [
+       [
+        4,
+        8
+       ]
+      ]
+     }
+    },
+    {
+     "text": "The last line, or a line with one word: single spaces between words, then spaces at the end up to `width`.",
+     "at": {
+      "python": [
+       [
+        10,
+        12
+       ]
+      ],
+      "java": [
+       [
+        10,
+        12
+       ]
+      ],
+      "cpp": [
+       [
+        11,
+        13
+       ]
+      ],
+      "c": [
+       [
+        9,
+        14
+       ],
+       [
+        16,
+        16
+       ]
+      ]
+     }
+    },
+    {
+     "text": "Justify: `spare = width − letters` spaces over `gaps` gaps, `q` each and one more for the first `r` gaps. The last word gets no trailing spaces.",
+     "at": {
+      "python": [
+       [
+        13,
+        16
+       ]
+      ],
+      "java": [
+       [
+        13,
+        16
+       ]
+      ],
+      "cpp": [
+       [
+        14,
+        17
+       ]
+      ],
+      "c": [
+       [
+        17,
+        23
+       ]
+      ]
+     }
+    },
+    {
+     "text": "Store the finished line and start the next line at word `j`.",
+     "at": {
+      "python": [
+       [
+        17,
+        17
+       ]
+      ],
+      "java": [
+       [
+        18,
+        19
+       ]
+      ],
+      "cpp": [
+       [
+        19,
+        20
+       ]
+      ],
+      "c": [
+       [
+        26,
+        28
+       ]
+      ]
+     }
+    },
+    {
+     "text": "All lines, top to bottom.",
+     "at": {
+      "python": [
+       [
+        18,
+        18
+       ]
+      ],
+      "java": [
+       [
+        21,
+        21
+       ]
+      ],
+      "cpp": [
+       [
+        22,
+        22
+       ]
+      ],
+      "c": [
+       [
+        30,
+        31
+       ]
+      ]
+     }
+    }
+   ],
+   "complexity": [
+    {
+     "md": "**Time O(L)**, where L is the total output length (lines × width): each word is measured once and each output character written once. **Space O(L)** for the output."
+    }
+   ],
+   "walk": {
+    "steps": [
+     {
+      "text": "Words ['Rain', 'fell', 'on'] (10 letters) fit. 4 spare spaces over 2 gap(s): 2 each, and the first 0 get one more.",
+      "panels": [
+       {
+        "type": "row",
+        "cells": [
+         "R",
+         "a",
+         "i",
+         "n",
+         "·",
+         "·",
+         "f",
+         "e",
+         "l",
+         "l",
+         "·",
+         "·",
+         "o",
+         "n"
+        ]
+       }
+      ]
+     },
+     {
+      "text": "Words ['the', 'old', 'tin'] (9 letters) fit. 5 spare spaces over 2 gap(s): 2 each, and the first 1 get one more.",
+      "panels": [
+       {
+        "type": "row",
+        "cells": [
+         "t",
+         "h",
+         "e",
+         "·",
+         "·",
+         "·",
+         "o",
+         "l",
+         "d",
+         "·",
+         "·",
+         "t",
+         "i",
+         "n"
+        ]
+       }
+      ]
+     },
+     {
+      "text": "Words ['roof', 'all'] (7 letters) fit. 7 spare spaces over 1 gap(s): 7 each, and the first 0 get one more.",
+      "panels": [
+       {
+        "type": "row",
+        "cells": [
+         "r",
+         "o",
+         "o",
+         "f",
+         "·",
+         "·",
+         "·",
+         "·",
+         "·",
+         "·",
+         "·",
+         "a",
+         "l",
+         "l"
+        ]
+       }
+      ]
+     },
+     {
+      "text": "Words ['night.'] (6 letters) fit. Last line: left-aligned, padded at the end.",
+      "panels": [
+       {
+        "type": "row",
+        "cells": [
+         "n",
+         "i",
+         "g",
+         "h",
+         "t",
+         ".",
+         "·",
+         "·",
+         "·",
+         "·",
+         "·",
+         "·",
+         "·",
+         "·"
+        ]
+       }
+      ]
+     },
+     {
+      "text": "4 lines, each exactly 14 wide.",
+      "panels": [],
+      "result": "[\"Rain\\u00b7\\u00b7fell\\u00b7\\u00b7on\", \"the\\u00b7\\u00b7\\u00b7old\\u00b7\\u00b7tin\", \"roof\\u00b7\\u00b7\\u00b7\\u00b7\\u00b7\\u00b7\\u00b7all\", \"night.\\u00b7\\u00b7\\u00b7\\u00b7\\u00b7\\u00b7\\u00b7\\u00b7\"]"
+     }
+    ],
+    "title": "Fill each line greedily, then share out the spare spaces."
+   }
+  }
+ ],
+ "takeaways": [
+  {
+   "md": "- **Separate layout from formatting:** choose the words greedily, then compute the spacing.\n- **Distributing `s` items over `g` slots, left-heavy:** `s // g` each, plus one for the first `s % g`.\n- **Pitfalls:** the one-word line (division by zero gaps), and justifying the last line by mistake."
+  }
+ ]
+}

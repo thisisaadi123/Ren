@@ -1,0 +1,1154 @@
+{
+ "version": 1,
+ "summary": "To make the next larger number from the same digits, change as little as possible, as far right as\npossible. Find the rightmost digit that has a larger digit after it (the pivot), swap it with the smallest\nsuch larger digit, and arrange everything after it in increasing order. Because that tail is always in\ndecreasing order, \"arrange increasing\" is just a reversal: O(n).",
+ "question": [
+  {
+   "md": "Rearrange the digits of `code` into the **smallest number larger than `code`**, using every digit exactly\nas often as it appears. Return `\"\"` if no rearrangement is larger.\n\n- **Same multiset of digits:** `\"115\"` can become `\"151\"` or `\"511\"`; the next larger is `\"151\"`.\n- **No answer** when the digits are already in decreasing order (`\"4321\"` is the largest arrangement).\n- **Same length**, so comparing as strings is the same as comparing as numbers. Leading zeros can't\n  appear in the answer: anything starting with 0 is smaller than `code`.\n- **Up to 10⁵ digits:** far beyond any integer type, so work on the characters. Trying all arrangements\n  is out of the question."
+  },
+  {
+   "md": "**Edge cases to keep in mind**\n\n- Digits in non-increasing order (like `\"9531\"`): no larger number exists, return `\"\"`.\n- Repeated digits: `\"115\"` → `\"151\"`.\n- Up to 10⁵ digits, far beyond any integer type, so work on the string."
+  }
+ ],
+ "think": [
+  {
+   "md": "**The next arrangement, step by step.** To get the next larger arrangement, change as little as possible, as far to\nthe right as possible.\n\n1. **Find the pivot.** Scan from the right while values don't increase (`a[i] ≥ a[i+1]`). That tail is already the\n   *largest* arrangement of its values, so nothing inside it can grow. The pivot is the first index `i` from the right\n   with `a[i] < a[i+1]`; if there is none, the whole sequence is the last arrangement.\n2. **Swap.** Replace `a[i]` with the smallest tail value that's larger than it. Because the tail is non-increasing,\n   that's the **rightmost** tail value greater than `a[i]`.\n3. **Reverse the tail.** After the swap the tail is still non-increasing; reversing it makes it non-decreasing, its\n   *smallest* arrangement, so the result is the very next one.\n\nAll three steps are linear, so the whole thing is O(n) with O(1) extra space. Duplicates are handled by the `≥`/`≤`\ncomparisons, which skip equal values."
+  },
+  {
+   "md": "**On `\"158476531\"`:**"
+  },
+  {
+   "table": {
+    "head": [
+     "step",
+     "digits"
+    ],
+    "rows": [
+     [
+      "input",
+      "1 5 8 4 7 6 5 3 1"
+     ],
+     [
+      "pivot at index 3 (value 4); tail ['7', '6', '5', '3', '1'] is non-increasing",
+      "—"
+     ],
+     [
+      "swap with index 6 (value 5), the rightmost tail value > 4",
+      "1 5 8 5 7 6 4 3 1"
+     ],
+     [
+      "reverse the tail after index 3",
+      "1 5 8 5 1 3 4 6 7"
+     ]
+    ]
+   }
+  },
+  {
+   "md": "Next badge: **`158513467`**."
+  }
+ ],
+ "approaches": [
+  {
+   "title": "Generate arrangements in order",
+   "kind": "brute",
+   "time": "O(n! · n)",
+   "space": "O(n)",
+   "idea": [
+    {
+     "md": "Generate digit arrangements in increasing order and return the first one larger than `code`."
+    }
+   ],
+   "build": [
+    "Count digits.",
+    "Generate arrangements smallest first.",
+    "Return the first larger one, or `\"\"`."
+   ],
+   "code": {
+    "python": "class Solution:\n    def nextBadge(self, code: str) -> str:\n        count = [0] * 10\n        for ch in code:\n            count[ord(ch) - 48] += 1\n        buf = []\n        def build():\n            if len(buf) == len(code):\n                s = \"\".join(buf)\n                return s if s > code else None\n            for d in range(10):\n                if count[d]:\n                    count[d] -= 1\n                    buf.append(chr(48 + d))\n                    found = build()\n                    buf.pop()\n                    count[d] += 1\n                    if found:\n                        return found\n            return None\n        return build() or \"\"\n",
+    "java": "class Solution {\n    private int[] count = new int[10];\n    private char[] buf;\n    private String code;\n\n    public String nextBadge(String code) {\n        this.code = code;\n        buf = new char[code.length()];\n        for (char ch : code.toCharArray()) count[ch - '0']++;\n        String found = build(0);\n        return found == null ? \"\" : found;\n    }\n\n    private String build(int pos) {\n        if (pos == buf.length) {\n            String s = new String(buf);\n            return s.compareTo(code) > 0 ? s : null;\n        }\n        for (int d = 0; d < 10; d++) {\n            if (count[d] == 0) continue;\n            count[d]--;\n            buf[pos] = (char) ('0' + d);\n            String found = build(pos + 1);\n            count[d]++;\n            if (found != null) return found;\n        }\n        return null;\n    }\n}\n",
+    "cpp": "class Solution {\n    int count[10] = {0};\n    string buf, code;\n\n    bool build(size_t pos) {\n        if (pos == buf.size()) return buf > code;\n        for (int d = 0; d < 10; d++) {\n            if (!count[d]) continue;\n            count[d]--;\n            buf[pos] = '0' + d;\n            bool found = build(pos + 1);\n            count[d]++;\n            if (found) return true;\n        }\n        return false;\n    }\n\npublic:\n    string nextBadge(string& code) {\n        this->code = code;\n        buf.assign(code.size(), '0');\n        for (char ch : code) count[ch - '0']++;\n        return build(0) ? buf : \"\";\n    }\n};\n",
+    "c": "static int count[10];\nstatic char* buf;\nstatic const char* target;\nstatic int len;\n\nstatic bool build(int pos) {\n    if (pos == len) return strcmp(buf, target) > 0;\n    for (int d = 0; d < 10; d++) {\n        if (!count[d]) continue;\n        count[d]--;\n        buf[pos] = '0' + d;\n        bool found = build(pos + 1);\n        count[d]++;\n        if (found) return true;\n    }\n    return false;\n}\n\nchar* nextBadge(char* code) {\n    len = strlen(code);\n    target = code;\n    buf = calloc(len + 1, 1);\n    memset(count, 0, sizeof count);\n    for (int i = 0; i < len; i++) count[code[i] - '0']++;\n    if (!build(0)) buf[0] = '\\0';\n    return buf;\n}\n"
+   },
+   "lines": [
+    {
+     "text": "How many copies of each digit are still available to place.",
+     "at": {
+      "python": [
+       [
+        3,
+        5
+       ]
+      ],
+      "java": [
+       [
+        2,
+        2
+       ],
+       [
+        9,
+        9
+       ]
+      ],
+      "cpp": [
+       [
+        2,
+        2
+       ],
+       [
+        22,
+        22
+       ]
+      ],
+      "c": [
+       [
+        1,
+        1
+       ],
+       [
+        23,
+        24
+       ]
+      ]
+     }
+    },
+    {
+     "text": "Recursive builder: fills positions left to right in a shared buffer.",
+     "at": {
+      "python": [
+       [
+        6,
+        7
+       ],
+       [
+        20,
+        20
+       ]
+      ],
+      "java": [
+       [
+        3,
+        4
+       ],
+       [
+        7,
+        8
+       ],
+       [
+        14,
+        14
+       ],
+       [
+        27,
+        27
+       ]
+      ],
+      "cpp": [
+       [
+        3,
+        3
+       ],
+       [
+        5,
+        5
+       ],
+       [
+        15,
+        15
+       ],
+       [
+        20,
+        21
+       ]
+      ],
+      "c": [
+       [
+        2,
+        4
+       ],
+       [
+        6,
+        6
+       ],
+       [
+        16,
+        16
+       ],
+       [
+        20,
+        22
+       ]
+      ]
+     },
+     "notes": {
+      "c": "The buffer, the target and the length are file-level so the recursive helper can reach them; `calloc` leaves room for the terminating `\\0`."
+     }
+    },
+    {
+     "text": "A complete arrangement: is it larger than the code? Same length, so string comparison is numeric comparison.",
+     "at": {
+      "python": [
+       [
+        8,
+        10
+       ]
+      ],
+      "java": [
+       [
+        15,
+        17
+       ]
+      ],
+      "cpp": [
+       [
+        6,
+        6
+       ]
+      ],
+      "c": [
+       [
+        7,
+        7
+       ]
+      ]
+     }
+    },
+    {
+     "text": "Try each available digit in increasing order at this position and recurse. Trying small digits first is what makes arrangements appear in increasing order.",
+     "at": {
+      "python": [
+       [
+        11,
+        15
+       ]
+      ],
+      "java": [
+       [
+        19,
+        23
+       ]
+      ],
+      "cpp": [
+       [
+        7,
+        11
+       ]
+      ],
+      "c": [
+       [
+        8,
+        12
+       ]
+      ]
+     }
+    },
+    {
+     "text": "Give the digit back before trying the next one. If a deeper call already found the answer, stop immediately.",
+     "at": {
+      "python": [
+       [
+        16,
+        19
+       ]
+      ],
+      "java": [
+       [
+        24,
+        25
+       ]
+      ],
+      "cpp": [
+       [
+        12,
+        13
+       ]
+      ],
+      "c": [
+       [
+        13,
+        14
+       ]
+      ]
+     }
+    },
+    {
+     "text": "The first larger arrangement, or empty if there is none.",
+     "at": {
+      "python": [
+       [
+        21,
+        21
+       ]
+      ],
+      "java": [
+       [
+        10,
+        11
+       ]
+      ],
+      "cpp": [
+       [
+        23,
+        23
+       ]
+      ],
+      "c": [
+       [
+        25,
+        26
+       ]
+      ]
+     },
+     "notes": {
+      "c": "On failure, turn the buffer into the empty string."
+     }
+    }
+   ],
+   "complexity": [
+    {
+     "md": "**Time O(n! · n)** in the worst case. **Space O(n).**"
+    }
+   ],
+   "walk": {
+    "steps": [
+     {
+      "text": "A smaller example, code = 1243: its digits 1, 2, 3, 4 have 24 arrangements, generated smallest first.",
+      "panels": [
+       {
+        "type": "row",
+        "cells": [
+         "1",
+         "2",
+         "4",
+         "3"
+        ]
+       }
+      ]
+     },
+     {
+      "text": "1234 is not larger than 1243.",
+      "panels": [
+       {
+        "type": "row",
+        "cells": [
+         "1",
+         "2",
+         "3",
+         "4"
+        ],
+        "states": {
+         "0": "dim",
+         "1": "dim",
+         "2": "dim",
+         "3": "dim"
+        }
+       }
+      ]
+     },
+     {
+      "text": "1243 is not larger than 1243 (it is the code itself).",
+      "panels": [
+       {
+        "type": "row",
+        "cells": [
+         "1",
+         "2",
+         "4",
+         "3"
+        ],
+        "states": {
+         "0": "dim",
+         "1": "dim",
+         "2": "dim",
+         "3": "dim"
+        }
+       }
+      ]
+     },
+     {
+      "text": "1324 > 1243: this is the answer.",
+      "panels": [
+       {
+        "type": "row",
+        "cells": [
+         "1",
+         "3",
+         "2",
+         "4"
+        ],
+        "states": {
+         "0": "answer",
+         "1": "answer",
+         "2": "answer",
+         "3": "answer"
+        }
+       }
+      ],
+      "result": "1324"
+     }
+    ],
+    "title": "List the arrangements of the digits in increasing order and stop at the first one larger than the code."
+   },
+   "limits": [
+    {
+     "md": "Factorial; only for tiny inputs."
+    }
+   ],
+   "slow": 19
+  },
+  {
+   "title": "Pivot, swap, then sort the tail",
+   "kind": "better",
+   "time": "O(n log n)",
+   "space": "O(n)",
+   "idea": [
+    {
+     "md": "Find the pivot, swap it with the smallest larger digit in the tail, then **sort** the tail ascending."
+    }
+   ],
+   "build": [
+    "Pivot.",
+    "Smallest larger tail digit.",
+    "Swap and sort the tail."
+   ],
+   "code": {
+    "python": "class Solution:\n    def nextBadge(self, code: str) -> str:\n        d = list(code)\n        i = len(d) - 2\n        while i >= 0 and d[i] >= d[i + 1]:\n            i -= 1\n        if i < 0:\n            return \"\"\n        j = min((k for k in range(i + 1, len(d)) if d[k] > d[i]), key=lambda k: d[k])\n        d[i], d[j] = d[j], d[i]\n        d[i + 1:] = sorted(d[i + 1:])\n        return \"\".join(d)\n",
+    "java": "class Solution {\n    public String nextBadge(String code) {\n        char[] d = code.toCharArray();\n        int i = d.length - 2;\n        while (i >= 0 && d[i] >= d[i + 1]) i--;\n        if (i < 0) return \"\";\n        int j = -1;\n        for (int k = i + 1; k < d.length; k++)\n            if (d[k] > d[i] && (j < 0 || d[k] < d[j])) j = k;\n        char t = d[i]; d[i] = d[j]; d[j] = t;\n        Arrays.sort(d, i + 1, d.length);\n        return new String(d);\n    }\n}\n",
+    "cpp": "class Solution {\npublic:\n    string nextBadge(string& code) {\n        string d = code;\n        int i = (int) d.size() - 2;\n        while (i >= 0 && d[i] >= d[i + 1]) i--;\n        if (i < 0) return \"\";\n        int j = -1;\n        for (int k = i + 1; k < (int) d.size(); k++)\n            if (d[k] > d[i] && (j < 0 || d[k] < d[j])) j = k;\n        swap(d[i], d[j]);\n        sort(d.begin() + i + 1, d.end());\n        return d;\n    }\n};\n",
+    "c": "static int cmpChar(const void* a, const void* b) {\n    return *(const char*) a - *(const char*) b;\n}\n\nchar* nextBadge(char* code) {\n    int n = strlen(code);\n    char* d = malloc(n + 1);\n    memcpy(d, code, n + 1);\n    int i = n - 2;\n    while (i >= 0 && d[i] >= d[i + 1]) i--;\n    if (i < 0) { d[0] = '\\0'; return d; }\n    int j = -1;\n    for (int k = i + 1; k < n; k++)\n        if (d[k] > d[i] && (j < 0 || d[k] < d[j])) j = k;\n    char t = d[i]; d[i] = d[j]; d[j] = t;\n    qsort(d + i + 1, n - i - 1, 1, cmpChar);\n    return d;\n}\n"
+   },
+   "lines": [
+    {
+     "text": "A mutable copy of the digits.",
+     "at": {
+      "python": [
+       [
+        3,
+        3
+       ]
+      ],
+      "java": [
+       [
+        3,
+        3
+       ]
+      ],
+      "cpp": [
+       [
+        4,
+        4
+       ]
+      ],
+      "c": [
+       [
+        7,
+        8
+       ]
+      ]
+     }
+    },
+    {
+     "text": "From the right, skip while the digits don't increase going leftwards. The first digit smaller than its right neighbour is the pivot: the rightmost place where the number can grow.",
+     "at": {
+      "python": [
+       [
+        4,
+        6
+       ]
+      ],
+      "java": [
+       [
+        4,
+        5
+       ]
+      ],
+      "cpp": [
+       [
+        5,
+        6
+       ]
+      ],
+      "c": [
+       [
+        9,
+        10
+       ]
+      ]
+     }
+    },
+    {
+     "text": "No pivot: the whole number is in decreasing order, the largest arrangement.",
+     "at": {
+      "python": [
+       [
+        7,
+        8
+       ]
+      ],
+      "java": [
+       [
+        6,
+        6
+       ]
+      ],
+      "cpp": [
+       [
+        7,
+        7
+       ]
+      ],
+      "c": [
+       [
+        11,
+        11
+       ]
+      ]
+     },
+     "notes": {
+      "c": "Return an empty string (the caller frees it)."
+     }
+    },
+    {
+     "text": "Bring in the smallest tail digit that is still larger than the pivot. That raises this position by the least possible amount.",
+     "at": {
+      "python": [
+       [
+        9,
+        10
+       ]
+      ],
+      "java": [
+       [
+        7,
+        10
+       ]
+      ],
+      "cpp": [
+       [
+        8,
+        11
+       ]
+      ],
+      "c": [
+       [
+        12,
+        15
+       ]
+      ]
+     }
+    },
+    {
+     "text": "Everything after the pivot should now be as small as possible: ascending order.",
+     "at": {
+      "python": [
+       [
+        11,
+        11
+       ]
+      ],
+      "java": [
+       [
+        11,
+        11
+       ]
+      ],
+      "cpp": [
+       [
+        12,
+        12
+       ]
+      ],
+      "c": [
+       [
+        1,
+        3
+       ],
+       [
+        16,
+        16
+       ]
+      ]
+     }
+    },
+    {
+     "text": "The next larger arrangement.",
+     "at": {
+      "python": [
+       [
+        12,
+        12
+       ]
+      ],
+      "java": [
+       [
+        12,
+        12
+       ]
+      ],
+      "cpp": [
+       [
+        13,
+        13
+       ]
+      ],
+      "c": [
+       [
+        17,
+        17
+       ]
+      ]
+     }
+    }
+   ],
+   "complexity": [
+    {
+     "md": "**Time O(n log n)** for the sort. **Space O(n).**"
+    }
+   ],
+   "walk": {
+    "steps": [
+     {
+      "text": "Scanning from the right, the tail 76531 never increases; the first digit that breaks it is 4 at index 3: the pivot.",
+      "panels": [
+       {
+        "type": "row",
+        "cells": [
+         "1",
+         "5",
+         "8",
+         "4",
+         "7",
+         "6",
+         "5",
+         "3",
+         "1"
+        ],
+        "states": {
+         "4": "found",
+         "5": "found",
+         "6": "found",
+         "7": "found",
+         "8": "found",
+         "3": "mark"
+        },
+        "pointers": {
+         "pivot": 3
+        },
+        "slots": true
+       }
+      ]
+     },
+     {
+      "text": "In the tail, the smallest digit larger than 4 is 5. Swap them.",
+      "panels": [
+       {
+        "type": "row",
+        "cells": [
+         "1",
+         "5",
+         "8",
+         "4",
+         "7",
+         "6",
+         "5",
+         "3",
+         "1"
+        ],
+        "states": {
+         "3": "mark",
+         "6": "answer"
+        },
+        "slots": true
+       }
+      ]
+     },
+     {
+      "text": "Sort the tail ascending: the smallest possible ending.",
+      "panels": [
+       {
+        "type": "row",
+        "cells": [
+         "1",
+         "5",
+         "8",
+         "5",
+         "1",
+         "3",
+         "4",
+         "6",
+         "7"
+        ],
+        "states": {
+         "4": "new",
+         "5": "new",
+         "6": "new",
+         "7": "new",
+         "8": "new"
+        },
+        "slots": true
+       }
+      ],
+      "result": "158513467"
+     }
+    ],
+    "title": "Find the pivot, swap in the smallest larger digit from the tail, then sort the tail ascending."
+   },
+   "limits": [
+    {
+     "md": "The tail is already non-increasing after the swap, so sorting it is just a reversal: O(n) instead of O(n log n)."
+    }
+   ]
+  },
+  {
+   "title": "Pivot, swap, reverse the tail",
+   "kind": "best",
+   "time": "O(n)",
+   "space": "O(n)",
+   "idea": [
+    {
+     "md": "Pivot, swap with the rightmost larger tail digit, reverse the tail. If there's no pivot, return `\"\"`."
+    }
+   ],
+   "build": [
+    "Pivot from the right; none → `\"\"`.",
+    "Swap with the rightmost larger digit.",
+    "Reverse the tail."
+   ],
+   "code": {
+    "python": "class Solution:\n    def nextBadge(self, code: str) -> str:\n        d = list(code)\n        i = len(d) - 2\n        while i >= 0 and d[i] >= d[i + 1]:\n            i -= 1\n        if i < 0:\n            return \"\"\n        j = len(d) - 1\n        while d[j] <= d[i]:\n            j -= 1\n        d[i], d[j] = d[j], d[i]\n        d[i + 1:] = reversed(d[i + 1:])\n        return \"\".join(d)\n",
+    "java": "class Solution {\n    public String nextBadge(String code) {\n        char[] d = code.toCharArray();\n        int i = d.length - 2;\n        while (i >= 0 && d[i] >= d[i + 1]) i--;\n        if (i < 0) return \"\";\n        int j = d.length - 1;\n        while (d[j] <= d[i]) j--;\n        char t = d[i]; d[i] = d[j]; d[j] = t;\n        for (int a = i + 1, b = d.length - 1; a < b; a++, b--) {\n            t = d[a]; d[a] = d[b]; d[b] = t;\n        }\n        return new String(d);\n    }\n}\n",
+    "cpp": "class Solution {\npublic:\n    string nextBadge(string& code) {\n        string d = code;\n        int i = (int) d.size() - 2;\n        while (i >= 0 && d[i] >= d[i + 1]) i--;\n        if (i < 0) return \"\";\n        int j = d.size() - 1;\n        while (d[j] <= d[i]) j--;\n        swap(d[i], d[j]);\n        reverse(d.begin() + i + 1, d.end());\n        return d;\n    }\n};\n",
+    "c": "char* nextBadge(char* code) {\n    int n = strlen(code);\n    char* d = malloc(n + 1);\n    memcpy(d, code, n + 1);\n    int i = n - 2;\n    while (i >= 0 && d[i] >= d[i + 1]) i--;\n    if (i < 0) { d[0] = '\\0'; return d; }\n    int j = n - 1;\n    while (d[j] <= d[i]) j--;\n    char t = d[i]; d[i] = d[j]; d[j] = t;\n    for (int a = i + 1, b = n - 1; a < b; a++, b--) {\n        t = d[a]; d[a] = d[b]; d[b] = t;\n    }\n    return d;\n}\n"
+   },
+   "lines": [
+    {
+     "text": "A mutable copy.",
+     "at": {
+      "python": [
+       [
+        3,
+        3
+       ]
+      ],
+      "java": [
+       [
+        3,
+        3
+       ]
+      ],
+      "cpp": [
+       [
+        4,
+        4
+       ]
+      ],
+      "c": [
+       [
+        3,
+        4
+       ]
+      ]
+     }
+    },
+    {
+     "text": "The first digit from the right that is smaller than its right neighbour.",
+     "at": {
+      "python": [
+       [
+        4,
+        6
+       ]
+      ],
+      "java": [
+       [
+        4,
+        5
+       ]
+      ],
+      "cpp": [
+       [
+        5,
+        6
+       ]
+      ],
+      "c": [
+       [
+        5,
+        6
+       ]
+      ]
+     }
+    },
+    {
+     "text": "Fully decreasing: no larger arrangement.",
+     "at": {
+      "python": [
+       [
+        7,
+        8
+       ]
+      ],
+      "java": [
+       [
+        6,
+        6
+       ]
+      ],
+      "cpp": [
+       [
+        7,
+        7
+       ]
+      ],
+      "c": [
+       [
+        7,
+        7
+       ]
+      ]
+     },
+     "notes": {
+      "c": "Return an empty string."
+     }
+    },
+    {
+     "text": "The tail is decreasing, so scanning from the far right, the first digit larger than the pivot is the smallest such digit. Swap it in. `j` always stops inside the tail, because `d[i + 1] > d[i]`.",
+     "at": {
+      "python": [
+       [
+        9,
+        12
+       ]
+      ],
+      "java": [
+       [
+        7,
+        9
+       ]
+      ],
+      "cpp": [
+       [
+        8,
+        10
+       ]
+      ],
+      "c": [
+       [
+        8,
+        10
+       ]
+      ]
+     }
+    },
+    {
+     "text": "The tail is still decreasing after the swap; reversing it makes it the smallest arrangement of those digits.",
+     "at": {
+      "python": [
+       [
+        13,
+        13
+       ]
+      ],
+      "java": [
+       [
+        10,
+        11
+       ]
+      ],
+      "cpp": [
+       [
+        11,
+        11
+       ]
+      ],
+      "c": [
+       [
+        11,
+        12
+       ]
+      ]
+     }
+    },
+    {
+     "text": "The next larger number.",
+     "at": {
+      "python": [
+       [
+        14,
+        14
+       ]
+      ],
+      "java": [
+       [
+        13,
+        13
+       ]
+      ],
+      "cpp": [
+       [
+        12,
+        12
+       ]
+      ],
+      "c": [
+       [
+        14,
+        14
+       ]
+      ]
+     }
+    }
+   ],
+   "complexity": [
+    {
+     "md": "**Time O(n).** **Space O(n)** for the digit list."
+    }
+   ],
+   "walk": {
+    "steps": [
+     {
+      "text": "Scan from the right while each digit is ≥ the one after it: that tail is already as large as it can be.",
+      "panels": [
+       {
+        "type": "row",
+        "cells": [
+         "1",
+         "5",
+         "8",
+         "4",
+         "7",
+         "6",
+         "5",
+         "3",
+         "1"
+        ],
+        "slots": true
+       }
+      ]
+     },
+     {
+      "text": "3 ≥ 1: still descending, keep going left.",
+      "panels": [
+       {
+        "type": "row",
+        "cells": [
+         "1",
+         "5",
+         "8",
+         "4",
+         "7",
+         "6",
+         "5",
+         "3",
+         "1"
+        ],
+        "states": {
+         "8": "dim",
+         "7": "active"
+        },
+        "slots": true
+       }
+      ]
+     },
+     {
+      "text": "5 ≥ 3: still descending, keep going left.",
+      "panels": [
+       {
+        "type": "row",
+        "cells": [
+         "1",
+         "5",
+         "8",
+         "4",
+         "7",
+         "6",
+         "5",
+         "3",
+         "1"
+        ],
+        "states": {
+         "7": "dim",
+         "8": "dim",
+         "6": "active"
+        },
+        "slots": true
+       }
+      ]
+     },
+     {
+      "text": "6 ≥ 5: still descending, keep going left.",
+      "panels": [
+       {
+        "type": "row",
+        "cells": [
+         "1",
+         "5",
+         "8",
+         "4",
+         "7",
+         "6",
+         "5",
+         "3",
+         "1"
+        ],
+        "states": {
+         "6": "dim",
+         "7": "dim",
+         "8": "dim",
+         "5": "active"
+        },
+        "slots": true
+       }
+      ]
+     },
+     {
+      "text": "7 ≥ 6: still descending, keep going left.",
+      "panels": [
+       {
+        "type": "row",
+        "cells": [
+         "1",
+         "5",
+         "8",
+         "4",
+         "7",
+         "6",
+         "5",
+         "3",
+         "1"
+        ],
+        "states": {
+         "5": "dim",
+         "6": "dim",
+         "7": "dim",
+         "8": "dim",
+         "4": "active"
+        },
+        "slots": true
+       }
+      ]
+     },
+     {
+      "text": "4 < 7: index 3 is the pivot. Everything after it is descending.",
+      "panels": [
+       {
+        "type": "row",
+        "cells": [
+         "1",
+         "5",
+         "8",
+         "4",
+         "7",
+         "6",
+         "5",
+         "3",
+         "1"
+        ],
+        "states": {
+         "4": "found",
+         "5": "found",
+         "6": "found",
+         "7": "found",
+         "8": "found",
+         "3": "mark"
+        },
+        "pointers": {
+         "pivot": 3
+        },
+        "slots": true
+       }
+      ]
+     },
+     {
+      "text": "The rightmost digit in the tail that is bigger than 4 is 5 (index 6). Swap them.",
+      "panels": [
+       {
+        "type": "row",
+        "cells": [
+         "1",
+         "5",
+         "8",
+         "4",
+         "7",
+         "6",
+         "5",
+         "3",
+         "1"
+        ],
+        "states": {
+         "3": "mark",
+         "6": "answer"
+        },
+        "pointers": {
+         "pivot": 3,
+         "j": 6
+        },
+        "slots": true
+       }
+      ]
+     },
+     {
+      "text": "After the swap the tail is still descending: ['7', '6', '4', '3', '1'].",
+      "panels": [
+       {
+        "type": "row",
+        "cells": [
+         "1",
+         "5",
+         "8",
+         "5",
+         "7",
+         "6",
+         "4",
+         "3",
+         "1"
+        ],
+        "states": {
+         "4": "found",
+         "5": "found",
+         "6": "found",
+         "7": "found",
+         "8": "found",
+         "3": "new"
+        },
+        "slots": true
+       }
+      ]
+     },
+     {
+      "text": "Now reverse the suffix to make it as small as possible.",
+      "panels": [
+       {
+        "type": "row",
+        "cells": [
+         "1",
+         "5",
+         "8",
+         "5",
+         "1",
+         "3",
+         "4",
+         "6",
+         "7"
+        ],
+        "states": {
+         "4": "new",
+         "5": "new",
+         "6": "new",
+         "7": "new",
+         "8": "new"
+        },
+        "slots": true
+       }
+      ],
+      "result": "158513467"
+     }
+    ],
+    "title": "Pivot, swap with the rightmost larger digit, reverse the tail."
+   }
+  }
+ ],
+ "takeaways": [
+  {
+   "md": "- **Next larger number with the same digits = next permutation of the digit string.**\n- Sorting the tail works but reversing it is enough.\n- **Pitfall:** converting to an integer (overflow) instead of working on digits."
+  }
+ ]
+}

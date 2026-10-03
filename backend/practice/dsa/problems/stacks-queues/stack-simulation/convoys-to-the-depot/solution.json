@@ -1,0 +1,908 @@
+{
+ "version": 1,
+ "summary": "A truck can only be slowed by trucks ahead of it, and a whole convoy arrives when its front truck does. So sort\ntrucks nearest-to-depot first and remember the arrival time of the convoy just ahead: a truck that would arrive\nlater than it can never catch up and starts a new convoy; otherwise it joins. Compare times by cross-multiplying,\nin 64-bit, so they stay exact. O(n log n).",
+ "question": [
+  {
+   "md": "Trucks on a one-lane road drive toward the depot. Each has a start mile and a speed. A faster truck that catches\na slower one ahead can't pass, so they continue together at the slower speed as a convoy. Catching up exactly at\nthe depot still counts. Return the number of convoys that arrive.\n\n- **Positions are distinct**, but times can tie: a tie means \"caught up exactly at the depot\" and counts as\n  one convoy.\n- **Times are fractions** `(depot − position) / speed`. Distances and speeds go up to 10⁶, so cross-products\n  reach 10¹²: they need 64-bit integers.\n- **Up to 10⁵ trucks.**"
+  }
+ ],
+ "think": [
+  {
+   "md": "Depot at mile 12; trucks at miles `[10, 8, 0, 5, 3]` with speeds `[2, 4, 1, 1, 3]`. Alone, they'd arrive after\n`['1', '1', '12', '7', '3']` hours."
+  },
+  {
+   "table": {
+    "head": [
+     "mile",
+     "speed",
+     "hours alone"
+    ],
+    "rows": [
+     [
+      "10",
+      "2",
+      "1"
+     ],
+     [
+      "8",
+      "4",
+      "1"
+     ],
+     [
+      "5",
+      "1",
+      "7"
+     ],
+     [
+      "3",
+      "3",
+      "3"
+     ],
+     [
+      "0",
+      "1",
+      "12"
+     ]
+    ]
+   }
+  },
+  {
+   "md": "Read from the depot backwards. The truck at mile 10 is in front, arriving at hour 1. The truck at mile 8 also\nneeds 1 hour alone, so it reaches the front truck exactly at the depot: one convoy. The truck at mile 5 needs 7\nhours, far behind, so it's a new convoy front. The truck at mile 3 would need 3 hours, but the truck at mile 5\nis in its way and arrives at hour 7: it gets stuck behind. The truck at mile 0 needs 12 hours, later than 7: a\nnew convoy. Total: **3**.\n\nThe key fact: a truck joins a convoy exactly when **some truck ahead of it would arrive no sooner**. A convoy's\narrival time is its slowest-so-far front truck's time, so walking nearest-first we only need the latest arrival\ntime seen so far."
+  }
+ ],
+ "approaches": [
+  {
+   "title": "Compare with every truck ahead",
+   "kind": "brute",
+   "time": "O(n²)",
+   "space": "O(1)",
+   "idea": [
+    {
+     "md": "Truck `i` leads a convoy exactly when every truck ahead of it (bigger position) would arrive strictly earlier than it would alone. If any truck ahead arrives at the same time or later, `i` catches up with it (or with whatever is holding it up) and joins. Count the leaders with a double loop."
+    }
+   ],
+   "build": [
+    "For each truck `i`, compute its distance to the depot.",
+    "Check every truck `j` with `position[j] > position[i]`: does it arrive no earlier? Compare `d_j / s_j ≥ d_i / s_i` as `d_j · s_i ≥ d_i · s_j`.",
+    "If none does, count `i`."
+   ],
+   "code": {
+    "python": "class Solution:\n    def convoys(self, depot: int, position: List[int], speed: List[int]) -> int:\n        count = 0\n        for i in range(len(position)):\n            di = depot - position[i]\n            leads = True\n            for j in range(len(position)):\n                dj = depot - position[j]\n                if position[j] > position[i] and dj * speed[i] >= di * speed[j]:\n                    leads = False\n                    break\n            if leads:\n                count += 1\n        return count\n",
+    "java": "class Solution {\n    public int convoys(int depot, int[] position, int[] speed) {\n        int count = 0;\n        for (int i = 0; i < position.length; i++) {\n            long di = depot - position[i];\n            boolean leads = true;\n            for (int j = 0; j < position.length && leads; j++) {\n                long dj = depot - position[j];\n                if (position[j] > position[i] && dj * speed[i] >= di * speed[j]) leads = false;\n            }\n            if (leads) count++;\n        }\n        return count;\n    }\n}\n",
+    "cpp": "class Solution {\npublic:\n    int convoys(int depot, vector<int>& position, vector<int>& speed) {\n        int count = 0;\n        for (size_t i = 0; i < position.size(); i++) {\n            long long di = depot - position[i];\n            bool leads = true;\n            for (size_t j = 0; j < position.size() && leads; j++) {\n                long long dj = depot - position[j];\n                if (position[j] > position[i] && dj * speed[i] >= di * speed[j]) leads = false;\n            }\n            if (leads) count++;\n        }\n        return count;\n    }\n};\n",
+    "c": "int convoys(int depot, int* position, int positionSize, int* speed, int speedSize) {\n    int count = 0;\n    for (int i = 0; i < positionSize; i++) {\n        long long di = depot - position[i];\n        bool leads = true;\n        for (int j = 0; j < positionSize && leads; j++) {\n            long long dj = depot - position[j];\n            if (position[j] > position[i] && dj * speed[i] >= di * speed[j]) leads = false;\n        }\n        if (leads) count++;\n    }\n    return count;\n}\n"
+   },
+   "lines": [
+    {
+     "text": "Number of trucks that lead a convoy.",
+     "at": {
+      "python": [
+       [
+        3,
+        3
+       ]
+      ],
+      "java": [
+       [
+        3,
+        3
+       ]
+      ],
+      "cpp": [
+       [
+        4,
+        4
+       ]
+      ],
+      "c": [
+       [
+        2,
+        2
+       ]
+      ]
+     }
+    },
+    {
+     "text": "Truck `i`, its distance to the depot, and an assumption that it leads.",
+     "at": {
+      "python": [
+       [
+        4,
+        6
+       ]
+      ],
+      "java": [
+       [
+        4,
+        6
+       ]
+      ],
+      "cpp": [
+       [
+        5,
+        7
+       ]
+      ],
+      "c": [
+       [
+        3,
+        5
+       ]
+      ]
+     }
+    },
+    {
+     "text": "Look at every other truck.",
+     "at": {
+      "python": [
+       [
+        7,
+        8
+       ]
+      ],
+      "java": [
+       [
+        7,
+        8
+       ]
+      ],
+      "cpp": [
+       [
+        8,
+        9
+       ]
+      ],
+      "c": [
+       [
+        6,
+        7
+       ]
+      ]
+     },
+     "notes": {
+      "java": "Distances are `long` so the products below don't overflow.",
+      "cpp": "Distances are `long long` so the products below don't overflow.",
+      "c": "Distances are `long long` so the products below don't overflow."
+     }
+    },
+    {
+     "text": "A truck ahead that arrives no sooner (`d_j/s_j ≥ d_i/s_i`, cross-multiplied to stay exact) means `i` will be held up.",
+     "at": {
+      "python": [
+       [
+        9,
+        11
+       ]
+      ],
+      "java": [
+       [
+        9,
+        9
+       ]
+      ],
+      "cpp": [
+       [
+        10,
+        10
+       ]
+      ],
+      "c": [
+       [
+        8,
+        8
+       ]
+      ]
+     }
+    },
+    {
+     "text": "No truck ahead is in the way: `i` leads its own convoy.",
+     "at": {
+      "python": [
+       [
+        12,
+        13
+       ]
+      ],
+      "java": [
+       [
+        11,
+        11
+       ]
+      ],
+      "cpp": [
+       [
+        12,
+        12
+       ]
+      ],
+      "c": [
+       [
+        10,
+        10
+       ]
+      ]
+     }
+    },
+    {
+     "text": "Leaders = convoys.",
+     "at": {
+      "python": [
+       [
+        14,
+        14
+       ]
+      ],
+      "java": [
+       [
+        13,
+        13
+       ]
+      ],
+      "cpp": [
+       [
+        14,
+        14
+       ]
+      ],
+      "c": [
+       [
+        12,
+        12
+       ]
+      ]
+     }
+    }
+   ],
+   "complexity": [
+    {
+     "md": "**Time O(n²)** pairs. **Space O(1).**"
+    }
+   ],
+   "walk": {
+    "steps": [
+     {
+      "text": "Truck at mile 10 arrives at 1 h alone; every truck ahead arrives sooner (there are none). It leads a convoy.",
+      "panels": [
+       {
+        "type": "row",
+        "cells": [
+         "@10",
+         "@8",
+         "@0",
+         "@5",
+         "@3"
+        ],
+        "states": {
+         "0": "found"
+        },
+        "label": "trucks"
+       },
+       {
+        "type": "row",
+        "cells": [
+         "1",
+         "1",
+         "12",
+         "7",
+         "3"
+        ],
+        "states": {
+         "0": "found"
+        },
+        "label": "hours alone"
+       }
+      ]
+     },
+     {
+      "text": "Truck at mile 8 (alone: 1 h) is held up by the truck at mile 10 (1 h). It joins a convoy.",
+      "panels": [
+       {
+        "type": "row",
+        "cells": [
+         "@10",
+         "@8",
+         "@0",
+         "@5",
+         "@3"
+        ],
+        "states": {
+         "1": "active",
+         "0": "mark"
+        },
+        "label": "trucks"
+       },
+       {
+        "type": "row",
+        "cells": [
+         "1",
+         "1",
+         "12",
+         "7",
+         "3"
+        ],
+        "states": {
+         "1": "active",
+         "0": "mark"
+        },
+        "label": "hours alone"
+       }
+      ]
+     },
+     {
+      "text": "Truck at mile 0 arrives at 12 h alone; every truck ahead arrives sooner. It leads a convoy.",
+      "panels": [
+       {
+        "type": "row",
+        "cells": [
+         "@10",
+         "@8",
+         "@0",
+         "@5",
+         "@3"
+        ],
+        "states": {
+         "2": "found"
+        },
+        "label": "trucks"
+       },
+       {
+        "type": "row",
+        "cells": [
+         "1",
+         "1",
+         "12",
+         "7",
+         "3"
+        ],
+        "states": {
+         "2": "found"
+        },
+        "label": "hours alone"
+       }
+      ]
+     },
+     {
+      "text": "Truck at mile 5 arrives at 7 h alone; every truck ahead arrives sooner. It leads a convoy.",
+      "panels": [
+       {
+        "type": "row",
+        "cells": [
+         "@10",
+         "@8",
+         "@0",
+         "@5",
+         "@3"
+        ],
+        "states": {
+         "3": "found"
+        },
+        "label": "trucks"
+       },
+       {
+        "type": "row",
+        "cells": [
+         "1",
+         "1",
+         "12",
+         "7",
+         "3"
+        ],
+        "states": {
+         "3": "found"
+        },
+        "label": "hours alone"
+       }
+      ]
+     },
+     {
+      "text": "Truck at mile 3 (alone: 3 h) is held up by the truck at mile 5 (7 h). It joins a convoy.",
+      "panels": [
+       {
+        "type": "row",
+        "cells": [
+         "@10",
+         "@8",
+         "@0",
+         "@5",
+         "@3"
+        ],
+        "states": {
+         "4": "active",
+         "3": "mark"
+        },
+        "label": "trucks"
+       },
+       {
+        "type": "row",
+        "cells": [
+         "1",
+         "1",
+         "12",
+         "7",
+         "3"
+        ],
+        "states": {
+         "4": "active",
+         "3": "mark"
+        },
+        "label": "hours alone"
+       }
+      ]
+     },
+     {
+      "text": "3 trucks lead: 3 convoys.",
+      "panels": [],
+      "result": "3"
+     }
+    ],
+    "title": "For every truck, check every truck ahead of it. It leads its own convoy only if every truck ahead would reach the depot strictly sooner."
+   },
+   "limits": [
+    {
+     "md": "10⁵ trucks means 10¹⁰ comparisons. Most of them are wasted: only the **latest** arrival time ahead matters, and sorting by position lets us carry that one number forward."
+    }
+   ],
+   "slow": true
+  },
+  {
+   "title": "Sort, then carry the latest arrival time",
+   "kind": "best",
+   "time": "O(n log n)",
+   "space": "O(n)",
+   "idea": [
+    {
+     "md": "Sort trucks by position, nearest to the depot first. Keep the arrival time of the convoy just ahead (start at 0). A truck whose own time is strictly later can't catch that convoy: it's a new convoy and its time becomes the one to beat. Otherwise it joins, and the time to beat doesn't change. Store the time as a fraction (distance, speed) and compare by cross-multiplying."
+    }
+   ],
+   "build": [
+    "Pair up (position, speed) and sort by position, descending.",
+    "Time to beat = 0/1, convoys = 0.",
+    "For each truck: if `dist · leadSpeed > leadDist · speed`, it's later: count it and make it the time to beat.",
+    "Return the count."
+   ],
+   "code": {
+    "python": "class Solution:\n    def convoys(self, depot: int, position: List[int], speed: List[int]) -> int:\n        trucks = sorted(zip(position, speed), reverse=True)\n        count = 0\n        lead_dist, lead_speed = 0, 1\n        for p, s in trucks:\n            dist = depot - p\n            if dist * lead_speed > lead_dist * s:\n                count += 1\n                lead_dist, lead_speed = dist, s\n        return count\n",
+    "java": "class Solution {\n    public int convoys(int depot, int[] position, int[] speed) {\n        int n = position.length;\n        long[] trucks = new long[n];\n        for (int i = 0; i < n; i++) trucks[i] = (long) position[i] << 20 | speed[i];\n        Arrays.sort(trucks);\n        int count = 0;\n        long leadDist = 0, leadSpeed = 1;\n        for (int k = n - 1; k >= 0; k--) {\n            long dist = depot - (trucks[k] >> 20), s = trucks[k] & ((1 << 20) - 1);\n            if (dist * leadSpeed > leadDist * s) {\n                count++;\n                leadDist = dist;\n                leadSpeed = s;\n            }\n        }\n        return count;\n    }\n}\n",
+    "cpp": "class Solution {\npublic:\n    int convoys(int depot, vector<int>& position, vector<int>& speed) {\n        vector<pair<int, int>> trucks;\n        for (size_t i = 0; i < position.size(); i++) trucks.push_back({position[i], speed[i]});\n        sort(trucks.rbegin(), trucks.rend());\n        int count = 0;\n        long long leadDist = 0, leadSpeed = 1;\n        for (auto [p, s] : trucks) {\n            long long dist = depot - p;\n            if (dist * leadSpeed > leadDist * s) {\n                count++;\n                leadDist = dist;\n                leadSpeed = s;\n            }\n        }\n        return count;\n    }\n};\n",
+    "c": "typedef struct { int p, s; } Truck;\n\nstatic int nearestFirst(const void* a, const void* b) {\n    return ((const Truck*)b)->p - ((const Truck*)a)->p;\n}\n\nint convoys(int depot, int* position, int positionSize, int* speed, int speedSize) {\n    Truck* trucks = malloc(positionSize * sizeof(Truck));\n    for (int i = 0; i < positionSize; i++) trucks[i] = (Truck){position[i], speed[i]};\n    qsort(trucks, positionSize, sizeof(Truck), nearestFirst);\n    int count = 0;\n    long long leadDist = 0, leadSpeed = 1;\n    for (int k = 0; k < positionSize; k++) {\n        long long dist = depot - trucks[k].p;\n        if (dist * leadSpeed > leadDist * trucks[k].s) {\n            count++;\n            leadDist = dist;\n            leadSpeed = trucks[k].s;\n        }\n    }\n    free(trucks);\n    return count;\n}\n"
+   },
+   "lines": [
+    {
+     "text": "Trucks nearest to the depot first: each truck is only affected by those before it in this order.",
+     "at": {
+      "python": [
+       [
+        3,
+        3
+       ]
+      ],
+      "java": [
+       [
+        4,
+        6
+       ]
+      ],
+      "cpp": [
+       [
+        4,
+        6
+       ]
+      ],
+      "c": [
+       [
+        3,
+        5
+       ],
+       [
+        8,
+        10
+       ]
+      ]
+     },
+     "notes": {
+      "java": "Each truck is packed into one `long` (position in the high bits, speed below 2²⁰), so a plain sort orders by position; we then walk from the end (nearest first).",
+      "c": "Positions are distinct, so the comparator only needs positions; their difference fits in an `int`."
+     }
+    },
+    {
+     "text": "No convoy ahead yet, which is like one that arrives at time 0 = 0/1.",
+     "at": {
+      "python": [
+       [
+        4,
+        5
+       ]
+      ],
+      "java": [
+       [
+        7,
+        8
+       ]
+      ],
+      "cpp": [
+       [
+        7,
+        8
+       ]
+      ],
+      "c": [
+       [
+        11,
+        12
+       ]
+      ]
+     }
+    },
+    {
+     "text": "Each truck's distance to the depot.",
+     "at": {
+      "python": [
+       [
+        6,
+        7
+       ]
+      ],
+      "java": [
+       [
+        9,
+        10
+       ]
+      ],
+      "cpp": [
+       [
+        9,
+        10
+       ]
+      ],
+      "c": [
+       [
+        13,
+        14
+       ]
+      ]
+     }
+    },
+    {
+     "text": "`dist/s > leadDist/leadSpeed`, cross-multiplied (both denominators are positive). Strictly later means it never catches up; a tie means it catches up exactly at the depot and joins.",
+     "at": {
+      "python": [
+       [
+        8,
+        8
+       ]
+      ],
+      "java": [
+       [
+        11,
+        11
+       ]
+      ],
+      "cpp": [
+       [
+        11,
+        11
+       ]
+      ],
+      "c": [
+       [
+        15,
+        15
+       ]
+      ]
+     }
+    },
+    {
+     "text": "A new convoy, and its front truck's time is now the one any truck behind must beat.",
+     "at": {
+      "python": [
+       [
+        9,
+        10
+       ]
+      ],
+      "java": [
+       [
+        12,
+        14
+       ]
+      ],
+      "cpp": [
+       [
+        12,
+        14
+       ]
+      ],
+      "c": [
+       [
+        16,
+        18
+       ]
+      ]
+     }
+    },
+    {
+     "text": "Number of convoys.",
+     "at": {
+      "python": [
+       [
+        11,
+        11
+       ]
+      ],
+      "java": [
+       [
+        17,
+        17
+       ]
+      ],
+      "cpp": [
+       [
+        17,
+        17
+       ]
+      ],
+      "c": [
+       [
+        21,
+        22
+       ]
+      ]
+     }
+    }
+   ],
+   "complexity": [
+    {
+     "md": "**Time O(n log n)** for the sort; the scan is O(n). **Space O(n)** for the sorted copy."
+    }
+   ],
+   "walk": {
+    "steps": [
+     {
+      "text": "Sorted nearest-first, with each truck's arrival time if it drove alone.",
+      "panels": [
+       {
+        "type": "row",
+        "cells": [
+         "@10",
+         "@8",
+         "@5",
+         "@3",
+         "@0"
+        ],
+        "label": "trucks"
+       },
+       {
+        "type": "row",
+        "cells": [
+         "1",
+         "1",
+         "7",
+         "3",
+         "12"
+        ],
+        "label": "hours alone"
+       },
+       {
+        "type": "vars",
+        "items": {
+         "convoys": 0
+        }
+       }
+      ]
+     },
+     {
+      "text": "Mile 10: 1 h > 0 h, so it never catches the convoy ahead. New convoy; the time to beat becomes 1 h.",
+      "panels": [
+       {
+        "type": "row",
+        "cells": [
+         "@10",
+         "@8",
+         "@5",
+         "@3",
+         "@0"
+        ],
+        "states": {
+         "0": "found"
+        },
+        "label": "trucks"
+       },
+       {
+        "type": "row",
+        "cells": [
+         "1",
+         "1",
+         "7",
+         "3",
+         "12"
+        ],
+        "states": {
+         "0": "found"
+        },
+        "label": "hours alone"
+       },
+       {
+        "type": "vars",
+        "items": {
+         "convoy ahead arrives": "1 h",
+         "convoys": 1
+        }
+       }
+      ]
+     },
+     {
+      "text": "Mile 8: 1 h ≤ 1 h, so it catches the convoy ahead exactly at the depot and joins it.",
+      "panels": [
+       {
+        "type": "row",
+        "cells": [
+         "@10",
+         "@8",
+         "@5",
+         "@3",
+         "@0"
+        ],
+        "states": {
+         "1": "active"
+        },
+        "label": "trucks"
+       },
+       {
+        "type": "row",
+        "cells": [
+         "1",
+         "1",
+         "7",
+         "3",
+         "12"
+        ],
+        "states": {
+         "1": "active"
+        },
+        "label": "hours alone"
+       },
+       {
+        "type": "vars",
+        "items": {
+         "convoy ahead arrives": "1 h",
+         "convoys": 1
+        }
+       }
+      ]
+     },
+     {
+      "text": "Mile 5: 7 h > 1 h, so it never catches the convoy ahead. New convoy; the time to beat becomes 7 h.",
+      "panels": [
+       {
+        "type": "row",
+        "cells": [
+         "@10",
+         "@8",
+         "@5",
+         "@3",
+         "@0"
+        ],
+        "states": {
+         "2": "found"
+        },
+        "label": "trucks"
+       },
+       {
+        "type": "row",
+        "cells": [
+         "1",
+         "1",
+         "7",
+         "3",
+         "12"
+        ],
+        "states": {
+         "2": "found"
+        },
+        "label": "hours alone"
+       },
+       {
+        "type": "vars",
+        "items": {
+         "convoy ahead arrives": "7 h",
+         "convoys": 2
+        }
+       }
+      ]
+     },
+     {
+      "text": "Mile 3: 3 h ≤ 7 h, so it catches the convoy ahead and joins it.",
+      "panels": [
+       {
+        "type": "row",
+        "cells": [
+         "@10",
+         "@8",
+         "@5",
+         "@3",
+         "@0"
+        ],
+        "states": {
+         "3": "active"
+        },
+        "label": "trucks"
+       },
+       {
+        "type": "row",
+        "cells": [
+         "1",
+         "1",
+         "7",
+         "3",
+         "12"
+        ],
+        "states": {
+         "3": "active"
+        },
+        "label": "hours alone"
+       },
+       {
+        "type": "vars",
+        "items": {
+         "convoy ahead arrives": "7 h",
+         "convoys": 2
+        }
+       }
+      ]
+     },
+     {
+      "text": "Mile 0: 12 h > 7 h, so it never catches the convoy ahead. New convoy; the time to beat becomes 12 h.",
+      "panels": [
+       {
+        "type": "row",
+        "cells": [
+         "@10",
+         "@8",
+         "@5",
+         "@3",
+         "@0"
+        ],
+        "states": {
+         "4": "found"
+        },
+        "label": "trucks"
+       },
+       {
+        "type": "row",
+        "cells": [
+         "1",
+         "1",
+         "7",
+         "3",
+         "12"
+        ],
+        "states": {
+         "4": "found"
+        },
+        "label": "hours alone"
+       },
+       {
+        "type": "vars",
+        "items": {
+         "convoy ahead arrives": "12 h",
+         "convoys": 3
+        }
+       }
+      ]
+     },
+     {
+      "text": "3 convoys.",
+      "panels": [],
+      "result": "3"
+     }
+    ],
+    "title": "Sort by position, nearest to the depot first. Keep the arrival time of the convoy just ahead; a truck that would arrive later starts a new convoy."
+   }
+  }
+ ],
+ "takeaways": [
+  {
+   "md": "- \"Can't overtake\" problems: process from the front; each item only cares about the **binding constraint ahead**,\n  which here is the latest arrival time so far.\n- Compare fractions by cross-multiplying, in 64-bit; floating point can make a catch-up-at-the-depot tie look\n  like a near miss.\n- The stack version (push a time when it's later than the top) works too, but the stack only ever matters\n  through its top, so one variable is enough."
+  }
+ ]
+}

@@ -1,0 +1,609 @@
+{
+ "version": 1,
+ "summary": "Twins have the same length and the same letter counts. For each length L, slide a window across `s`, updating\nits 26 counts in O(1) per step, and count how many windows share each count vector; a group of k windows gives\nk(k − 1)/2 pairs. O(n² · 26) for n ≤ 500.",
+ "question": [
+  {
+   "md": "Count unordered pairs of equal-length substrings, at different start positions, that are anagrams of each other.\n\n- **Equal substrings** at different positions count as twins too.\n- **n ≤ 500**: about 125,000 substrings; comparing all pairs directly would be far too slow."
+  },
+  {
+   "md": "**Edge cases to keep in mind**\n\n- Twins must have the **same length** (rearrangements always do) and different starting positions.\n- Equal substrings at different positions are twins too.\n- Length `n` has only one substring, so it can't form a pair.\n- The count can reach about `n³/6 ≈ 2 × 10⁷` for `n = 500`; it fits in 32 bits."
+  }
+ ],
+ "think": [
+  {
+   "md": "**Signatures.** When a question only cares about *which letters and how many*, not their order, give every string a\n**signature** that ignores order: its letters sorted (`\"dormitory\" → \"dimoorrty\"`) or its 26 letter counts. Two strings\nare rearrangements of each other exactly when their signatures are equal. Counts are cheaper to build (O(n) instead of\nO(n log n)) and to update when one letter changes."
+  },
+  {
+   "md": "**Group by signature, then count pairs.** For each length `L`, compute the signature of every window of length\n`L`. Windows with the same signature are all twins of each other; a group of `k` windows contributes\n`k · (k − 1) / 2` pairs. For `\"abba\"`:"
+  },
+  {
+   "table": {
+    "head": [
+     "length",
+     "windows",
+     "signature groups",
+     "pairs"
+    ],
+    "rows": [
+     [
+      "1",
+      "a, b, b, a",
+      "a×2, b×2",
+      "2"
+     ],
+     [
+      "2",
+      "ab, bb, ba",
+      "ab×2, bb×1",
+      "1"
+     ],
+     [
+      "3",
+      "abb, bba",
+      "abb×2",
+      "1"
+     ]
+    ]
+   }
+  },
+  {
+   "md": "Total **4**.\n\n**Updating a signature in O(1).** Within one length, sliding the window right changes two letters: one count goes\nup, one goes down. So the 26-count signature of the next window costs O(1) to update (plus O(26) to use it as a\ndictionary key), instead of sorting each window again."
+  }
+ ],
+ "approaches": [
+  {
+   "title": "Compare every pair of windows",
+   "kind": "brute",
+   "time": "O(n³ · L log L)",
+   "space": "O(n)",
+   "idea": [
+    {
+     "md": "For each length, sort every window's letters to get its signature, then compare every pair of windows and\ncount equal signatures."
+    }
+   ],
+   "build": [
+    "Loop over lengths.",
+    "Sorted signature per window.",
+    "Compare all pairs of windows."
+   ],
+   "code": {
+    "python": "class Solution:\n    def anagramTwins(self, s: str) -> int:\n        n, total = len(s), 0\n        for L in range(1, n):\n            sigs = [\"\".join(sorted(s[i:i + L])) for i in range(n - L + 1)]\n            for i in range(len(sigs)):\n                for j in range(i + 1, len(sigs)):\n                    if sigs[i] == sigs[j]:\n                        total += 1\n        return total\n",
+    "java": "class Solution {\n    public int anagramTwins(String s) {\n        int n = s.length(), total = 0;\n        for (int L = 1; L < n; L++) {\n            String[] sigs = new String[n - L + 1];\n            for (int i = 0; i + L <= n; i++) {\n                char[] c = s.substring(i, i + L).toCharArray();\n                Arrays.sort(c);\n                sigs[i] = new String(c);\n            }\n            for (int i = 0; i < sigs.length; i++)\n                for (int j = i + 1; j < sigs.length; j++)\n                    if (sigs[i].equals(sigs[j])) total++;\n        }\n        return total;\n    }\n}\n",
+    "cpp": "class Solution {\npublic:\n    int anagramTwins(string& s) {\n        int n = s.size(), total = 0;\n        for (int L = 1; L < n; L++) {\n            vector<string> sigs;\n            for (int i = 0; i + L <= n; i++) {\n                string w = s.substr(i, L);\n                sort(w.begin(), w.end());\n                sigs.push_back(w);\n            }\n            for (size_t i = 0; i < sigs.size(); i++)\n                for (size_t j = i + 1; j < sigs.size(); j++)\n                    if (sigs[i] == sigs[j]) total++;\n        }\n        return total;\n    }\n};\n",
+    "c": "int anagramTwins(char* s) {\n    int n = strlen(s), total = 0;\n    int (*cnt)[26] = malloc((n + 1) * sizeof *cnt);\n    for (int L = 1; L < n; L++) {\n        int m = n - L + 1;\n        for (int i = 0; i < m; i++) {\n            memset(cnt[i], 0, sizeof cnt[i]);\n            for (int k = i; k < i + L; k++) cnt[i][s[k] - 'a']++;\n        }\n        for (int i = 0; i < m; i++)\n            for (int j = i + 1; j < m; j++)\n                if (memcmp(cnt[i], cnt[j], sizeof cnt[i]) == 0) total++;\n    }\n    free(cnt);\n    return total;\n}\n"
+   },
+   "lines": [
+    {
+     "text": "The running total of pairs.",
+     "at": {
+      "python": [
+       [
+        3,
+        3
+       ]
+      ],
+      "java": [
+       [
+        3,
+        3
+       ]
+      ],
+      "cpp": [
+       [
+        4,
+        4
+       ]
+      ],
+      "c": [
+       [
+        2,
+        3
+       ]
+      ]
+     }
+    },
+    {
+     "text": "Twins have equal lengths, so each length is handled separately. Length `n` is skipped: one window can't pair.",
+     "at": {
+      "python": [
+       [
+        4,
+        4
+       ]
+      ],
+      "java": [
+       [
+        4,
+        4
+       ]
+      ],
+      "cpp": [
+       [
+        5,
+        5
+       ]
+      ],
+      "c": [
+       [
+        4,
+        4
+       ]
+      ]
+     }
+    },
+    {
+     "text": "The sorted letters of each window: equal for rearrangements, different otherwise.",
+     "at": {
+      "python": [
+       [
+        5,
+        5
+       ]
+      ],
+      "java": [
+       [
+        5,
+        9
+       ]
+      ],
+      "cpp": [
+       [
+        6,
+        10
+       ]
+      ],
+      "c": [
+       [
+        5,
+        8
+       ]
+      ]
+     },
+     "notes": {
+      "c": "C uses each window's 26 letter counts as its signature."
+     }
+    },
+    {
+     "text": "Compare every pair of windows of this length and count matching signatures.",
+     "at": {
+      "python": [
+       [
+        6,
+        9
+       ]
+      ],
+      "java": [
+       [
+        11,
+        13
+       ]
+      ],
+      "cpp": [
+       [
+        12,
+        14
+       ]
+      ],
+      "c": [
+       [
+        10,
+        12
+       ]
+      ]
+     }
+    },
+    {
+     "text": "Pairs over all lengths.",
+     "at": {
+      "python": [
+       [
+        10,
+        10
+       ]
+      ],
+      "java": [
+       [
+        15,
+        15
+       ]
+      ],
+      "cpp": [
+       [
+        16,
+        16
+       ]
+      ],
+      "c": [
+       [
+        14,
+        15
+       ]
+      ]
+     }
+    }
+   ],
+   "complexity": [
+    {
+     "md": "**Time O(n³)** pair comparisons (plus sorting), around 2 × 10⁷ signature comparisons for `n = 500`, each costing up to O(n). **Space O(n²)** for the signatures of one length."
+    }
+   ],
+   "walk": {
+    "steps": [
+     {
+      "text": "Length 1: signatures {'a': 2, 'b': 2}; 2 twin pair(s).",
+      "panels": [
+       {
+        "type": "row",
+        "cells": [
+         "a",
+         "b",
+         "b",
+         "a"
+        ]
+       },
+       {
+        "type": "vars",
+        "items": {
+         "length": 1,
+         "pairs": 2
+        }
+       }
+      ]
+     },
+     {
+      "text": "Length 2: signatures {'ab': 2, 'bb': 1}; 1 twin pair(s).",
+      "panels": [
+       {
+        "type": "row",
+        "cells": [
+         "a",
+         "b",
+         "b",
+         "a"
+        ]
+       },
+       {
+        "type": "vars",
+        "items": {
+         "length": 2,
+         "pairs": 1
+        }
+       }
+      ]
+     },
+     {
+      "text": "Length 3: signatures {'abb': 2}; 1 twin pair(s).",
+      "panels": [
+       {
+        "type": "row",
+        "cells": [
+         "a",
+         "b",
+         "b",
+         "a"
+        ]
+       },
+       {
+        "type": "vars",
+        "items": {
+         "length": 3,
+         "pairs": 1
+        }
+       }
+      ]
+     },
+     {
+      "text": "Total: 4.",
+      "panels": [],
+      "result": "4"
+     }
+    ],
+    "title": "Every length, every pair of windows of that length: compare their sorted letters."
+   },
+   "limits": [
+    {
+     "md": "Comparing every pair is wasteful: grouping equal signatures and counting `k(k − 1)/2` per group needs one pass. Sorting each window is also unnecessary when counts can slide."
+    }
+   ],
+   "slow": true
+  },
+  {
+   "title": "Sliding counts, grouped by signature",
+   "kind": "best",
+   "time": "O(n² · 26)",
+   "space": "O(n · 26)",
+   "idea": [
+    {
+     "md": "For each length `L`: build the 26 counts of the first window, then slide, adding the entering letter and\nremoving the leaving one. Count how many windows have each signature in a dictionary keyed by the count\ntuple. Add `k(k − 1)/2` for every group.\n\n**Why grouping counts every pair once.** Each unordered pair of twins sits in exactly one group (their\ncommon signature), and a group of `k` has `k(k − 1)/2` unordered pairs."
+    }
+   ],
+   "build": [
+    "Loop over lengths `1 … n − 1`.",
+    "Counts of the first window.",
+    "Slide and record each window's count tuple.",
+    "Add `k(k − 1)/2` per group."
+   ],
+   "code": {
+    "python": "from collections import Counter\n\nclass Solution:\n    def anagramTwins(self, s: str) -> int:\n        n, total = len(s), 0\n        codes = [ord(c) - 97 for c in s]\n        for L in range(1, n):\n            cnt = [0] * 26\n            for c in codes[:L]:\n                cnt[c] += 1\n            seen = Counter([tuple(cnt)])\n            for i in range(L, n):\n                cnt[codes[i]] += 1\n                cnt[codes[i - L]] -= 1\n                seen[tuple(cnt)] += 1\n            total += sum(k * (k - 1) // 2 for k in seen.values())\n        return total\n",
+    "java": "class Solution {\n    public int anagramTwins(String s) {\n        int n = s.length(), total = 0;\n        for (int L = 1; L < n; L++) {\n            int[] cnt = new int[26];\n            for (int i = 0; i < L; i++) cnt[s.charAt(i) - 'a']++;\n            Map<String, Integer> seen = new HashMap<>();\n            seen.merge(Arrays.toString(cnt), 1, Integer::sum);\n            for (int i = L; i < n; i++) {\n                cnt[s.charAt(i) - 'a']++;\n                cnt[s.charAt(i - L) - 'a']--;\n                seen.merge(Arrays.toString(cnt), 1, Integer::sum);\n            }\n            for (int k : seen.values()) total += k * (k - 1) / 2;\n        }\n        return total;\n    }\n}\n",
+    "cpp": "class Solution {\npublic:\n    int anagramTwins(string& s) {\n        int n = s.size(), total = 0;\n        for (int L = 1; L < n; L++) {\n            array<int, 26> cnt{};\n            for (int i = 0; i < L; i++) cnt[s[i] - 'a']++;\n            map<array<int, 26>, int> seen;\n            seen[cnt]++;\n            for (int i = L; i < n; i++) {\n                cnt[s[i] - 'a']++;\n                cnt[s[i - L] - 'a']--;\n                seen[cnt]++;\n            }\n            for (auto& [sig, k] : seen) total += k * (k - 1) / 2;\n        }\n        return total;\n    }\n};\n",
+    "c": "static int by_counts(const void* x, const void* y) { return memcmp(x, y, 26 * sizeof(int)); }\n\nint anagramTwins(char* s) {\n    int n = strlen(s), total = 0;\n    int (*sig)[26] = malloc((n + 1) * sizeof *sig);\n    for (int L = 1; L < n; L++) {\n        int cnt[26] = {0}, m = 0;\n        for (int i = 0; i < L; i++) cnt[s[i] - 'a']++;\n        memcpy(sig[m++], cnt, sizeof cnt);\n        for (int i = L; i < n; i++) {\n            cnt[s[i] - 'a']++;\n            cnt[s[i - L] - 'a']--;\n            memcpy(sig[m++], cnt, sizeof cnt);\n        }\n        qsort(sig, m, sizeof *sig, by_counts);\n        for (int i = 0, j; i < m; i = j) {\n            for (j = i; j < m && memcmp(sig[i], sig[j], sizeof cnt) == 0; j++);\n            total += (j - i) * (j - i - 1) / 2;\n        }\n    }\n    free(sig);\n    return total;\n}\n"
+   },
+   "lines": [
+    {
+     "text": "The running total.",
+     "at": {
+      "python": [
+       [
+        5,
+        6
+       ]
+      ],
+      "java": [
+       [
+        3,
+        3
+       ]
+      ],
+      "cpp": [
+       [
+        4,
+        4
+       ]
+      ],
+      "c": [
+       [
+        4,
+        5
+       ]
+      ]
+     }
+    },
+    {
+     "text": "Each window length on its own.",
+     "at": {
+      "python": [
+       [
+        7,
+        7
+       ]
+      ],
+      "java": [
+       [
+        4,
+        4
+       ]
+      ],
+      "cpp": [
+       [
+        5,
+        5
+       ]
+      ],
+      "c": [
+       [
+        6,
+        6
+       ]
+      ]
+     }
+    },
+    {
+     "text": "Letter counts of the first window of this length.",
+     "at": {
+      "python": [
+       [
+        8,
+        11
+       ]
+      ],
+      "java": [
+       [
+        5,
+        8
+       ]
+      ],
+      "cpp": [
+       [
+        6,
+        9
+       ]
+      ],
+      "c": [
+       [
+        7,
+        9
+       ]
+      ]
+     }
+    },
+    {
+     "text": "Move right: one letter's count rises, another's falls. Record the new signature's group size. C keeps the signatures in an array and sorts them to find groups.",
+     "at": {
+      "python": [
+       [
+        12,
+        15
+       ]
+      ],
+      "java": [
+       [
+        9,
+        12
+       ]
+      ],
+      "cpp": [
+       [
+        10,
+        13
+       ]
+      ],
+      "c": [
+       [
+        10,
+        13
+       ]
+      ]
+     }
+    },
+    {
+     "text": "A group of `k` equal signatures holds `k(k − 1)/2` twin pairs.",
+     "at": {
+      "python": [
+       [
+        16,
+        16
+       ]
+      ],
+      "java": [
+       [
+        14,
+        14
+       ]
+      ],
+      "cpp": [
+       [
+        15,
+        15
+       ]
+      ],
+      "c": [
+       [
+        1,
+        1
+       ],
+       [
+        15,
+        18
+       ]
+      ]
+     },
+     "notes": {
+      "c": "No hash map: sort the signatures and count runs of equal ones."
+     }
+    },
+    {
+     "text": "Pairs over all lengths.",
+     "at": {
+      "python": [
+       [
+        17,
+        17
+       ]
+      ],
+      "java": [
+       [
+        16,
+        16
+       ]
+      ],
+      "cpp": [
+       [
+        17,
+        17
+       ]
+      ],
+      "c": [
+       [
+        21,
+        22
+       ]
+      ]
+     }
+    }
+   ],
+   "complexity": [
+    {
+     "md": "**Time O(n² · 26):** about `n²/2` windows over all lengths, each turned into a 26-entry key. **Space O(n · 26)** for one length's groups."
+    }
+   ],
+   "walk": {
+    "steps": [
+     {
+      "text": "Length 1: slide the window, update two counters per step. Groups by signature: {'a': 2, 'b': 2} → +2.",
+      "panels": [
+       {
+        "type": "row",
+        "cells": [
+         "a",
+         "b",
+         "b",
+         "a"
+        ],
+        "states": {
+         "0": "active"
+        }
+       },
+       {
+        "type": "vars",
+        "items": {
+         "total": 2
+        }
+       }
+      ]
+     },
+     {
+      "text": "Length 2: slide the window, update two counters per step. Groups by signature: {'ab': 2, 'bb': 1} → +1.",
+      "panels": [
+       {
+        "type": "row",
+        "cells": [
+         "a",
+         "b",
+         "b",
+         "a"
+        ],
+        "states": {
+         "0": "active",
+         "1": "active"
+        }
+       },
+       {
+        "type": "vars",
+        "items": {
+         "total": 3
+        }
+       }
+      ]
+     },
+     {
+      "text": "Length 3: slide the window, update two counters per step. Groups by signature: {'abb': 2} → +1.",
+      "panels": [
+       {
+        "type": "row",
+        "cells": [
+         "a",
+         "b",
+         "b",
+         "a"
+        ],
+        "states": {
+         "0": "active",
+         "1": "active",
+         "2": "active"
+        }
+       },
+       {
+        "type": "vars",
+        "items": {
+         "total": 4
+        }
+       }
+      ]
+     },
+     {
+      "text": "Total: 4.",
+      "panels": [],
+      "result": "4"
+     }
+    ],
+    "title": "For each length, slide a window keeping 26 letter counts; group windows by their counts and add k(k−1)/2 per group."
+   }
+  }
+ ],
+ "takeaways": [
+  {
+   "md": "- **Count pairs of \"equivalent\" items:** group by a signature, add `k(k − 1)/2` per group.\n- Sliding counts give each window's signature cheaply.\n- **Pitfall:** comparing all pairs instead of grouping."
+  }
+ ]
+}

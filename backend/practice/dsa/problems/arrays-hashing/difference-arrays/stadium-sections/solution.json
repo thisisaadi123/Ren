@@ -4,46 +4,79 @@
  "question": [
   {
    "md": "There are `n` sections (0 to n − 1). Each group `[l, r, people]` adds `people` fans to **every**\nsection from `l` to `r`, both included. Return the final count for every section.\n\n- **Every section in the range gets the full amount**: `[1, 4, 5]` adds 5 to sections 1, 2, 3\n  and 4 (it doesn't split 5 fans among them).\n- **Ranges overlap** and simply add up.\n- **Size:** up to 10⁵ sections and 10⁵ groups, each possibly covering the whole stadium, so doing\n  each group section by section can be 10¹⁰ updates. The largest total is 10⁵ × 10⁴ = 10⁹, which\n  still fits in an `int`."
+  },
+  {
+   "md": "**Edge cases to keep in mind**\n\n- A group covering a single section (`l = r`).\n- A group ending at the last section writes its `−people` at index `n`, so the array needs one extra slot.\n- Totals reach `10⁵ × 10⁴ = 10⁹`, which still fits in a 32-bit int."
   }
  ],
  "think": [
   {
-   "md": "Take `n = 6` and groups `[0, 2, 10]`, `[1, 4, 5]`, `[3, 5, 2]`. The answer is\n`[10, 15, 15, 7, 7, 2]`.\n\nRead the answer left to right and ask: **where does it change, and by how much?** It starts at 10\n(group 1 starts), goes up 5 at section 1 (group 2 starts), down 10 at section 3 (group 1 ended at 2)\nand up 2 there (group 3 starts), then down 5 at section 5 (group 2 ended at 4)."
+   "md": "**Difference arrays: describe where the values change.** Adding `v` to every position in `[l, r]` changes the\n*differences* between neighbours in only two places: the value goes up by `v` at `l`, and back down by `v` at `r + 1`.\nSo record `diff[l] += v` and `diff[r + 1] −= v` (O(1) per update), and after all updates rebuild the actual values\nwith one running sum (a prefix sum over `diff`). Many range updates cost O(updates + n) instead of O(updates · n)."
   },
   {
-   "panels": [
-    {
-     "type": "row",
-     "cells": [
-      10,
-      15,
-      15,
-      7,
-      7,
-      2
-     ],
-     "label": "fans",
-     "slots": true
-    },
-    {
-     "type": "row",
-     "cells": [
-      10,
-      5,
-      0,
-      -8,
-      0,
-      -5,
-      -2
-     ],
-     "label": "change from the previous section",
-     "slots": true
-    }
-   ],
-   "caption": "Each group causes exactly two changes: +people at l and −people at r + 1."
+   "md": "**Marks for `n = 6`, groups [[0, 2, 10], [1, 4, 5], [3, 5, 2]]:**"
   },
   {
-   "md": "So instead of touching every section of a group, record just its **two changes**. After all groups\nare recorded, a running sum over the changes rebuilds the counts. The slot at index `n` collects the\n\"−people\" of groups ending at the last section; it's never read."
+   "table": {
+    "head": [
+     "group [l, r, people]",
+     "diff[l] += people",
+     "diff[r + 1] −= people"
+    ],
+    "rows": [
+     [
+      "[0, 2, 10]",
+      "diff[0] += 10",
+      "diff[3] −= 10"
+     ],
+     [
+      "[1, 4, 5]",
+      "diff[1] += 5",
+      "diff[5] −= 5"
+     ],
+     [
+      "[3, 5, 2]",
+      "diff[3] += 2",
+      "diff[6] −= 2"
+     ]
+    ]
+   }
+  },
+  {
+   "md": "**Rebuilding with a running sum:**"
+  },
+  {
+   "table": {
+    "head": [
+     "section",
+     "0",
+     "1",
+     "2",
+     "3",
+     "4",
+     "5"
+    ],
+    "rows": [
+     [
+      "diff",
+      "10",
+      "5",
+      "0",
+      "-8",
+      "0",
+      "-5"
+     ],
+     [
+      "running sum = fans",
+      "10",
+      "15",
+      "15",
+      "7",
+      "7",
+      "2"
+     ]
+    ]
+   }
   }
  ],
  "approaches": [
@@ -54,13 +87,12 @@
    "space": "O(1)",
    "idea": [
     {
-     "md": "Start with zeros. For each group, loop over its sections and add its fans to each. It's the statement turned into code."
+     "md": "For each group, add its people to every section from `l` to `r`."
     }
    ],
    "build": [
-    "Make `out` with n zeros.",
-    "For each group `[l, r, p]`, add `p` to `out[l] … out[r]`.",
-    "Return `out`."
+    "Zeroed answer.",
+    "For each group, loop over its sections."
    ],
    "code": {
     "python": "class Solution:\n    def sectionCounts(self, n: int, groups: List[List[int]]) -> List[int]:\n        out = [0] * n\n        for l, r, people in groups:\n            for i in range(l, r + 1):\n                out[i] += people\n        return out\n",
@@ -194,7 +226,7 @@
    ],
    "complexity": [
     {
-     "md": "**Time O(n · g):** a group can cover all n sections, so up to 10¹⁰ additions. **Space O(1)** beyond the output."
+     "md": "**Time O(g · n):** 10¹⁰ additions for 10⁵ groups spanning everything. **Space O(n).**"
     }
    ],
    "walk": {
@@ -306,7 +338,7 @@
    },
    "limits": [
     {
-     "md": "The work per group is the length of its range, even though the group only *changes* the running total in two places."
+     "md": "A wide group touches many sections one by one. Only its two ends change the differences between neighbours."
     }
    ],
    "slow": true
@@ -318,13 +350,13 @@
    "space": "O(n)",
    "idea": [
     {
-     "md": "Keep `diff` of size `n + 1`. A group `[l, r, p]` does `diff[l] += p` and `diff[r + 1] −= p`.\nThen section `i`'s total is `diff[0] + diff[1] + … + diff[i]`: each group whose range covers\n`i` added its `+p` at or before `i` and hasn't yet subtracted it (its `−p` sits after `i`),\nwhile groups that ended before `i` have contributed `+p − p = 0`."
+     "md": "For each group, `diff[l] += people` and `diff[r + 1] −= people`. Then a running sum over `diff` gives each\nsection's total.\n\n**Why it's right.** The running sum at section `i` adds `people` from every group with `l ≤ i` and removes\nit again for every group with `r + 1 ≤ i`, leaving exactly the groups covering `i`."
     }
    ],
    "build": [
-    "Make `diff` with n + 1 zeros (the extra slot takes `r + 1 = n`).",
-    "For each group: `diff[l] += p`, `diff[r + 1] −= p`.",
-    "Walk i from 0 to n − 1 with a running sum of `diff[i]`; that sum is section i's total."
+    "Difference array of size `n + 1`.",
+    "Two marks per group.",
+    "Running sum to rebuild."
    ],
    "code": {
     "python": "class Solution:\n    def sectionCounts(self, n: int, groups: List[List[int]]) -> List[int]:\n        diff = [0] * (n + 1)\n        for l, r, people in groups:\n            diff[l] += people\n            diff[r + 1] -= people\n        out, running = [], 0\n        for i in range(n):\n            running += diff[i]\n            out.append(running)\n        return out\n",
@@ -455,7 +487,7 @@
    ],
    "complexity": [
     {
-     "md": "**Time O(n + g):** two writes per group, one pass over the sections. **Space O(n)** for `diff`."
+     "md": "**Time O(g + n).** **Space O(n).**"
     }
    ],
    "walk": {
@@ -802,7 +834,7 @@
  ],
  "takeaways": [
   {
-   "md": "- Many \"add v to a range\" updates followed by reading all values: **difference array**, O(1) per\n  update plus one prefix-sum pass.\n- Size it `n + 1` so `r + 1` never falls off the end.\n- The reverse also holds: a prefix sum undoes a difference array, and a difference array undoes a\n  prefix sum. Recognising which one you need is half the problem."
+   "md": "- **Many range additions, one final read:** difference array, then a prefix sum.\n- The end mark goes at `r + 1`, so allocate `n + 1` slots.\n- **Pitfall:** marking at `r` instead of `r + 1` (the last section loses the group)."
   }
  ]
 }

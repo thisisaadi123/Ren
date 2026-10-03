@@ -1,0 +1,396 @@
+{
+ "version": 1,
+ "summary": "Partition by **colour range**, not by a pivot element: split colours `lo..hi` at `mid`, move colours `≤ mid` left\nand the rest right with two pointers, then recurse on each side with its half of the colours. Each level is\nO(n) and there are log k levels: O(n log k), with no counting array.",
+ "question": [
+  {
+   "md": "Sort balls coloured `1..k` in **O(n log k)** without an extra array of size `k` (so no counting sort).\n\n- **k can be as large as n**, in which case this is just O(n log n) sorting.\n- **Up to 10⁵ balls.**"
+  },
+  {
+   "md": "**Edge cases to keep in mind**\n\n- `k = 1`: already sorted.\n- Colours missing from the input: their halves are simply empty.\n- The goal is O(n log k) time with no count array of size `k`."
+  }
+ ],
+ "think": [
+  {
+   "md": "**Partition by colour range, recursively.** In the sorted result, colours `lo..mid` all come before colours\n`mid+1..hi`. One two-pointer pass can separate a segment into those two groups (like quicksort's partition, with\nthe colour value `mid` as a fixed pivot). Then each half is the same problem with half the colour range.\n\n**Why O(n log k).** The colour range halves at every level, so there are about `log₂ k` levels. On each level the\nsegments don't overlap, so all partition passes together touch each ball once: O(n) per level."
+  },
+  {
+   "md": "**Trace on `[3, 1, 4, 2, 4, 1, 3, 2]` with k = 4:**"
+  },
+  {
+   "table": {
+    "head": [
+     "segment",
+     "colours",
+     "split at",
+     "before",
+     "after",
+     "next"
+    ],
+    "rows": [
+     [
+      "0..7",
+      "1..4",
+      "2",
+      "[3, 1, 4, 2, 4, 1, 3, 2]",
+      "[2, 1, 1, 2, 4, 4, 3, 3]",
+      "0..3 gets 1..2, 4..7 gets 3..4"
+     ],
+     [
+      "4..7",
+      "3..4",
+      "3",
+      "[4, 4, 3, 3]",
+      "[3, 3, 4, 4]",
+      "4..5 gets 3..3, 6..7 gets 4..4"
+     ],
+     [
+      "0..3",
+      "1..2",
+      "1",
+      "[2, 1, 1, 2]",
+      "[1, 1, 2, 2]",
+      "0..1 gets 1..1, 2..3 gets 2..2"
+     ]
+    ]
+   }
+  },
+  {
+   "md": "Result **`[1, 1, 2, 2, 3, 3, 4, 4]`**."
+  }
+ ],
+ "approaches": [
+  {
+   "title": "Comparison sort",
+   "kind": "brute",
+   "time": "O(n log n)",
+   "space": "O(n)",
+   "idea": [
+    {
+     "md": "Use a comparison sort. O(n log n), which is more than needed when `k` is small."
+    }
+   ],
+   "build": [
+    "Sort."
+   ],
+   "code": {
+    "python": "class Solution:\n    def sortKColours(self, balls: List[int], k: int) -> List[int]:\n        return sorted(balls)\n",
+    "java": "class Solution {\n    public int[] sortKColours(int[] balls, int k) {\n        int[] a = balls.clone();\n        Arrays.sort(a);\n        return a;\n    }\n}\n",
+    "cpp": "class Solution {\npublic:\n    vector<int> sortKColours(vector<int>& balls, int k) {\n        vector<int> a = balls;\n        sort(a.begin(), a.end());\n        return a;\n    }\n};\n",
+    "c": "static int cmp_int(const void* x, const void* y) {\n    int a = *(const int*) x, b = *(const int*) y;\n    return (a > b) - (a < b);\n}\n\nint* sortKColours(int* balls, int ballsSize, int k, int* returnSize) {\n    int* a = malloc(ballsSize * sizeof(int));\n    memcpy(a, balls, ballsSize * sizeof(int));\n    qsort(a, ballsSize, sizeof(int), cmp_int);\n    *returnSize = ballsSize;\n    return a;\n}\n"
+   },
+   "lines": [
+    {
+     "text": "A general-purpose comparison sort.",
+     "at": {
+      "python": [
+       [
+        3,
+        3
+       ]
+      ],
+      "java": [
+       [
+        3,
+        5
+       ]
+      ],
+      "cpp": [
+       [
+        4,
+        6
+       ]
+      ],
+      "c": [
+       [
+        1,
+        4
+       ],
+       [
+        7,
+        11
+       ]
+      ]
+     }
+    }
+   ],
+   "complexity": [
+    {
+     "md": "**Time O(n log n).** **Space O(n).**"
+    }
+   ],
+   "limits": [
+    {
+     "md": "It ignores that there are only `k` distinct values. Splitting the colour range gives O(n log k) without a count array."
+    }
+   ]
+  },
+  {
+   "title": "Split the colour range in half",
+   "kind": "best",
+   "time": "O(n log k)",
+   "space": "O(log k)",
+   "idea": [
+    {
+     "md": "Keep a stack of tasks `(left, right, lo, hi)`: \"segment `[left, right]` holds only colours `lo..hi`\". For a\ntask, set `mid = (lo + hi) / 2` and partition: `i` moves right over colours `≤ mid`, `j` moves left over\ncolours `> mid`, and out-of-place pairs are swapped. Then push `[left, j]` with `lo..mid` and `[i, right]`\nwith `mid+1..hi`. A segment with one colour or one ball needs nothing.\n\nUsing an explicit stack instead of recursion avoids deep call stacks."
+    }
+   ],
+   "build": [
+    "Task stack starting with the whole array and colours `1..k`.",
+    "Partition each task around the middle colour.",
+    "Push the two halves with halved colour ranges."
+   ],
+   "code": {
+    "python": "class Solution:\n    def sortKColours(self, balls: List[int], k: int) -> List[int]:\n        a = balls[:]\n        stack = [(0, len(a) - 1, 1, k)]\n        while stack:\n            left, right, lo, hi = stack.pop()\n            if left >= right or lo >= hi:\n                continue\n            mid = (lo + hi) // 2\n            i, j = left, right\n            while i <= j:\n                while i <= j and a[i] <= mid:\n                    i += 1\n                while i <= j and a[j] > mid:\n                    j -= 1\n                if i < j:\n                    a[i], a[j] = a[j], a[i]\n            stack.append((left, j, lo, mid))\n            stack.append((i, right, mid + 1, hi))\n        return a\n",
+    "java": "class Solution {\n    private int[] a;\n\n    public int[] sortKColours(int[] balls, int k) {\n        a = balls.clone();\n        sort(0, a.length - 1, 1, k);\n        return a;\n    }\n\n    private void sort(int left, int right, int lo, int hi) {\n        if (left >= right || lo >= hi) return;\n        int mid = (lo + hi) / 2, i = left, j = right;\n        while (i <= j) {\n            while (i <= j && a[i] <= mid) i++;\n            while (i <= j && a[j] > mid) j--;\n            if (i < j) { int t = a[i]; a[i] = a[j]; a[j] = t; }\n        }\n        sort(left, j, lo, mid);\n        sort(i, right, mid + 1, hi);\n    }\n}\n",
+    "cpp": "class Solution {\n    vector<int> a;\n\n    void sort(int left, int right, int lo, int hi) {\n        if (left >= right || lo >= hi) return;\n        int mid = (lo + hi) / 2, i = left, j = right;\n        while (i <= j) {\n            while (i <= j && a[i] <= mid) i++;\n            while (i <= j && a[j] > mid) j--;\n            if (i < j) swap(a[i], a[j]);\n        }\n        sort(left, j, lo, mid);\n        sort(i, right, mid + 1, hi);\n    }\n\npublic:\n    vector<int> sortKColours(vector<int>& balls, int k) {\n        a = balls;\n        sort(0, (int) a.size() - 1, 1, k);\n        return a;\n    }\n};\n",
+    "c": "static void sort_range(int* a, int left, int right, int lo, int hi) {\n    if (left >= right || lo >= hi) return;\n    int mid = (lo + hi) / 2, i = left, j = right;\n    while (i <= j) {\n        while (i <= j && a[i] <= mid) i++;\n        while (i <= j && a[j] > mid) j--;\n        if (i < j) { int t = a[i]; a[i] = a[j]; a[j] = t; }\n    }\n    sort_range(a, left, j, lo, mid);\n    sort_range(a, i, right, mid + 1, hi);\n}\n\nint* sortKColours(int* balls, int ballsSize, int k, int* returnSize) {\n    int* a = malloc(ballsSize * sizeof(int));\n    memcpy(a, balls, ballsSize * sizeof(int));\n    sort_range(a, 0, ballsSize - 1, 1, k);\n    *returnSize = ballsSize;\n    return a;\n}\n"
+   },
+   "lines": [
+    {
+     "text": "A working copy and the first task: the whole array, colours `1..k`.",
+     "at": {
+      "python": [
+       [
+        3,
+        4
+       ]
+      ],
+      "java": [
+       [
+        5,
+        6
+       ]
+      ],
+      "cpp": [
+       [
+        18,
+        19
+       ]
+      ],
+      "c": [
+       [
+        14,
+        16
+       ]
+      ]
+     },
+     "notes": {
+      "python": "An explicit stack of (positions, colours) ranges instead of recursion."
+     }
+    },
+    {
+     "text": "Process tasks until none remain; skip segments that are trivially sorted.",
+     "at": {
+      "python": [
+       [
+        5,
+        8
+       ]
+      ],
+      "java": [
+       [
+        10,
+        11
+       ]
+      ],
+      "cpp": [
+       [
+        4,
+        5
+       ]
+      ],
+      "c": [
+       [
+        1,
+        2
+       ]
+      ]
+     }
+    },
+    {
+     "text": "Two pointers move inward: `i` past colours that belong left (`≤ mid`), `j` past colours that belong right; a pair on the wrong sides is swapped. When they cross, `[left, j]` holds the low colours and `[i, right]` the high ones.",
+     "at": {
+      "python": [
+       [
+        9,
+        17
+       ]
+      ],
+      "java": [
+       [
+        12,
+        16
+       ]
+      ],
+      "cpp": [
+       [
+        6,
+        10
+       ]
+      ],
+      "c": [
+       [
+        3,
+        7
+       ]
+      ]
+     }
+    },
+    {
+     "text": "Each half becomes a new task with half the colour range.",
+     "at": {
+      "python": [
+       [
+        18,
+        19
+       ]
+      ],
+      "java": [
+       [
+        18,
+        19
+       ]
+      ],
+      "cpp": [
+       [
+        12,
+        13
+       ]
+      ],
+      "c": [
+       [
+        9,
+        10
+       ]
+      ]
+     }
+    },
+    {
+     "text": "The sorted balls.",
+     "at": {
+      "python": [
+       [
+        20,
+        20
+       ]
+      ],
+      "java": [
+       [
+        7,
+        7
+       ]
+      ],
+      "cpp": [
+       [
+        20,
+        20
+       ]
+      ],
+      "c": [
+       [
+        17,
+        18
+       ]
+      ]
+     }
+    }
+   ],
+   "complexity": [
+    {
+     "md": "**Time O(n log k).** **Space O(log k)** for the task stack (each level adds a constant number of tasks)."
+    }
+   ],
+   "walk": {
+    "steps": [
+     {
+      "text": "Positions 0..7, colours 1..4: colours ≤ 2 to the left (0..3), the rest to the right.",
+      "panels": [
+       {
+        "type": "row",
+        "cells": [
+         2,
+         1,
+         1,
+         2,
+         4,
+         4,
+         3,
+         3
+        ],
+        "states": {
+         "0": "mark",
+         "1": "mark",
+         "2": "mark",
+         "3": "mark",
+         "4": "active",
+         "5": "active",
+         "6": "active",
+         "7": "active"
+        }
+       }
+      ]
+     },
+     {
+      "text": "Positions 0..3, colours 1..2: colours ≤ 1 to the left (0..1), the rest to the right.",
+      "panels": [
+       {
+        "type": "row",
+        "cells": [
+         1,
+         1,
+         2,
+         2,
+         4,
+         4,
+         3,
+         3
+        ],
+        "states": {
+         "0": "mark",
+         "1": "mark",
+         "2": "active",
+         "3": "active"
+        }
+       }
+      ]
+     },
+     {
+      "text": "Positions 4..7, colours 3..4: colours ≤ 3 to the left (4..5), the rest to the right.",
+      "panels": [
+       {
+        "type": "row",
+        "cells": [
+         1,
+         1,
+         2,
+         2,
+         3,
+         3,
+         4,
+         4
+        ],
+        "states": {
+         "4": "mark",
+         "5": "mark",
+         "6": "active",
+         "7": "active"
+        }
+       }
+      ]
+     },
+     {
+      "text": "Sorted: [1, 1, 2, 2, 3, 3, 4, 4].",
+      "panels": [],
+      "result": "[1, 1, 2, 2, 3, 3, 4, 4]"
+     }
+    ],
+    "title": "Split the colour range in half: move colours 1..mid to the left and mid+1..k to the right with two pointers, then sort each side with its half of the colours."
+   }
+  }
+ ],
+ "takeaways": [
+  {
+   "md": "- **Sorting few distinct values:** partition by value range (O(n log k)), or counting sort (O(n + k) with extra space).\n- Partitioning around a fixed value instead of a random element guarantees balanced recursion in the value range.\n- **Pitfall:** recursing on segments that hold a single colour."
+  }
+ ]
+}

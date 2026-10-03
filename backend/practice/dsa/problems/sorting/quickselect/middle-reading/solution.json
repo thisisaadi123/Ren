@@ -1,0 +1,378 @@
+{
+ "version": 1,
+ "summary": "The median of an odd number of readings is the value at index `n / 2` of the sorted order. Quickselect finds that\nsingle position in expected O(n): partition three ways around a random pivot and continue only in the part that\ncontains the middle index.",
+ "question": [
+  {
+   "md": "Return the median of an **odd** number of readings: the value in the middle if they were sorted.\n\n- **Odd length** means there's exactly one middle value; no averaging.\n- **Values repeat and can be negative.**"
+  },
+  {
+   "md": "**Edge cases to keep in mind**\n\n- The length is odd, so the median is a single reading at sorted index `n // 2`.\n- Repeated readings: the median may be one of several equal values.\n- One reading: it's the median."
+  }
+ ],
+ "think": [
+  {
+   "md": "**Quickselect: quick sort that only follows one side.** To find the value at sorted position `t`, partition around a\npivot into `< p | = p | > p`. The `= p` block already sits at its final sorted positions `lt … gt`:\n\n- if `t` falls inside `lt … gt`, the answer is the pivot;\n- if `t < lt`, the answer is in the left part, so continue only there;\n- if `t > gt`, continue only in the right part.\n\n**Why it's O(n) on average.** A random pivot splits the range roughly in half on average, and only one half is kept:\n`n + n/2 + n/4 + … ≈ 2n` comparisons. The worst case is O(n²) (consistently terrible pivots), which randomness makes\nvanishingly unlikely. Three-way partitioning keeps repeated values from causing that worst case."
+  },
+  {
+   "md": "**Quickselect on `[8, -3, 15, 4, 4, 11, 0]` for sorted index 3** (one possible run):"
+  },
+  {
+   "table": {
+    "head": [
+     "range",
+     "pivot",
+     "after partition (< | = | >)",
+     "pivot block",
+     "decision"
+    ],
+    "rows": [
+     [
+      "0 … 6",
+      "15",
+      "[8, -3, 4, 4, 11, 0] | [15] | []",
+      "6 … 6",
+      "left of the block → keep the left part"
+     ],
+     [
+      "0 … 5",
+      "-3",
+      "[] | [-3] | [4, 4, 11, 0, 8]",
+      "0 … 0",
+      "right of the block → keep the right part"
+     ],
+     [
+      "1 … 5",
+      "0",
+      "[] | [0] | [11, 4, 8, 4]",
+      "1 … 1",
+      "right of the block → keep the right part"
+     ],
+     [
+      "2 … 5",
+      "11",
+      "[4, 8, 4] | [11] | []",
+      "5 … 5",
+      "left of the block → keep the left part"
+     ],
+     [
+      "2 … 4",
+      "4",
+      "[] | [4, 4] | [8]",
+      "2 … 3",
+      "inside the pivot block → answer"
+     ]
+    ]
+   }
+  },
+  {
+   "md": "Median **4** (sorted: [-3, 0, 4, 4, 8, 11, 15])."
+  }
+ ],
+ "approaches": [
+  {
+   "title": "Sort and take the middle",
+   "kind": "brute",
+   "time": "O(n log n)",
+   "space": "O(n)",
+   "idea": [
+    {
+     "md": "Sort and take the middle element."
+    }
+   ],
+   "build": [
+    "Sort.",
+    "Middle element."
+   ],
+   "code": {
+    "python": "class Solution:\n    def middleReading(self, readings: List[int]) -> int:\n        return sorted(readings)[len(readings) // 2]\n",
+    "java": "class Solution {\n    public int middleReading(int[] readings) {\n        int[] a = readings.clone();\n        Arrays.sort(a);\n        return a[a.length / 2];\n    }\n}\n",
+    "cpp": "class Solution {\npublic:\n    int middleReading(vector<int>& readings) {\n        vector<int> a = readings;\n        sort(a.begin(), a.end());\n        return a[a.size() / 2];\n    }\n};\n",
+    "c": "static int cmp_int(const void* x, const void* y) {\n    int a = *(const int*) x, b = *(const int*) y;\n    return (a > b) - (a < b);\n}\n\nint middleReading(int* readings, int readingsSize) {\n    int* a = malloc(readingsSize * sizeof(int));\n    memcpy(a, readings, readingsSize * sizeof(int));\n    qsort(a, readingsSize, sizeof(int), cmp_int);\n    int answer = a[readingsSize / 2];\n    free(a);\n    return answer;\n}\n"
+   },
+   "lines": [
+    {
+     "text": "Sort, then the middle index of an odd-length array.",
+     "at": {
+      "python": [
+       [
+        3,
+        3
+       ]
+      ],
+      "java": [
+       [
+        3,
+        5
+       ]
+      ],
+      "cpp": [
+       [
+        4,
+        6
+       ]
+      ],
+      "c": [
+       [
+        1,
+        4
+       ],
+       [
+        7,
+        12
+       ]
+      ]
+     }
+    }
+   ],
+   "complexity": [
+    {
+     "md": "**Time O(n log n).** **Space O(n).**"
+    }
+   ],
+   "walk": {
+    "steps": [
+     {
+      "text": "Sorted: [-3, 0, 4, 4, 8, 11, 15]. The middle index is 3.",
+      "panels": [
+       {
+        "type": "row",
+        "cells": [
+         -3,
+         0,
+         4,
+         4,
+         8,
+         11,
+         15
+        ],
+        "states": {
+         "3": "found"
+        }
+       }
+      ]
+     },
+     {
+      "text": "Median: 4.",
+      "panels": [],
+      "result": "4"
+     }
+    ],
+    "title": "Sort and take the middle."
+   },
+   "limits": [
+    {
+     "md": "Sorts everything to read one position."
+    }
+   ]
+  },
+  {
+   "title": "Quickselect for the middle index",
+   "kind": "best",
+   "time": "O(n) expected",
+   "space": "O(n)",
+   "idea": [
+    {
+     "md": "Quickselect for index `n // 2` with three-way partitioning and random pivots."
+    }
+   ],
+   "build": [
+    "Target `n // 2`.",
+    "Partition and keep the side containing it.",
+    "Return the pivot when the target lands in its block."
+   ],
+   "code": {
+    "python": "import random\n\nclass Solution:\n    def middleReading(self, readings: List[int]) -> int:\n        a = readings[:]\n        target = len(a) // 2\n        lo, hi = 0, len(a) - 1\n        while True:\n            p = a[random.randint(lo, hi)]\n            lt, i, gt = lo, lo, hi\n            while i <= gt:\n                if a[i] < p:\n                    a[lt], a[i] = a[i], a[lt]\n                    lt += 1\n                    i += 1\n                elif a[i] > p:\n                    a[i], a[gt] = a[gt], a[i]\n                    gt -= 1\n                else:\n                    i += 1\n            if target < lt:\n                hi = lt - 1\n            elif target > gt:\n                lo = gt + 1\n            else:\n                return p\n",
+    "java": "class Solution {\n    private final Random rng = new Random(5);\n\n    public int middleReading(int[] readings) {\n        int[] a = readings.clone();\n        int target = a.length / 2;\n        int lo = 0, hi = a.length - 1;\n        while (true) {\n            int p = a[lo + rng.nextInt(hi - lo + 1)];\n            int lt = lo, i = lo, gt = hi;\n            while (i <= gt) {\n                if (a[i] < p) { int t = a[lt]; a[lt++] = a[i]; a[i++] = t; }\n                else if (a[i] > p) { int t = a[gt]; a[gt--] = a[i]; a[i] = t; }\n                else i++;\n            }\n            if (target < lt) hi = lt - 1;\n            else if (target > gt) lo = gt + 1;\n            else return p;\n        }\n    }\n}\n",
+    "cpp": "class Solution {\npublic:\n    int middleReading(vector<int>& readings) {\n        vector<int> a = readings;\n        int target = a.size() / 2;\n        int lo = 0, hi = (int) a.size() - 1;\n        mt19937 rng(5);\n        while (true) {\n            int p = a[lo + rng() % (hi - lo + 1)];\n            int lt = lo, i = lo, gt = hi;\n            while (i <= gt) {\n                if (a[i] < p) swap(a[lt++], a[i++]);\n                else if (a[i] > p) swap(a[i], a[gt--]);\n                else i++;\n            }\n            if (target < lt) hi = lt - 1;\n            else if (target > gt) lo = gt + 1;\n            else return p;\n        }\n    }\n};\n",
+    "c": "int middleReading(int* readings, int readingsSize) {\n    int n = readingsSize;\n    int* a = malloc(n * sizeof(int));\n    memcpy(a, readings, n * sizeof(int));\n    int target = n / 2;\n    int lo = 0, hi = n - 1, answer = 0;\n    while (1) {\n        int p = a[lo + rand() % (hi - lo + 1)];\n        int lt = lo, i = lo, gt = hi;\n        while (i <= gt) {\n            if (a[i] < p) { int t = a[lt]; a[lt++] = a[i]; a[i++] = t; }\n            else if (a[i] > p) { int t = a[gt]; a[gt--] = a[i]; a[i] = t; }\n            else i++;\n        }\n        if (target < lt) hi = lt - 1;\n        else if (target > gt) lo = gt + 1;\n        else { answer = p; break; }\n    }\n    free(a);\n    return answer;\n}\n"
+   },
+   "lines": [
+    {
+     "text": "A copy to rearrange; the median is at index `n / 2`.",
+     "at": {
+      "python": [
+       [
+        5,
+        6
+       ]
+      ],
+      "java": [
+       [
+        5,
+        6
+       ]
+      ],
+      "cpp": [
+       [
+        4,
+        5
+       ]
+      ],
+      "c": [
+       [
+        2,
+        5
+       ]
+      ]
+     }
+    },
+    {
+     "text": "The answer is somewhere in `a[lo..hi]`; at first, the whole array.",
+     "at": {
+      "python": [
+       [
+        7,
+        8
+       ]
+      ],
+      "java": [
+       [
+        7,
+        8
+       ]
+      ],
+      "cpp": [
+       [
+        6,
+        8
+       ]
+      ],
+      "c": [
+       [
+        6,
+        7
+       ]
+      ]
+     }
+    },
+    {
+     "text": "Three-way partition around a random pivot value: `< p` to the front, `> p` to the back, copies of `p` in the middle.",
+     "at": {
+      "python": [
+       [
+        9,
+        20
+       ]
+      ],
+      "java": [
+       [
+        9,
+        14
+       ]
+      ],
+      "cpp": [
+       [
+        9,
+        14
+       ]
+      ],
+      "c": [
+       [
+        8,
+        13
+       ]
+      ]
+     }
+    },
+    {
+     "text": "After partitioning, `a[lt..gt]` holds exactly the pivot's copies, in their sorted positions. If the target index is among them, that's the answer; otherwise keep only the side that contains it.",
+     "at": {
+      "python": [
+       [
+        21,
+        26
+       ]
+      ],
+      "java": [
+       [
+        16,
+        18
+       ]
+      ],
+      "cpp": [
+       [
+        16,
+        18
+       ]
+      ],
+      "c": [
+       [
+        15,
+        17
+       ]
+      ]
+     }
+    },
+    {
+     "text": "Free the copy and return the median.",
+     "at": {
+      "c": [
+       [
+        19,
+        20
+       ]
+      ]
+     }
+    }
+   ],
+   "complexity": [
+    {
+     "md": "**Time O(n)** expected. **Space O(n)** for the copy."
+    }
+   ],
+   "walk": {
+    "steps": [
+     {
+      "text": "We want the value that would sit at index 3 after sorting (the middle of 7).",
+      "panels": [
+       {
+        "type": "row",
+        "cells": [
+         8,
+         -3,
+         15,
+         4,
+         4,
+         11,
+         0
+        ],
+        "pointers": {
+         "lo": 0,
+         "hi": 6
+        }
+       }
+      ]
+     },
+     {
+      "text": "Pivot 4 fills 2..3, which includes index 3: the answer is 4.",
+      "panels": [
+       {
+        "type": "row",
+        "cells": [
+         0,
+         -3,
+         4,
+         4,
+         11,
+         15,
+         8
+        ],
+        "states": {
+         "2": "found",
+         "3": "found"
+        }
+       }
+      ],
+      "result": "4"
+     }
+    ],
+    "title": "Quickselect for index n / 2: partition, then keep only the side holding the middle index."
+   }
+  }
+ ],
+ "takeaways": [
+  {
+   "md": "- **Median = k-th smallest with `k = n // 2`**: quickselect.\n- For a stream of readings, two heaps maintain the median instead.\n- **Pitfall:** sorting just to read the middle."
+  }
+ ]
+}

@@ -1,0 +1,888 @@
+{
+ "version": 1,
+ "summary": "Shunting-yard: operands go straight to the output; operators wait on a stack until an operator that binds\nmore loosely (or equally, for left-grouping ones) arrives, which pushes them to the output first. `(` blocks\nthe stack, `)` flushes back to it, and `^` groups from the right, so an equal `^` doesn't flush. O(n).",
+ "question": [
+  {
+   "md": "Convert an infix formula over single-letter operands to postfix. Precedence: `+ −` < `* /` < `^`. `+ − * /` group\nleft to right; `^` groups right to left. Parentheses override everything and don't appear in the output.\n\n- **Left grouping:** `a−b−c` is `(a−b)−c` → `ab-c-`.\n- **Right grouping:** `a^b^c` is `a^(b^c)` → `abc^^`.\n- **Operand order never changes** in postfix; only operators move."
+  }
+ ],
+ "think": [
+  {
+   "md": "Take `a+b*(c^d-e)^f`. Letters appear in the output in their original order: a, b, c, d, e, f. The question is only\n**where each operator goes**: right after both of its operands are complete. Here that gives `abcd^e-f^*+`.\n\nPicture reading left to right with operators waiting in line. When `*` arrives after `a+b`, `+` must keep waiting\n(its right operand `b*…` isn't finished). When a `−` arrives after `c^d`, the `^` is complete (it binds tighter),\nso it goes to the output first. Waiting operators leave in last-in-first-out order: a stack."
+  },
+  {
+   "panels": [
+    {
+     "type": "row",
+     "cells": [
+      "a",
+      "+",
+      "b",
+      "*",
+      "(",
+      "c",
+      "^",
+      "d",
+      "-",
+      "e",
+      ")",
+      "^",
+      "f"
+     ],
+     "slots": true
+    },
+    {
+     "type": "row",
+     "cells": [
+      "a",
+      "b",
+      "c",
+      "d",
+      "^",
+      "e",
+      "-",
+      "f",
+      "^",
+      "*",
+      "+"
+     ],
+     "label": "postfix"
+    }
+   ],
+   "caption": "Operands keep their order; operators move to just after their operands."
+  },
+  {
+   "md": "The pop rule when a new operator `o` arrives: pop operators on top that bind **more tightly** than `o`, or **equally**\nwhen `o` groups left. For `^` (right-grouping), an equal `^` on the stack stays, because the new `^` belongs to the\nright operand of the old one."
+  }
+ ],
+ "approaches": [
+  {
+   "title": "Recursive precedence climbing",
+   "kind": "better",
+   "time": "O(n)",
+   "space": "O(depth)",
+   "idea": [
+    {
+     "md": "`parse(minPrec)` reads an operand (a letter, or a parenthesised `parse(1)`), then while the next operator's precedence is ≥ `minPrec`: take it, parse its right side with `parse(prec + 1)` for left-grouping operators or `parse(prec)` for `^`, and append `right + op` to the output."
+    }
+   ],
+   "build": [
+    "Shared index into the formula.",
+    "`atom()`: letter, or `(` parse(1) `)`.",
+    "`parse(min)`: atom, then loop over operators with precedence ≥ min, recursing for the right side.",
+    "Return `parse(1)`."
+   ],
+   "code": {
+    "python": "import sys\n\nclass Solution:\n    def toPostfix(self, expr: str) -> str:\n        sys.setrecursionlimit(100000)\n        prec = {\"+\": 1, \"-\": 1, \"*\": 2, \"/\": 2, \"^\": 3}\n        i = 0\n        def atom(out):\n            nonlocal i\n            if expr[i] == \"(\":\n                i += 1\n                parse(1, out)\n                i += 1\n            else:\n                out.append(expr[i])\n                i += 1\n        def parse(min_prec, out):\n            nonlocal i\n            atom(out)\n            while i < len(expr) and expr[i] in prec and prec[expr[i]] >= min_prec:\n                op = expr[i]\n                i += 1\n                parse(prec[op] if op == \"^\" else prec[op] + 1, out)\n                out.append(op)\n        out = []\n        parse(1, out)\n        return \"\".join(out)\n",
+    "java": "class Solution {\n    private String e;\n    private int i;\n    private StringBuilder out;\n\n    private int prec(char c) {\n        return c == '+' || c == '-' ? 1 : c == '*' || c == '/' ? 2 : c == '^' ? 3 : 0;\n    }\n\n    public String toPostfix(String expr) {\n        e = expr;\n        i = 0;\n        out = new StringBuilder();\n        parse(1);\n        return out.toString();\n    }\n\n    private void atom() {\n        if (e.charAt(i) == '(') { i++; parse(1); i++; }\n        else out.append(e.charAt(i++));\n    }\n\n    private void parse(int minPrec) {\n        atom();\n        while (i < e.length() && prec(e.charAt(i)) >= minPrec && prec(e.charAt(i)) > 0) {\n            char op = e.charAt(i++);\n            parse(op == '^' ? prec(op) : prec(op) + 1);\n            out.append(op);\n        }\n    }\n}\n",
+    "cpp": "class Solution {\n    string e, out;\n    size_t i = 0;\n\n    int prec(char c) {\n        return c == '+' || c == '-' ? 1 : c == '*' || c == '/' ? 2 : c == '^' ? 3 : 0;\n    }\n\n    void atom() {\n        if (e[i] == '(') { i++; parse(1); i++; }\n        else out += e[i++];\n    }\n\n    void parse(int minPrec) {\n        atom();\n        while (i < e.size() && prec(e[i]) > 0 && prec(e[i]) >= minPrec) {\n            char op = e[i++];\n            parse(op == '^' ? prec(op) : prec(op) + 1);\n            out += op;\n        }\n    }\n\npublic:\n    string toPostfix(string& expr) {\n        e = expr;\n        i = 0;\n        out.clear();\n        parse(1);\n        return out;\n    }\n};\n",
+    "c": "static const char* e;\nstatic int pos, w;\nstatic char* out;\n\nstatic int prec(char c) {\n    return c == '+' || c == '-' ? 1 : c == '*' || c == '/' ? 2 : c == '^' ? 3 : 0;\n}\n\nstatic void parse(int minPrec);\n\nstatic void atom(void) {\n    if (e[pos] == '(') { pos++; parse(1); pos++; }\n    else out[w++] = e[pos++];\n}\n\nstatic void parse(int minPrec) {\n    atom();\n    while (e[pos] && prec(e[pos]) > 0 && prec(e[pos]) >= minPrec) {\n        char op = e[pos++];\n        parse(op == '^' ? prec(op) : prec(op) + 1);\n        out[w++] = op;\n    }\n}\n\nchar* toPostfix(char* expr) {\n    e = expr;\n    pos = w = 0;\n    out = malloc(strlen(expr) + 1);\n    parse(1);\n    out[w] = '\\0';\n    return out;\n}\n"
+   },
+   "lines": [
+    {
+     "text": "Binding strength of each operator (0 for anything else).",
+     "at": {
+      "python": [
+       [
+        6,
+        7
+       ]
+      ],
+      "java": [
+       [
+        6,
+        8
+       ]
+      ],
+      "cpp": [
+       [
+        5,
+        7
+       ]
+      ],
+      "c": [
+       [
+        5,
+        7
+       ]
+      ]
+     }
+    },
+    {
+     "text": "An operand: a letter goes to the output; a parenthesised part is parsed in full (from the lowest precedence) and its closing `)` skipped.",
+     "at": {
+      "python": [
+       [
+        8,
+        16
+       ]
+      ],
+      "java": [
+       [
+        18,
+        21
+       ]
+      ],
+      "cpp": [
+       [
+        9,
+        12
+       ]
+      ],
+      "c": [
+       [
+        11,
+        14
+       ]
+      ]
+     }
+    },
+    {
+     "text": "Parse a sub-expression whose operators all bind at least `minPrec`.",
+     "at": {
+      "python": [
+       [
+        17,
+        19
+       ]
+      ],
+      "java": [
+       [
+        23,
+        24
+       ]
+      ],
+      "cpp": [
+       [
+        14,
+        15
+       ]
+      ],
+      "c": [
+       [
+        16,
+        17
+       ]
+      ]
+     }
+    },
+    {
+     "text": "Absorb the next operator if it binds tightly enough; a looser one belongs to an outer call.",
+     "at": {
+      "python": [
+       [
+        20,
+        22
+       ]
+      ],
+      "java": [
+       [
+        25,
+        26
+       ]
+      ],
+      "cpp": [
+       [
+        16,
+        17
+       ]
+      ],
+      "c": [
+       [
+        18,
+        19
+       ]
+      ]
+     }
+    },
+    {
+     "text": "Parse the right operand: for left-grouping operators, only tighter operators may join it (`prec + 1`); for `^`, equal ones may too (right grouping). Then the operator follows its operands.",
+     "at": {
+      "python": [
+       [
+        23,
+        24
+       ]
+      ],
+      "java": [
+       [
+        27,
+        28
+       ]
+      ],
+      "cpp": [
+       [
+        18,
+        19
+       ]
+      ],
+      "c": [
+       [
+        20,
+        21
+       ]
+      ]
+     }
+    },
+    {
+     "text": "Parse everything and return the output.",
+     "at": {
+      "python": [
+       [
+        25,
+        27
+       ]
+      ],
+      "java": [
+       [
+        11,
+        15
+       ]
+      ],
+      "cpp": [
+       [
+        25,
+        29
+       ]
+      ],
+      "c": [
+       [
+        26,
+        31
+       ]
+      ]
+     }
+    }
+   ],
+   "complexity": [
+    {
+     "md": "**Time O(n).** **Space O(depth)** call stack, which overflows for very deeply nested input."
+    }
+   ],
+   "walk": {
+    "steps": [
+     {
+      "text": "'a+b*(c^d-e)^f': at the top level, '+' has the lowest precedence, so the expression is a + (everything after it).",
+      "panels": [
+       {
+        "type": "vars",
+        "items": {
+         "output": "a"
+        }
+       }
+      ]
+     },
+     {
+      "text": "Right of '+': b * X, where X = (c^d−e)^f binds tighter than '*'.",
+      "panels": [
+       {
+        "type": "vars",
+        "items": {
+         "output": "a b"
+        }
+       }
+      ]
+     },
+     {
+      "text": "Inside the parentheses: c^d is 'cd^', then − e → 'cd^e-'. That group ^ f → 'cd^e-f^'.",
+      "panels": [
+       {
+        "type": "vars",
+        "items": {
+         "group": "cd^e-f^"
+        }
+       }
+      ]
+     },
+     {
+      "text": "Combine: b X * → 'bcd^e-f^*', then a … + → 'abcd^e-f^*+'.",
+      "panels": [
+       {
+        "type": "vars",
+        "items": {
+         "output": "abcd^e-f^*+"
+        }
+       }
+      ],
+      "result": "abcd^e-f^*+"
+     }
+    ],
+    "title": "Precedence climbing: parse an operand, then keep absorbing operators that bind at least as tightly as the current minimum."
+   },
+   "limits": [
+    {
+     "md": "Deep nesting (tens of thousands of parentheses or a long `^` chain) means deep recursion and a possible stack overflow. Shunting-yard keeps the pending operators on an explicit stack instead."
+    }
+   ],
+   "slow": true
+  },
+  {
+   "title": "Shunting-yard",
+   "kind": "best",
+   "time": "O(n)",
+   "space": "O(n)",
+   "idea": [
+    {
+     "md": "Letter → output. `(` → push. `)` → pop to output until `(`, drop the `(`. Operator `o` → while the top is an operator (not `(`) that binds more tightly than `o`, or equally when `o` is left-grouping, pop it to the output; then push `o`. At the end, pop everything."
+    }
+   ],
+   "build": [
+    "Operator stack and output buffer.",
+    "Handle letters, `(`, `)` and operators as described.",
+    "Flush the stack at the end."
+   ],
+   "code": {
+    "python": "class Solution:\n    def toPostfix(self, expr: str) -> str:\n        prec = {\"+\": 1, \"-\": 1, \"*\": 2, \"/\": 2, \"^\": 3}\n        out, ops = [], []\n        for c in expr:\n            if c == \"(\":\n                ops.append(c)\n            elif c == \")\":\n                while ops[-1] != \"(\":\n                    out.append(ops.pop())\n                ops.pop()\n            elif c in prec:\n                while ops and ops[-1] != \"(\" and (prec[ops[-1]] > prec[c] or (prec[ops[-1]] == prec[c] and c != \"^\")):\n                    out.append(ops.pop())\n                ops.append(c)\n            else:\n                out.append(c)\n        while ops:\n            out.append(ops.pop())\n        return \"\".join(out)\n",
+    "java": "class Solution {\n    private int prec(char c) {\n        return c == '+' || c == '-' ? 1 : c == '*' || c == '/' ? 2 : c == '^' ? 3 : 0;\n    }\n\n    public String toPostfix(String expr) {\n        StringBuilder out = new StringBuilder();\n        char[] ops = new char[expr.length()];\n        int top = 0;\n        for (char c : expr.toCharArray()) {\n            if (c == '(') ops[top++] = c;\n            else if (c == ')') {\n                while (ops[top - 1] != '(') out.append(ops[--top]);\n                top--;\n            } else if (prec(c) > 0) {\n                while (top > 0 && ops[top - 1] != '(' && (prec(ops[top - 1]) > prec(c) || (prec(ops[top - 1]) == prec(c) && c != '^'))) out.append(ops[--top]);\n                ops[top++] = c;\n            } else out.append(c);\n        }\n        while (top > 0) out.append(ops[--top]);\n        return out.toString();\n    }\n}\n",
+    "cpp": "class Solution {\n    int prec(char c) {\n        return c == '+' || c == '-' ? 1 : c == '*' || c == '/' ? 2 : c == '^' ? 3 : 0;\n    }\n\npublic:\n    string toPostfix(string& expr) {\n        string out, ops;\n        for (char c : expr) {\n            if (c == '(') ops.push_back(c);\n            else if (c == ')') {\n                while (ops.back() != '(') { out += ops.back(); ops.pop_back(); }\n                ops.pop_back();\n            } else if (prec(c) > 0) {\n                while (!ops.empty() && ops.back() != '(' && (prec(ops.back()) > prec(c) || (prec(ops.back()) == prec(c) && c != '^'))) { out += ops.back(); ops.pop_back(); }\n                ops.push_back(c);\n            } else out += c;\n        }\n        while (!ops.empty()) { out += ops.back(); ops.pop_back(); }\n        return out;\n    }\n};\n",
+    "c": "static int prec(char c) {\n    return c == '+' || c == '-' ? 1 : c == '*' || c == '/' ? 2 : c == '^' ? 3 : 0;\n}\n\nchar* toPostfix(char* expr) {\n    int n = strlen(expr), w = 0, top = 0;\n    char* out = malloc(n + 1);\n    char* ops = malloc(n + 1);\n    for (int i = 0; i < n; i++) {\n        char c = expr[i];\n        if (c == '(') ops[top++] = c;\n        else if (c == ')') {\n            while (ops[top - 1] != '(') out[w++] = ops[--top];\n            top--;\n        } else if (prec(c) > 0) {\n            while (top > 0 && ops[top - 1] != '(' && (prec(ops[top - 1]) > prec(c) || (prec(ops[top - 1]) == prec(c) && c != '^'))) out[w++] = ops[--top];\n            ops[top++] = c;\n        } else out[w++] = c;\n    }\n    while (top > 0) out[w++] = ops[--top];\n    out[w] = '\\0';\n    free(ops);\n    return out;\n}\n"
+   },
+   "lines": [
+    {
+     "text": "Binding strength of each operator.",
+     "at": {
+      "python": [
+       [
+        3,
+        3
+       ]
+      ],
+      "java": [
+       [
+        2,
+        4
+       ]
+      ],
+      "cpp": [
+       [
+        2,
+        4
+       ]
+      ],
+      "c": [
+       [
+        1,
+        3
+       ]
+      ]
+     }
+    },
+    {
+     "text": "Output and a stack of waiting operators.",
+     "at": {
+      "python": [
+       [
+        4,
+        4
+       ]
+      ],
+      "java": [
+       [
+        7,
+        9
+       ]
+      ],
+      "cpp": [
+       [
+        8,
+        8
+       ]
+      ],
+      "c": [
+       [
+        7,
+        8
+       ]
+      ]
+     }
+    },
+    {
+     "text": "One pass over the formula.",
+     "at": {
+      "python": [
+       [
+        5,
+        5
+       ]
+      ],
+      "java": [
+       [
+        10,
+        10
+       ]
+      ],
+      "cpp": [
+       [
+        9,
+        9
+       ]
+      ],
+      "c": [
+       [
+        9,
+        10
+       ]
+      ]
+     }
+    },
+    {
+     "text": "`(` blocks the operators below it until the matching `)`.",
+     "at": {
+      "python": [
+       [
+        6,
+        7
+       ]
+      ],
+      "java": [
+       [
+        11,
+        11
+       ]
+      ],
+      "cpp": [
+       [
+        10,
+        10
+       ]
+      ],
+      "c": [
+       [
+        11,
+        11
+       ]
+      ]
+     }
+    },
+    {
+     "text": "Everything above the `(` is complete: move it to the output, then discard the `(`.",
+     "at": {
+      "python": [
+       [
+        8,
+        11
+       ]
+      ],
+      "java": [
+       [
+        12,
+        14
+       ]
+      ],
+      "cpp": [
+       [
+        11,
+        13
+       ]
+      ],
+      "c": [
+       [
+        12,
+        14
+       ]
+      ]
+     }
+    },
+    {
+     "text": "Before `o` waits, every waiting operator that binds more tightly (or equally, if `o` groups left) is complete, so it goes to the output. An equal `^` stays, because `^` groups right.",
+     "at": {
+      "python": [
+       [
+        12,
+        15
+       ]
+      ],
+      "java": [
+       [
+        15,
+        17
+       ]
+      ],
+      "cpp": [
+       [
+        14,
+        16
+       ]
+      ],
+      "c": [
+       [
+        15,
+        17
+       ]
+      ]
+     }
+    },
+    {
+     "text": "Operands keep their order and go straight out.",
+     "at": {
+      "python": [
+       [
+        16,
+        17
+       ]
+      ],
+      "java": [
+       [
+        18,
+        18
+       ]
+      ],
+      "cpp": [
+       [
+        17,
+        17
+       ]
+      ],
+      "c": [
+       [
+        18,
+        18
+       ]
+      ]
+     }
+    },
+    {
+     "text": "Remaining operators complete in stack order.",
+     "at": {
+      "python": [
+       [
+        18,
+        19
+       ]
+      ],
+      "java": [
+       [
+        20,
+        20
+       ]
+      ],
+      "cpp": [
+       [
+        19,
+        19
+       ]
+      ],
+      "c": [
+       [
+        20,
+        20
+       ]
+      ]
+     }
+    },
+    {
+     "text": "The postfix string.",
+     "at": {
+      "python": [
+       [
+        20,
+        20
+       ]
+      ],
+      "java": [
+       [
+        21,
+        21
+       ]
+      ],
+      "cpp": [
+       [
+        20,
+        20
+       ]
+      ],
+      "c": [
+       [
+        21,
+        23
+       ]
+      ]
+     }
+    }
+   ],
+   "complexity": [
+    {
+     "md": "**Time O(n):** each operator is pushed and popped once. **Space O(n)** for the stack."
+    }
+   ],
+   "walk": {
+    "steps": [
+     {
+      "text": "'a': operand → output.",
+      "panels": [
+       {
+        "type": "row",
+        "cells": [
+         "·"
+        ],
+        "label": "operator stack"
+       },
+       {
+        "type": "vars",
+        "items": {
+         "output": "a"
+        }
+       }
+      ]
+     },
+     {
+      "text": "'+': push.",
+      "panels": [
+       {
+        "type": "row",
+        "cells": [
+         "+"
+        ],
+        "label": "operator stack"
+       },
+       {
+        "type": "vars",
+        "items": {
+         "output": "a"
+        }
+       }
+      ]
+     },
+     {
+      "text": "'b': operand → output.",
+      "panels": [
+       {
+        "type": "row",
+        "cells": [
+         "+"
+        ],
+        "label": "operator stack"
+       },
+       {
+        "type": "vars",
+        "items": {
+         "output": "ab"
+        }
+       }
+      ]
+     },
+     {
+      "text": "'*': push.",
+      "panels": [
+       {
+        "type": "row",
+        "cells": [
+         "+",
+         "*"
+        ],
+        "label": "operator stack"
+       },
+       {
+        "type": "vars",
+        "items": {
+         "output": "ab"
+        }
+       }
+      ]
+     },
+     {
+      "text": "'(' : push.",
+      "panels": [
+       {
+        "type": "row",
+        "cells": [
+         "+",
+         "*",
+         "("
+        ],
+        "label": "operator stack"
+       },
+       {
+        "type": "vars",
+        "items": {
+         "output": "ab"
+        }
+       }
+      ]
+     },
+     {
+      "text": "'c': operand → output.",
+      "panels": [
+       {
+        "type": "row",
+        "cells": [
+         "+",
+         "*",
+         "("
+        ],
+        "label": "operator stack"
+       },
+       {
+        "type": "vars",
+        "items": {
+         "output": "abc"
+        }
+       }
+      ]
+     },
+     {
+      "text": "'^': push.",
+      "panels": [
+       {
+        "type": "row",
+        "cells": [
+         "+",
+         "*",
+         "(",
+         "^"
+        ],
+        "label": "operator stack"
+       },
+       {
+        "type": "vars",
+        "items": {
+         "output": "abc"
+        }
+       }
+      ]
+     },
+     {
+      "text": "'d': operand → output.",
+      "panels": [
+       {
+        "type": "row",
+        "cells": [
+         "+",
+         "*",
+         "(",
+         "^"
+        ],
+        "label": "operator stack"
+       },
+       {
+        "type": "vars",
+        "items": {
+         "output": "abcd"
+        }
+       }
+      ]
+     },
+     {
+      "text": "'-': first pop ['^'] (they bind at least as tightly), then push '-'.",
+      "panels": [
+       {
+        "type": "row",
+        "cells": [
+         "+",
+         "*",
+         "(",
+         "-"
+        ],
+        "label": "operator stack"
+       },
+       {
+        "type": "vars",
+        "items": {
+         "output": "abcd^"
+        }
+       }
+      ]
+     },
+     {
+      "text": "'e': operand → output.",
+      "panels": [
+       {
+        "type": "row",
+        "cells": [
+         "+",
+         "*",
+         "(",
+         "-"
+        ],
+        "label": "operator stack"
+       },
+       {
+        "type": "vars",
+        "items": {
+         "output": "abcd^e"
+        }
+       }
+      ]
+     },
+     {
+      "text": "')': pop ['-'] to the output until '(' .",
+      "panels": [
+       {
+        "type": "row",
+        "cells": [
+         "+",
+         "*"
+        ],
+        "label": "operator stack"
+       },
+       {
+        "type": "vars",
+        "items": {
+         "output": "abcd^e-"
+        }
+       }
+      ]
+     },
+     {
+      "text": "'^': push.",
+      "panels": [
+       {
+        "type": "row",
+        "cells": [
+         "+",
+         "*",
+         "^"
+        ],
+        "label": "operator stack"
+       },
+       {
+        "type": "vars",
+        "items": {
+         "output": "abcd^e-"
+        }
+       }
+      ]
+     },
+     {
+      "text": "'f': operand → output.",
+      "panels": [
+       {
+        "type": "row",
+        "cells": [
+         "+",
+         "*",
+         "^"
+        ],
+        "label": "operator stack"
+       },
+       {
+        "type": "vars",
+        "items": {
+         "output": "abcd^e-f"
+        }
+       }
+      ]
+     },
+     {
+      "text": "End: pop the rest ['^', '*', '+']. Output 'abcd^e-f^*+'.",
+      "panels": [
+       {
+        "type": "vars",
+        "items": {
+         "output": "abcd^e-f^*+"
+        }
+       }
+      ],
+      "result": "abcd^e-f^*+"
+     }
+    ],
+    "title": "Shunting-yard: letters go straight to the output; operators wait on a stack and leave it when a looser (or equal, left-grouping) operator arrives."
+   }
+  }
+ ],
+ "takeaways": [
+  {
+   "md": "- **Shunting-yard:** operands straight out; operators wait on a stack; pop while the top binds tighter (or\n  equal and left-associative); `(` blocks, `)` flushes.\n- Right-associative operators (`^`) don't pop equals.\n- Precedence climbing is the recursive twin of shunting-yard."
+  }
+ ]
+}

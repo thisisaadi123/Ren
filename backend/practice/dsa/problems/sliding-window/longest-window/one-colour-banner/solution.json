@@ -1,0 +1,1587 @@
+{
+ "version": 1,
+ "summary": "A window can be made one colour with `length − (count of its most common colour)` repaints. Slide a window with\ncolour counts, shrinking when that exceeds `k`. Refinement: keep `maxf` as the highest count ever seen; the\nanswer only improves when `maxf` grows, so the window never needs to shrink, only slide. O(n).",
+ "question": [
+  {
+   "md": "Repaint at most `k` tiles of `s`. Return the longest run of consecutive tiles that can end up one colour.\n\n- **n up to 10⁵**, 26 colours."
+  },
+  {
+   "md": "**Edge cases to keep in mind**\n\n- `k = 0`: the answer is the longest run of one colour already present.\n- `k ≥ n − 1`: the whole banner can be made one colour.\n- Repainting can only help tiles inside the run we choose; changes elsewhere are wasted."
+  }
+ ],
+ "think": [
+  {
+   "md": "**Cost of one run.** To make a run one colour with as few repaints as possible, keep its most common colour and\nrepaint everything else. So a run of length `len` whose most frequent colour appears `top` times needs\n`len − top` repaints, and it's achievable when `len − top ≤ k`.\n\n**Shape of the rule.** Removing a tile from either end can't increase `len − top` (`len` drops by 1 and `top`\ndrops by at most 1). So shrinking keeps a run valid: a longest-valid-window problem."
+  },
+  {
+   "md": "**Why the left edge never goes back.** If the window `[L, R]` breaks the rule, then every longer window `[L, R']` with\n`R' > R` contains it and breaks the rule too. So once a start `L` fails for some `R`, it fails for all later `R`, and\nwe can throw it away forever. That's what lets the left pointer only move forward, and makes the whole scan O(n)."
+  },
+  {
+   "md": "**A trace on `\"ABAABBBAB\"` with `k = 1`** (last column = repaints needed for the window):"
+  },
+  {
+   "table": {
+    "head": [
+     "R",
+     "tile",
+     "L",
+     "window",
+     "length",
+     "best",
+     "repaints"
+    ],
+    "rows": [
+     [
+      "0",
+      "A",
+      "0",
+      "A",
+      "1",
+      "1",
+      "0"
+     ],
+     [
+      "1",
+      "B",
+      "0",
+      "AB",
+      "2",
+      "2",
+      "1"
+     ],
+     [
+      "2",
+      "A",
+      "0",
+      "ABA",
+      "3",
+      "3",
+      "1"
+     ],
+     [
+      "3",
+      "A",
+      "0",
+      "ABAA",
+      "4",
+      "4",
+      "1"
+     ],
+     [
+      "4",
+      "B",
+      "2",
+      "AAB",
+      "3",
+      "4",
+      "1"
+     ],
+     [
+      "5",
+      "B",
+      "3",
+      "ABB",
+      "3",
+      "4",
+      "1"
+     ],
+     [
+      "6",
+      "B",
+      "3",
+      "ABBB",
+      "4",
+      "4",
+      "1"
+     ],
+     [
+      "7",
+      "A",
+      "4",
+      "BBBA",
+      "4",
+      "4",
+      "1"
+     ],
+     [
+      "8",
+      "B",
+      "4",
+      "BBBAB",
+      "5",
+      "5",
+      "1"
+     ]
+    ]
+   }
+  },
+  {
+   "md": "**The subtle speed-up.** Computing `top` exactly means scanning 26 counters after every change. But we're only\nhunting for windows **longer than the best so far**. A longer window can only pass `len − top ≤ k` if its `top`\nis larger than any `top` we've already met. So it's enough to remember `maxf`, the **largest count ever seen**,\neven if the current window's real top count is smaller. With a stale `maxf` the window may be invalid for a while,\nbut then it just slides at its current length (one in, one out), never reporting a length we haven't legitimately\nreached before. The window only grows when some colour sets a new `maxf`."
+  }
+ ],
+ "approaches": [
+  {
+   "title": "Extend from every start",
+   "kind": "brute",
+   "time": "O(n²)",
+   "space": "O(1)",
+   "idea": [
+    {
+     "md": "For each start, extend to the right, keeping colour counts and the running top count; stop as soon as\n`len − top > k`. The last valid length is the best run from that start."
+    }
+   ],
+   "build": [
+    "Loop over starts.",
+    "Counts and running max.",
+    "Stop when repaints exceed `k`."
+   ],
+   "code": {
+    "python": "class Solution:\n    def longestUniform(self, s: str, k: int) -> int:\n        n, best = len(s), 0\n        for i in range(n):\n            count, top = [0] * 26, 0\n            for j in range(i, n):\n                x = ord(s[j]) - 65\n                count[x] += 1\n                top = max(top, count[x])\n                if j - i + 1 - top > k:\n                    break\n                best = max(best, j - i + 1)\n        return best\n",
+    "java": "class Solution {\n    public int longestUniform(String s, int k) {\n        int n = s.length(), best = 0;\n        for (int i = 0; i < n; i++) {\n            int[] count = new int[26];\n            int top = 0;\n            for (int j = i; j < n; j++) {\n                top = Math.max(top, ++count[s.charAt(j) - 'A']);\n                if (j - i + 1 - top > k) break;\n                best = Math.max(best, j - i + 1);\n            }\n        }\n        return best;\n    }\n}\n",
+    "cpp": "class Solution {\npublic:\n    int longestUniform(string& s, int k) {\n        int n = s.size(), best = 0;\n        for (int i = 0; i < n; i++) {\n            int count[26] = {0}, top = 0;\n            for (int j = i; j < n; j++) {\n                top = max(top, ++count[s[j] - 'A']);\n                if (j - i + 1 - top > k) break;\n                best = max(best, j - i + 1);\n            }\n        }\n        return best;\n    }\n};\n",
+    "c": "int longestUniform(char* s, int k) {\n    int n = strlen(s), best = 0;\n    for (int i = 0; i < n; i++) {\n        int count[26] = {0}, top = 0;\n        for (int j = i; j < n; j++) {\n            int c = ++count[s[j] - 'A'];\n            if (c > top) top = c;\n            if (j - i + 1 - top > k) break;\n            if (j - i + 1 > best) best = j - i + 1;\n        }\n    }\n    return best;\n}\n"
+   },
+   "lines": [
+    {
+     "text": "The longest run that can be made one colour.",
+     "at": {
+      "python": [
+       [
+        3,
+        3
+       ]
+      ],
+      "java": [
+       [
+        3,
+        3
+       ]
+      ],
+      "cpp": [
+       [
+        4,
+        4
+       ]
+      ],
+      "c": [
+       [
+        2,
+        2
+       ]
+      ]
+     }
+    },
+    {
+     "text": "Each tile as the start of a run. Every index is tried as the left end of the window. Nothing learned from one start is reused for the next, which is exactly the waste the better approaches remove.",
+     "at": {
+      "python": [
+       [
+        4,
+        4
+       ]
+      ],
+      "java": [
+       [
+        4,
+        4
+       ]
+      ],
+      "cpp": [
+       [
+        5,
+        5
+       ]
+      ],
+      "c": [
+       [
+        3,
+        3
+       ]
+      ]
+     }
+    },
+    {
+     "text": "Add tiles while tracking colour counts and the most common colour (`top`). The run needs `length − top` repaints; once that exceeds `k`, longer runs from this start need even more, so stop.",
+     "at": {
+      "python": [
+       [
+        5,
+        11
+       ]
+      ],
+      "java": [
+       [
+        5,
+        9
+       ]
+      ],
+      "cpp": [
+       [
+        6,
+        9
+       ]
+      ],
+      "c": [
+       [
+        4,
+        8
+       ]
+      ]
+     }
+    },
+    {
+     "text": "Every run that stays within `k` repaints is a candidate.",
+     "at": {
+      "python": [
+       [
+        12,
+        12
+       ]
+      ],
+      "java": [
+       [
+        10,
+        10
+       ]
+      ],
+      "cpp": [
+       [
+        10,
+        10
+       ]
+      ],
+      "c": [
+       [
+        9,
+        9
+       ]
+      ]
+     }
+    },
+    {
+     "text": "The longest run.",
+     "at": {
+      "python": [
+       [
+        13,
+        13
+       ]
+      ],
+      "java": [
+       [
+        13,
+        13
+       ]
+      ],
+      "cpp": [
+       [
+        13,
+        13
+       ]
+      ],
+      "c": [
+       [
+        12,
+        12
+       ]
+      ]
+     }
+    }
+   ],
+   "complexity": [
+    {
+     "md": "**Time O(n²)** when `k` is large (runs extend far from every start). **Space O(1)**: 26 counters."
+    }
+   ],
+   "walk": {
+    "steps": [
+     {
+      "text": "Start 0: the window grows to 0..3 (length 4). Adding B at 4 would break the rule, so this start stops.",
+      "panels": [
+       {
+        "type": "row",
+        "cells": [
+         "A",
+         "B",
+         "A",
+         "A",
+         "B",
+         "B",
+         "B",
+         "A",
+         "B"
+        ],
+        "states": {
+         "0": "active",
+         "1": "active",
+         "2": "active",
+         "3": "active",
+         "4": "mark"
+        },
+        "pointers": {
+         "L": 0,
+         "R": 3
+        }
+       },
+       {
+        "type": "vars",
+        "items": {
+         "best": 4
+        }
+       }
+      ]
+     },
+     {
+      "text": "Start 1: the window grows to 1..3 (length 3). Adding B at 4 would break the rule, so this start stops.",
+      "panels": [
+       {
+        "type": "row",
+        "cells": [
+         "A",
+         "B",
+         "A",
+         "A",
+         "B",
+         "B",
+         "B",
+         "A",
+         "B"
+        ],
+        "states": {
+         "1": "active",
+         "2": "active",
+         "3": "active",
+         "4": "mark"
+        },
+        "pointers": {
+         "L": 1,
+         "R": 3
+        }
+       },
+       {
+        "type": "vars",
+        "items": {
+         "best": 4
+        }
+       }
+      ]
+     },
+     {
+      "text": "Start 2: the window grows to 2..4 (length 3). Adding B at 5 would break the rule, so this start stops.",
+      "panels": [
+       {
+        "type": "row",
+        "cells": [
+         "A",
+         "B",
+         "A",
+         "A",
+         "B",
+         "B",
+         "B",
+         "A",
+         "B"
+        ],
+        "states": {
+         "2": "active",
+         "3": "active",
+         "4": "active",
+         "5": "mark"
+        },
+        "pointers": {
+         "L": 2,
+         "R": 4
+        }
+       },
+       {
+        "type": "vars",
+        "items": {
+         "best": 4
+        }
+       }
+      ]
+     },
+     {
+      "text": "Start 3: the window grows to 3..6 (length 4). Adding A at 7 would break the rule, so this start stops.",
+      "panels": [
+       {
+        "type": "row",
+        "cells": [
+         "A",
+         "B",
+         "A",
+         "A",
+         "B",
+         "B",
+         "B",
+         "A",
+         "B"
+        ],
+        "states": {
+         "3": "active",
+         "4": "active",
+         "5": "active",
+         "6": "active",
+         "7": "mark"
+        },
+        "pointers": {
+         "L": 3,
+         "R": 6
+        }
+       },
+       {
+        "type": "vars",
+        "items": {
+         "best": 4
+        }
+       }
+      ]
+     },
+     {
+      "text": "Start 4: the window grows to 4..8 (length 5). It reaches the end.",
+      "panels": [
+       {
+        "type": "row",
+        "cells": [
+         "A",
+         "B",
+         "A",
+         "A",
+         "B",
+         "B",
+         "B",
+         "A",
+         "B"
+        ],
+        "states": {
+         "4": "active",
+         "5": "active",
+         "6": "active",
+         "7": "active",
+         "8": "active"
+        },
+        "pointers": {
+         "L": 4,
+         "R": 8
+        }
+       },
+       {
+        "type": "vars",
+        "items": {
+         "best": 5
+        }
+       }
+      ]
+     },
+     {
+      "text": "Start 5: the window grows to 5..8 (length 4). It reaches the end.",
+      "panels": [
+       {
+        "type": "row",
+        "cells": [
+         "A",
+         "B",
+         "A",
+         "A",
+         "B",
+         "B",
+         "B",
+         "A",
+         "B"
+        ],
+        "states": {
+         "5": "active",
+         "6": "active",
+         "7": "active",
+         "8": "active"
+        },
+        "pointers": {
+         "L": 5,
+         "R": 8
+        }
+       },
+       {
+        "type": "vars",
+        "items": {
+         "best": 5
+        }
+       }
+      ]
+     },
+     {
+      "text": "Starts 6..8 are checked the same way. The longest window starts at 4. In total about 38 cells were re-read, which grows like n²: the same cells are scanned again from every start.",
+      "panels": [
+       {
+        "type": "row",
+        "cells": [
+         "A",
+         "B",
+         "A",
+         "A",
+         "B",
+         "B",
+         "B",
+         "A",
+         "B"
+        ],
+        "states": {
+         "4": "found",
+         "5": "found",
+         "6": "found",
+         "7": "found",
+         "8": "found"
+        },
+        "pointers": {
+         "L": 4,
+         "R": 8
+        }
+       },
+       {
+        "type": "vars",
+        "items": {
+         "best": 5
+        }
+       }
+      ]
+     },
+     {
+      "text": "Longest: 5.",
+      "panels": [],
+      "result": "5"
+     }
+    ],
+    "title": "From each start, extend while the tiles that differ from the most common colour are at most k."
+   },
+   "limits": [
+    {
+     "md": "Each start rebuilds its counts and may scan most of the banner: O(n²) for a large `k`. A single window that grows on the right and shrinks on the left reuses the counts."
+    }
+   ],
+   "slow": true
+  },
+  {
+   "title": "Sliding window, recount the top colour",
+   "kind": "better",
+   "time": "O(26 · n)",
+   "space": "O(1)",
+   "idea": [
+    {
+     "md": "A sliding window with 26 colour counts. Add `s[R]`; while `len − max(count) > k`, remove `s[L]` and move\n`L` right. Record the window length.\n\n**Correctness** follows the usual pattern: after the while loop, `[L, R]` is the longest valid window\nending at `R` (any earlier start was rejected for an earlier or equal `R`, and stays invalid)."
+    }
+   ],
+   "build": [
+    "Counts for the window.",
+    "Shrink while too many repaints.",
+    "Track the longest."
+   ],
+   "code": {
+    "python": "class Solution:\n    def longestUniform(self, s: str, k: int) -> int:\n        count = [0] * 26\n        left = best = 0\n        for i, c in enumerate(s):\n            count[ord(c) - 65] += 1\n            while i - left + 1 - max(count) > k:\n                count[ord(s[left]) - 65] -= 1\n                left += 1\n            best = max(best, i - left + 1)\n        return best\n",
+    "java": "class Solution {\n    private int top(int[] count) {\n        int t = 0;\n        for (int c : count) t = Math.max(t, c);\n        return t;\n    }\n\n    public int longestUniform(String s, int k) {\n        int[] count = new int[26];\n        int left = 0, best = 0;\n        for (int i = 0; i < s.length(); i++) {\n            count[s.charAt(i) - 'A']++;\n            while (i - left + 1 - top(count) > k) count[s.charAt(left++) - 'A']--;\n            best = Math.max(best, i - left + 1);\n        }\n        return best;\n    }\n}\n",
+    "cpp": "class Solution {\npublic:\n    int longestUniform(string& s, int k) {\n        int count[26] = {0}, left = 0, best = 0;\n        for (int i = 0; i < (int) s.size(); i++) {\n            count[s[i] - 'A']++;\n            while (i - left + 1 - *max_element(count, count + 26) > k) count[s[left++] - 'A']--;\n            best = max(best, i - left + 1);\n        }\n        return best;\n    }\n};\n",
+    "c": "static int top(const int* count) {\n    int t = 0;\n    for (int c = 0; c < 26; c++) if (count[c] > t) t = count[c];\n    return t;\n}\n\nint longestUniform(char* s, int k) {\n    int count[26] = {0}, left = 0, best = 0, n = strlen(s);\n    for (int i = 0; i < n; i++) {\n        count[s[i] - 'A']++;\n        while (i - left + 1 - top(count) > k) count[s[left++] - 'A']--;\n        if (i - left + 1 > best) best = i - left + 1;\n    }\n    return best;\n}\n"
+   },
+   "lines": [
+    {
+     "text": "Colour counts for the window `L … R`.",
+     "at": {
+      "python": [
+       [
+        3,
+        4
+       ]
+      ],
+      "java": [
+       [
+        9,
+        10
+       ]
+      ],
+      "cpp": [
+       [
+        4,
+        4
+       ]
+      ],
+      "c": [
+       [
+        8,
+        8
+       ]
+      ]
+     }
+    },
+    {
+     "text": "Bring the next element into the window on the right. The window may now break the rule; the next lines repair it.",
+     "at": {
+      "python": [
+       [
+        5,
+        6
+       ]
+      ],
+      "java": [
+       [
+        11,
+        12
+       ]
+      ],
+      "cpp": [
+       [
+        5,
+        6
+       ]
+      ],
+      "c": [
+       [
+        9,
+        10
+       ]
+      ]
+     }
+    },
+    {
+     "text": "While the window would need more than `k` repaints (`length − top > k`), drop tiles from the left. `top` is recomputed from the 26 counts on every check, which is correct but costs 26 steps each time.",
+     "at": {
+      "python": [
+       [
+        7,
+        9
+       ]
+      ],
+      "java": [
+       [
+        2,
+        6
+       ],
+       [
+        13,
+        13
+       ]
+      ],
+      "cpp": [
+       [
+        7,
+        7
+       ]
+      ],
+      "c": [
+       [
+        1,
+        5
+       ],
+       [
+        11,
+        11
+       ]
+      ]
+     }
+    },
+    {
+     "text": "After the repair, `L … R` is the longest valid window that ends at `R` (no earlier start works). Comparing its length with the best covers every possible right end.",
+     "at": {
+      "python": [
+       [
+        10,
+        10
+       ]
+      ],
+      "java": [
+       [
+        14,
+        14
+       ]
+      ],
+      "cpp": [
+       [
+        8,
+        8
+       ]
+      ],
+      "c": [
+       [
+        12,
+        12
+       ]
+      ]
+     }
+    },
+    {
+     "text": "The longest valid run.",
+     "at": {
+      "python": [
+       [
+        11,
+        11
+       ]
+      ],
+      "java": [
+       [
+        16,
+        16
+       ]
+      ],
+      "cpp": [
+       [
+        10,
+        10
+       ]
+      ],
+      "c": [
+       [
+        14,
+        14
+       ]
+      ]
+     }
+    }
+   ],
+   "complexity": [
+    {
+     "md": "**Time O(26 · n):** each of the up to `2n` pointer moves recomputes a max over 26 counts. **Space O(1).**"
+    }
+   ],
+   "walk": {
+    "steps": [
+     {
+      "text": "R adds A at 0; the rule still holds, so the window just grows to 0..0. New best: 1.",
+      "panels": [
+       {
+        "type": "row",
+        "cells": [
+         "A",
+         "B",
+         "A",
+         "A",
+         "B",
+         "B",
+         "B",
+         "A",
+         "B"
+        ],
+        "states": {
+         "0": "found"
+        },
+        "pointers": {
+         "L": 0,
+         "R": 0
+        }
+       },
+       {
+        "type": "vars",
+        "items": {
+         "best": 1,
+         "repaints": 0
+        }
+       }
+      ]
+     },
+     {
+      "text": "R adds B at 1; the rule still holds, so the window just grows to 0..1. New best: 2.",
+      "panels": [
+       {
+        "type": "row",
+        "cells": [
+         "A",
+         "B",
+         "A",
+         "A",
+         "B",
+         "B",
+         "B",
+         "A",
+         "B"
+        ],
+        "states": {
+         "0": "found",
+         "1": "found"
+        },
+        "pointers": {
+         "L": 0,
+         "R": 1
+        }
+       },
+       {
+        "type": "vars",
+        "items": {
+         "best": 2,
+         "repaints": 1
+        }
+       }
+      ]
+     },
+     {
+      "text": "R adds A at 2; the rule still holds, so the window just grows to 0..2. New best: 3.",
+      "panels": [
+       {
+        "type": "row",
+        "cells": [
+         "A",
+         "B",
+         "A",
+         "A",
+         "B",
+         "B",
+         "B",
+         "A",
+         "B"
+        ],
+        "states": {
+         "0": "found",
+         "1": "found",
+         "2": "found"
+        },
+        "pointers": {
+         "L": 0,
+         "R": 2
+        }
+       },
+       {
+        "type": "vars",
+        "items": {
+         "best": 3,
+         "repaints": 1
+        }
+       }
+      ]
+     },
+     {
+      "text": "R adds A at 3; the rule still holds, so the window just grows to 0..3. New best: 4.",
+      "panels": [
+       {
+        "type": "row",
+        "cells": [
+         "A",
+         "B",
+         "A",
+         "A",
+         "B",
+         "B",
+         "B",
+         "A",
+         "B"
+        ],
+        "states": {
+         "0": "found",
+         "1": "found",
+         "2": "found",
+         "3": "found"
+        },
+        "pointers": {
+         "L": 0,
+         "R": 3
+        }
+       },
+       {
+        "type": "vars",
+        "items": {
+         "best": 4,
+         "repaints": 1
+        }
+       }
+      ]
+     },
+     {
+      "text": "R adds B at 4. That breaks the rule (repaints 2). L moves past 0..1 until it holds again: window 2..4.",
+      "panels": [
+       {
+        "type": "row",
+        "cells": [
+         "A",
+         "B",
+         "A",
+         "A",
+         "B",
+         "B",
+         "B",
+         "A",
+         "B"
+        ],
+        "states": {
+         "2": "active",
+         "3": "active",
+         "4": "active",
+         "0": "dim",
+         "1": "dim"
+        },
+        "pointers": {
+         "L": 2,
+         "R": 4
+        }
+       },
+       {
+        "type": "vars",
+        "items": {
+         "best": 4,
+         "repaints": 1
+        }
+       }
+      ]
+     },
+     {
+      "text": "R adds B at 5. That breaks the rule (repaints 2). L moves past 2..2 until it holds again: window 3..5.",
+      "panels": [
+       {
+        "type": "row",
+        "cells": [
+         "A",
+         "B",
+         "A",
+         "A",
+         "B",
+         "B",
+         "B",
+         "A",
+         "B"
+        ],
+        "states": {
+         "3": "active",
+         "4": "active",
+         "5": "active",
+         "2": "dim"
+        },
+        "pointers": {
+         "L": 3,
+         "R": 5
+        }
+       },
+       {
+        "type": "vars",
+        "items": {
+         "best": 4,
+         "repaints": 1
+        }
+       }
+      ]
+     },
+     {
+      "text": "R adds B at 6; the rule still holds, so the window just grows to 3..6.",
+      "panels": [
+       {
+        "type": "row",
+        "cells": [
+         "A",
+         "B",
+         "A",
+         "A",
+         "B",
+         "B",
+         "B",
+         "A",
+         "B"
+        ],
+        "states": {
+         "3": "active",
+         "4": "active",
+         "5": "active",
+         "6": "active"
+        },
+        "pointers": {
+         "L": 3,
+         "R": 6
+        }
+       },
+       {
+        "type": "vars",
+        "items": {
+         "best": 4,
+         "repaints": 1
+        }
+       }
+      ]
+     },
+     {
+      "text": "R adds A at 7. That breaks the rule (repaints 2). L moves past 3..3 until it holds again: window 4..7.",
+      "panels": [
+       {
+        "type": "row",
+        "cells": [
+         "A",
+         "B",
+         "A",
+         "A",
+         "B",
+         "B",
+         "B",
+         "A",
+         "B"
+        ],
+        "states": {
+         "4": "active",
+         "5": "active",
+         "6": "active",
+         "7": "active",
+         "3": "dim"
+        },
+        "pointers": {
+         "L": 4,
+         "R": 7
+        }
+       },
+       {
+        "type": "vars",
+        "items": {
+         "best": 4,
+         "repaints": 1
+        }
+       }
+      ]
+     },
+     {
+      "text": "R adds B at 8; the rule still holds, so the window just grows to 4..8. New best: 5.",
+      "panels": [
+       {
+        "type": "row",
+        "cells": [
+         "A",
+         "B",
+         "A",
+         "A",
+         "B",
+         "B",
+         "B",
+         "A",
+         "B"
+        ],
+        "states": {
+         "4": "found",
+         "5": "found",
+         "6": "found",
+         "7": "found",
+         "8": "found"
+        },
+        "pointers": {
+         "L": 4,
+         "R": 8
+        }
+       },
+       {
+        "type": "vars",
+        "items": {
+         "best": 5,
+         "repaints": 1
+        }
+       }
+      ]
+     },
+     {
+      "text": "R visited each index once and L only ever moved right, so the pointers made at most 18 moves in total: O(n).",
+      "panels": []
+     },
+     {
+      "text": "Longest: 5.",
+      "panels": [],
+      "result": "5"
+     }
+    ],
+    "title": "Window with colour counts: a window works when its length minus its most common colour's count is at most k. Shrink from the left whenever it doesn't."
+   },
+   "limits": [
+    {
+     "md": "Recomputing the top count over 26 colours at every check makes it O(26 · n). Since we only care about beating the best length, a never-decreasing maximum count is enough."
+    }
+   ]
+  },
+  {
+   "title": "Window that never shrinks (historical max)",
+   "kind": "best",
+   "time": "O(n)",
+   "space": "O(1)",
+   "idea": [
+    {
+     "md": "Keep `maxf` = the highest count of any colour in any window so far (it never decreases). After adding\n`s[R]`, if `len − maxf > k`, remove exactly one tile from the left. The window length never decreases;\nit grows by one exactly when the new tile pushes `maxf` up (or the window still fits).\n\n**Why every recorded length is achievable.** At the step when `maxf` last went up, the window held\n`maxf` copies of one colour and fitted the rule (a step that raises `maxf` never slides). Since then the\nwindow has grown only while `len − maxf ≤ k`. Take that earlier window and extend it to the current length\n`len`: it still holds at least `maxf` copies of that colour, so at most `len − maxf ≤ k` tiles need\nrepainting. So a valid run of length `len` really exists.\n\n**Why nothing longer is missed.** To beat the current length `len`, a run needs a colour appearing at\nleast `len + 1 − k` times, more than `maxf`. While `R` walks through such a run, that colour's count in\nour window climbs past `maxf`, which lets the window grow instead of sliding. So the final length reaches\nthe true answer."
+    }
+   ],
+   "build": [
+    "26 counts, `L = 0`, `maxf = 0`, `best = 0`.",
+    "Add `s[R]`: increment its count and set `maxf = max(maxf, count)`.",
+    "If `R − L + 1 − maxf > k`, decrement `count[s[L]]` and move `L` one step (the window slides).",
+    "`best = max(best, R − L + 1)`."
+   ],
+   "code": {
+    "python": "class Solution:\n    def longestUniform(self, s: str, k: int) -> int:\n        count = [0] * 26\n        left = maxf = best = 0\n        for i, c in enumerate(s):\n            x = ord(c) - 65\n            count[x] += 1\n            maxf = max(maxf, count[x])\n            if i - left + 1 - maxf > k:\n                count[ord(s[left]) - 65] -= 1\n                left += 1\n            best = max(best, i - left + 1)\n        return best\n",
+    "java": "class Solution {\n    public int longestUniform(String s, int k) {\n        int[] count = new int[26];\n        int left = 0, maxf = 0, best = 0;\n        for (int i = 0; i < s.length(); i++) {\n            int x = s.charAt(i) - 'A';\n            maxf = Math.max(maxf, ++count[x]);\n            if (i - left + 1 - maxf > k) count[s.charAt(left++) - 'A']--;\n            best = Math.max(best, i - left + 1);\n        }\n        return best;\n    }\n}\n",
+    "cpp": "class Solution {\npublic:\n    int longestUniform(string& s, int k) {\n        int count[26] = {0}, left = 0, maxf = 0, best = 0;\n        for (int i = 0; i < (int) s.size(); i++) {\n            int x = s[i] - 'A';\n            maxf = max(maxf, ++count[x]);\n            if (i - left + 1 - maxf > k) count[s[left++] - 'A']--;\n            best = max(best, i - left + 1);\n        }\n        return best;\n    }\n};\n",
+    "c": "int longestUniform(char* s, int k) {\n    int count[26] = {0}, left = 0, maxf = 0, best = 0, n = strlen(s);\n    for (int i = 0; i < n; i++) {\n        int x = s[i] - 'A';\n        if (++count[x] > maxf) maxf = count[x];\n        if (i - left + 1 - maxf > k) count[s[left++] - 'A']--;\n        if (i - left + 1 > best) best = i - left + 1;\n    }\n    return best;\n}\n"
+   },
+   "lines": [
+    {
+     "text": "Colour counts, the left edge, and `maxf`, the highest count any colour has reached in a window so far.",
+     "at": {
+      "python": [
+       [
+        3,
+        4
+       ]
+      ],
+      "java": [
+       [
+        3,
+        4
+       ]
+      ],
+      "cpp": [
+       [
+        4,
+        4
+       ]
+      ],
+      "c": [
+       [
+        2,
+        2
+       ]
+      ]
+     }
+    },
+    {
+     "text": "Add the tile at `R`.",
+     "at": {
+      "python": [
+       [
+        5,
+        7
+       ]
+      ],
+      "java": [
+       [
+        5,
+        6
+       ]
+      ],
+      "cpp": [
+       [
+        5,
+        6
+       ]
+      ],
+      "c": [
+       [
+        3,
+        4
+       ]
+      ]
+     }
+    },
+    {
+     "text": "Only the colour just added can set a new maximum, so this is a single comparison.",
+     "at": {
+      "python": [
+       [
+        8,
+        8
+       ]
+      ],
+      "java": [
+       [
+        7,
+        7
+       ]
+      ],
+      "cpp": [
+       [
+        7,
+        7
+       ]
+      ],
+      "c": [
+       [
+        5,
+        5
+       ]
+      ]
+     }
+    },
+    {
+     "text": "If the window is one tile too long for `maxf`, drop exactly one tile from the left. The window length stays the same: it slides. It never shrinks, and `maxf` is never lowered, because a lower value can't produce a longer window.",
+     "at": {
+      "python": [
+       [
+        9,
+        11
+       ]
+      ],
+      "java": [
+       [
+        8,
+        8
+       ]
+      ],
+      "cpp": [
+       [
+        8,
+        8
+       ]
+      ],
+      "c": [
+       [
+        6,
+        6
+       ]
+      ]
+     }
+    },
+    {
+     "text": "The length grows only when a colour reaches a new `maxf`, so the best length only improves in those steps.",
+     "at": {
+      "python": [
+       [
+        12,
+        12
+       ]
+      ],
+      "java": [
+       [
+        9,
+        9
+       ]
+      ],
+      "cpp": [
+       [
+        9,
+        9
+       ]
+      ],
+      "c": [
+       [
+        7,
+        7
+       ]
+      ]
+     }
+    },
+    {
+     "text": "The longest achievable run.",
+     "at": {
+      "python": [
+       [
+        13,
+        13
+       ]
+      ],
+      "java": [
+       [
+        11,
+        11
+       ]
+      ],
+      "cpp": [
+       [
+        11,
+        11
+       ]
+      ],
+      "c": [
+       [
+        9,
+        9
+       ]
+      ]
+     }
+    }
+   ],
+   "complexity": [
+    {
+     "md": "**Time O(n):** O(1) work per tile. **Space O(1).**"
+    }
+   ],
+   "walk": {
+    "steps": [
+     {
+      "text": "Add 'A': maxf = 1. Fits, so the window grows. Length 1.",
+      "panels": [
+       {
+        "type": "row",
+        "cells": [
+         "A",
+         "B",
+         "A",
+         "A",
+         "B",
+         "B",
+         "B",
+         "A",
+         "B"
+        ],
+        "states": {
+         "0": "active"
+        }
+       },
+       {
+        "type": "vars",
+        "items": {
+         "maxf": 1,
+         "best": 1
+        }
+       }
+      ]
+     },
+     {
+      "text": "Add 'B': maxf = 1. Fits, so the window grows. Length 2.",
+      "panels": [
+       {
+        "type": "row",
+        "cells": [
+         "A",
+         "B",
+         "A",
+         "A",
+         "B",
+         "B",
+         "B",
+         "A",
+         "B"
+        ],
+        "states": {
+         "0": "active",
+         "1": "active"
+        }
+       },
+       {
+        "type": "vars",
+        "items": {
+         "maxf": 1,
+         "best": 2
+        }
+       }
+      ]
+     },
+     {
+      "text": "Add 'A': maxf = 2. Fits, so the window grows. Length 3.",
+      "panels": [
+       {
+        "type": "row",
+        "cells": [
+         "A",
+         "B",
+         "A",
+         "A",
+         "B",
+         "B",
+         "B",
+         "A",
+         "B"
+        ],
+        "states": {
+         "0": "active",
+         "1": "active",
+         "2": "active"
+        }
+       },
+       {
+        "type": "vars",
+        "items": {
+         "maxf": 2,
+         "best": 3
+        }
+       }
+      ]
+     },
+     {
+      "text": "Add 'A': maxf = 3. Fits, so the window grows. Length 4.",
+      "panels": [
+       {
+        "type": "row",
+        "cells": [
+         "A",
+         "B",
+         "A",
+         "A",
+         "B",
+         "B",
+         "B",
+         "A",
+         "B"
+        ],
+        "states": {
+         "0": "active",
+         "1": "active",
+         "2": "active",
+         "3": "active"
+        }
+       },
+       {
+        "type": "vars",
+        "items": {
+         "maxf": 3,
+         "best": 4
+        }
+       }
+      ]
+     },
+     {
+      "text": "Add 'B': maxf = 3. Too many repaints for that, so slide (left +1). Length 4.",
+      "panels": [
+       {
+        "type": "row",
+        "cells": [
+         "A",
+         "B",
+         "A",
+         "A",
+         "B",
+         "B",
+         "B",
+         "A",
+         "B"
+        ],
+        "states": {
+         "1": "active",
+         "2": "active",
+         "3": "active",
+         "4": "active"
+        }
+       },
+       {
+        "type": "vars",
+        "items": {
+         "maxf": 3,
+         "best": 4
+        }
+       }
+      ]
+     },
+     {
+      "text": "Add 'B': maxf = 3. Too many repaints for that, so slide (left +1). Length 4.",
+      "panels": [
+       {
+        "type": "row",
+        "cells": [
+         "A",
+         "B",
+         "A",
+         "A",
+         "B",
+         "B",
+         "B",
+         "A",
+         "B"
+        ],
+        "states": {
+         "2": "active",
+         "3": "active",
+         "4": "active",
+         "5": "active"
+        }
+       },
+       {
+        "type": "vars",
+        "items": {
+         "maxf": 3,
+         "best": 4
+        }
+       }
+      ]
+     },
+     {
+      "text": "Add 'B': maxf = 3. Too many repaints for that, so slide (left +1). Length 4.",
+      "panels": [
+       {
+        "type": "row",
+        "cells": [
+         "A",
+         "B",
+         "A",
+         "A",
+         "B",
+         "B",
+         "B",
+         "A",
+         "B"
+        ],
+        "states": {
+         "3": "active",
+         "4": "active",
+         "5": "active",
+         "6": "active"
+        }
+       },
+       {
+        "type": "vars",
+        "items": {
+         "maxf": 3,
+         "best": 4
+        }
+       }
+      ]
+     },
+     {
+      "text": "Add 'A': maxf = 3. Too many repaints for that, so slide (left +1). Length 4.",
+      "panels": [
+       {
+        "type": "row",
+        "cells": [
+         "A",
+         "B",
+         "A",
+         "A",
+         "B",
+         "B",
+         "B",
+         "A",
+         "B"
+        ],
+        "states": {
+         "4": "active",
+         "5": "active",
+         "6": "active",
+         "7": "active"
+        }
+       },
+       {
+        "type": "vars",
+        "items": {
+         "maxf": 3,
+         "best": 4
+        }
+       }
+      ]
+     },
+     {
+      "text": "Add 'B': maxf = 4. Fits, so the window grows. Length 5.",
+      "panels": [
+       {
+        "type": "row",
+        "cells": [
+         "A",
+         "B",
+         "A",
+         "A",
+         "B",
+         "B",
+         "B",
+         "A",
+         "B"
+        ],
+        "states": {
+         "4": "active",
+         "5": "active",
+         "6": "active",
+         "7": "active",
+         "8": "active"
+        }
+       },
+       {
+        "type": "vars",
+        "items": {
+         "maxf": 4,
+         "best": 5
+        }
+       }
+      ]
+     },
+     {
+      "text": "Longest: 5.",
+      "panels": [],
+      "result": "5"
+     }
+    ],
+    "title": "Keep maxf = the highest count ever seen. The window never shrinks: when it's too big for maxf, it slides one step right. It grows only when some colour beats maxf."
+   }
+  }
+ ],
+ "takeaways": [
+  {
+   "md": "- **\"Make a window uniform with ≤ k changes\":** cost = length − most frequent count.\n- **Same template as \"flip at most k zeros\"**, where the \"most frequent\" is always the 1s.\n- **When only the maximum length matters**, the window may slide instead of shrinking, and a stale maximum\n  frequency is safe."
+  }
+ ]
+}

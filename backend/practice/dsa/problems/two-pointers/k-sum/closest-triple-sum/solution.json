@@ -1,0 +1,599 @@
+{
+ "version": 1,
+ "summary": "Sort; for each fixed first value, squeeze the other two from both ends of the rest: below the target, move the\nlow pointer up; above, move the high pointer down. Track the sum with the smallest distance (smaller sum on\nties). O(n²).",
+ "question": [
+  {
+   "md": "Return the sum of three values (different positions) closest to `target`; on a tie, the smaller sum.\n\n- **Up to 1000 values**: O(n³) is about 1.7 × 10⁸ triples, O(n²) is 5 × 10⁵.\n- Small values (|v| ≤ 1000), so no overflow worries."
+  },
+  {
+   "md": "**Edge cases to keep in mind**\n\n- Ties: equally close sums → return the smaller one.\n- An exact match ends the search.\n- Exactly three values: their sum is the answer."
+  }
+ ],
+ "think": [
+  {
+   "md": "**Fix one, squeeze two.** Three unknowns are hard, two are easy. Sort the values. Fix the first element `a[i]`; the\nother two must come from positions after `i`, and their sum must relate to `target − a[i]`. That's the sorted\npair-sum problem, solved by two pointers `j = i + 1` and `k = n − 1` moving inward. Doing this for every `i` costs\n`n` squeezes of O(n) each: **O(n²)** instead of O(n³).\n\n**Why sorting is allowed.** The questions are about *sets* of three positions (their values' sum), not their order,\nso rearranging the array doesn't change which value-triples exist. Requiring `i < j < k` in the sorted array picks each\nset of positions exactly once."
+  },
+  {
+   "md": "**Squeezing toward a target instead of hitting it.** With `a[i]` fixed and `s = a[i] + a[j] + a[k]`:\n\n- `s < target`: every other third value for this `j` is at most `a[k]`, giving sums at most `s`: no closer\n  from below. `a[j]` is finished; move `j` right.\n- `s > target`: symmetric; move `k` left.\n- `s = target`: distance 0, stop.\n\nRecord every sum visited; the best one is the answer."
+  },
+  {
+   "md": "**Trace for target 6** on sorted `[-6, -2, 1, 4, 7, 9]` (sums visited for each fixed value):"
+  },
+  {
+   "table": {
+    "head": [
+     "fixed",
+     "sums visited",
+     "best so far"
+    ],
+    "rows": [
+     [
+      "-6",
+      "1, 4, 7, 5",
+      "5"
+     ],
+     [
+      "-2",
+      "8, 6",
+      "6"
+     ]
+    ]
+   }
+  },
+  {
+   "md": "Answer **6**."
+  }
+ ],
+ "approaches": [
+  {
+   "title": "Every triple",
+   "kind": "brute",
+   "time": "O(n³)",
+   "space": "O(1)",
+   "idea": [
+    {
+     "md": "Check every triple and keep the sum that's closest, comparing `(distance, sum)` so ties prefer the smaller sum."
+    }
+   ],
+   "build": [
+    "Three nested loops.",
+    "Compare by `(distance, sum)`."
+   ],
+   "code": {
+    "python": "class Solution:\n    def closestTriple(self, values: List[int], target: int) -> int:\n        n, best = len(values), None\n        for i in range(n):\n            for j in range(i + 1, n):\n                for k in range(j + 1, n):\n                    s = values[i] + values[j] + values[k]\n                    if best is None or (abs(s - target), s) < (abs(best - target), best):\n                        best = s\n        return best\n",
+    "java": "class Solution {\n    public int closestTriple(int[] values, int target) {\n        int n = values.length, best = values[0] + values[1] + values[2];\n        for (int i = 0; i < n; i++)\n            for (int j = i + 1; j < n; j++)\n                for (int k = j + 1; k < n; k++) {\n                    int s = values[i] + values[j] + values[k];\n                    int d = Math.abs(s - target), bd = Math.abs(best - target);\n                    if (d < bd || (d == bd && s < best)) best = s;\n                }\n        return best;\n    }\n}\n",
+    "cpp": "class Solution {\npublic:\n    int closestTriple(vector<int>& values, int target) {\n        int n = values.size(), best = values[0] + values[1] + values[2];\n        for (int i = 0; i < n; i++)\n            for (int j = i + 1; j < n; j++)\n                for (int k = j + 1; k < n; k++) {\n                    int s = values[i] + values[j] + values[k];\n                    int d = abs(s - target), bd = abs(best - target);\n                    if (d < bd || (d == bd && s < best)) best = s;\n                }\n        return best;\n    }\n};\n",
+    "c": "int closestTriple(int* values, int valuesSize, int target) {\n    int n = valuesSize, best = values[0] + values[1] + values[2];\n    for (int i = 0; i < n; i++)\n        for (int j = i + 1; j < n; j++)\n            for (int k = j + 1; k < n; k++) {\n                int s = values[i] + values[j] + values[k];\n                int d = abs(s - target), bd = abs(best - target);\n                if (d < bd || (d == bd && s < best)) best = s;\n            }\n    return best;\n}\n"
+   },
+   "lines": [
+    {
+     "text": "No triple seen yet.",
+     "at": {
+      "python": [
+       [
+        3,
+        3
+       ]
+      ],
+      "java": [
+       [
+        3,
+        3
+       ]
+      ],
+      "cpp": [
+       [
+        4,
+        4
+       ]
+      ],
+      "c": [
+       [
+        2,
+        2
+       ]
+      ]
+     }
+    },
+    {
+     "text": "Every set of three positions.",
+     "at": {
+      "python": [
+       [
+        4,
+        6
+       ]
+      ],
+      "java": [
+       [
+        4,
+        6
+       ]
+      ],
+      "cpp": [
+       [
+        5,
+        7
+       ]
+      ],
+      "c": [
+       [
+        3,
+        5
+       ]
+      ]
+     }
+    },
+    {
+     "text": "Closer wins; on equal distance the smaller sum wins.",
+     "at": {
+      "python": [
+       [
+        7,
+        9
+       ]
+      ],
+      "java": [
+       [
+        7,
+        9
+       ]
+      ],
+      "cpp": [
+       [
+        8,
+        10
+       ]
+      ],
+      "c": [
+       [
+        6,
+        8
+       ]
+      ]
+     }
+    },
+    {
+     "text": "The best sum.",
+     "at": {
+      "python": [
+       [
+        10,
+        10
+       ]
+      ],
+      "java": [
+       [
+        11,
+        11
+       ]
+      ],
+      "cpp": [
+       [
+        12,
+        12
+       ]
+      ],
+      "c": [
+       [
+        10,
+        10
+       ]
+      ]
+     }
+    }
+   ],
+   "complexity": [
+    {
+     "md": "**Time O(n³):** 1.7 × 10⁸ triples for `n = 1000`. **Space O(1).**"
+    }
+   ],
+   "limits": [
+    {
+     "md": "Cubic. The squeeze visits only the sums that could still be closest."
+    }
+   ],
+   "slow": true
+  },
+  {
+   "title": "Sort, fix one, squeeze toward the target",
+   "kind": "best",
+   "time": "O(n²)",
+   "space": "O(1)",
+   "idea": [
+    {
+     "md": "Sort. Start `best` at any triple (the first three). For each `i`, squeeze `j`, `k`, recording each sum if\nit's better and moving toward the target; return immediately on an exact hit.\n\n**Why the best triple is visited.** Every triple not visited contains an element that was dropped while the\nsum was on the wrong side of the target, so its sum is no closer than one that was recorded."
+    }
+   ],
+   "build": [
+    "Sort.",
+    "Initial best from the first three values.",
+    "Fix `a[i]`, squeeze toward the target, record improvements."
+   ],
+   "code": {
+    "python": "class Solution:\n    def closestTriple(self, values: List[int], target: int) -> int:\n        a = sorted(values)\n        best = a[0] + a[1] + a[2]\n        for i in range(len(a) - 2):\n            j, k = i + 1, len(a) - 1\n            while j < k:\n                s = a[i] + a[j] + a[k]\n                if (abs(s - target), s) < (abs(best - target), best):\n                    best = s\n                if s < target:\n                    j += 1\n                elif s > target:\n                    k -= 1\n                else:\n                    return s\n        return best\n",
+    "java": "class Solution {\n    public int closestTriple(int[] values, int target) {\n        int[] a = values.clone();\n        Arrays.sort(a);\n        int best = a[0] + a[1] + a[2];\n        for (int i = 0; i + 2 < a.length; i++) {\n            int j = i + 1, k = a.length - 1;\n            while (j < k) {\n                int s = a[i] + a[j] + a[k];\n                int d = Math.abs(s - target), bd = Math.abs(best - target);\n                if (d < bd || (d == bd && s < best)) best = s;\n                if (s < target) j++;\n                else if (s > target) k--;\n                else return s;\n            }\n        }\n        return best;\n    }\n}\n",
+    "cpp": "class Solution {\npublic:\n    int closestTriple(vector<int>& values, int target) {\n        vector<int> a = values;\n        sort(a.begin(), a.end());\n        int best = a[0] + a[1] + a[2];\n        for (int i = 0; i + 2 < (int) a.size(); i++) {\n            int j = i + 1, k = (int) a.size() - 1;\n            while (j < k) {\n                int s = a[i] + a[j] + a[k];\n                int d = abs(s - target), bd = abs(best - target);\n                if (d < bd || (d == bd && s < best)) best = s;\n                if (s < target) j++;\n                else if (s > target) k--;\n                else return s;\n            }\n        }\n        return best;\n    }\n};\n",
+    "c": "static int cmp_int(const void* x, const void* y) {\n    int a = *(const int*) x, b = *(const int*) y;\n    return (a > b) - (a < b);\n}\n\nint closestTriple(int* values, int valuesSize, int target) {\n    int n = valuesSize;\n    int* a = malloc(n * sizeof(int));\n    memcpy(a, values, n * sizeof(int));\n    qsort(a, n, sizeof(int), cmp_int);\n    int best = a[0] + a[1] + a[2];\n    for (int i = 0; i + 2 < n && best != target; i++) {\n        int j = i + 1, k = n - 1;\n        while (j < k) {\n            int s = a[i] + a[j] + a[k];\n            int d = abs(s - target), bd = abs(best - target);\n            if (d < bd || (d == bd && s < best)) best = s;\n            if (s < target) j++;\n            else if (s > target) k--;\n            else break;\n        }\n    }\n    free(a);\n    return best;\n}\n"
+   },
+   "lines": [
+    {
+     "text": "Sorting lets each comparison with the target rule out a whole range.",
+     "at": {
+      "python": [
+       [
+        3,
+        4
+       ]
+      ],
+      "java": [
+       [
+        3,
+        5
+       ]
+      ],
+      "cpp": [
+       [
+        4,
+        6
+       ]
+      ],
+      "c": [
+       [
+        1,
+        4
+       ],
+       [
+        7,
+        11
+       ]
+      ]
+     }
+    },
+    {
+     "text": "The smallest of the three positions.",
+     "at": {
+      "python": [
+       [
+        5,
+        6
+       ]
+      ],
+      "java": [
+       [
+        6,
+        7
+       ]
+      ],
+      "cpp": [
+       [
+        7,
+        8
+       ]
+      ],
+      "c": [
+       [
+        12,
+        13
+       ]
+      ]
+     }
+    },
+    {
+     "text": "The other two pointers over the part after `i`.",
+     "at": {
+      "python": [
+       [
+        7,
+        8
+       ]
+      ],
+      "java": [
+       [
+        8,
+        9
+       ]
+      ],
+      "cpp": [
+       [
+        9,
+        10
+       ]
+      ],
+      "c": [
+       [
+        14,
+        15
+       ]
+      ]
+     }
+    },
+    {
+     "text": "Keep the sum if it's closer, or equally close and smaller.",
+     "at": {
+      "python": [
+       [
+        9,
+        10
+       ]
+      ],
+      "java": [
+       [
+        10,
+        11
+       ]
+      ],
+      "cpp": [
+       [
+        11,
+        12
+       ]
+      ],
+      "c": [
+       [
+        16,
+        17
+       ]
+      ]
+     }
+    },
+    {
+     "text": "Below the target, move `j` up; above, move `k` down; exact, return.",
+     "at": {
+      "python": [
+       [
+        11,
+        16
+       ]
+      ],
+      "java": [
+       [
+        12,
+        14
+       ]
+      ],
+      "cpp": [
+       [
+        13,
+        15
+       ]
+      ],
+      "c": [
+       [
+        18,
+        20
+       ]
+      ]
+     }
+    },
+    {
+     "text": "The best sum.",
+     "at": {
+      "python": [
+       [
+        17,
+        17
+       ]
+      ],
+      "java": [
+       [
+        17,
+        17
+       ]
+      ],
+      "cpp": [
+       [
+        18,
+        18
+       ]
+      ],
+      "c": [
+       [
+        23,
+        24
+       ]
+      ]
+     }
+    }
+   ],
+   "complexity": [
+    {
+     "md": "**Time O(n²).** **Space O(1)** besides the sort."
+    }
+   ],
+   "walk": {
+    "steps": [
+     {
+      "text": "Sorted: [-6, -2, 1, 4, 7, 9].",
+      "panels": [
+       {
+        "type": "row",
+        "cells": [
+         -6,
+         -2,
+         1,
+         4,
+         7,
+         9
+        ]
+       }
+      ]
+     },
+     {
+      "text": "-6 + -2 + 9 = 1. Best so far 1.",
+      "panels": [
+       {
+        "type": "row",
+        "cells": [
+         -6,
+         -2,
+         1,
+         4,
+         7,
+         9
+        ],
+        "states": {
+         "0": "active",
+         "1": "mark",
+         "5": "mark"
+        }
+       },
+       {
+        "type": "vars",
+        "items": {
+         "best": 1
+        }
+       }
+      ]
+     },
+     {
+      "text": "-6 + 1 + 9 = 4. Best so far 4.",
+      "panels": [
+       {
+        "type": "row",
+        "cells": [
+         -6,
+         -2,
+         1,
+         4,
+         7,
+         9
+        ],
+        "states": {
+         "0": "active",
+         "2": "mark",
+         "5": "mark"
+        }
+       },
+       {
+        "type": "vars",
+        "items": {
+         "best": 4
+        }
+       }
+      ]
+     },
+     {
+      "text": "-6 + 4 + 9 = 7. Best so far 7.",
+      "panels": [
+       {
+        "type": "row",
+        "cells": [
+         -6,
+         -2,
+         1,
+         4,
+         7,
+         9
+        ],
+        "states": {
+         "0": "active",
+         "3": "mark",
+         "5": "mark"
+        }
+       },
+       {
+        "type": "vars",
+        "items": {
+         "best": 7
+        }
+       }
+      ]
+     },
+     {
+      "text": "-6 + 4 + 7 = 5. Best so far 5.",
+      "panels": [
+       {
+        "type": "row",
+        "cells": [
+         -6,
+         -2,
+         1,
+         4,
+         7,
+         9
+        ],
+        "states": {
+         "0": "active",
+         "3": "mark",
+         "4": "mark"
+        }
+       },
+       {
+        "type": "vars",
+        "items": {
+         "best": 5
+        }
+       }
+      ]
+     },
+     {
+      "text": "-2 + 1 + 9 = 8. Best so far 5.",
+      "panels": [
+       {
+        "type": "row",
+        "cells": [
+         -6,
+         -2,
+         1,
+         4,
+         7,
+         9
+        ],
+        "states": {
+         "1": "active",
+         "2": "mark",
+         "5": "mark"
+        }
+       },
+       {
+        "type": "vars",
+        "items": {
+         "best": 5
+        }
+       }
+      ]
+     },
+     {
+      "text": "-2 + 1 + 7 = 6. Best so far 6.",
+      "panels": [
+       {
+        "type": "row",
+        "cells": [
+         -6,
+         -2,
+         1,
+         4,
+         7,
+         9
+        ],
+        "states": {
+         "1": "active",
+         "2": "mark",
+         "4": "mark"
+        }
+       },
+       {
+        "type": "vars",
+        "items": {
+         "best": 6
+        }
+       }
+      ]
+     },
+     {
+      "text": "Closest: 6.",
+      "panels": [],
+      "result": "6"
+     }
+    ],
+    "title": "Sort, fix the smallest value, squeeze the other two toward the target, and remember the closest sum seen."
+   }
+  }
+ ],
+ "takeaways": [
+  {
+   "md": "- **Closest k-sum:** fix, squeeze toward the target, record every visit.\n- Tie rules as a tuple key `(distance, value)`.\n- **Pitfall:** initialising `best` with a huge sentinel in 32 bits; start with a real triple instead."
+  }
+ ]
+}

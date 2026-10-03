@@ -1,0 +1,631 @@
+{
+ "version": 1,
+ "summary": "The table can have 9 × 10⁸ cells, too many to list. But counting how many cells are ≤ v is easy: row i holds\ni, 2i, 3i, …, so it has `min(v // i, cols)` of them. That count grows with v, so binary-search the smallest v\nwhose count reaches k. O(rows · log(rows · cols)).",
+ "question": [
+  {
+   "md": "Cell (i, j) of a `rows × cols` table holds `i × j` (both from 1). Return the k-th smallest value, counting\nequal values in different cells separately.\n\n- **Duplicates count:** in a 3 × 3 table, 2 appears twice (1×2 and 2×1), 3 twice, and so on.\n- **Up to 3 × 10⁴ × 3 × 10⁴ = 9 × 10⁸ cells**, so building or sorting the table is impossible.\n- **The answer is at most rows × cols ≤ 9 × 10⁸**, inside a 32-bit `int`; counts (up to 9 × 10⁸) fit too."
+  }
+ ],
+ "think": [
+  {
+   "md": "Take a 3 × 4 table and k = 7. Sorted, its products are `[1, 2, 2, 3, 3, 4, 4, 6, 6, 8, 9, 12]`; the 7-th is 4."
+  },
+  {
+   "panels": [
+    {
+     "type": "grid",
+     "cells": [
+      [
+       1,
+       2,
+       3,
+       4
+      ],
+      [
+       2,
+       4,
+       6,
+       8
+      ],
+      [
+       3,
+       6,
+       9,
+       12
+      ]
+     ]
+    }
+   ],
+   "caption": "Row i is the i-times table: i, 2i, 3i, …"
+  },
+  {
+   "md": "Instead of finding the k-th value directly, ask a yes/no question about a candidate v: **are at least k cells\n≤ v?** For small v the answer is no, for large v it's yes, and it flips exactly at the k-th smallest value.\n(The k-th value v* has at least k cells ≤ it; any smaller v has fewer.)\n\nThe count is cheap: row i contains i, 2i, …, cols·i, and `i·j ≤ v` means `j ≤ v // i`, capped at cols. Summing\nover rows takes O(rows). Binary search over v in [1, rows · cols] needs about 30 such counts."
+  }
+ ],
+ "approaches": [
+  {
+   "title": "List and sort every product",
+   "kind": "brute",
+   "time": "O(rc log(rc))",
+   "space": "O(rc)",
+   "idea": [
+    {
+     "md": "Generate all r · c products, sort them, return the one at index k − 1."
+    }
+   ],
+   "build": [
+    "Collect `i × j` for all cells.",
+    "Sort.",
+    "Return element k − 1."
+   ],
+   "code": {
+    "python": "class Solution:\n    def kthInTable(self, rows: int, cols: int, k: int) -> int:\n        vals = sorted(i * j for i in range(1, rows + 1) for j in range(1, cols + 1))\n        return vals[k - 1]\n",
+    "java": "class Solution {\n    public int kthInTable(int rows, int cols, int k) {\n        int[] vals = new int[rows * cols];\n        int t = 0;\n        for (int i = 1; i <= rows; i++) for (int j = 1; j <= cols; j++) vals[t++] = i * j;\n        Arrays.sort(vals);\n        return vals[k - 1];\n    }\n}\n",
+    "cpp": "class Solution {\npublic:\n    int kthInTable(int rows, int cols, int k) {\n        vector<int> vals;\n        for (int i = 1; i <= rows; i++) for (int j = 1; j <= cols; j++) vals.push_back(i * j);\n        sort(vals.begin(), vals.end());\n        return vals[k - 1];\n    }\n};\n",
+    "c": "static int cmpInt(const void* a, const void* b) {\n    int p = *(const int*) a, q = *(const int*) b;\n    return (p > q) - (p < q);\n}\n\nint kthInTable(int rows, int cols, int k) {\n    int* vals = malloc((size_t) rows * cols * sizeof(int));\n    int t = 0;\n    for (int i = 1; i <= rows; i++) for (int j = 1; j <= cols; j++) vals[t++] = i * j;\n    qsort(vals, t, sizeof(int), cmpInt);\n    int answer = vals[k - 1];\n    free(vals);\n    return answer;\n}\n"
+   },
+   "lines": [
+    {
+     "text": "Every product in the table, sorted.",
+     "at": {
+      "python": [
+       [
+        3,
+        3
+       ]
+      ],
+      "java": [
+       [
+        3,
+        6
+       ]
+      ],
+      "cpp": [
+       [
+        4,
+        6
+       ]
+      ],
+      "c": [
+       [
+        1,
+        4
+       ],
+       [
+        7,
+        10
+       ]
+      ]
+     }
+    },
+    {
+     "text": "The k-th smallest (k is 1-based).",
+     "at": {
+      "python": [
+       [
+        4,
+        4
+       ]
+      ],
+      "java": [
+       [
+        7,
+        7
+       ]
+      ],
+      "cpp": [
+       [
+        7,
+        7
+       ]
+      ],
+      "c": [
+       [
+        11,
+        13
+       ]
+      ]
+     }
+    }
+   ],
+   "complexity": [
+    {
+     "md": "**Time O(rc log(rc)).** **Space O(rc):** up to 9 × 10⁸ numbers, about 3.6 GB. Hopeless at full size."
+    }
+   ],
+   "walk": {
+    "steps": [
+     {
+      "text": "The 3 × 4 table.",
+      "panels": [
+       {
+        "type": "grid",
+        "cells": [
+         [
+          1,
+          2,
+          3,
+          4
+         ],
+         [
+          2,
+          4,
+          6,
+          8
+         ],
+         [
+          3,
+          6,
+          9,
+          12
+         ]
+        ]
+       }
+      ]
+     },
+     {
+      "text": "All 12 products sorted: [1, 2, 2, 3, 3, 4, 4, 6, 6, 8, 9, 12]. The 7-th is 4.",
+      "panels": [
+       {
+        "type": "row",
+        "cells": [
+         1,
+         2,
+         2,
+         3,
+         3,
+         4,
+         4,
+         6,
+         6,
+         8,
+         9,
+         12
+        ],
+        "states": {
+         "6": "answer"
+        },
+        "slots": true
+       }
+      ],
+      "result": "4"
+     }
+    ],
+    "title": "Write out every product, sort them, and pick the k-th."
+   },
+   "limits": [
+    {
+     "md": "Materialising the table is the problem. A min-heap that merges the sorted rows (pop k times) avoids\nstoring everything, but k can still be 9 × 10⁸ pops. The structure we actually need is cheaper: the\n*number* of cells ≤ v can be computed without listing them."
+    }
+   ],
+   "slow": 28
+  },
+  {
+   "title": "Binary search on the value, counting cells ≤ v",
+   "kind": "best",
+   "time": "O(r · log(rc))",
+   "space": "O(1)",
+   "idea": [
+    {
+     "md": "Search v in [1, r · c]. `count(v) = Σ min(v // i, cols)` over rows i. If `count(mid) ≥ k`, the answer is ≤ mid (`hi = mid`); else `lo = mid + 1`. Swapping so that rows ≤ cols makes each count loop as short as possible."
+    }
+   ],
+   "build": [
+    "Make `rows ≤ cols` (the table is symmetric).",
+    "`lo = 1`, `hi = rows × cols`.",
+    "Count cells ≤ mid row by row; move the bounds.",
+    "Return `lo`."
+   ],
+   "code": {
+    "python": "class Solution:\n    def kthInTable(self, rows: int, cols: int, k: int) -> int:\n        if rows > cols:\n            rows, cols = cols, rows\n        lo, hi = 1, rows * cols\n        while lo < hi:\n            mid = (lo + hi) // 2\n            count = sum(min(mid // i, cols) for i in range(1, rows + 1))\n            if count >= k:\n                hi = mid\n            else:\n                lo = mid + 1\n        return lo\n",
+    "java": "class Solution {\n    public int kthInTable(int rows, int cols, int k) {\n        if (rows > cols) { int t = rows; rows = cols; cols = t; }\n        int lo = 1, hi = rows * cols;\n        while (lo < hi) {\n            int mid = lo + (hi - lo) / 2;\n            long count = 0;\n            for (int i = 1; i <= rows; i++) count += Math.min(mid / i, cols);\n            if (count >= k) hi = mid;\n            else lo = mid + 1;\n        }\n        return lo;\n    }\n}\n",
+    "cpp": "class Solution {\npublic:\n    int kthInTable(int rows, int cols, int k) {\n        if (rows > cols) swap(rows, cols);\n        int lo = 1, hi = rows * cols;\n        while (lo < hi) {\n            int mid = lo + (hi - lo) / 2;\n            long long count = 0;\n            for (int i = 1; i <= rows; i++) count += min(mid / i, cols);\n            if (count >= k) hi = mid;\n            else lo = mid + 1;\n        }\n        return lo;\n    }\n};\n",
+    "c": "int kthInTable(int rows, int cols, int k) {\n    if (rows > cols) { int t = rows; rows = cols; cols = t; }\n    int lo = 1, hi = rows * cols;\n    while (lo < hi) {\n        int mid = lo + (hi - lo) / 2;\n        long long count = 0;\n        for (int i = 1; i <= rows; i++) count += (mid / i < cols) ? mid / i : cols;\n        if (count >= k) hi = mid;\n        else lo = mid + 1;\n    }\n    return lo;\n}\n"
+   },
+   "lines": [
+    {
+     "text": "i × j = j × i, so the table's values don't change if rows and columns swap. Looping over the shorter side keeps each count cheap.",
+     "at": {
+      "python": [
+       [
+        3,
+        4
+       ]
+      ],
+      "java": [
+       [
+        3,
+        3
+       ]
+      ],
+      "cpp": [
+       [
+        4,
+        4
+       ]
+      ],
+      "c": [
+       [
+        2,
+        2
+       ]
+      ]
+     }
+    },
+    {
+     "text": "Every value lies in [1, rows · cols] (≤ 9 × 10⁸, fits in `int`).",
+     "at": {
+      "python": [
+       [
+        5,
+        5
+       ]
+      ],
+      "java": [
+       [
+        4,
+        4
+       ]
+      ],
+      "cpp": [
+       [
+        5,
+        5
+       ]
+      ],
+      "c": [
+       [
+        3,
+        3
+       ]
+      ]
+     }
+    },
+    {
+     "text": "Halve the value range.",
+     "at": {
+      "python": [
+       [
+        6,
+        7
+       ]
+      ],
+      "java": [
+       [
+        5,
+        6
+       ]
+      ],
+      "cpp": [
+       [
+        6,
+        7
+       ]
+      ],
+      "c": [
+       [
+        4,
+        5
+       ]
+      ]
+     }
+    },
+    {
+     "text": "Row i holds i, 2i, …, cols·i; exactly `min(mid / i, cols)` of them are ≤ mid.",
+     "at": {
+      "python": [
+       [
+        8,
+        8
+       ]
+      ],
+      "java": [
+       [
+        7,
+        8
+       ]
+      ],
+      "cpp": [
+       [
+        8,
+        9
+       ]
+      ],
+      "c": [
+       [
+        6,
+        7
+       ]
+      ]
+     }
+    },
+    {
+     "text": "At least k cells ≤ mid: the k-th value is ≤ mid. Otherwise it's bigger.",
+     "at": {
+      "python": [
+       [
+        9,
+        12
+       ]
+      ],
+      "java": [
+       [
+        9,
+        10
+       ]
+      ],
+      "cpp": [
+       [
+        10,
+        11
+       ]
+      ],
+      "c": [
+       [
+        8,
+        9
+       ]
+      ]
+     }
+    },
+    {
+     "text": "The smallest v with at least k cells ≤ v, which is the k-th smallest value (it must actually appear in the table, since the count only rises at real values).",
+     "at": {
+      "python": [
+       [
+        13,
+        13
+       ]
+      ],
+      "java": [
+       [
+        12,
+        12
+       ]
+      ],
+      "cpp": [
+       [
+        13,
+        13
+       ]
+      ],
+      "c": [
+       [
+        11,
+        11
+       ]
+      ]
+     }
+    }
+   ],
+   "complexity": [
+    {
+     "md": "**Time O(r · log(rc))** with r the smaller side: about 30 × 3 × 10⁴ = 9 × 10⁵ steps. **Space O(1).**"
+    }
+   ],
+   "walk": {
+    "steps": [
+     {
+      "text": "v = 6: rows contribute 4 + 3 + 2 = 9 cells ≤ 6 → ≥ 7, so the answer is ≤ 6.",
+      "panels": [
+       {
+        "type": "grid",
+        "cells": [
+         [
+          1,
+          2,
+          3,
+          4
+         ],
+         [
+          2,
+          4,
+          6,
+          8
+         ],
+         [
+          3,
+          6,
+          9,
+          12
+         ]
+        ],
+        "states": {
+         "0,0": "found",
+         "0,1": "found",
+         "0,2": "found",
+         "0,3": "found",
+         "1,0": "found",
+         "1,1": "found",
+         "1,2": "found",
+         "2,0": "found",
+         "2,1": "found"
+        }
+       },
+       {
+        "type": "vars",
+        "items": {
+         "lo": 1,
+         "hi": 12,
+         "count": 9
+        }
+       }
+      ]
+     },
+     {
+      "text": "v = 3: rows contribute 3 + 1 + 1 = 5 cells ≤ 3 → < 7, so the answer is > 3.",
+      "panels": [
+       {
+        "type": "grid",
+        "cells": [
+         [
+          1,
+          2,
+          3,
+          4
+         ],
+         [
+          2,
+          4,
+          6,
+          8
+         ],
+         [
+          3,
+          6,
+          9,
+          12
+         ]
+        ],
+        "states": {
+         "0,0": "found",
+         "0,1": "found",
+         "0,2": "found",
+         "1,0": "found",
+         "2,0": "found"
+        }
+       },
+       {
+        "type": "vars",
+        "items": {
+         "lo": 1,
+         "hi": 6,
+         "count": 5
+        }
+       }
+      ]
+     },
+     {
+      "text": "v = 5: rows contribute 4 + 2 + 1 = 7 cells ≤ 5 → ≥ 7, so the answer is ≤ 5.",
+      "panels": [
+       {
+        "type": "grid",
+        "cells": [
+         [
+          1,
+          2,
+          3,
+          4
+         ],
+         [
+          2,
+          4,
+          6,
+          8
+         ],
+         [
+          3,
+          6,
+          9,
+          12
+         ]
+        ],
+        "states": {
+         "0,0": "found",
+         "0,1": "found",
+         "0,2": "found",
+         "0,3": "found",
+         "1,0": "found",
+         "1,1": "found",
+         "2,0": "found"
+        }
+       },
+       {
+        "type": "vars",
+        "items": {
+         "lo": 4,
+         "hi": 6,
+         "count": 7
+        }
+       }
+      ]
+     },
+     {
+      "text": "v = 4: rows contribute 4 + 2 + 1 = 7 cells ≤ 4 → ≥ 7, so the answer is ≤ 4.",
+      "panels": [
+       {
+        "type": "grid",
+        "cells": [
+         [
+          1,
+          2,
+          3,
+          4
+         ],
+         [
+          2,
+          4,
+          6,
+          8
+         ],
+         [
+          3,
+          6,
+          9,
+          12
+         ]
+        ],
+        "states": {
+         "0,0": "found",
+         "0,1": "found",
+         "0,2": "found",
+         "0,3": "found",
+         "1,0": "found",
+         "1,1": "found",
+         "2,0": "found"
+        }
+       },
+       {
+        "type": "vars",
+        "items": {
+         "lo": 4,
+         "hi": 5,
+         "count": 7
+        }
+       }
+      ]
+     },
+     {
+      "text": "lo = hi = 4: the 7-th smallest product.",
+      "panels": [
+       {
+        "type": "grid",
+        "cells": [
+         [
+          1,
+          2,
+          3,
+          4
+         ],
+         [
+          2,
+          4,
+          6,
+          8
+         ],
+         [
+          3,
+          6,
+          9,
+          12
+         ]
+        ],
+        "states": {
+         "0,3": "answer",
+         "1,1": "answer"
+        }
+       }
+      ],
+      "result": "4"
+     }
+    ],
+    "title": "Binary-search the value v. Count how many cells are ≤ v (row i has min(v // i, cols) of them). The answer is the smallest v with count ≥ k."
+   }
+  }
+ ],
+ "takeaways": [
+  {
+   "md": "- **k-th smallest without listing:** binary-search the *value* v and count elements ≤ v. The answer is the\n  smallest v whose count reaches k.\n- It works whenever counting \"≤ v\" is cheap, even if the elements themselves are too many to store.\n- The smallest such v is always an actual element, because the count only increases at element values."
+  }
+ ]
+}

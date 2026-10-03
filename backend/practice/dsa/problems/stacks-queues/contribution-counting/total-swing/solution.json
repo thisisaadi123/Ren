@@ -1,0 +1,781 @@
+{
+ "version": 1,
+ "summary": "The sum of (high − low) over all stretches is (sum of all stretch highs) − (sum of all stretch lows), and each\nsum is a contribution count: reading `i` is the high of `left × right` stretches, where the boundaries are the\nnearest bigger readings on each side (one side strict, for ties), found by monotonic stacks. Same for lows.\nO(n), with 64-bit sums.",
+ "question": [
+  {
+   "md": "For every stretch of consecutive readings, take its swing: largest minus smallest. Return the sum over all\nn(n+1)/2 stretches.\n\n- **Single readings have swing 0.**\n- **Readings can be negative and can repeat.**\n- **Up to 10⁵ readings with |value| ≤ 10⁶:** the answer can reach ~10¹⁶, so it needs 64-bit integers (the\n  return type is `long`)."
+  }
+ ],
+ "think": [
+  {
+   "md": "Take `[4, 1, 4, 2]`. The stretches from index 0 have swings 0, 3, 3, 3; from index 1: 0, 3, 3; from index 2: 0, 2;\nfrom index 3: 0. Total **17**.\n\nThe swing mixes two things, but sums split: Σ(high − low) = Σhigh − Σlow. So the problem is two copies of \"sum\nof every stretch's extreme\", which is a contribution count: how many stretches is each reading the high (or\nlow) of?"
+  },
+  {
+   "table": {
+    "head": [
+     "index",
+     "reading",
+     "high of",
+     "low of",
+     "net"
+    ],
+    "rows": [
+     [
+      "0",
+      "4",
+      "2",
+      "1",
+      "4"
+     ],
+     [
+      "1",
+      "1",
+      "1",
+      "6",
+      "-5"
+     ],
+     [
+      "2",
+      "4",
+      "6",
+      "1",
+      "20"
+     ],
+     [
+      "3",
+      "2",
+      "1",
+      "2",
+      "-2"
+     ]
+    ]
+   }
+  },
+  {
+   "md": "Reading `i` is the high of a stretch when nothing in it is bigger: the stretch can reach left until the previous\nbigger reading and right until the next bigger one. The two 4s tie: let a reading reach left past equal values\nbut stop at equal values on the right, so the stretch `4, 1, 4` is credited to one 4, not both. The highs sum to\n35, the lows to 18, and 35 − 18 = 17.\n\nA shortcut for the code: the low of a stretch is −(high of the negated stretch), so Σlow = −Σhigh(−readings), and\nthe answer is `sumOfHighs(readings) + sumOfHighs(−readings)`."
+  }
+ ],
+ "approaches": [
+  {
+   "title": "Every start, running high and low",
+   "kind": "brute",
+   "time": "O(n²)",
+   "space": "O(1)",
+   "idea": [
+    {
+     "md": "For each start, extend the stretch rightwards, updating the running maximum and minimum; each extension adds `high − low`."
+    }
+   ],
+   "build": [
+    "For each start `i`, `hi = lo = readings[i]`.",
+    "For each end `j`, update both and add `hi − lo`.",
+    "Return the 64-bit total."
+   ],
+   "code": {
+    "python": "class Solution:\n    def totalSwing(self, readings: List[int]) -> int:\n        n = len(readings)\n        total = 0\n        for i in range(n):\n            hi = lo = readings[i]\n            for j in range(i, n):\n                hi = max(hi, readings[j])\n                lo = min(lo, readings[j])\n                total += hi - lo\n        return total\n",
+    "java": "class Solution {\n    public long totalSwing(int[] readings) {\n        int n = readings.length;\n        long total = 0;\n        for (int i = 0; i < n; i++) {\n            int hi = readings[i], lo = readings[i];\n            for (int j = i; j < n; j++) {\n                hi = Math.max(hi, readings[j]);\n                lo = Math.min(lo, readings[j]);\n                total += hi - lo;\n            }\n        }\n        return total;\n    }\n}\n",
+    "cpp": "class Solution {\npublic:\n    long long totalSwing(vector<int>& readings) {\n        int n = readings.size();\n        long long total = 0;\n        for (int i = 0; i < n; i++) {\n            int hi = readings[i], lo = readings[i];\n            for (int j = i; j < n; j++) {\n                hi = max(hi, readings[j]);\n                lo = min(lo, readings[j]);\n                total += hi - lo;\n            }\n        }\n        return total;\n    }\n};\n",
+    "c": "long long totalSwing(int* readings, int readingsSize) {\n    int n = readingsSize;\n    long long total = 0;\n    for (int i = 0; i < n; i++) {\n        int hi = readings[i], lo = readings[i];\n        for (int j = i; j < n; j++) {\n            if (readings[j] > hi) hi = readings[j];\n            if (readings[j] < lo) lo = readings[j];\n            total += hi - lo;\n        }\n    }\n    return total;\n}\n"
+   },
+   "lines": [
+    {
+     "text": "A 64-bit running total.",
+     "at": {
+      "python": [
+       [
+        3,
+        4
+       ]
+      ],
+      "java": [
+       [
+        3,
+        4
+       ]
+      ],
+      "cpp": [
+       [
+        4,
+        5
+       ]
+      ],
+      "c": [
+       [
+        2,
+        3
+       ]
+      ]
+     }
+    },
+    {
+     "text": "Stretches starting at `i`: high and low start as the first reading.",
+     "at": {
+      "python": [
+       [
+        5,
+        6
+       ]
+      ],
+      "java": [
+       [
+        5,
+        6
+       ]
+      ],
+      "cpp": [
+       [
+        6,
+        7
+       ]
+      ],
+      "c": [
+       [
+        4,
+        5
+       ]
+      ]
+     }
+    },
+    {
+     "text": "The new reading may raise the high or lower the low.",
+     "at": {
+      "python": [
+       [
+        7,
+        9
+       ]
+      ],
+      "java": [
+       [
+        7,
+        9
+       ]
+      ],
+      "cpp": [
+       [
+        8,
+        10
+       ]
+      ],
+      "c": [
+       [
+        6,
+        8
+       ]
+      ]
+     }
+    },
+    {
+     "text": "Swing of stretch `i..j` (fits in 32 bits: at most 2 × 10⁶).",
+     "at": {
+      "python": [
+       [
+        10,
+        10
+       ]
+      ],
+      "java": [
+       [
+        10,
+        10
+       ]
+      ],
+      "cpp": [
+       [
+        11,
+        11
+       ]
+      ],
+      "c": [
+       [
+        9,
+        9
+       ]
+      ]
+     }
+    },
+    {
+     "text": "The total.",
+     "at": {
+      "python": [
+       [
+        11,
+        11
+       ]
+      ],
+      "java": [
+       [
+        13,
+        13
+       ]
+      ],
+      "cpp": [
+       [
+        14,
+        14
+       ]
+      ],
+      "c": [
+       [
+        12,
+        12
+       ]
+      ]
+     }
+    }
+   ],
+   "complexity": [
+    {
+     "md": "**Time O(n²):** one step per stretch. **Space O(1).**"
+    }
+   ],
+   "walk": {
+    "steps": [
+     {
+      "text": "Start at 0: swings [0, 3, 3, 3], adding 9.",
+      "panels": [
+       {
+        "type": "row",
+        "cells": [
+         4,
+         1,
+         4,
+         2
+        ],
+        "states": {
+         "0": "active"
+        },
+        "label": "readings"
+       },
+       {
+        "type": "row",
+        "cells": [
+         0,
+         3,
+         3,
+         3
+        ],
+        "label": "swing"
+       },
+       {
+        "type": "vars",
+        "items": {
+         "total": 9
+        }
+       }
+      ]
+     },
+     {
+      "text": "Start at 1: swings [0, 3, 3], adding 6.",
+      "panels": [
+       {
+        "type": "row",
+        "cells": [
+         4,
+         1,
+         4,
+         2
+        ],
+        "states": {
+         "1": "active"
+        },
+        "label": "readings"
+       },
+       {
+        "type": "row",
+        "cells": [
+         "·",
+         0,
+         3,
+         3
+        ],
+        "label": "swing"
+       },
+       {
+        "type": "vars",
+        "items": {
+         "total": 15
+        }
+       }
+      ]
+     },
+     {
+      "text": "Start at 2: swings [0, 2], adding 2.",
+      "panels": [
+       {
+        "type": "row",
+        "cells": [
+         4,
+         1,
+         4,
+         2
+        ],
+        "states": {
+         "2": "active"
+        },
+        "label": "readings"
+       },
+       {
+        "type": "row",
+        "cells": [
+         "·",
+         "·",
+         0,
+         2
+        ],
+        "label": "swing"
+       },
+       {
+        "type": "vars",
+        "items": {
+         "total": 17
+        }
+       }
+      ]
+     },
+     {
+      "text": "Start at 3: swings [0], adding 0.",
+      "panels": [
+       {
+        "type": "row",
+        "cells": [
+         4,
+         1,
+         4,
+         2
+        ],
+        "states": {
+         "3": "active"
+        },
+        "label": "readings"
+       },
+       {
+        "type": "row",
+        "cells": [
+         "·",
+         "·",
+         "·",
+         0
+        ],
+        "label": "swing"
+       },
+       {
+        "type": "vars",
+        "items": {
+         "total": 17
+        }
+       }
+      ]
+     },
+     {
+      "text": "Total swing: 17.",
+      "panels": [],
+      "result": "17"
+     }
+    ],
+    "title": "Fix each start; extend one reading at a time, keeping the running high and low, and add high − low each time."
+   },
+   "limits": [
+    {
+     "md": "~5 × 10⁹ stretches for 10⁵ readings. Splitting the swing into highs minus lows turns this into two contribution counts that never visit stretches individually."
+    }
+   ],
+   "slow": true
+  },
+  {
+   "title": "Highs minus lows, by contribution",
+   "kind": "best",
+   "time": "O(n)",
+   "space": "O(n)",
+   "idea": [
+    {
+     "md": "Write `sumOfHighs(a)`: for each `i`, `left` = distance to the previous strictly bigger value (pop the stack\nwhile the top is ≤ `a[i]`), `right` = distance to the next bigger-or-equal value (pop while the top is\n< `a[i]`); add `a[i] × left × right`.\n\nThen `Σlow(a) = −sumOfHighs(−a)`, so the answer is `sumOfHighs(a) + sumOfHighs(−a)`."
+    }
+   ],
+   "build": [
+    "Write `sumOfHighs(a)` with two monotonic-stack passes and a 64-bit total.",
+    "Call it on the readings and on the negated readings.",
+    "Return the sum of the two."
+   ],
+   "code": {
+    "python": "class Solution:\n    def totalSwing(self, readings: List[int]) -> int:\n        def sum_of_highs(a):\n            n = len(a)\n            left, stack = [0] * n, []\n            for i in range(n):\n                while stack and a[stack[-1]] <= a[i]:\n                    stack.pop()\n                left[i] = i - (stack[-1] if stack else -1)\n                stack.append(i)\n            stack, total = [], 0\n            for i in range(n - 1, -1, -1):\n                while stack and a[stack[-1]] < a[i]:\n                    stack.pop()\n                right = (stack[-1] if stack else n) - i\n                total += a[i] * left[i] * right\n                stack.append(i)\n            return total\n        return sum_of_highs(readings) + sum_of_highs([-v for v in readings])\n",
+    "java": "class Solution {\n    private long sumOfHighs(int[] a, int sign) {\n        int n = a.length;\n        int[] left = new int[n], stack = new int[n];\n        int top = 0;\n        for (int i = 0; i < n; i++) {\n            while (top > 0 && sign * a[stack[top - 1]] <= sign * a[i]) top--;\n            left[i] = i - (top > 0 ? stack[top - 1] : -1);\n            stack[top++] = i;\n        }\n        long total = 0;\n        top = 0;\n        for (int i = n - 1; i >= 0; i--) {\n            while (top > 0 && sign * a[stack[top - 1]] < sign * a[i]) top--;\n            int right = (top > 0 ? stack[top - 1] : n) - i;\n            total += (long) sign * a[i] * left[i] * right;\n            stack[top++] = i;\n        }\n        return total;\n    }\n\n    public long totalSwing(int[] readings) {\n        return sumOfHighs(readings, 1) + sumOfHighs(readings, -1);\n    }\n}\n",
+    "cpp": "class Solution {\n    long long sumOfHighs(vector<int>& a, int sign) {\n        int n = a.size();\n        vector<int> left(n), stack;\n        for (int i = 0; i < n; i++) {\n            while (!stack.empty() && sign * a[stack.back()] <= sign * a[i]) stack.pop_back();\n            left[i] = i - (stack.empty() ? -1 : stack.back());\n            stack.push_back(i);\n        }\n        stack.clear();\n        long long total = 0;\n        for (int i = n - 1; i >= 0; i--) {\n            while (!stack.empty() && sign * a[stack.back()] < sign * a[i]) stack.pop_back();\n            int right = (stack.empty() ? n : stack.back()) - i;\n            total += (long long) sign * a[i] * left[i] * right;\n            stack.push_back(i);\n        }\n        return total;\n    }\n\npublic:\n    long long totalSwing(vector<int>& readings) {\n        return sumOfHighs(readings, 1) + sumOfHighs(readings, -1);\n    }\n};\n",
+    "c": "static long long sumOfHighs(int* a, int n, int sign, int* left, int* stack) {\n    int top = 0;\n    for (int i = 0; i < n; i++) {\n        while (top > 0 && sign * a[stack[top - 1]] <= sign * a[i]) top--;\n        left[i] = i - (top > 0 ? stack[top - 1] : -1);\n        stack[top++] = i;\n    }\n    long long total = 0;\n    top = 0;\n    for (int i = n - 1; i >= 0; i--) {\n        while (top > 0 && sign * a[stack[top - 1]] < sign * a[i]) top--;\n        int right = (top > 0 ? stack[top - 1] : n) - i;\n        total += (long long) sign * a[i] * left[i] * right;\n        stack[top++] = i;\n    }\n    return total;\n}\n\nlong long totalSwing(int* readings, int readingsSize) {\n    int* left = malloc(readingsSize * sizeof(int));\n    int* stack = malloc(readingsSize * sizeof(int));\n    long long total = sumOfHighs(readings, readingsSize, 1, left, stack) + sumOfHighs(readings, readingsSize, -1, left, stack);\n    free(left);\n    free(stack);\n    return total;\n}\n"
+   },
+   "lines": [
+    {
+     "text": "Sum of every stretch's high.",
+     "at": {
+      "python": [
+       [
+        3,
+        4
+       ]
+      ],
+      "java": [
+       [
+        2,
+        3
+       ],
+       [
+        20,
+        20
+       ]
+      ],
+      "cpp": [
+       [
+        2,
+        3
+       ],
+       [
+        19,
+        19
+       ]
+      ],
+      "c": [
+       [
+        1,
+        1
+       ],
+       [
+        17,
+        17
+       ]
+      ]
+     },
+     "notes": {
+      "java": "`sign = −1` compares and adds the negated readings without copying the array: the highs of −a.",
+      "cpp": "`sign = −1` works on the negated readings without copying: the highs of −a.",
+      "c": "`sign = −1` works on the negated readings without copying: the highs of −a. The caller lends the scratch arrays."
+     }
+    },
+    {
+     "text": "Left pass: pop values ≤ the current one; the remaining top is the previous strictly bigger value. `left[i]` counts the possible starts.",
+     "at": {
+      "python": [
+       [
+        5,
+        10
+       ]
+      ],
+      "java": [
+       [
+        4,
+        9
+       ]
+      ],
+      "cpp": [
+       [
+        4,
+        8
+       ]
+      ],
+      "c": [
+       [
+        2,
+        6
+       ]
+      ]
+     }
+    },
+    {
+     "text": "Right pass: pop values strictly smaller; the top is the next bigger-or-equal value, so a tied high is credited to its rightmost copy only. `right` counts the possible ends.",
+     "at": {
+      "python": [
+       [
+        11,
+        15
+       ],
+       [
+        17,
+        17
+       ]
+      ],
+      "java": [
+       [
+        11,
+        15
+       ],
+       [
+        17,
+        17
+       ]
+      ],
+      "cpp": [
+       [
+        10,
+        14
+       ],
+       [
+        16,
+        16
+       ]
+      ],
+      "c": [
+       [
+        8,
+        12
+       ],
+       [
+        14,
+        14
+       ]
+      ]
+     }
+    },
+    {
+     "text": "Reading `i` is the high of `left × right` stretches.",
+     "at": {
+      "python": [
+       [
+        16,
+        16
+       ],
+       [
+        18,
+        18
+       ]
+      ],
+      "java": [
+       [
+        16,
+        16
+       ],
+       [
+        19,
+        19
+       ]
+      ],
+      "cpp": [
+       [
+        15,
+        15
+       ],
+       [
+        18,
+        18
+       ]
+      ],
+      "c": [
+       [
+        13,
+        13
+       ],
+       [
+        16,
+        16
+       ]
+      ]
+     },
+     "notes": {
+      "java": "The product reaches ~2.5 × 10¹⁵, so it's computed in `long`.",
+      "cpp": "The product reaches ~2.5 × 10¹⁵, so it's computed in 64 bits.",
+      "c": "The product reaches ~2.5 × 10¹⁵, so it's computed in 64 bits."
+     }
+    },
+    {
+     "text": "Σhigh(a) − Σlow(a) = Σhigh(a) + Σhigh(−a).",
+     "at": {
+      "python": [
+       [
+        19,
+        19
+       ]
+      ],
+      "java": [
+       [
+        23,
+        23
+       ]
+      ],
+      "cpp": [
+       [
+        23,
+        23
+       ]
+      ],
+      "c": [
+       [
+        20,
+        25
+       ]
+      ]
+     }
+    }
+   ],
+   "complexity": [
+    {
+     "md": "**Time O(n):** four stack passes, each pushing and popping every index at most once. **Space O(n).**"
+    }
+   ],
+   "walk": {
+    "steps": [
+     {
+      "text": "Reading 0 (4): the high of 1×2 = 2 stretches, the low of 1×1 = 1. Net contribution 4×(2 − 1) = 4.",
+      "panels": [
+       {
+        "type": "row",
+        "cells": [
+         4,
+         1,
+         4,
+         2
+        ],
+        "states": {
+         "0": "active"
+        },
+        "label": "readings"
+       },
+       {
+        "type": "row",
+        "cells": [
+         2,
+         "·",
+         "·",
+         "·"
+        ],
+        "label": "times high"
+       },
+       {
+        "type": "row",
+        "cells": [
+         1,
+         "·",
+         "·",
+         "·"
+        ],
+        "label": "times low"
+       }
+      ]
+     },
+     {
+      "text": "Reading 1 (1): the high of 1×1 = 1 stretches, the low of 2×3 = 6. Net contribution 1×(1 − 6) = -5.",
+      "panels": [
+       {
+        "type": "row",
+        "cells": [
+         4,
+         1,
+         4,
+         2
+        ],
+        "states": {
+         "1": "active"
+        },
+        "label": "readings"
+       },
+       {
+        "type": "row",
+        "cells": [
+         2,
+         1,
+         "·",
+         "·"
+        ],
+        "label": "times high"
+       },
+       {
+        "type": "row",
+        "cells": [
+         1,
+         6,
+         "·",
+         "·"
+        ],
+        "label": "times low"
+       }
+      ]
+     },
+     {
+      "text": "Reading 2 (4): the high of 3×2 = 6 stretches, the low of 1×1 = 1. Net contribution 4×(6 − 1) = 20.",
+      "panels": [
+       {
+        "type": "row",
+        "cells": [
+         4,
+         1,
+         4,
+         2
+        ],
+        "states": {
+         "2": "active"
+        },
+        "label": "readings"
+       },
+       {
+        "type": "row",
+        "cells": [
+         2,
+         1,
+         6,
+         "·"
+        ],
+        "label": "times high"
+       },
+       {
+        "type": "row",
+        "cells": [
+         1,
+         6,
+         1,
+         "·"
+        ],
+        "label": "times low"
+       }
+      ]
+     },
+     {
+      "text": "Reading 3 (2): the high of 1×1 = 1 stretches, the low of 2×1 = 2. Net contribution 2×(1 − 2) = -2.",
+      "panels": [
+       {
+        "type": "row",
+        "cells": [
+         4,
+         1,
+         4,
+         2
+        ],
+        "states": {
+         "3": "active"
+        },
+        "label": "readings"
+       },
+       {
+        "type": "row",
+        "cells": [
+         2,
+         1,
+         6,
+         1
+        ],
+        "label": "times high"
+       },
+       {
+        "type": "row",
+        "cells": [
+         1,
+         6,
+         1,
+         2
+        ],
+        "label": "times low"
+       }
+      ]
+     },
+     {
+      "text": "Sum of highs 35 − sum of lows 18 = 17. The counts come from monotonic stacks (previous/next greater for highs, smaller for lows).",
+      "panels": [],
+      "result": "17"
+     }
+    ],
+    "title": "Total swing = (sum of every stretch's high) − (sum of every stretch's low). Count, for each reading, how many stretches it's the high of, and how many it's the low of."
+   }
+  }
+ ],
+ "takeaways": [
+  {
+   "md": "- A sum of `max − min` over subarrays splits into two independent contribution counts.\n- `min(a) = −max(−a)`: one helper covers both, by negating.\n- Make one boundary strict and the other not, so a tie is credited once."
+  }
+ ]
+}

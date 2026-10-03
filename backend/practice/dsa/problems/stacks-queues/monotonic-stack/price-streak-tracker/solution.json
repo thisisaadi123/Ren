@@ -1,0 +1,733 @@
+{
+ "version": 1,
+ "summary": "Once a day is followed by a day with a higher-or-equal price, any later streak that reaches the earlier day also\ncovers the later one, so the earlier day never needs to be checked on its own again. Keep a stack of\n(price, streak) pairs with strictly falling prices; a new price pops every pair it's at least as high as and\nadds their streaks to 1. Amortised O(1) per call.",
+ "question": [
+  {
+   "md": "Each `record(price)` adds the next day and returns its streak: the number of consecutive days ending today\n(including today) with price **at most** today's.\n\n- **\"At most\" includes equal prices**: equal days extend the streak.\n- **The first day's streak is 1**, as is any day after a higher price.\n- **Up to 10⁵ calls**, so a call can't afford to look at every past day."
+  }
+ ],
+ "think": [
+  {
+   "md": "Prices recorded in order: `[7, 3, 4, 4, 8, 2, 9]`. The streaks returned are `[1, 1, 2, 3, 5, 1, 7]`. For example, `8` covers `7, 3, 4, 4, 8`\n(all at most 8): streak 5. `9` covers everything: 7.\n\nWhen `8` arrives, the days with 3, 4, 4 are now 'inside' its streak. Any future day that reaches back as far as\n`8` also passes them (they're lower), and a day that stops before `8` never gets there. So those days can be\nmerged into `8`'s entry: remember `8` together with the size of its streak. The entries that remain have\nstrictly falling prices from bottom to top: a stack."
+  },
+  {
+   "table": {
+    "head": [
+     "call",
+     "price",
+     "streak"
+    ],
+    "rows": [
+     [
+      "1",
+      "7",
+      "1"
+     ],
+     [
+      "2",
+      "3",
+      "1"
+     ],
+     [
+      "3",
+      "4",
+      "2"
+     ],
+     [
+      "4",
+      "4",
+      "3"
+     ],
+     [
+      "5",
+      "8",
+      "5"
+     ],
+     [
+      "6",
+      "2",
+      "1"
+     ],
+     [
+      "7",
+      "9",
+      "7"
+     ]
+    ]
+   }
+  }
+ ],
+ "approaches": [
+  {
+   "title": "Store every price, count backwards",
+   "kind": "brute",
+   "time": "O(n) per call",
+   "space": "O(n)",
+   "idea": [
+    {
+     "md": "Append each price to a list, then walk backwards from the end while prices are at most the new one. The number of steps is the streak."
+    }
+   ],
+   "build": [
+    "A list of all prices.",
+    "`record`: append, then count back from the end while `≤ price`.",
+    "Return the count."
+   ],
+   "code": {
+    "python": "class PriceStreak:\n    def __init__(self):\n        self.days = []\n\n    def record(self, price: int) -> int:\n        self.days.append(price)\n        streak = 0\n        for p in reversed(self.days):\n            if p > price:\n                break\n            streak += 1\n        return streak\n",
+    "java": "class PriceStreak {\n    private final List<Integer> days = new ArrayList<>();\n\n    public PriceStreak() {\n    }\n\n    public int record(int price) {\n        days.add(price);\n        int streak = 0;\n        for (int i = days.size() - 1; i >= 0; i--) {\n            if (days.get(i) > price) break;\n            streak++;\n        }\n        return streak;\n    }\n}\n",
+    "cpp": "class PriceStreak {\n    vector<int> days;\n\npublic:\n    PriceStreak() {\n    }\n\n    int record(int price) {\n        days.push_back(price);\n        int streak = 0;\n        for (int i = (int) days.size() - 1; i >= 0; i--) {\n            if (days[i] > price) break;\n            streak++;\n        }\n        return streak;\n    }\n};\n"
+   },
+   "lines": [
+    {
+     "text": "Every price so far.",
+     "at": {
+      "python": [
+       [
+        3,
+        3
+       ]
+      ],
+      "java": [
+       [
+        2,
+        2
+       ]
+      ],
+      "cpp": [
+       [
+        2,
+        2
+       ]
+      ]
+     }
+    },
+    {
+     "text": "Today joins the history.",
+     "at": {
+      "python": [
+       [
+        6,
+        6
+       ]
+      ],
+      "java": [
+       [
+        8,
+        8
+       ]
+      ],
+      "cpp": [
+       [
+        9,
+        9
+       ]
+      ]
+     }
+    },
+    {
+     "text": "Walk back from today, counting days.",
+     "at": {
+      "python": [
+       [
+        7,
+        8
+       ],
+       [
+        11,
+        11
+       ]
+      ],
+      "java": [
+       [
+        9,
+        10
+       ],
+       [
+        12,
+        12
+       ]
+      ],
+      "cpp": [
+       [
+        10,
+        11
+       ],
+       [
+        13,
+        13
+       ]
+      ]
+     }
+    },
+    {
+     "text": "A higher price ends the streak.",
+     "at": {
+      "python": [
+       [
+        9,
+        10
+       ]
+      ],
+      "java": [
+       [
+        11,
+        11
+       ]
+      ],
+      "cpp": [
+       [
+        12,
+        12
+       ]
+      ]
+     }
+    },
+    {
+     "text": "Today's streak.",
+     "at": {
+      "python": [
+       [
+        12,
+        12
+       ]
+      ],
+      "java": [
+       [
+        14,
+        14
+       ]
+      ],
+      "cpp": [
+       [
+        15,
+        15
+       ]
+      ]
+     }
+    }
+   ],
+   "complexity": [
+    {
+     "md": "**Time O(n) per call**, O(n²) in total for rising prices. **Space O(n).**"
+    }
+   ],
+   "walk": {
+    "steps": [
+     {
+      "text": "record(7): counting back from day 0, days 0..0 are ≤ 7. Streak 1.",
+      "panels": [
+       {
+        "type": "row",
+        "cells": [
+         7
+        ],
+        "states": {
+         "0": "active"
+        },
+        "label": "prices"
+       },
+       {
+        "type": "row",
+        "cells": [
+         1
+        ],
+        "label": "streak"
+       }
+      ]
+     },
+     {
+      "text": "record(3): counting back from day 1, days 1..1 are ≤ 3; day 0 (7) is higher. Streak 1.",
+      "panels": [
+       {
+        "type": "row",
+        "cells": [
+         7,
+         3
+        ],
+        "states": {
+         "1": "active"
+        },
+        "label": "prices"
+       },
+       {
+        "type": "row",
+        "cells": [
+         1,
+         1
+        ],
+        "label": "streak"
+       }
+      ]
+     },
+     {
+      "text": "record(4): counting back from day 2, days 1..2 are ≤ 4; day 0 (7) is higher. Streak 2.",
+      "panels": [
+       {
+        "type": "row",
+        "cells": [
+         7,
+         3,
+         4
+        ],
+        "states": {
+         "1": "mark",
+         "2": "active"
+        },
+        "label": "prices"
+       },
+       {
+        "type": "row",
+        "cells": [
+         1,
+         1,
+         2
+        ],
+        "label": "streak"
+       }
+      ]
+     },
+     {
+      "text": "record(4): counting back from day 3, days 1..3 are ≤ 4; day 0 (7) is higher. Streak 3.",
+      "panels": [
+       {
+        "type": "row",
+        "cells": [
+         7,
+         3,
+         4,
+         4
+        ],
+        "states": {
+         "1": "mark",
+         "2": "mark",
+         "3": "active"
+        },
+        "label": "prices"
+       },
+       {
+        "type": "row",
+        "cells": [
+         1,
+         1,
+         2,
+         3
+        ],
+        "label": "streak"
+       }
+      ]
+     },
+     {
+      "text": "record(8): counting back from day 4, days 0..4 are ≤ 8. Streak 5.",
+      "panels": [
+       {
+        "type": "row",
+        "cells": [
+         7,
+         3,
+         4,
+         4,
+         8
+        ],
+        "states": {
+         "0": "mark",
+         "1": "mark",
+         "2": "mark",
+         "3": "mark",
+         "4": "active"
+        },
+        "label": "prices"
+       },
+       {
+        "type": "row",
+        "cells": [
+         1,
+         1,
+         2,
+         3,
+         5
+        ],
+        "label": "streak"
+       }
+      ]
+     },
+     {
+      "text": "record(2): counting back from day 5, days 5..5 are ≤ 2; day 4 (8) is higher. Streak 1.",
+      "panels": [
+       {
+        "type": "row",
+        "cells": [
+         7,
+         3,
+         4,
+         4,
+         8,
+         2
+        ],
+        "states": {
+         "5": "active"
+        },
+        "label": "prices"
+       },
+       {
+        "type": "row",
+        "cells": [
+         1,
+         1,
+         2,
+         3,
+         5,
+         1
+        ],
+        "label": "streak"
+       }
+      ]
+     },
+     {
+      "text": "record(9): counting back from day 6, days 0..6 are ≤ 9. Streak 7.",
+      "panels": [
+       {
+        "type": "row",
+        "cells": [
+         7,
+         3,
+         4,
+         4,
+         8,
+         2,
+         9
+        ],
+        "states": {
+         "0": "mark",
+         "1": "mark",
+         "2": "mark",
+         "3": "mark",
+         "4": "mark",
+         "5": "mark",
+         "6": "active"
+        },
+        "label": "prices"
+       },
+       {
+        "type": "row",
+        "cells": [
+         1,
+         1,
+         2,
+         3,
+         5,
+         1,
+         7
+        ],
+        "label": "streak"
+       }
+      ]
+     },
+     {
+      "text": "Returned [1, 1, 2, 3, 5, 1, 7].",
+      "panels": [],
+      "result": "[1, 1, 2, 3, 5, 1, 7]"
+     }
+    ],
+    "title": "Keep every price. On each record, count backwards from today while prices are at most today's."
+   },
+   "limits": [
+    {
+     "md": "Rising prices make every call walk the whole history: ~5 × 10⁹ steps for 10⁵ calls. Days already inside a later, higher streak never need to be walked again; merge them."
+    }
+   ],
+   "slow": true
+  },
+  {
+   "title": "Stack of (price, streak) pairs",
+   "kind": "best",
+   "time": "O(1) amortised",
+   "space": "O(n)",
+   "idea": [
+    {
+     "md": "Keep pairs `(price, streak)` with strictly falling prices from bottom to top. `record(price)`: start with streak 1; while the top's price is `≤ price`, pop it and add its streak. Push `(price, streak)` and return the streak."
+    }
+   ],
+   "build": [
+    "An empty stack of pairs.",
+    "`record`: streak = 1; pop and absorb every top pair with price ≤ today's.",
+    "Push today's pair; return the streak."
+   ],
+   "code": {
+    "python": "class PriceStreak:\n    def __init__(self):\n        self.stack = []\n\n    def record(self, price: int) -> int:\n        streak = 1\n        while self.stack and self.stack[-1][0] <= price:\n            streak += self.stack.pop()[1]\n        self.stack.append((price, streak))\n        return streak\n",
+    "java": "class PriceStreak {\n    private final Deque<int[]> stack = new ArrayDeque<>();\n\n    public PriceStreak() {\n    }\n\n    public int record(int price) {\n        int streak = 1;\n        while (!stack.isEmpty() && stack.peek()[0] <= price) streak += stack.pop()[1];\n        stack.push(new int[] {price, streak});\n        return streak;\n    }\n}\n",
+    "cpp": "class PriceStreak {\n    vector<pair<int, int>> stack;\n\npublic:\n    PriceStreak() {\n    }\n\n    int record(int price) {\n        int streak = 1;\n        while (!stack.empty() && stack.back().first <= price) {\n            streak += stack.back().second;\n            stack.pop_back();\n        }\n        stack.push_back({price, streak});\n        return streak;\n    }\n};\n"
+   },
+   "lines": [
+    {
+     "text": "Pairs (price, streak), prices strictly falling from bottom to top.",
+     "at": {
+      "python": [
+       [
+        3,
+        3
+       ]
+      ],
+      "java": [
+       [
+        2,
+        2
+       ]
+      ],
+      "cpp": [
+       [
+        2,
+        2
+       ]
+      ]
+     },
+     "notes": {
+      "java": "`ArrayDeque` used as a stack: `push`, `peek` and `pop` work at the same end."
+     }
+    },
+    {
+     "text": "Today counts itself.",
+     "at": {
+      "python": [
+       [
+        6,
+        6
+       ]
+      ],
+      "java": [
+       [
+        8,
+        8
+       ]
+      ],
+      "cpp": [
+       [
+        9,
+        9
+       ]
+      ]
+     }
+    },
+    {
+     "text": "A pair on top with price ≤ today's: its whole streak is ≤ its price ≤ today's, so it all joins today's streak. Its days are now represented by today's pair.",
+     "at": {
+      "python": [
+       [
+        7,
+        8
+       ]
+      ],
+      "java": [
+       [
+        9,
+        9
+       ]
+      ],
+      "cpp": [
+       [
+        10,
+        12
+       ]
+      ]
+     }
+    },
+    {
+     "text": "Today's pair goes on top; the price below it (if any) is strictly higher.",
+     "at": {
+      "python": [
+       [
+        9,
+        9
+       ]
+      ],
+      "java": [
+       [
+        10,
+        10
+       ]
+      ],
+      "cpp": [
+       [
+        14,
+        14
+       ]
+      ]
+     }
+    },
+    {
+     "text": "Today's streak.",
+     "at": {
+      "python": [
+       [
+        10,
+        10
+       ]
+      ],
+      "java": [
+       [
+        11,
+        11
+       ]
+      ],
+      "cpp": [
+       [
+        15,
+        15
+       ]
+      ]
+     }
+    }
+   ],
+   "complexity": [
+    {
+     "md": "**Time O(1) amortised per call:** each day's pair is pushed once and popped at most once over all calls. **Space O(n)** in the worst case (falling prices)."
+    }
+   ],
+   "walk": {
+    "steps": [
+     {
+      "text": "record(7): the top's price is higher (or there is none): streak 1.",
+      "panels": [
+       {
+        "type": "row",
+        "cells": [
+         "7×1"
+        ],
+        "label": "stack (price×streak)"
+       },
+       {
+        "type": "vars",
+        "items": {
+         "returned": 1
+        }
+       }
+      ]
+     },
+     {
+      "text": "record(3): the top's price is higher (or there is none): streak 1.",
+      "panels": [
+       {
+        "type": "row",
+        "cells": [
+         "7×1",
+         "3×1"
+        ],
+        "label": "stack (price×streak)"
+       },
+       {
+        "type": "vars",
+        "items": {
+         "returned": 1
+        }
+       }
+      ]
+     },
+     {
+      "text": "record(4): absorb ['3×1'] (price×streak), so the streak is 1 + 1 = 2.",
+      "panels": [
+       {
+        "type": "row",
+        "cells": [
+         "7×1",
+         "4×2"
+        ],
+        "label": "stack (price×streak)"
+       },
+       {
+        "type": "vars",
+        "items": {
+         "returned": 2
+        }
+       }
+      ]
+     },
+     {
+      "text": "record(4): absorb ['4×2'] (price×streak), so the streak is 1 + 2 = 3.",
+      "panels": [
+       {
+        "type": "row",
+        "cells": [
+         "7×1",
+         "4×3"
+        ],
+        "label": "stack (price×streak)"
+       },
+       {
+        "type": "vars",
+        "items": {
+         "returned": 3
+        }
+       }
+      ]
+     },
+     {
+      "text": "record(8): absorb ['4×3', '7×1'] (price×streak), so the streak is 1 + 3 + 1 = 5.",
+      "panels": [
+       {
+        "type": "row",
+        "cells": [
+         "8×5"
+        ],
+        "label": "stack (price×streak)"
+       },
+       {
+        "type": "vars",
+        "items": {
+         "returned": 5
+        }
+       }
+      ]
+     },
+     {
+      "text": "record(2): the top's price is higher (or there is none): streak 1.",
+      "panels": [
+       {
+        "type": "row",
+        "cells": [
+         "8×5",
+         "2×1"
+        ],
+        "label": "stack (price×streak)"
+       },
+       {
+        "type": "vars",
+        "items": {
+         "returned": 1
+        }
+       }
+      ]
+     },
+     {
+      "text": "record(9): absorb ['2×1', '8×5'] (price×streak), so the streak is 1 + 1 + 5 = 7.",
+      "panels": [
+       {
+        "type": "row",
+        "cells": [
+         "9×7"
+        ],
+        "label": "stack (price×streak)"
+       },
+       {
+        "type": "vars",
+        "items": {
+         "returned": 7
+        }
+       }
+      ]
+     },
+     {
+      "text": "Returned [1, 1, 2, 3, 5, 1, 7].",
+      "panels": [],
+      "result": "[1, 1, 2, 3, 5, 1, 7]"
+     }
+    ],
+    "title": "Keep a stack of (price, streak) pairs with strictly falling prices. A new price swallows every pair with a price at most its own, adding their streaks to its own."
+   }
+  }
+ ],
+ "takeaways": [
+  {
+   "md": "- **Online 'previous greater' queries:** a monotonic stack where each entry carries the count it has absorbed.\n- Merging dominated entries is what makes the cost amortised O(1).\n- The same trick answers 'how far back until a bigger value' for any stream."
+  }
+ ]
+}

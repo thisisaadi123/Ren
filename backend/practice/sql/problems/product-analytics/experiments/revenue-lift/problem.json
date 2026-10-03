@@ -1,0 +1,45 @@
+{
+  "id": "revenue-lift",
+  "title": "Revenue Lift",
+  "topic": "product-analytics",
+  "pattern": "experiments",
+  "difficulty": "hard",
+  "statement": "Compare the variants by **revenue per assigned user**: a variant's total purchase amount divided by everyone assigned\nto it, buyers or not.\n\nReturn one row: `a_per_user` and `b_per_user` (each rounded to 2 decimal places) and `lift_pct`, B's change over A as a\npercentage of A, rounded to 1 decimal place (computed from the unrounded values).",
+  "notes": "",
+  "tables": [
+    {
+      "name": "assignments",
+      "columns": [
+        [
+          "user_id",
+          "INTEGER",
+          "pk"
+        ],
+        [
+          "variant",
+          "TEXT"
+        ]
+      ]
+    },
+    {
+      "name": "purchases",
+      "columns": [
+        [
+          "user_id",
+          "INTEGER",
+          "fk assignments.user_id"
+        ],
+        [
+          "amount",
+          "REAL"
+        ]
+      ]
+    }
+  ],
+  "ordered": false,
+  "reference": "WITH per_variant AS (\n  SELECT a.variant,\n         1.0 * COALESCE((SELECT SUM(p.amount) FROM purchases p JOIN assignments x ON x.user_id = p.user_id WHERE x.variant = a.variant), 0) / COUNT(*) AS rpu\n  FROM assignments a\n  GROUP BY a.variant\n)\nSELECT ROUND(a.rpu, 2) AS a_per_user, ROUND(b.rpu, 2) AS b_per_user, ROUND(100.0 * (b.rpu - a.rpu) / a.rpu, 1) AS lift_pct\nFROM per_variant a JOIN per_variant b ON a.variant = 'A' AND b.variant = 'B'",
+  "wrong": [
+    "WITH per_variant AS (SELECT a.variant, AVG(p.amount) AS rpu FROM assignments a JOIN purchases p ON p.user_id = a.user_id GROUP BY a.variant) SELECT ROUND(a.rpu, 2) AS a_per_user, ROUND(b.rpu, 2) AS b_per_user, ROUND(100.0 * (b.rpu - a.rpu) / a.rpu, 1) AS lift_pct FROM per_variant a JOIN per_variant b ON a.variant = 'A' AND b.variant = 'B'",
+    "WITH per_variant AS (SELECT a.variant, 1.0 * SUM(p.amount) / COUNT(DISTINCT p.user_id) AS rpu FROM assignments a JOIN purchases p ON p.user_id = a.user_id GROUP BY a.variant) SELECT ROUND(a.rpu, 2) AS a_per_user, ROUND(b.rpu, 2) AS b_per_user, ROUND(100.0 * (b.rpu - a.rpu) / a.rpu, 1) AS lift_pct FROM per_variant a JOIN per_variant b ON a.variant = 'A' AND b.variant = 'B'"
+  ]
+}

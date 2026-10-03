@@ -1,0 +1,665 @@
+{
+ "version": 1,
+ "summary": "A mirror number is completely determined by its **left half** (and the middle digit, if the length is odd,\nwhich can never move). Making the smallest larger mirror number therefore means making the smallest\nlarger arrangement of the left half, which is exactly next permutation, then mirroring it. O(n).",
+ "question": [
+  {
+   "md": "`code` reads the same forwards and backwards. Rearrange its digits into the **smallest larger** number that\nalso reads the same both ways, or return `\"\"`.\n\n- **The result must be a mirror number too**, using exactly the same digits.\n- **Odd length:** exactly one digit value appears an odd number of times, and one copy of it must sit\n  in the middle. So the middle digit never changes.\n- **No answer** when the left half is already in decreasing order: `\"32123\"` has left half `\"32\"`, the\n  largest arrangement of 3 and 2.\n- **Up to 10⁵ digits**, so trying arrangements is out."
+  },
+  {
+   "md": "**Edge cases to keep in mind**\n\n- Odd length: the middle digit (the one with an odd count) is fixed.\n- A left half in non-increasing order: no larger mirror number, return `\"\"`.\n- One or two digits: the left half is too short to change, so `\"\"`."
+  }
+ ],
+ "think": [
+  {
+   "md": "**A mirror number is decided by its left half.** The right half is the left half reversed, and with an odd\nlength the middle digit is forced (it's the digit with an odd count). Comparing two mirror numbers of the same\ndigits compares their left halves first, so the next larger mirror number has the **next larger left half**. That\nis the next permutation of the left half.\n\n`\"1323231\"`: left half `132`, middle `3`."
+  },
+  {
+   "md": "**The next arrangement, step by step.** To get the next larger arrangement, change as little as possible, as far to\nthe right as possible.\n\n1. **Find the pivot.** Scan from the right while values don't increase (`a[i] ≥ a[i+1]`). That tail is already the\n   *largest* arrangement of its values, so nothing inside it can grow. The pivot is the first index `i` from the right\n   with `a[i] < a[i+1]`; if there is none, the whole sequence is the last arrangement.\n2. **Swap.** Replace `a[i]` with the smallest tail value that's larger than it. Because the tail is non-increasing,\n   that's the **rightmost** tail value greater than `a[i]`.\n3. **Reverse the tail.** After the swap the tail is still non-increasing; reversing it makes it non-decreasing, its\n   *smallest* arrangement, so the result is the very next one.\n\nAll three steps are linear, so the whole thing is O(n) with O(1) extra space. Duplicates are handled by the `≥`/`≤`\ncomparisons, which skip equal values."
+  },
+  {
+   "md": "**Next permutation of the left half:**"
+  },
+  {
+   "table": {
+    "head": [
+     "step",
+     "left half"
+    ],
+    "rows": [
+     [
+      "input",
+      "1 3 2"
+     ],
+     [
+      "pivot at index 0 (value 1); tail ['3', '2'] is non-increasing",
+      "—"
+     ],
+     [
+      "swap with index 2 (value 2), the rightmost tail value > 1",
+      "2 3 1"
+     ],
+     [
+      "reverse the tail after index 0",
+      "2 1 3"
+     ]
+    ]
+   }
+  },
+  {
+   "md": "Mirror it back: **`2133312`**."
+  }
+ ],
+ "approaches": [
+  {
+   "title": "Generate left halves in order",
+   "kind": "brute",
+   "time": "O(h! · h)",
+   "space": "O(h)",
+   "idea": [
+    {
+     "md": "Generate arrangements of the left half's digits in increasing order; take the first one larger than the current left half and mirror it."
+    }
+   ],
+   "build": [
+    "Left half's digit counts.",
+    "Generate arrangements in order.",
+    "Mirror the first larger one."
+   ],
+   "code": {
+    "python": "class Solution:\n    def nextMirror(self, code: str) -> str:\n        n = len(code)\n        half = code[:n // 2]\n        count = [0] * 10\n        for ch in half:\n            count[ord(ch) - 48] += 1\n        buf = []\n        def build():\n            if len(buf) == len(half):\n                s = \"\".join(buf)\n                return s if s > half else None\n            for d in range(10):\n                if count[d]:\n                    count[d] -= 1\n                    buf.append(chr(48 + d))\n                    found = build()\n                    buf.pop()\n                    count[d] += 1\n                    if found:\n                        return found\n            return None\n        left = build()\n        if left is None:\n            return \"\"\n        return left + code[n // 2:(n + 1) // 2] + left[::-1]\n",
+    "java": "class Solution {\n    private int[] count = new int[10];\n    private char[] buf;\n    private String half;\n\n    public String nextMirror(String code) {\n        int n = code.length();\n        half = code.substring(0, n / 2);\n        for (char ch : half.toCharArray()) count[ch - '0']++;\n        buf = new char[half.length()];\n        if (!build(0)) return \"\";\n        String left = new String(buf);\n        return left + code.substring(n / 2, (n + 1) / 2) + new StringBuilder(left).reverse();\n    }\n\n    private boolean build(int pos) {\n        if (pos == buf.length) return new String(buf).compareTo(half) > 0;\n        for (int d = 0; d < 10; d++) {\n            if (count[d] == 0) continue;\n            count[d]--;\n            buf[pos] = (char) ('0' + d);\n            boolean found = build(pos + 1);\n            count[d]++;\n            if (found) return true;\n        }\n        return false;\n    }\n}\n",
+    "cpp": "class Solution {\n    int count[10] = {0};\n    string buf, half;\n\n    bool build(size_t pos) {\n        if (pos == buf.size()) return buf > half;\n        for (int d = 0; d < 10; d++) {\n            if (!count[d]) continue;\n            count[d]--;\n            buf[pos] = '0' + d;\n            bool found = build(pos + 1);\n            count[d]++;\n            if (found) return true;\n        }\n        return false;\n    }\n\npublic:\n    string nextMirror(string& code) {\n        int n = code.size();\n        half = code.substr(0, n / 2);\n        for (char ch : half) count[ch - '0']++;\n        buf.assign(half.size(), '0');\n        if (!build(0)) return \"\";\n        string right(buf.rbegin(), buf.rend());\n        return buf + code.substr(n / 2, n % 2) + right;\n    }\n};\n",
+    "c": "static int count[10];\nstatic char* buf;\nstatic char* half;\nstatic int h;\n\nstatic bool build(int pos) {\n    if (pos == h) return strcmp(buf, half) > 0;\n    for (int d = 0; d < 10; d++) {\n        if (!count[d]) continue;\n        count[d]--;\n        buf[pos] = '0' + d;\n        bool found = build(pos + 1);\n        count[d]++;\n        if (found) return true;\n    }\n    return false;\n}\n\nchar* nextMirror(char* code) {\n    int n = strlen(code);\n    h = n / 2;\n    half = calloc(h + 1, 1);\n    memcpy(half, code, h);\n    buf = calloc(h + 1, 1);\n    memset(count, 0, sizeof count);\n    for (int i = 0; i < h; i++) count[half[i] - '0']++;\n    char* out = calloc(n + 1, 1);\n    if (build(0)) {\n        memcpy(out, buf, h);\n        if (n % 2) out[h] = code[h];\n        for (int i = 0; i < h; i++) out[n - 1 - i] = buf[i];\n    }\n    free(half);\n    free(buf);\n    return out;\n}\n"
+   },
+   "lines": [
+    {
+     "text": "The left half determines the whole mirror number; count its digits for the generator.",
+     "at": {
+      "python": [
+       [
+        4,
+        7
+       ]
+      ],
+      "java": [
+       [
+        8,
+        10
+       ]
+      ],
+      "cpp": [
+       [
+        21,
+        23
+       ]
+      ],
+      "c": [
+       [
+        21,
+        26
+       ]
+      ]
+     }
+    },
+    {
+     "text": "Recursive generator: fills the half left to right, smallest available digit first, so arrangements appear in increasing order; returns at the first one larger than the current half (equal length, so string order is numeric order).",
+     "at": {
+      "python": [
+       [
+        9,
+        22
+       ]
+      ],
+      "java": [
+       [
+        16,
+        24
+       ],
+       [
+        26,
+        26
+       ]
+      ],
+      "cpp": [
+       [
+        5,
+        13
+       ],
+       [
+        15,
+        15
+       ]
+      ],
+      "c": [
+       [
+        6,
+        14
+       ],
+       [
+        16,
+        16
+       ]
+      ]
+     }
+    },
+    {
+     "text": "Glue the new left half, the unchanged middle digit (if any) and the reversed left half. If no larger half exists, there's no answer.",
+     "at": {
+      "python": [
+       [
+        23,
+        26
+       ]
+      ],
+      "java": [
+       [
+        11,
+        13
+       ]
+      ],
+      "cpp": [
+       [
+        24,
+        26
+       ]
+      ],
+      "c": [
+       [
+        27,
+        31
+       ],
+       [
+        33,
+        35
+       ]
+      ]
+     }
+    }
+   ],
+   "complexity": [
+    {
+     "md": "**Time O(h! · h)** for a half of length `h`. **Space O(h).**"
+    }
+   ],
+   "walk": {
+    "steps": [
+     {
+      "text": "code = 1323231. The left half is 132; the middle digit is 3. Arrangements of 132, smallest first:",
+      "panels": [
+       {
+        "type": "row",
+        "cells": [
+         "1",
+         "3",
+         "2",
+         "3",
+         "2",
+         "3",
+         "1"
+        ],
+        "states": {
+         "0": "mark",
+         "1": "mark",
+         "2": "mark"
+        },
+        "slots": true
+       }
+      ]
+     },
+     {
+      "text": "123: not larger than 132.",
+      "panels": [
+       {
+        "type": "row",
+        "cells": [
+         "1",
+         "2",
+         "3"
+        ],
+        "states": {
+         "0": "dim",
+         "1": "dim",
+         "2": "dim"
+        }
+       }
+      ]
+     },
+     {
+      "text": "132: not larger than 132.",
+      "panels": [
+       {
+        "type": "row",
+        "cells": [
+         "1",
+         "3",
+         "2"
+        ],
+        "states": {
+         "0": "dim",
+         "1": "dim",
+         "2": "dim"
+        }
+       }
+      ]
+     },
+     {
+      "text": "213 > 132: mirror it → 2133312.",
+      "panels": [
+       {
+        "type": "row",
+        "cells": [
+         "2",
+         "1",
+         "3",
+         "3",
+         "3",
+         "1",
+         "2"
+        ],
+        "states": {
+         "0": "answer",
+         "1": "answer",
+         "2": "answer"
+        }
+       }
+      ],
+      "result": "2133312"
+     }
+    ],
+    "title": "List arrangements of the left half in increasing order; the first one larger than the current half gives the answer."
+   },
+   "limits": [
+    {
+     "md": "Factorial; only for tiny inputs. Next permutation of the half is linear."
+    }
+   ],
+   "slow": 24
+  },
+  {
+   "title": "Next permutation of the left half, then mirror",
+   "kind": "best",
+   "time": "O(n)",
+   "space": "O(n)",
+   "idea": [
+    {
+     "md": "Take the left half, apply next permutation (no pivot → `\"\"`), and build left + middle + reversed left.\n\n**Why it's the smallest larger mirror.** Any larger mirror number made of these digits has a left half\nlarger than the current one, and the next permutation is the smallest such half."
+    }
+   ],
+   "build": [
+    "Left half.",
+    "Next permutation (or `\"\"`).",
+    "Mirror with the middle digit."
+   ],
+   "code": {
+    "python": "class Solution:\n    def nextMirror(self, code: str) -> str:\n        n = len(code)\n        h = list(code[:n // 2])\n        i = len(h) - 2\n        while i >= 0 and h[i] >= h[i + 1]:\n            i -= 1\n        if i < 0:\n            return \"\"\n        j = len(h) - 1\n        while h[j] <= h[i]:\n            j -= 1\n        h[i], h[j] = h[j], h[i]\n        h[i + 1:] = reversed(h[i + 1:])\n        left = \"\".join(h)\n        return left + code[n // 2:(n + 1) // 2] + left[::-1]\n",
+    "java": "class Solution {\n    public String nextMirror(String code) {\n        int n = code.length();\n        char[] h = code.substring(0, n / 2).toCharArray();\n        int i = h.length - 2;\n        while (i >= 0 && h[i] >= h[i + 1]) i--;\n        if (i < 0) return \"\";\n        int j = h.length - 1;\n        while (h[j] <= h[i]) j--;\n        char t = h[i]; h[i] = h[j]; h[j] = t;\n        for (int a = i + 1, b = h.length - 1; a < b; a++, b--) { t = h[a]; h[a] = h[b]; h[b] = t; }\n        String left = new String(h);\n        return left + code.substring(n / 2, (n + 1) / 2) + new StringBuilder(left).reverse();\n    }\n}\n",
+    "cpp": "class Solution {\npublic:\n    string nextMirror(string& code) {\n        int n = code.size();\n        string h = code.substr(0, n / 2);\n        int i = (int) h.size() - 2;\n        while (i >= 0 && h[i] >= h[i + 1]) i--;\n        if (i < 0) return \"\";\n        int j = h.size() - 1;\n        while (h[j] <= h[i]) j--;\n        swap(h[i], h[j]);\n        reverse(h.begin() + i + 1, h.end());\n        string right(h.rbegin(), h.rend());\n        return h + code.substr(n / 2, n % 2) + right;\n    }\n};\n",
+    "c": "char* nextMirror(char* code) {\n    int n = strlen(code), m = n / 2;\n    char* out = calloc(n + 1, 1);\n    memcpy(out, code, m);\n    int i = m - 2;\n    while (i >= 0 && out[i] >= out[i + 1]) i--;\n    if (i < 0) { out[0] = '\\0'; return out; }\n    int j = m - 1;\n    while (out[j] <= out[i]) j--;\n    char t = out[i]; out[i] = out[j]; out[j] = t;\n    for (int a = i + 1, b = m - 1; a < b; a++, b--) { t = out[a]; out[a] = out[b]; out[b] = t; }\n    if (n % 2) out[m] = code[m];\n    for (int k = 0; k < m; k++) out[n - 1 - k] = out[k];\n    return out;\n}\n"
+   },
+   "lines": [
+    {
+     "text": "Work on a copy of the left half only.",
+     "at": {
+      "python": [
+       [
+        4,
+        4
+       ]
+      ],
+      "java": [
+       [
+        4,
+        4
+       ]
+      ],
+      "cpp": [
+       [
+        5,
+        5
+       ]
+      ],
+      "c": [
+       [
+        3,
+        4
+       ]
+      ]
+     },
+     "notes": {
+      "c": "Build the answer directly in the output buffer: its first n/2 characters are the half."
+     }
+    },
+    {
+     "text": "Rightmost position in the half where a digit is smaller than its right neighbour.",
+     "at": {
+      "python": [
+       [
+        5,
+        7
+       ]
+      ],
+      "java": [
+       [
+        5,
+        6
+       ]
+      ],
+      "cpp": [
+       [
+        6,
+        7
+       ]
+      ],
+      "c": [
+       [
+        5,
+        6
+       ]
+      ]
+     }
+    },
+    {
+     "text": "The half is in decreasing order: it's already the largest arrangement, so no larger mirror number exists.",
+     "at": {
+      "python": [
+       [
+        8,
+        9
+       ]
+      ],
+      "java": [
+       [
+        7,
+        7
+       ]
+      ],
+      "cpp": [
+       [
+        8,
+        8
+       ]
+      ],
+      "c": [
+       [
+        7,
+        7
+       ]
+      ]
+     },
+     "notes": {
+      "c": "Return an empty string."
+     }
+    },
+    {
+     "text": "Swap the pivot with the rightmost (= smallest) larger digit after it.",
+     "at": {
+      "python": [
+       [
+        10,
+        13
+       ]
+      ],
+      "java": [
+       [
+        8,
+        10
+       ]
+      ],
+      "cpp": [
+       [
+        9,
+        11
+       ]
+      ],
+      "c": [
+       [
+        8,
+        10
+       ]
+      ]
+     }
+    },
+    {
+     "text": "Reverse the tail into ascending order: the smallest ending.",
+     "at": {
+      "python": [
+       [
+        14,
+        14
+       ]
+      ],
+      "java": [
+       [
+        11,
+        11
+       ]
+      ],
+      "cpp": [
+       [
+        12,
+        12
+       ]
+      ],
+      "c": [
+       [
+        11,
+        11
+       ]
+      ]
+     }
+    },
+    {
+     "text": "Middle digit unchanged (only for odd lengths), then the half reversed.",
+     "at": {
+      "python": [
+       [
+        15,
+        16
+       ]
+      ],
+      "java": [
+       [
+        12,
+        13
+       ]
+      ],
+      "cpp": [
+       [
+        13,
+        14
+       ]
+      ],
+      "c": [
+       [
+        12,
+        14
+       ]
+      ]
+     },
+     "notes": {
+      "python": "`code[n // 2:(n + 1) // 2]` is the middle character for odd n and empty for even n.",
+      "cpp": "`substr(n / 2, n % 2)` is the middle character for odd n and empty for even n."
+     }
+    }
+   ],
+   "complexity": [
+    {
+     "md": "**Time O(n).** **Space O(n).**"
+    }
+   ],
+   "walk": {
+    "steps": [
+     {
+      "text": "A mirror number is fixed by its left half (132) and middle (3). Make the left half the next larger arrangement.",
+      "panels": [
+       {
+        "type": "row",
+        "cells": [
+         "1",
+         "3",
+         "2",
+         "3",
+         "2",
+         "3",
+         "1"
+        ],
+        "states": {
+         "0": "mark",
+         "1": "mark",
+         "2": "mark"
+        },
+        "slots": true
+       }
+      ]
+     },
+     {
+      "text": "Scan from the right while each digit is ≥ the one after it: that tail is already as large as it can be.",
+      "panels": [
+       {
+        "type": "row",
+        "cells": [
+         "1",
+         "3",
+         "2"
+        ],
+        "slots": true
+       }
+      ]
+     },
+     {
+      "text": "3 ≥ 2: still descending, keep going left.",
+      "panels": [
+       {
+        "type": "row",
+        "cells": [
+         "1",
+         "3",
+         "2"
+        ],
+        "states": {
+         "2": "dim",
+         "1": "active"
+        },
+        "slots": true
+       }
+      ]
+     },
+     {
+      "text": "1 < 3: index 0 is the pivot. Everything after it is descending.",
+      "panels": [
+       {
+        "type": "row",
+        "cells": [
+         "1",
+         "3",
+         "2"
+        ],
+        "states": {
+         "1": "found",
+         "2": "found",
+         "0": "mark"
+        },
+        "pointers": {
+         "pivot": 0
+        },
+        "slots": true
+       }
+      ]
+     },
+     {
+      "text": "The rightmost digit in the tail that is bigger than 1 is 2 (index 2). Swap them.",
+      "panels": [
+       {
+        "type": "row",
+        "cells": [
+         "1",
+         "3",
+         "2"
+        ],
+        "states": {
+         "0": "mark",
+         "2": "answer"
+        },
+        "pointers": {
+         "pivot": 0,
+         "j": 2
+        },
+        "slots": true
+       }
+      ]
+     },
+     {
+      "text": "After the swap the tail is still descending: ['3', '1'].",
+      "panels": [
+       {
+        "type": "row",
+        "cells": [
+         "2",
+         "3",
+         "1"
+        ],
+        "states": {
+         "1": "found",
+         "2": "found",
+         "0": "new"
+        },
+        "slots": true
+       }
+      ]
+     },
+     {
+      "text": "Now reverse the suffix to make it as small as possible.",
+      "panels": [
+       {
+        "type": "row",
+        "cells": [
+         "2",
+         "1",
+         "3"
+        ],
+        "states": {
+         "1": "new",
+         "2": "new"
+        },
+        "slots": true
+       }
+      ]
+     },
+     {
+      "text": "Mirror the new half around the middle: 213 + 3 + 312.",
+      "panels": [
+       {
+        "type": "row",
+        "cells": [
+         "2",
+         "1",
+         "3",
+         "3",
+         "3",
+         "1",
+         "2"
+        ],
+        "states": {
+         "0": "new",
+         "1": "new",
+         "2": "new",
+         "4": "found",
+         "5": "found",
+         "6": "found"
+        },
+        "slots": true
+       }
+      ],
+      "result": "2133312"
+     }
+    ],
+    "title": "Run next permutation on the left half only, then mirror it."
+   }
+  }
+ ],
+ "takeaways": [
+  {
+   "md": "- **Palindromes are determined by their first half**; operate on the half, then mirror.\n- The middle digit of an odd-length palindrome never moves.\n- **Pitfall:** permuting the whole string, which breaks the mirror property."
+  }
+ ]
+}

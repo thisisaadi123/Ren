@@ -1,5 +1,6 @@
-// Ren — DSA: the sheet of every topic, pattern and problem (/api/dsa), in
-// study order. Problems that exist are links; the rest of each pattern's
+// Ren — a practice sheet: every topic, pattern and problem, in study order.
+// The DSA sheet (dsa.html, /api/dsa) and the SQL sheet (sql.html, /api/sql)
+// both use it; the page's <main> says which API and problem page to use. Problems that exist are links; the rest of each pattern's
 // planned count stays in the sheet, greyed out and locked. Search, the track
 // tabs and the filters narrow it, every count on the page follows them, and
 // they're kept in the URL so a filtered sheet can be shared.
@@ -16,7 +17,9 @@
   const clearBtn = main.querySelector("[data-clear]");
   const expandBtn = main.querySelector("[data-expand]");
 
-  const TYPES = ["Array", "String", "Matrix", "Number", "Linked list", "Tree", "Design"];
+  const API = main.dataset.api || "/api/dsa";
+  const PROBLEM_PAGE = main.dataset.problemPage || "problem.html";
+  let TYPES = ["Array", "String", "Matrix", "Number", "Linked list", "Tree", "Design"];
   const DIFF = { easy: "Easy", medium: "Medium", hard: "Hard" };
   const KEYS = ["track", "q", "difficulty", "type", "status"];
 
@@ -35,7 +38,7 @@
   // Which topics are open. The sheet opens folded; within the tab it keeps
   // what you opened, so coming back from a problem lands where you were.
   // Filtering opens every match for the moment without touching this.
-  const OPEN_KEY = "ren:dsa:open";
+  const OPEN_KEY = main.dataset.openKey || "ren:dsa:open";
   let open = new Set();
   try {
     localStorage.removeItem(OPEN_KEY); // was kept across visits before
@@ -151,7 +154,7 @@
     const rows = p.shown.map(
       (x) => `
         <li>
-          <a class="prob" href="problem.html?id=${encodeURIComponent(x.id)}" data-id="${esc(x.id)}">
+          <a class="prob" href="${PROBLEM_PAGE}?id=${encodeURIComponent(x.id)}" data-id="${esc(x.id)}">
             <span class="prob-title">${hl(x.title, q)}</span>
             <span class="prob-meta">
               <span class="prob-diff ${esc(x.difficulty)}">${DIFF[x.difficulty] || esc(x.difficulty)}</span>
@@ -431,12 +434,13 @@
 
   // No server at all is renSession's to show, so a failed request only
   // counts once the session is in.
-  const sheetReq = renApi("/api/dsa").catch(() => ({ ok: false }));
+  const sheetReq = renApi(API).catch(() => ({ ok: false }));
 
   Promise.all([renSession(main), sheetReq, renLoader.page]).then(([, res]) => {
     if (res.ok) {
       data = res.data;
       data.topics.forEach((t, i) => order.set(t.id, i + 1));
+      if (Array.isArray(data.types)) TYPES = data.types;
       const types = new Set(data.topics.flatMap((t) => t.patterns.flatMap((p) => p.problems.map((x) => x.type))));
       const typeSelect = selects.find((s) => s.dataset.filter === "type");
       TYPES.filter((t) => types.has(t)).forEach((t) => typeSelect.add(new Option(t, t)));

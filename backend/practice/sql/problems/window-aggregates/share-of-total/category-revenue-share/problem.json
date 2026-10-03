@@ -1,0 +1,81 @@
+{
+  "id": "category-revenue-share",
+  "title": "Category Share of Revenue",
+  "topic": "window-aggregates",
+  "pattern": "share-of-total",
+  "difficulty": "medium",
+  "statement": "Revenue is `quantity × price` over orders that **weren't cancelled**. For each category with revenue, return\n`category`, `revenue` (rounded to 2 decimal places) and `share`: its percentage of all revenue, rounded to 1 decimal\nplace. Any order.",
+  "notes": "Window functions run after `GROUP BY`, so `SUM(SUM(…)) OVER ()` adds up every group's total.",
+  "tables": [
+    {
+      "name": "products",
+      "columns": [
+        [
+          "id",
+          "INTEGER",
+          "pk"
+        ],
+        [
+          "name",
+          "TEXT"
+        ],
+        [
+          "category",
+          "TEXT"
+        ],
+        [
+          "price",
+          "REAL"
+        ]
+      ]
+    },
+    {
+      "name": "orders",
+      "columns": [
+        [
+          "id",
+          "INTEGER",
+          "pk"
+        ],
+        [
+          "customer_id",
+          "INTEGER",
+          "fk customers.id"
+        ],
+        [
+          "ordered_on",
+          "TEXT"
+        ],
+        [
+          "status",
+          "TEXT"
+        ]
+      ]
+    },
+    {
+      "name": "order_items",
+      "columns": [
+        [
+          "order_id",
+          "INTEGER",
+          "fk orders.id"
+        ],
+        [
+          "product_id",
+          "INTEGER",
+          "fk products.id"
+        ],
+        [
+          "quantity",
+          "INTEGER"
+        ]
+      ]
+    }
+  ],
+  "ordered": false,
+  "reference": "SELECT p.category,\n       ROUND(SUM(i.quantity * p.price), 2) AS revenue,\n       ROUND(100.0 * SUM(i.quantity * p.price) / SUM(SUM(i.quantity * p.price)) OVER (), 1) AS share\nFROM order_items i\nJOIN orders o ON o.id = i.order_id\nJOIN products p ON p.id = i.product_id\nWHERE o.status <> 'cancelled'\nGROUP BY p.category",
+  "wrong": [
+    "SELECT p.category, ROUND(SUM(i.quantity * p.price), 2) AS revenue, ROUND(100.0 * SUM(i.quantity * p.price) / SUM(SUM(i.quantity * p.price)) OVER (), 1) AS share FROM order_items i JOIN products p ON p.id = i.product_id GROUP BY p.category",
+    "SELECT p.category, ROUND(SUM(i.quantity * p.price), 2) AS revenue, ROUND(100.0 * SUM(i.quantity * p.price) / SUM(p.price) OVER (), 1) AS share FROM order_items i JOIN orders o ON o.id = i.order_id JOIN products p ON p.id = i.product_id WHERE o.status <> 'cancelled' GROUP BY p.category"
+  ]
+}

@@ -1,0 +1,39 @@
+{
+  "id": "peak-calls-per-day",
+  "title": "Peak Calls per Day",
+  "topic": "intervals",
+  "pattern": "peak-concurrency",
+  "difficulty": "medium",
+  "statement": "Each call lasts from `start_min` up to, but not including, `end_min` (minutes since midnight). For each day with calls,\nfind the most calls that were going on at the same moment.\n\nReturn `day` and `peak`, ordered by `day`.",
+  "notes": "",
+  "tables": [
+    {
+      "name": "calls",
+      "columns": [
+        [
+          "id",
+          "INTEGER",
+          "pk"
+        ],
+        [
+          "day",
+          "TEXT"
+        ],
+        [
+          "start_min",
+          "INTEGER"
+        ],
+        [
+          "end_min",
+          "INTEGER"
+        ]
+      ]
+    }
+  ],
+  "ordered": true,
+  "reference": "WITH events AS (\n  SELECT day, start_min AS t, 1 AS delta FROM calls\n  UNION ALL\n  SELECT day, end_min, -1 FROM calls\n),\nrunning AS (\n  SELECT day, SUM(delta) OVER (PARTITION BY day ORDER BY t, delta ROWS UNBOUNDED PRECEDING) AS active FROM events\n)\nSELECT day, MAX(active) AS peak FROM running GROUP BY day ORDER BY day",
+  "wrong": [
+    "WITH events AS (SELECT day, start_min AS t, 1 AS delta FROM calls UNION ALL SELECT day, end_min, -1 FROM calls), running AS (SELECT day, SUM(delta) OVER (ORDER BY t, delta ROWS UNBOUNDED PRECEDING) AS active FROM events) SELECT day, MAX(active) AS peak FROM running GROUP BY day ORDER BY day",
+    "WITH events AS (SELECT day, start_min AS t, 1 AS delta FROM calls UNION ALL SELECT day, end_min, -1 FROM calls), running AS (SELECT day, SUM(delta) OVER (PARTITION BY day ORDER BY t, delta DESC ROWS UNBOUNDED PRECEDING) AS active FROM events) SELECT day, MAX(active) AS peak FROM running GROUP BY day ORDER BY day"
+  ]
+}

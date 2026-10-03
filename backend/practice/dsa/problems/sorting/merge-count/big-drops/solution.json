@@ -1,0 +1,601 @@
+{
+ "version": 1,
+ "summary": "A merge-sort count where the counting rule (`a > 2b`) differs from the merge rule (`a <= b`), so count in a\nseparate pass before each merge: with both halves sorted, a pointer into the right half only moves forward as\nthe left values grow. O(n log n), with 64-bit arithmetic for `2 · price`.",
+ "question": [
+  {
+   "md": "Count pairs of days `i < j` with `prices[i] > 2 · prices[j]`.\n\n- **Prices span the whole 32-bit range**, negatives included, so `2 · price` overflows 32-bit integers.\n- **Up to 5 × 10⁴ prices.**"
+  },
+  {
+   "md": "**Edge cases to keep in mind**\n\n- Negative prices are allowed: `2 · price` can then be smaller than the price.\n- `2 · price` can reach 2³², past 32 bits, so compute it in 64 bits.\n- The condition is strict: exactly double doesn't count."
+  }
+ ],
+ "think": [
+  {
+   "md": "**Counting pairs with merge sort.** Questions like \"how many pairs `i < j` have `a[i] > a[j]`\" split nicely:\n\n- pairs with both positions in the **left half** and pairs in the **right half** are counted recursively;\n- pairs that **cross** (`i` in the left half, `j` in the right half) only care about the *values*, not their order\n  inside each half, so both halves may be sorted first, and with sorted halves the crossing pairs are counted with a\n  linear sweep.\n\nEach level of the recursion does O(n) counting plus O(n) merging, over `log n` levels: **O(n log n)** instead of O(n²)."
+  },
+  {
+   "md": "**Counting crossing drops with a separate sweep.** Unlike plain inversions, the condition `a[i] > 2·a[j]` isn't\nthe same comparison the merge uses, so count first, then merge. With both halves sorted, for each left value `x`\n(in increasing order) advance a pointer `j` in the right half while `x > 2·right[j]`; then `j − mid` right values\nare big drops for `x`. Because left values increase, `j` never moves back: the sweep is linear.\n\nFor `[7, 3, 10, 2, 1, 6]` the big drops are [(7, 3), (7, 2), (7, 1), (3, 1), (10, 2), (10, 1)]: **6**."
+  }
+ ],
+ "approaches": [
+  {
+   "title": "Check every pair",
+   "kind": "brute",
+   "time": "O(n²)",
+   "space": "O(1)",
+   "idea": [
+    {
+     "md": "Check every pair of days and count those with `prices[i] > 2·prices[j]`."
+    }
+   ],
+   "build": [
+    "Two nested loops.",
+    "Count big drops (64-bit doubling)."
+   ],
+   "code": {
+    "python": "class Solution:\n    def countBigDrops(self, prices: List[int]) -> int:\n        n, count = len(prices), 0\n        for i in range(n):\n            for j in range(i + 1, n):\n                if prices[i] > 2 * prices[j]:\n                    count += 1\n        return count\n",
+    "java": "class Solution {\n    public long countBigDrops(int[] prices) {\n        long count = 0;\n        for (int i = 0; i < prices.length; i++)\n            for (int j = i + 1; j < prices.length; j++)\n                if (prices[i] > 2L * prices[j]) count++;\n        return count;\n    }\n}\n",
+    "cpp": "class Solution {\npublic:\n    long long countBigDrops(vector<int>& prices) {\n        long long count = 0;\n        for (size_t i = 0; i < prices.size(); i++)\n            for (size_t j = i + 1; j < prices.size(); j++)\n                if (prices[i] > 2LL * prices[j]) count++;\n        return count;\n    }\n};\n",
+    "c": "long long countBigDrops(int* prices, int pricesSize) {\n    long long count = 0;\n    for (int i = 0; i < pricesSize; i++)\n        for (int j = i + 1; j < pricesSize; j++)\n            if (prices[i] > 2LL * prices[j]) count++;\n    return count;\n}\n"
+   },
+   "lines": [
+    {
+     "text": "The count (64-bit).",
+     "at": {
+      "python": [
+       [
+        3,
+        3
+       ]
+      ],
+      "java": [
+       [
+        3,
+        3
+       ]
+      ],
+      "cpp": [
+       [
+        4,
+        4
+       ]
+      ],
+      "c": [
+       [
+        2,
+        2
+       ]
+      ]
+     }
+    },
+    {
+     "text": "Every pair; `2 · prices[j]` is computed in 64 bits so it can't overflow.",
+     "at": {
+      "python": [
+       [
+        4,
+        7
+       ]
+      ],
+      "java": [
+       [
+        4,
+        6
+       ]
+      ],
+      "cpp": [
+       [
+        5,
+        7
+       ]
+      ],
+      "c": [
+       [
+        3,
+        5
+       ]
+      ]
+     },
+     "notes": {
+      "python": "Python integers don't overflow."
+     }
+    },
+    {
+     "text": "Total.",
+     "at": {
+      "python": [
+       [
+        8,
+        8
+       ]
+      ],
+      "java": [
+       [
+        7,
+        7
+       ]
+      ],
+      "cpp": [
+       [
+        8,
+        8
+       ]
+      ],
+      "c": [
+       [
+        6,
+        6
+       ]
+      ]
+     }
+    }
+   ],
+   "complexity": [
+    {
+     "md": "**Time O(n²):** 1.25 × 10⁹ pairs for `n = 5 × 10⁴`. **Space O(1).**"
+    }
+   ],
+   "walk": {
+    "steps": [
+     {
+      "text": "7 is more than double [3, 2, 1] later.",
+      "panels": [
+       {
+        "type": "row",
+        "cells": [
+         7,
+         3,
+         10,
+         2,
+         1,
+         6
+        ],
+        "states": {
+         "0": "active",
+         "1": "mark",
+         "3": "mark",
+         "4": "mark"
+        }
+       }
+      ]
+     },
+     {
+      "text": "3 is more than double [1] later.",
+      "panels": [
+       {
+        "type": "row",
+        "cells": [
+         7,
+         3,
+         10,
+         2,
+         1,
+         6
+        ],
+        "states": {
+         "1": "active",
+         "4": "mark"
+        }
+       }
+      ]
+     },
+     {
+      "text": "10 is more than double [2, 1] later.",
+      "panels": [
+       {
+        "type": "row",
+        "cells": [
+         7,
+         3,
+         10,
+         2,
+         1,
+         6
+        ],
+        "states": {
+         "2": "active",
+         "3": "mark",
+         "4": "mark"
+        }
+       }
+      ]
+     },
+     {
+      "text": "2 is more than double nothing later.",
+      "panels": [
+       {
+        "type": "row",
+        "cells": [
+         7,
+         3,
+         10,
+         2,
+         1,
+         6
+        ],
+        "states": {
+         "3": "active"
+        }
+       }
+      ]
+     },
+     {
+      "text": "1 is more than double nothing later.",
+      "panels": [
+       {
+        "type": "row",
+        "cells": [
+         7,
+         3,
+         10,
+         2,
+         1,
+         6
+        ],
+        "states": {
+         "4": "active"
+        }
+       }
+      ]
+     },
+     {
+      "text": "6 is more than double nothing later.",
+      "panels": [
+       {
+        "type": "row",
+        "cells": [
+         7,
+         3,
+         10,
+         2,
+         1,
+         6
+        ],
+        "states": {
+         "5": "active"
+        }
+       }
+      ]
+     },
+     {
+      "text": "Total: 6.",
+      "panels": [],
+      "result": "6"
+     }
+    ],
+    "title": "Check every pair i < j for prices[i] > 2 · prices[j]."
+   },
+   "limits": [
+    {
+     "md": "Quadratic. Sorted halves let a two-pointer sweep count all crossing drops in linear time."
+    }
+   ],
+   "slow": true
+  },
+  {
+   "title": "Merge sort with a counting sweep",
+   "kind": "best",
+   "time": "O(n log n)",
+   "space": "O(n)",
+   "idea": [
+    {
+     "md": "Merge sort returning a count. After sorting both halves, sweep: for each left value, advance `j` while it's\nmore than double `a[j]`, adding `j − mid`. Then merge the halves normally.\n\n**Why the sweep pointer only moves forward.** If `x > 2·a[j]` holds for some left value, it also holds for\nevery larger left value."
+    }
+   ],
+   "build": [
+    "Recursive sort returning a count.",
+    "Two-pointer sweep for crossing drops.",
+    "Standard merge."
+   ],
+   "code": {
+    "python": "class Solution:\n    def countBigDrops(self, prices: List[int]) -> int:\n        a, buf = prices[:], [0] * len(prices)\n        def sort(lo, hi):\n            if hi - lo <= 1:\n                return 0\n            mid = (lo + hi) // 2\n            count = sort(lo, mid) + sort(mid, hi)\n            j = mid\n            for i in range(lo, mid):\n                while j < hi and a[i] > 2 * a[j]:\n                    j += 1\n                count += j - mid\n            i, j, k = lo, mid, lo\n            while i < mid and j < hi:\n                if a[i] <= a[j]:\n                    buf[k] = a[i]; i += 1\n                else:\n                    buf[k] = a[j]; j += 1\n                k += 1\n            buf[k:k + mid - i] = a[i:mid]\n            k += mid - i\n            buf[k:k + hi - j] = a[j:hi]\n            a[lo:hi] = buf[lo:hi]\n            return count\n        return sort(0, len(a))\n",
+    "java": "class Solution {\n    private int[] a, buf;\n\n    public long countBigDrops(int[] prices) {\n        a = prices.clone();\n        buf = new int[a.length];\n        return sort(0, a.length);\n    }\n\n    private long sort(int lo, int hi) {\n        if (hi - lo <= 1) return 0;\n        int mid = (lo + hi) >>> 1;\n        long count = sort(lo, mid) + sort(mid, hi);\n        int j = mid;\n        for (int i = lo; i < mid; i++) {\n            while (j < hi && a[i] > 2L * a[j]) j++;\n            count += j - mid;\n        }\n        int i = lo, k = lo;\n        j = mid;\n        while (i < mid && j < hi) buf[k++] = a[i] <= a[j] ? a[i++] : a[j++];\n        while (i < mid) buf[k++] = a[i++];\n        while (j < hi) buf[k++] = a[j++];\n        System.arraycopy(buf, lo, a, lo, hi - lo);\n        return count;\n    }\n}\n",
+    "cpp": "class Solution {\n    vector<int> a, buf;\n\n    long long sort(int lo, int hi) {\n        if (hi - lo <= 1) return 0;\n        int mid = (lo + hi) / 2;\n        long long count = sort(lo, mid) + sort(mid, hi);\n        int j = mid;\n        for (int i = lo; i < mid; i++) {\n            while (j < hi && a[i] > 2LL * a[j]) j++;\n            count += j - mid;\n        }\n        int i = lo, k = lo;\n        j = mid;\n        while (i < mid && j < hi) buf[k++] = a[i] <= a[j] ? a[i++] : a[j++];\n        while (i < mid) buf[k++] = a[i++];\n        while (j < hi) buf[k++] = a[j++];\n        copy(buf.begin() + lo, buf.begin() + hi, a.begin() + lo);\n        return count;\n    }\n\npublic:\n    long long countBigDrops(vector<int>& prices) {\n        a = prices;\n        buf.assign(a.size(), 0);\n        return sort(0, a.size());\n    }\n};\n",
+    "c": "static long long drops(int* a, int* buf, int lo, int hi) {\n    if (hi - lo <= 1) return 0;\n    int mid = lo + (hi - lo) / 2;\n    long long count = drops(a, buf, lo, mid) + drops(a, buf, mid, hi);\n    int j = mid;\n    for (int i = lo; i < mid; i++) {\n        while (j < hi && a[i] > 2LL * a[j]) j++;\n        count += j - mid;\n    }\n    int i = lo, k = lo;\n    j = mid;\n    while (i < mid && j < hi) buf[k++] = a[i] <= a[j] ? a[i++] : a[j++];\n    while (i < mid) buf[k++] = a[i++];\n    while (j < hi) buf[k++] = a[j++];\n    memcpy(a + lo, buf + lo, (hi - lo) * sizeof(int));\n    return count;\n}\n\nlong long countBigDrops(int* prices, int pricesSize) {\n    int* a = malloc(pricesSize * sizeof(int));\n    int* buf = malloc(pricesSize * sizeof(int));\n    memcpy(a, prices, pricesSize * sizeof(int));\n    long long count = drops(a, buf, 0, pricesSize);\n    free(a); free(buf);\n    return count;\n}\n"
+   },
+   "lines": [
+    {
+     "text": "A copy to sort and a buffer.",
+     "at": {
+      "python": [
+       [
+        3,
+        3
+       ]
+      ],
+      "java": [
+       [
+        5,
+        6
+       ]
+      ],
+      "cpp": [
+       [
+        24,
+        25
+       ]
+      ],
+      "c": [
+       [
+        20,
+        22
+       ]
+      ]
+     }
+    },
+    {
+     "text": "Pairs within each half, counted recursively.",
+     "at": {
+      "python": [
+       [
+        4,
+        8
+       ]
+      ],
+      "java": [
+       [
+        10,
+        13
+       ]
+      ],
+      "cpp": [
+       [
+        4,
+        7
+       ]
+      ],
+      "c": [
+       [
+        1,
+        4
+       ]
+      ]
+     }
+    },
+    {
+     "text": "Both halves are sorted. For bigger left values, more right values qualify, so `j` only moves forward: O(length) for the whole sweep. `2 · a[j]` in 64 bits.",
+     "at": {
+      "python": [
+       [
+        9,
+        13
+       ]
+      ],
+      "java": [
+       [
+        14,
+        17
+       ]
+      ],
+      "cpp": [
+       [
+        8,
+        11
+       ]
+      ],
+      "c": [
+       [
+        5,
+        8
+       ]
+      ]
+     }
+    },
+    {
+     "text": "Then an ordinary merge, so the parent call gets a sorted range.",
+     "at": {
+      "python": [
+       [
+        14,
+        25
+       ]
+      ],
+      "java": [
+       [
+        19,
+        25
+       ]
+      ],
+      "cpp": [
+       [
+        13,
+        19
+       ]
+      ],
+      "c": [
+       [
+        10,
+        16
+       ]
+      ]
+     }
+    },
+    {
+     "text": "All big drops.",
+     "at": {
+      "python": [
+       [
+        26,
+        26
+       ]
+      ],
+      "java": [
+       [
+        7,
+        7
+       ]
+      ],
+      "cpp": [
+       [
+        26,
+        26
+       ]
+      ],
+      "c": [
+       [
+        23,
+        25
+       ]
+      ]
+     }
+    }
+   ],
+   "complexity": [
+    {
+     "md": "**Time O(n log n).** **Space O(n).**"
+    }
+   ],
+   "walk": {
+    "steps": [
+     {
+      "text": "Halves [3] and [10]: the pointer only moves forward, as left values grow. +0. Then merge.",
+      "panels": [
+       {
+        "type": "row",
+        "cells": [
+         7,
+         3,
+         10,
+         2,
+         1,
+         6
+        ],
+        "states": {
+         "1": "found",
+         "2": "found"
+        }
+       },
+       {
+        "type": "vars",
+        "items": {
+         "drops": 0
+        }
+       }
+      ]
+     },
+     {
+      "text": "Halves [7] and [3, 10]: the pointer only moves forward, as left values grow. +1. Then merge.",
+      "panels": [
+       {
+        "type": "row",
+        "cells": [
+         3,
+         7,
+         10,
+         2,
+         1,
+         6
+        ],
+        "states": {
+         "0": "found",
+         "1": "found",
+         "2": "found"
+        }
+       },
+       {
+        "type": "vars",
+        "items": {
+         "drops": 1
+        }
+       }
+      ]
+     },
+     {
+      "text": "Halves [1] and [6]: the pointer only moves forward, as left values grow. +0. Then merge.",
+      "panels": [
+       {
+        "type": "row",
+        "cells": [
+         3,
+         7,
+         10,
+         2,
+         1,
+         6
+        ],
+        "states": {
+         "4": "found",
+         "5": "found"
+        }
+       },
+       {
+        "type": "vars",
+        "items": {
+         "drops": 1
+        }
+       }
+      ]
+     },
+     {
+      "text": "Halves [2] and [1, 6]: the pointer only moves forward, as left values grow. +0. Then merge.",
+      "panels": [
+       {
+        "type": "row",
+        "cells": [
+         3,
+         7,
+         10,
+         1,
+         2,
+         6
+        ],
+        "states": {
+         "3": "found",
+         "4": "found",
+         "5": "found"
+        }
+       },
+       {
+        "type": "vars",
+        "items": {
+         "drops": 1
+        }
+       }
+      ]
+     },
+     {
+      "text": "Halves [3, 7, 10] and [1, 2, 6]: the pointer only moves forward, as left values grow. +5. Then merge.",
+      "panels": [
+       {
+        "type": "row",
+        "cells": [
+         1,
+         2,
+         3,
+         6,
+         7,
+         10
+        ],
+        "states": {
+         "0": "found",
+         "1": "found",
+         "2": "found",
+         "3": "found",
+         "4": "found",
+         "5": "found"
+        }
+       },
+       {
+        "type": "vars",
+        "items": {
+         "drops": 6
+        }
+       }
+      ]
+     },
+     {
+      "text": "Total: 6.",
+      "panels": [],
+      "result": "6"
+     }
+    ],
+    "title": "Merge sort. Before merging two sorted halves, count cross pairs with two pointers: for each left value, how many right values are less than half of it."
+   }
+  }
+ ],
+ "takeaways": [
+  {
+   "md": "- **Pairs with a condition other than `>`:** count with a separate sweep over sorted halves, then merge.\n- Use 64-bit arithmetic for `2 · value`.\n- **Pitfall:** counting during the merge itself, which uses the wrong comparison."
+  }
+ ]
+}

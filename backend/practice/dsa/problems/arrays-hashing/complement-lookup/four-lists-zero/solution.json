@@ -4,59 +4,82 @@
  "question": [
   {
    "md": "Pick one number from each of four lists, `a`, `b`, `c` and `d` (all of length `n`). Count the\nchoices whose four numbers add up to exactly 0.\n\n- **Choices are positions, not values.** If `d` contains 2 twice, a tuple using the first 2\n  and a tuple using the second 2 are different tuples and both count.\n- **The order is fixed:** the first number always comes from `a`, the second from `b`, and so\n  on. You never mix lists.\n- **Size:** n ≤ 500, so there are up to 500⁴ = 6.25 × 10¹⁰ tuples. Even at a billion checks a\n  second that takes over a minute.\n- **The count can be huge:** if every tuple works it's 6.25 × 10¹⁰, which needs a 64-bit\n  integer. The values themselves are at most 2²⁸, so any sum of two or four of them stays\n  within ±2³⁰ and fits in an `int`."
+  },
+  {
+   "md": "**Edge cases to keep in mind**\n\n- Tuples are counted by positions, so equal values at different positions count separately.\n- The count can reach `n⁴ = 6.25 × 10¹⁰`: use 64 bits.\n- Values are at most 2²⁸ in size, so any sum of four fits in 32-bit `int`."
   }
  ],
  "think": [
   {
-   "md": "Take `a = [2, −1, 0]`, `b = [1, −2, 3]`, `c = [−3, 0, 1]`, `d = [1, 2, −1]`.\n\nBrute force means 3⁴ = 81 tuples. Instead, think about what each part of a tuple **needs**.\nOnce you've chosen from `a`, `b` and `c`, the number from `d` is forced: it must be\n`−(a + b + c)`. That's the complement idea: a lookup can replace the fourth loop.\n\nPush the idea further. Group the tuple as **(a + b) + (c + d) = 0**. Once you know `c + d`, the\nfirst half must sum to exactly `−(c + d)`. And there are only n² possible first halves:"
+   "md": "**The complement idea.** When a pair has to satisfy an equation like `x + y = target`, choosing `x` *forces* `y`: it\nmust be exactly `target − x`. So instead of trying every partner, **store what you've seen** in a hash map and **look\nup the one value you need**. One pass, O(1) expected per lookup, O(n) total. Looking up *before* storing the current\nelement guarantees an element never pairs with itself."
   },
   {
-   "panels": [
-    {
-     "type": "grid",
-     "cells": [
-      [
-       3,
-       0,
-       5
-      ],
-      [
-       0,
-       -3,
-       2
-      ],
-      [
-       1,
-       -2,
-       3
-      ]
-     ]
-    },
-    {
-     "type": "grid",
-     "cells": [
-      [
-       -2,
-       -1,
-       -4
-      ],
-      [
-       1,
-       2,
-       -1
-      ],
-      [
-       2,
-       3,
-       0
-      ]
-     ]
-    }
-   ],
-   "caption": "Left: every a + b (rows a, columns b). Right: every c + d (rows c, columns d)."
+   "md": "**Split the tuple in half (meet in the middle).** `a + b + c + d = 0` means `a + b = −(c + d)`. So count every\nsum `a[i] + b[j]` in a map (n² entries), then for every pair `(c[k], d[l])` look up how many first-half pairs have\nthe needed sum. Two O(n²) phases instead of O(n⁴).\n\n**First half** for `a = [2, -1, 0]`, `b = [1, -2, 3]`: {-3: 1, -2: 1, 0: 2, 1: 1, 2: 1, 3: 2, 5: 1}.\n\n**Second half** (only the pairs that find partners):"
   },
   {
-   "md": "So the question becomes: for each sum on the right, how many sums on the left are its\nnegative? For example, c = 1 and d = −1 give `c + d = 0`, which needs `a + b = 0`. The left grid\nhas two 0s (a = 2 with b = −2, and a = −1 with b = 1), so that single right-hand pair completes\n**two** tuples. To answer that instantly for every right-hand sum, first build a table of **how\nmany times each left sum occurs**; then each right sum is one lookup.\n\nThat is \"meet in the middle\": instead of one search over n⁴ tuples, do two searches over n²\nhalves and join them with a hash map."
+   "table": {
+    "head": [
+     "c",
+     "d",
+     "c + d",
+     "needed a + b",
+     "matching first-half pairs"
+    ],
+    "rows": [
+     [
+      "-3",
+      "1",
+      "-2",
+      "2",
+      "1"
+     ],
+     [
+      "-3",
+      "2",
+      "-1",
+      "1",
+      "1"
+     ],
+     [
+      "0",
+      "2",
+      "2",
+      "-2",
+      "1"
+     ],
+     [
+      "0",
+      "-1",
+      "-1",
+      "1",
+      "1"
+     ],
+     [
+      "1",
+      "1",
+      "2",
+      "-2",
+      "1"
+     ],
+     [
+      "1",
+      "2",
+      "3",
+      "-3",
+      "1"
+     ],
+     [
+      "1",
+      "-1",
+      "0",
+      "0",
+      "2"
+     ]
+    ]
+   }
+  },
+  {
+   "md": "Total **8** (checking all 81 tuples directly gives 8)."
   }
  ],
  "approaches": [
@@ -67,14 +90,12 @@
    "space": "O(1)",
    "idea": [
     {
-     "md": "Four nested loops pick one index from each list; count the tuples that sum to zero."
+     "md": "Four nested loops over every tuple; count the zero sums."
     }
    ],
    "build": [
-    "Set `total = 0` (64-bit).",
-    "Nest four loops: `i` over `a`, `j` over `b`, `k` over `c`, `l` over `d`.",
-    "If `a[i] + b[j] + c[k] + d[l] == 0`, add 1.",
-    "Return `total`."
+    "One loop per list.",
+    "Count tuples summing to 0."
    ],
    "code": {
     "python": "class Solution:\n    def countZeroQuads(self, a: List[int], b: List[int], c: List[int], d: List[int]) -> int:\n        total = 0\n        for w in a:\n            for x in b:\n                for y in c:\n                    for z in d:\n                        if w + x + y + z == 0:\n                            total += 1\n        return total\n",
@@ -202,7 +223,7 @@
    ],
    "complexity": [
     {
-     "md": "**Time O(n⁴):** 6.25 × 10¹⁰ checks at n = 500. **Space O(1).**"
+     "md": "**Time O(n⁴):** 6.25 × 10¹⁰ tuples for `n = 500`. **Space O(1).**"
     }
    ],
    "walk": {
@@ -560,7 +581,7 @@
    },
    "limits": [
     {
-     "md": "The innermost loop searches `d` for one specific value, `−(a + b + c)`, by checking every\nelement. That search is exactly what a hash map does in O(1), which removes a whole loop."
+     "md": "The last element is forced by the first three, so the fourth loop is a search that a count table can answer."
     }
    ],
    "slow": 700
@@ -572,14 +593,13 @@
    "space": "O(n)",
    "idea": [
     {
-     "md": "The fourth number is forced: `d` must be `−(a + b + c)`. So count how often each value\nappears in `d` (a hash map from value to count), loop over `a`, `b` and `c`, and add the\ncount of the needed value. Duplicates in `d` are handled by the count: two copies of the\nneeded value give two tuples."
+     "md": "Count the values of `d` once. Loop over `a`, `b`, `c`; the fourth value must be `−(a + b + c)`, so add its count."
     }
    ],
    "build": [
-    "Build `countD`: value → how many times it appears in `d`.",
-    "Loop over `a`, `b` and `c` (three nested loops).",
-    "For each triple, add `countD[−(a + b + c)]` (0 if missing) to `total`.",
-    "Return `total`."
+    "Count `d`.",
+    "Three nested loops.",
+    "Add the count of the forced fourth value."
    ],
    "code": {
     "python": "from collections import Counter\n\nclass Solution:\n    def countZeroQuads(self, a: List[int], b: List[int], c: List[int], d: List[int]) -> int:\n        count_d = Counter(d)\n        total = 0\n        for w in a:\n            for x in b:\n                for y in c:\n                    total += count_d[-(w + x + y)]\n        return total\n",
@@ -741,7 +761,7 @@
    ],
    "complexity": [
     {
-     "md": "**Time O(n³):** n³ = 1.25 × 10⁸ lookups for n = 500, each O(1) on average (O(log n) in the\nC version). That's borderline: often a few seconds, too slow for a 1-second limit in most\nlanguages.\n\n**Space O(n)** for the counts of `d`."
+     "md": "**Time O(n³):** 1.25 × 10⁸ lookups for `n = 500`. **Space O(n).**"
     }
    ],
    "walk": {
@@ -1107,7 +1127,7 @@
    },
    "limits": [
     {
-     "md": "We used the \"forced last number\" trick once, on one list. The same trick works on **pairs**\nof lists: once `c + d` is known, `a + b` is forced. That balances the work as n² + n²\ninstead of n³ + n."
+     "md": "Still cubic. Splitting into two pairs makes both halves quadratic."
     }
    ],
    "slow": 1500
@@ -1119,14 +1139,12 @@
    "space": "O(n²)",
    "idea": [
     {
-     "md": "Write the condition as `(a[i] + b[j]) = −(c[k] + d[l])`.\n\n1. Loop over all n² pairs from `a` and `b`, and count each sum in a hash map:\n   `sums[s]` = how many `(i, j)` give `a[i] + b[j] = s`.\n2. Loop over all n² pairs from `c` and `d`. For `t = c[k] + d[l]`, every first-half pair\n   with sum `−t` completes a zero tuple, so add `sums[−t]`.\n\nTwo double loops replace four nested ones. Storing **counts** (not just \"seen\") matters:\nseveral `(i, j)` can share a sum, and each is a different tuple."
+     "md": "Count all `a[i] + b[j]` sums in a map. Then for every `c[k] + d[l]`, add the count of `−(c[k] + d[l])`.\n\n**Why each tuple is counted once.** A zero tuple `(i, j, k, l)` is counted exactly when its `(k, l)` is\nprocessed, as one of the `sums[−(c + d)]` first-half pairs, which include its `(i, j)`."
     }
    ],
    "build": [
-    "Create a hash map `sums` from a sum to how many (i, j) pairs produce it.",
-    "Double loop over `a` and `b`: `sums[a[i] + b[j]] += 1`.",
-    "Double loop over `c` and `d`: add `sums[−(c[k] + d[l])]` (0 if absent) to `total`.",
-    "Return `total` (64-bit)."
+    "Map of all `a + b` sums with counts.",
+    "For each `c + d`, add the count of its negation."
    ],
    "code": {
     "python": "from collections import Counter\n\nclass Solution:\n    def countZeroQuads(self, a: List[int], b: List[int], c: List[int], d: List[int]) -> int:\n        sums = Counter(w + x for w in a for x in b)\n        total = 0\n        for y in c:\n            for z in d:\n                total += sums[-(y + z)]\n        return total\n",
@@ -1314,7 +1332,7 @@
    ],
    "complexity": [
     {
-     "md": "**Time O(n²):** n² inserts plus n² lookups, about 500,000 hash operations for n = 500.\n\n**Space O(n²):** up to n² = 250,000 distinct first-half sums in the map.\n\nWhy not split 1 + 3 or 3 + 1? Then one side has n³ combinations. Splitting **evenly**, 2 + 2,\nmakes both sides as small as possible: that balance is the whole point of meeting in the\nmiddle."
+     "md": "**Time O(n²)** expected: 2.5 × 10⁵ insertions and lookups. **Space O(n²)** for the map."
     }
    ],
    "walk": {
@@ -1802,7 +1820,7 @@
  ],
  "takeaways": [
   {
-   "md": "- **Meet in the middle:** when a condition joins several independent choices, split the choices\n  into two equal halves, enumerate each half, and join them with a hash map. Here n⁴ became\n  2 · n².\n- The join stores **counts**, not just presence, because many first halves can share one sum\n  and each one is a different answer.\n- The \"forced last element\" trick (look up what's missing instead of looping over it) is the\n  same idea as Two Gifts, applied to sums of pairs.\n- Check value ranges before reaching for 64-bit: here the sums fit in `int`, but the **count**\n  doesn't."
+   "md": "- **Meet in the middle:** split a k-part condition into two halves, count one half, look up the other.\n- Trades O(n⁴) time for O(n²) time and O(n²) memory.\n- **Pitfall:** storing sums in a set instead of counting them, which loses multiplicities."
   }
  ]
 }

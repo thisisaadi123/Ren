@@ -55,7 +55,7 @@ def fig(*panels, caption=None):
 
 
 def table(head, *rows):
-    return {"table": {"head": list(head), "rows": [[str(c) for c in r] for r in rows]}}
+    return {"table": {"head": [str(h) for h in head], "rows": [[str(c) for c in r] for r in rows]}}
 
 
 def blocks(items, where):
@@ -111,27 +111,35 @@ def parse(src):
             tags.setdefault(m.group(1), []).append(i)
             line = line[: m.start()]
         lines.append(line.rstrip())
+    # Pieces joined from differently indented strings dedent badly: the top-level
+    # lines would then sit far to the right. Catch that here.
+    starts = [l for l in lines if l.strip()][:1]
+    assert starts and not starts[0].startswith(" "), "code starts indented"
+    ind = [len(l) - len(l.lstrip(" ")) for l in lines if l.strip()]
+    jumps = [b - a for a, b in zip(ind, ind[1:])]
+    assert max(jumps, default=0) <= 12, "code indentation jumps too far (pieces joined with mixed indentation?)"
     return "\n".join(lines) + "\n", tags
 
 
-def approach(title, kind, time, space, idea, build, code, lines, complexity, walk=None, limits=None, slow=False):
+def approach(title, kind, time, space, idea, build, code, lines, complexity, walk=None, limits=None, slow=False, langs=None):
     """One way to solve it. kind: brute, better or best.
     slow: too slow for the big tests, so the checker runs it on small ones only
     (True: inputs up to 2500 characters; a number: up to that many)."""
     assert kind in KINDS, kind
-    assert set(code) == set(LANGS), f"{title}: code needs {LANGS}, has {sorted(code)}"
+    langs = langs or LANGS  # design problems (classes) have no C version
+    assert set(code) == set(langs), f"{title}: code needs {langs}, has {sorted(code)}"
     clean, tags = {}, {}
-    for lang in LANGS:
+    for lang in langs:
         clean[lang], tags[lang] = parse(code[lang])
-    used = {t for lang in LANGS for t in tags[lang]}
+    used = {t for lang in langs for t in tags[lang]}
     rows = []
     for entry in lines:
         tag, text = str(entry[0]), entry[1]
         notes = entry[2] if len(entry) > 2 else {}
-        at = {lang: ranges(tags[lang][tag]) for lang in LANGS if tag in tags[lang]}
+        at = {lang: ranges(tags[lang][tag]) for lang in langs if tag in tags[lang]}
         assert at, f"{title}: breakdown row @{tag} matches no code line"
         assert set(notes) <= set(at), f"{title}: @{tag} has a note for a language without that line"
-        row = {"text": dd(text), "at": at}
+        row = {"text": dd(text), "at": at, "tag": tag}
         if notes:
             row["notes"] = {k: dd(v) for k, v in notes.items()}
         rows.append(row)
@@ -157,8 +165,31 @@ def approach(title, kind, time, space, idea, build, code, lines, complexity, wal
     return a
 
 
+EXTRA = {}  # pid -> fuller text that replaces sections of that problem's sol() call
+
+
 def sol(pid, summary, question, think, approaches, takeaways):
     """Write problems/.../<pid>/solution.json."""
+    x = EXTRA.get(pid, {})
+    question = list(question) + list(x.get("question_more", []))
+    think = x.get("think", think)
+    takeaways = x.get("takeaways", takeaways)
+    for i, more in x.get("approaches", {}).items():
+        a = approaches[i]
+        for key in ("idea", "complexity", "limits"):
+            if key in more:
+                a[key] = blocks(more[key], a["title"])
+        if "build" in more:
+            a["build"] = [dd(b) for b in more["build"]]
+        if "lines" in more:
+            known = {row["tag"] for row in a["lines"]}
+            assert set(more["lines"]) <= known, f"{pid} #{i}: unknown line tags {set(more['lines']) - known}"
+            for row in a["lines"]:
+                if row["tag"] in more["lines"]:
+                    row["text"] = dd(more["lines"][row["tag"]])
+    for a in approaches:
+        for row in a["lines"]:
+            row.pop("tag", None)
     assert approaches, pid
     assert approaches[-1]["kind"] == "best", f"{pid}: the last approach should be the best one"
     for a in approaches[:-1]:
