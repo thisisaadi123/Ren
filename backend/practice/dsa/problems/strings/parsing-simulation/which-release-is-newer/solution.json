@@ -1,0 +1,630 @@
+{
+ "version": 1,
+ "summary": "Compare revision by revision, treating missing ones as 0. Revisions can be 50 digits, so never convert them to\nnumbers: strip leading zeros, then the longer one is bigger, and equal lengths compare as text. Walking both\nstrings with pointers avoids splitting. O(n + m).",
+ "question": [
+  {
+   "md": "Release numbers are dot-separated revisions such as `2.10.0`, possibly with leading zeros. Missing revisions\ncount as 0. Return 1 if `a` is newer, −1 if `b` is, 0 if equal.\n\n- **Revisions up to 50 digits** (beyond 64-bit integers).\n- **Strings up to 10⁴ characters.**"
+  }
+ ],
+ "think": [
+  {
+   "md": "`\"3.010.0.0\"` vs `\"3.9.000\"` → **1**: the first revisions tie, then `010` (ten) beats `9`.\n\nTwo pitfalls: comparing text directly says `\"9\" > \"10\"`, and converting to integers overflows. After stripping\nleading zeros, a number with more digits is larger; with the same digit count, text comparison is numeric\ncomparison. `\"0.0\"` and `\"0\"` are the same release, because the missing revisions are 0."
+  },
+  {
+   "panels": [
+    {
+     "type": "row",
+     "cells": [
+      "3",
+      "010",
+      "0",
+      "0"
+     ],
+     "label": "a"
+    },
+    {
+     "type": "row",
+     "cells": [
+      "3",
+      "9",
+      "000"
+     ],
+     "label": "b"
+    }
+   ]
+  }
+ ],
+ "approaches": [
+  {
+   "title": "Split at the dots",
+   "kind": "better",
+   "time": "O(n + m)",
+   "space": "O(n + m)",
+   "idea": [
+    {
+     "md": "Split both strings into lists of revisions. For `k` up to the longer list, compare `a[k]` and `b[k]` (or `0` if missing) with the strip-then-length-then-text rule."
+    }
+   ],
+   "build": [
+    "Split into revisions.",
+    "Compare as big numbers in text.",
+    "Missing revisions are 0."
+   ],
+   "code": {
+    "python": "class Solution:\n    def compareReleases(self, a: str, b: str) -> int:\n        ra, rb = a.split(\".\"), b.split(\".\")\n        for k in range(max(len(ra), len(rb))):\n            x = ra[k].lstrip(\"0\") if k < len(ra) else \"\"\n            y = rb[k].lstrip(\"0\") if k < len(rb) else \"\"\n            if len(x) != len(y):\n                return 1 if len(x) > len(y) else -1\n            if x != y:\n                return 1 if x > y else -1\n        return 0\n",
+    "java": "class Solution {\n\n    private int cmpRev(String x, String y) {\n        x = x.replaceFirst(\"^0+\", \"\");\n        y = y.replaceFirst(\"^0+\", \"\");\n        if (x.length() != y.length()) return x.length() > y.length() ? 1 : -1;\n        int c = x.compareTo(y);\n        return c > 0 ? 1 : c < 0 ? -1 : 0;\n    }\n\n    public int compareReleases(String a, String b) {\n        String[] ra = a.split(\"\\\\.\"), rb = b.split(\"\\\\.\");\n        for (int k = 0; k < Math.max(ra.length, rb.length); k++) {\n            String x = k < ra.length ? ra[k] : \"0\", y = k < rb.length ? rb[k] : \"0\";\n            int c = cmpRev(x, y);\n            if (c != 0) return c;\n        }\n        return 0;\n    }\n}\n",
+    "cpp": "class Solution {\n    static vector<string> split(const string& s) {\n        vector<string> out(1);\n        for (char c : s) if (c == '.') out.emplace_back(); else out.back() += c;\n        return out;\n    }\n\n    static int cmpRev(string x, string y) {\n        x.erase(0, min(x.find_first_not_of('0'), x.size()));\n        y.erase(0, min(y.find_first_not_of('0'), y.size()));\n        if (x.size() != y.size()) return x.size() > y.size() ? 1 : -1;\n        return x == y ? 0 : x > y ? 1 : -1;\n    }\n\npublic:\n    int compareReleases(string& a, string& b) {\n        vector<string> ra = split(a), rb = split(b);\n        for (size_t k = 0; k < max(ra.size(), rb.size()); k++) {\n            int c = cmpRev(k < ra.size() ? ra[k] : \"0\", k < rb.size() ? rb[k] : \"0\");\n            if (c != 0) return c;\n        }\n        return 0;\n    }\n};\n",
+    "c": "static int split(const char* s, const char*** starts, int** lens) {\n    int n = strlen(s), parts = 1;\n    for (int i = 0; i < n; i++) if (s[i] == '.') parts++;\n    *starts = malloc(parts * sizeof(char*));\n    *lens = malloc(parts * sizeof(int));\n    int p = 0, from = 0;\n    for (int i = 0; i <= n; i++)\n        if (i == n || s[i] == '.') { (*starts)[p] = s + from; (*lens)[p++] = i - from; from = i + 1; }\n    return parts;\n}\n\nstatic int cmp_rev(const char* x, int xl, const char* y, int yl) {\n    while (xl > 0 && *x == '0') { x++; xl--; }\n    while (yl > 0 && *y == '0') { y++; yl--; }\n    if (xl != yl) return xl > yl ? 1 : -1;\n    int c = strncmp(x, y, xl);\n    return c > 0 ? 1 : c < 0 ? -1 : 0;\n}\n\nint compareReleases(char* a, char* b) {\n    const char **sa, **sb;\n    int *la, *lb;\n    int na = split(a, &sa, &la), nb = split(b, &sb, &lb), answer = 0;\n    for (int k = 0; k < (na > nb ? na : nb) && answer == 0; k++)\n        answer = cmp_rev(k < na ? sa[k] : \"0\", k < na ? la[k] : 1, k < nb ? sb[k] : \"0\", k < nb ? lb[k] : 1);\n    free(sa); free(sb); free(la); free(lb);\n    return answer;\n}\n"
+   },
+   "lines": [
+    {
+     "text": "Cut both releases into their revisions.",
+     "at": {
+      "python": [
+       [
+        3,
+        3
+       ]
+      ],
+      "java": [
+       [
+        12,
+        12
+       ]
+      ],
+      "cpp": [
+       [
+        2,
+        6
+       ],
+       [
+        17,
+        17
+       ]
+      ],
+      "c": [
+       [
+        1,
+        10
+       ],
+       [
+        21,
+        23
+       ]
+      ]
+     },
+     "notes": {
+      "c": "Record each revision's start and length instead of copying it."
+     }
+    },
+    {
+     "text": "Up to the longer release.",
+     "at": {
+      "python": [
+       [
+        4,
+        4
+       ]
+      ],
+      "java": [
+       [
+        13,
+        13
+       ]
+      ],
+      "cpp": [
+       [
+        18,
+        18
+       ]
+      ],
+      "c": [
+       [
+        24,
+        24
+       ]
+      ]
+     }
+    },
+    {
+     "text": "A missing revision is 0.",
+     "at": {
+      "python": [
+       [
+        5,
+        6
+       ]
+      ],
+      "java": [
+       [
+        14,
+        14
+       ]
+      ],
+      "cpp": [
+       [
+        19,
+        19
+       ]
+      ],
+      "c": [
+       [
+        25,
+        25
+       ]
+      ]
+     }
+    },
+    {
+     "text": "Strip leading zeros. More digits means bigger; the same digit count compares as text. The first difference decides.",
+     "at": {
+      "python": [
+       [
+        7,
+        10
+       ]
+      ],
+      "java": [
+       [
+        3,
+        9
+       ],
+       [
+        15,
+        16
+       ]
+      ],
+      "cpp": [
+       [
+        8,
+        13
+       ],
+       [
+        20,
+        20
+       ]
+      ],
+      "c": [
+       [
+        12,
+        18
+       ]
+      ]
+     }
+    },
+    {
+     "text": "Every revision equal: the same release.",
+     "at": {
+      "python": [
+       [
+        11,
+        11
+       ]
+      ],
+      "java": [
+       [
+        18,
+        18
+       ]
+      ],
+      "cpp": [
+       [
+        22,
+        22
+       ]
+      ],
+      "c": [
+       [
+        26,
+        27
+       ]
+      ]
+     }
+    }
+   ],
+   "complexity": [
+    {
+     "md": "**Time O(n + m).** **Space O(n + m)** for the split lists."
+    }
+   ],
+   "walk": {
+    "steps": [
+     {
+      "text": "Revision 0: '3' vs '3' → equal.",
+      "panels": [
+       {
+        "type": "row",
+        "cells": [
+         "3",
+         "010",
+         "0",
+         "0"
+        ],
+        "states": {
+         "0": "active"
+        },
+        "label": "a"
+       },
+       {
+        "type": "row",
+        "cells": [
+         "3",
+         "9",
+         "000"
+        ],
+        "states": {
+         "0": "active"
+        },
+        "label": "b"
+       }
+      ]
+     },
+     {
+      "text": "Revision 1: '010' vs '9' → a is newer.",
+      "panels": [
+       {
+        "type": "row",
+        "cells": [
+         "3",
+         "010",
+         "0",
+         "0"
+        ],
+        "states": {
+         "1": "active"
+        },
+        "label": "a"
+       },
+       {
+        "type": "row",
+        "cells": [
+         "3",
+         "9",
+         "000"
+        ],
+        "states": {
+         "1": "active"
+        },
+        "label": "b"
+       }
+      ]
+     },
+     {
+      "text": "Answer: 1.",
+      "panels": [],
+      "result": "1"
+     }
+    ],
+    "title": "Split both at the dots, pad the shorter list with 0s, compare revision by revision."
+   },
+   "limits": [
+    {
+     "md": "The split lists are an extra copy of the input. Two pointers can cut each revision on the fly."
+    }
+   ]
+  },
+  {
+   "title": "Two pointers, no splitting",
+   "kind": "best",
+   "time": "O(n + m)",
+   "space": "O(1)",
+   "idea": [
+    {
+     "md": "Pointers `i` and `j` each skip leading zeros of their next revision, then measure its digits up to the next dot. Compare by length, then by digits. A finished string supplies an empty revision (0)."
+    }
+   ],
+   "build": [
+    "Loop while either string has revisions left.",
+    "Skip zeros and measure each revision.",
+    "Compare and move past the dot."
+   ],
+   "code": {
+    "python": "class Solution:\n    def compareReleases(self, a: str, b: str) -> int:\n        i, j, n, m = 0, 0, len(a), len(b)\n        while i < n or j < m:\n            while i < n and a[i] == \"0\":\n                i += 1\n            while j < m and b[j] == \"0\":\n                j += 1\n            si, sj = i, j\n            while i < n and a[i] != \".\":\n                i += 1\n            while j < m and b[j] != \".\":\n                j += 1\n            x, y = a[si:i], b[sj:j]\n            if len(x) != len(y):\n                return 1 if len(x) > len(y) else -1\n            if x != y:\n                return 1 if x > y else -1\n            i, j = i + 1, j + 1\n        return 0\n",
+    "java": "class Solution {\n    public int compareReleases(String a, String b) {\n        int i = 0, j = 0, n = a.length(), m = b.length();\n        while (i < n || j < m) {\n            while (i < n && a.charAt(i) == '0') i++;\n            while (j < m && b.charAt(j) == '0') j++;\n            int si = i, sj = j;\n            while (i < n && a.charAt(i) != '.') i++;\n            while (j < m && b.charAt(j) != '.') j++;\n            if (i - si != j - sj) return i - si > j - sj ? 1 : -1;\n            for (int k = 0; k < i - si; k++)\n                if (a.charAt(si + k) != b.charAt(sj + k)) return a.charAt(si + k) > b.charAt(sj + k) ? 1 : -1;\n            i++;\n            j++;\n        }\n        return 0;\n    }\n}\n",
+    "cpp": "class Solution {\npublic:\n    int compareReleases(string& a, string& b) {\n        int i = 0, j = 0, n = a.size(), m = b.size();\n        while (i < n || j < m) {\n            while (i < n && a[i] == '0') i++;\n            while (j < m && b[j] == '0') j++;\n            int si = i, sj = j;\n            while (i < n && a[i] != '.') i++;\n            while (j < m && b[j] != '.') j++;\n            if (i - si != j - sj) return i - si > j - sj ? 1 : -1;\n            for (int k = 0; k < i - si; k++)\n                if (a[si + k] != b[sj + k]) return a[si + k] > b[sj + k] ? 1 : -1;\n            i++;\n            j++;\n        }\n        return 0;\n    }\n};\n",
+    "c": "int compareReleases(char* a, char* b) {\n    int i = 0, j = 0, n = strlen(a), m = strlen(b);\n    while (i < n || j < m) {\n        while (i < n && a[i] == '0') i++;\n        while (j < m && b[j] == '0') j++;\n        int si = i, sj = j;\n        while (i < n && a[i] != '.') i++;\n        while (j < m && b[j] != '.') j++;\n        if (i - si != j - sj) return i - si > j - sj ? 1 : -1;\n        for (int k = 0; k < i - si; k++)\n            if (a[si + k] != b[sj + k]) return a[si + k] > b[sj + k] ? 1 : -1;\n        i++;\n        j++;\n    }\n    return 0;\n}\n"
+   },
+   "lines": [
+    {
+     "text": "One pointer per release.",
+     "at": {
+      "python": [
+       [
+        3,
+        3
+       ]
+      ],
+      "java": [
+       [
+        3,
+        3
+       ]
+      ],
+      "cpp": [
+       [
+        4,
+        4
+       ]
+      ],
+      "c": [
+       [
+        2,
+        2
+       ]
+      ]
+     }
+    },
+    {
+     "text": "While either release has revisions left; a finished one keeps supplying empty revisions, which mean 0.",
+     "at": {
+      "python": [
+       [
+        4,
+        4
+       ]
+      ],
+      "java": [
+       [
+        4,
+        4
+       ]
+      ],
+      "cpp": [
+       [
+        5,
+        5
+       ]
+      ],
+      "c": [
+       [
+        3,
+        3
+       ]
+      ]
+     }
+    },
+    {
+     "text": "Skip leading zeros. A revision of only zeros becomes empty, i.e. 0.",
+     "at": {
+      "python": [
+       [
+        5,
+        8
+       ]
+      ],
+      "java": [
+       [
+        5,
+        6
+       ]
+      ],
+      "cpp": [
+       [
+        6,
+        7
+       ]
+      ],
+      "c": [
+       [
+        4,
+        5
+       ]
+      ]
+     }
+    },
+    {
+     "text": "Find the end of each revision (the next dot or the end of the string).",
+     "at": {
+      "python": [
+       [
+        9,
+        13
+       ]
+      ],
+      "java": [
+       [
+        7,
+        9
+       ]
+      ],
+      "cpp": [
+       [
+        8,
+        10
+       ]
+      ],
+      "c": [
+       [
+        6,
+        8
+       ]
+      ]
+     }
+    },
+    {
+     "text": "More significant digits wins; with the same count, the first differing digit decides.",
+     "at": {
+      "python": [
+       [
+        14,
+        18
+       ]
+      ],
+      "java": [
+       [
+        10,
+        12
+       ]
+      ],
+      "cpp": [
+       [
+        11,
+        13
+       ]
+      ],
+      "c": [
+       [
+        9,
+        11
+       ]
+      ]
+     }
+    },
+    {
+     "text": "Step over the dots (or past the end, which is harmless).",
+     "at": {
+      "python": [
+       [
+        19,
+        19
+       ]
+      ],
+      "java": [
+       [
+        13,
+        14
+       ]
+      ],
+      "cpp": [
+       [
+        14,
+        15
+       ]
+      ],
+      "c": [
+       [
+        12,
+        13
+       ]
+      ]
+     }
+    },
+    {
+     "text": "No revision differed.",
+     "at": {
+      "python": [
+       [
+        20,
+        20
+       ]
+      ],
+      "java": [
+       [
+        16,
+        16
+       ]
+      ],
+      "cpp": [
+       [
+        17,
+        17
+       ]
+      ],
+      "c": [
+       [
+        15,
+        15
+       ]
+      ]
+     }
+    }
+   ],
+   "complexity": [
+    {
+     "md": "**Time O(n + m).** **Space O(1)** (the Python slices are a convenience; the other languages compare in place)."
+    }
+   ],
+   "walk": {
+    "steps": [
+     {
+      "text": "'3' vs '3': equal.",
+      "panels": [
+       {
+        "type": "row",
+        "cells": [
+         "3",
+         ".",
+         "0",
+         "1",
+         "0",
+         ".",
+         "0",
+         ".",
+         "0"
+        ],
+        "states": {
+         "0": "active"
+        },
+        "label": "a"
+       },
+       {
+        "type": "row",
+        "cells": [
+         "3",
+         ".",
+         "9",
+         ".",
+         "0",
+         "0",
+         "0"
+        ],
+        "states": {
+         "0": "active"
+        },
+        "label": "b"
+       }
+      ]
+     },
+     {
+      "text": "'010' → '10' (2 digits) vs '9' (1 digit): a has the longer number, so a is newer.",
+      "panels": [
+       {
+        "type": "row",
+        "cells": [
+         "3",
+         ".",
+         "0",
+         "1",
+         "0",
+         ".",
+         "0",
+         ".",
+         "0"
+        ],
+        "states": {
+         "2": "active",
+         "3": "active",
+         "4": "active"
+        },
+        "label": "a"
+       },
+       {
+        "type": "row",
+        "cells": [
+         "3",
+         ".",
+         "9",
+         ".",
+         "0",
+         "0",
+         "0"
+        ],
+        "states": {
+         "2": "active"
+        },
+        "label": "b"
+       }
+      ],
+      "result": "1"
+     }
+    ],
+    "title": "Two pointers cut one revision at a time from each string; strip leading zeros; a longer number is bigger, equal lengths compare digit by digit."
+   }
+  }
+ ],
+ "takeaways": [
+  {
+   "md": "- **Compare huge numbers as text:** strip leading zeros, compare lengths, then digits.\n- Missing parts default to 0, so `1.0` equals `1`.\n- Pointers that cut fields on the fly avoid splitting the whole string."
+  }
+ ]
+}
