@@ -4,45 +4,54 @@
  "question": [
   {
    "md": "Return the `k` stations closest to `(0, 0)`, closest first; ties by smaller `x`, then smaller `y`.\n\n- **Compare squared distances**: `x² + y²` orders points exactly like the true distance, with whole numbers.\n- **Up to 10⁵ stations**, coordinates up to 10⁴ (so `x² + y²` fits in 32 bits)."
+  },
+  {
+   "md": "**Edge cases to keep in mind**\n\n- Ties in distance: smaller `x`, then smaller `y`.\n- Compare **squared** distances: same order as real distances, no square roots or rounding.\n- `k = n`: return all stations in order."
   }
  ],
  "think": [
   {
-   "md": "Stations `[[3, 4], [-1, 1], [0, -2], [2, 2], [-2, 0], [5, 0]]`, `k = 3`. Squared distances: [25, 2, 4, 8, 4, 25]. `[-1, 1]` is\nclosest (2). `[0, -2]` and `[-2, 0]` tie at 4, and the smaller x wins, so `[-2, 0]` comes first. Answer:\n`[[-1, 1], [-2, 0], [0, -2]]`.\n\nWe need the k smallest keys **in order**, but not the order of the other n − k. Quickselect for index `k − 1`\nleaves the k smallest keys in front; sorting just those is cheap when k is small."
+   "md": "**Quickselect: quick sort that only follows one side.** To find the value at sorted position `t`, partition around a\npivot into `< p | = p | > p`. The `= p` block already sits at its final sorted positions `lt … gt`:\n\n- if `t` falls inside `lt … gt`, the answer is the pivot;\n- if `t < lt`, the answer is in the left part, so continue only there;\n- if `t > gt`, continue only in the right part.\n\n**Why it's O(n) on average.** A random pivot splits the range roughly in half on average, and only one half is kept:\n`n + n/2 + n/4 + … ≈ 2n` comparisons. The worst case is O(n²) (consistently terrible pivots), which randomness makes\nvanishingly unlikely. Three-way partitioning keeps repeated values from causing that worst case."
+  },
+  {
+   "md": "**Keys.** Give each station the key `(x² + y², x, y)`: distance first, then the tie rules. For `[[3, 4], [-1, 1], [0, -2], [2, 2], [-2, 0], [5, 0]]`:"
   },
   {
    "table": {
     "head": [
      "station",
-     "distance²"
+     "key"
     ],
     "rows": [
      [
-      "-1,1",
-      "2"
+      "[3, 4]",
+      "(25, 3, 4)"
      ],
      [
-      "-2,0",
-      "4"
+      "[-1, 1]",
+      "(2, -1, 1)"
      ],
      [
-      "0,-2",
-      "4"
+      "[0, -2]",
+      "(4, 0, -2)"
      ],
      [
-      "2,2",
-      "8"
+      "[2, 2]",
+      "(8, 2, 2)"
      ],
      [
-      "3,4",
-      "25"
+      "[-2, 0]",
+      "(4, -2, 0)"
      ],
      [
-      "5,0",
-      "25"
+      "[5, 0]",
+      "(25, 5, 0)"
      ]
     ]
    }
+  },
+  {
+   "md": "**Select, then sort only `k`.** Quickselect for key position `k − 1` leaves the `k` smallest keys in the first `k`\nslots (in some order); sorting just those `k` gives the required order. Answer:\n**[[-1, 1], [-2, 0], [0, -2]]**."
   }
  ],
  "approaches": [
@@ -53,12 +62,12 @@
    "space": "O(n)",
    "idea": [
     {
-     "md": "Sort all stations by `(x² + y², x, y)` and return the first k."
+     "md": "Sort all stations by `(distance², x, y)` and take the first `k`."
     }
    ],
    "build": [
-    "Sort with the key.",
-    "Slice k."
+    "Sort by the key.",
+    "Take `k`."
    ],
    "code": {
     "python": "class Solution:\n    def nearestStations(self, stations: List[List[int]], k: int) -> List[List[int]]:\n        ordered = sorted(stations, key=lambda p: (p[0] * p[0] + p[1] * p[1], p[0], p[1]))\n        return ordered[:k]\n",
@@ -208,7 +217,7 @@
    },
    "limits": [
     {
-     "md": "Sorts all n stations though only the first k need ordering. Quickselect separates the k nearest in expected O(n)."
+     "md": "Orders all `n` stations when only the first `k` matter."
     }
    ]
   },
@@ -219,14 +228,13 @@
    "space": "O(n)",
    "idea": [
     {
-     "md": "Build keys `(d, x, y)`. Quickselect for index `k − 1` (three-way partition on whole keys) so the k smallest keys occupy `a[0..k−1]`. Sort that prefix and return its points."
+     "md": "Build the keys, quickselect so that position `k − 1` holds the right key and everything before it is\nsmaller, then sort the first `k` keys and convert back to points.\n\n**Why the first `k` slots are the `k` nearest.** After the final partition, every key before the target's\npivot block is smaller and every key after it is larger, so positions `0 … k − 1` hold exactly the `k`\nsmallest keys."
     }
    ],
    "build": [
-    "Keys for every station.",
-    "Quickselect until index k − 1 is in a pivot block.",
-    "Sort the first k keys.",
-    "Return their points."
+    "Keys `(d², x, y)`.",
+    "Quickselect for index `k − 1`.",
+    "Sort the first `k` and return their points."
    ],
    "code": {
     "python": "import random\n\nclass Solution:\n    def nearestStations(self, stations: List[List[int]], k: int) -> List[List[int]]:\n        a = [(x * x + y * y, x, y) for x, y in stations]\n        lo, hi, target = 0, len(a) - 1, k - 1\n        while lo < hi:\n            p = a[random.randint(lo, hi)]\n            lt, i, gt = lo, lo, hi\n            while i <= gt:\n                if a[i] < p:\n                    a[lt], a[i] = a[i], a[lt]\n                    lt += 1\n                    i += 1\n                elif a[i] > p:\n                    a[i], a[gt] = a[gt], a[i]\n                    gt -= 1\n                else:\n                    i += 1\n            if target < lt:\n                hi = lt - 1\n            elif target > gt:\n                lo = gt + 1\n            else:\n                break\n        return [[x, y] for _, x, y in sorted(a[:k])]\n",
@@ -369,7 +377,7 @@
    ],
    "complexity": [
     {
-     "md": "**Time O(n + k log k) expected.** **Space O(n)** for the keys."
+     "md": "**Time O(n + k log k)** expected. **Space O(n).**"
     }
    ],
    "walk": {
@@ -425,7 +433,7 @@
  ],
  "takeaways": [
   {
-   "md": "- **k smallest, in order:** quickselect the boundary, then sort only the k.\n- Compare squared distances to stay in exact integer arithmetic.\n- A size-k max-heap is the streaming alternative: O(n log k)."
+   "md": "- **k closest points:** quickselect then sort `k` (expected O(n + k log k)), or a size-k max-heap.\n- Use squared distances and tuple keys for tie rules.\n- **Pitfall:** floating-point distances (rounding can break exact ties)."
   }
  ]
 }

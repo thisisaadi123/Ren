@@ -4,41 +4,68 @@
  "question": [
   {
    "md": "Return the median of an **odd** number of readings: the value in the middle if they were sorted.\n\n- **Odd length** means there's exactly one middle value; no averaging.\n- **Values repeat and can be negative.**"
+  },
+  {
+   "md": "**Edge cases to keep in mind**\n\n- The length is odd, so the median is a single reading at sorted index `n // 2`.\n- Repeated readings: the median may be one of several equal values.\n- One reading: it's the median."
   }
  ],
  "think": [
   {
-   "md": "Readings `[8, -3, 15, 4, 4, 11, 0]` sorted are `[-3, 0, 4, 4, 8, 11, 15]`; the middle (index 3) is **4**.\n\nLike any \"k-th smallest\" question, the median doesn't need the full sort. Partition around a pivot: if the\nmiddle index lands among the pivot's copies, done; otherwise continue on the one side that contains it."
+   "md": "**Quickselect: quick sort that only follows one side.** To find the value at sorted position `t`, partition around a\npivot into `< p | = p | > p`. The `= p` block already sits at its final sorted positions `lt … gt`:\n\n- if `t` falls inside `lt … gt`, the answer is the pivot;\n- if `t < lt`, the answer is in the left part, so continue only there;\n- if `t > gt`, continue only in the right part.\n\n**Why it's O(n) on average.** A random pivot splits the range roughly in half on average, and only one half is kept:\n`n + n/2 + n/4 + … ≈ 2n` comparisons. The worst case is O(n²) (consistently terrible pivots), which randomness makes\nvanishingly unlikely. Three-way partitioning keeps repeated values from causing that worst case."
   },
   {
-   "panels": [
-    {
-     "type": "row",
-     "cells": [
-      8,
-      -3,
-      15,
-      4,
-      4,
-      11,
-      0
+   "md": "**Quickselect on `[8, -3, 15, 4, 4, 11, 0]` for sorted index 3** (one possible run):"
+  },
+  {
+   "table": {
+    "head": [
+     "range",
+     "pivot",
+     "after partition (< | = | >)",
+     "pivot block",
+     "decision"
+    ],
+    "rows": [
+     [
+      "0 … 6",
+      "15",
+      "[8, -3, 4, 4, 11, 0] | [15] | []",
+      "6 … 6",
+      "left of the block → keep the left part"
      ],
-     "label": "readings"
-    },
-    {
-     "type": "row",
-     "cells": [
-      -3,
-      0,
-      4,
-      4,
-      8,
-      11,
-      15
+     [
+      "0 … 5",
+      "-3",
+      "[] | [-3] | [4, 4, 11, 0, 8]",
+      "0 … 0",
+      "right of the block → keep the right part"
      ],
-     "label": "sorted"
-    }
-   ]
+     [
+      "1 … 5",
+      "0",
+      "[] | [0] | [11, 4, 8, 4]",
+      "1 … 1",
+      "right of the block → keep the right part"
+     ],
+     [
+      "2 … 5",
+      "11",
+      "[4, 8, 4] | [11] | []",
+      "5 … 5",
+      "left of the block → keep the left part"
+     ],
+     [
+      "2 … 4",
+      "4",
+      "[] | [4, 4] | [8]",
+      "2 … 3",
+      "inside the pivot block → answer"
+     ]
+    ]
+   }
+  },
+  {
+   "md": "Median **4** (sorted: [-3, 0, 4, 4, 8, 11, 15])."
   }
  ],
  "approaches": [
@@ -49,11 +76,11 @@
    "space": "O(n)",
    "idea": [
     {
-     "md": "Sort and return the element at index `n / 2`."
+     "md": "Sort and take the middle element."
     }
    ],
    "build": [
-    "Sort a copy.",
+    "Sort.",
     "Middle element."
    ],
    "code": {
@@ -134,7 +161,7 @@
    },
    "limits": [
     {
-     "md": "Sorts everything to read one position. Quickselect reaches that position in expected linear time."
+     "md": "Sorts everything to read one position."
     }
    ]
   },
@@ -145,13 +172,13 @@
    "space": "O(n)",
    "idea": [
     {
-     "md": "Run three-way quickselect for index `n / 2`."
+     "md": "Quickselect for index `n // 2` with three-way partitioning and random pivots."
     }
    ],
    "build": [
-    "Copy; `target = n / 2`.",
-    "Partition around random pivots, keeping the side with the target.",
-    "Return when the target is in the pivot block."
+    "Target `n // 2`.",
+    "Partition and keep the side containing it.",
+    "Return the pivot when the target lands in its block."
    ],
    "code": {
     "python": "import random\n\nclass Solution:\n    def middleReading(self, readings: List[int]) -> int:\n        a = readings[:]\n        target = len(a) // 2\n        lo, hi = 0, len(a) - 1\n        while True:\n            p = a[random.randint(lo, hi)]\n            lt, i, gt = lo, lo, hi\n            while i <= gt:\n                if a[i] < p:\n                    a[lt], a[i] = a[i], a[lt]\n                    lt += 1\n                    i += 1\n                elif a[i] > p:\n                    a[i], a[gt] = a[gt], a[i]\n                    gt -= 1\n                else:\n                    i += 1\n            if target < lt:\n                hi = lt - 1\n            elif target > gt:\n                lo = gt + 1\n            else:\n                return p\n",
@@ -290,7 +317,7 @@
    ],
    "complexity": [
     {
-     "md": "**Time O(n) expected.** **Space O(n)** for the copy."
+     "md": "**Time O(n)** expected. **Space O(n)** for the copy."
     }
    ],
    "walk": {
@@ -345,7 +372,7 @@
  ],
  "takeaways": [
   {
-   "md": "- **Median = k-th smallest with k = n / 2**: quickselect, expected O(n).\n- For an even count, select both middle positions (or select one and take the max of the left part).\n- For a stream of readings, use two heaps instead."
+   "md": "- **Median = k-th smallest with `k = n // 2`**: quickselect.\n- For a stream of readings, two heaps maintain the median instead.\n- **Pitfall:** sorting just to read the middle."
   }
  ]
 }

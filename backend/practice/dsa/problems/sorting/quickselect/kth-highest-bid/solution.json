@@ -4,41 +4,54 @@
  "question": [
   {
    "md": "Return the k-th highest bid, counting repeats: in `[9, 9, 5]` the 2nd highest is 9.\n\n- **Repeats count separately**, so this is \"the value at sorted position k from the top\".\n- **Up to 10⁵ bids** and k anywhere from 1 to n."
+  },
+  {
+   "md": "**Edge cases to keep in mind**\n\n- Repeats count separately: in `[9, 9, 5]` the 2nd highest is 9.\n- `k = 1` is the maximum; `k = n` the minimum.\n- The k-th highest is the value at sorted (ascending) index `n − k`."
   }
  ],
  "think": [
   {
-   "md": "Bids `[12, 40, 7, 40, 25, 3, 18]`, `k = 3`. Sorted high to low: `[40, 40, 25, 18, 12, 7, 3]`, so the 3rd highest is **25** (the two 40s are 1st and\n2nd).\n\nSorting does more than needed: we want one position, not the whole order. Partitioning around a pivot puts\nthe pivot in its final sorted place and splits the rest into smaller and bigger. Only the side containing our\nposition matters, so we throw the other away each round: n + n/2 + n/4 + … ≈ 2n work on average."
+   "md": "**Quickselect: quick sort that only follows one side.** To find the value at sorted position `t`, partition around a\npivot into `< p | = p | > p`. The `= p` block already sits at its final sorted positions `lt … gt`:\n\n- if `t` falls inside `lt … gt`, the answer is the pivot;\n- if `t < lt`, the answer is in the left part, so continue only there;\n- if `t > gt`, continue only in the right part.\n\n**Why it's O(n) on average.** A random pivot splits the range roughly in half on average, and only one half is kept:\n`n + n/2 + n/4 + … ≈ 2n` comparisons. The worst case is O(n²) (consistently terrible pivots), which randomness makes\nvanishingly unlikely. Three-way partitioning keeps repeated values from causing that worst case."
   },
   {
-   "panels": [
-    {
-     "type": "row",
-     "cells": [
-      12,
-      40,
-      7,
-      40,
-      25,
-      3,
-      18
+   "md": "**Quickselect on `[12, 40, 7, 40, 25, 3, 18]` for the 3rd highest** (sorted index 4); the pivot is random, one possible run:"
+  },
+  {
+   "table": {
+    "head": [
+     "range",
+     "pivot",
+     "after partition (< | = | >)",
+     "pivot block",
+     "decision"
+    ],
+    "rows": [
+     [
+      "0 … 6",
+      "40",
+      "[12, 7, 25, 3, 18] | [40, 40] | []",
+      "5 … 6",
+      "left of the block → keep the left part"
      ],
-     "label": "bids"
-    },
-    {
-     "type": "row",
-     "cells": [
-      40,
-      40,
-      25,
-      18,
-      12,
-      7,
-      3
+     [
+      "0 … 4",
+      "18",
+      "[12, 7, 3] | [18] | [25]",
+      "3 … 3",
+      "right of the block → keep the right part"
      ],
-     "label": "sorted high → low"
-    }
-   ]
+     [
+      "4 … 4",
+      "25",
+      "[] | [25] | []",
+      "4 … 4",
+      "inside the pivot block → answer"
+     ]
+    ]
+   }
+  },
+  {
+   "md": "Answer **25** (sorted: [3, 7, 12, 18, 25, 40, 40])."
   }
  ],
  "approaches": [
@@ -49,12 +62,12 @@
    "space": "O(n)",
    "idea": [
     {
-     "md": "Sort ascending; the k-th highest is at index `n − k`."
+     "md": "Sort and read index `n − k`."
     }
    ],
    "build": [
-    "Sort a copy.",
-    "Return `a[n − k]`."
+    "Sort.",
+    "Index `n − k`."
    ],
    "code": {
     "python": "class Solution:\n    def kthHighest(self, bids: List[int], k: int) -> int:\n        return sorted(bids)[len(bids) - k]\n",
@@ -134,7 +147,7 @@
    },
    "limits": [
     {
-     "md": "Orders every bid when only one position is wanted. A size-k heap or quickselect does less."
+     "md": "Orders everything to read one position."
     }
    ]
   },
@@ -145,13 +158,13 @@
    "space": "O(k)",
    "idea": [
     {
-     "md": "Push every bid into a min-heap; whenever it holds more than k, pop the smallest. At the end the heap holds the k highest bids, and its top is the k-th highest."
+     "md": "Keep a min-heap of the `k` largest bids seen so far: push each bid, and pop the smallest whenever the heap\nexceeds `k`. At the end the heap's minimum is the k-th highest."
     }
    ],
    "build": [
     "Min-heap.",
-    "Push each bid; pop when size > k.",
-    "Return the top."
+    "Push each bid; pop when size exceeds `k`.",
+    "Return the heap's minimum."
    ],
    "code": {
     "python": "import heapq\n\nclass Solution:\n    def kthHighest(self, bids: List[int], k: int) -> int:\n        heap = []\n        for b in bids:\n            heapq.heappush(heap, b)\n            if len(heap) > k:\n                heapq.heappop(heap)\n        return heap[0]\n",
@@ -406,7 +419,7 @@
    },
    "limits": [
     {
-     "md": "Good for streams or small k, but O(n log n) when k is near n/2. Quickselect is O(n) expected for any k."
+     "md": "O(log k) per bid; quickselect averages O(1) per element."
     }
    ]
   },
@@ -417,13 +430,13 @@
    "space": "O(n)",
    "idea": [
     {
-     "md": "Target index `n − k` in ascending order. Repeatedly partition `a[lo..hi]` three ways around a random pivot. If the target falls in the pivot's block, return the pivot; otherwise continue in the side that contains it."
+     "md": "Quickselect for sorted index `n − k` with three-way partitioning and a random pivot, narrowing `lo … hi`\nto the side that contains the target until it lands in the pivot block."
     }
    ],
    "build": [
-    "Copy; `target = n − k`.",
-    "Loop: random pivot, three-way partition.",
-    "Return or shrink the range."
+    "Target index `n − k`.",
+    "Random pivot, three-way partition.",
+    "Keep the side containing the target."
    ],
    "code": {
     "python": "import random\n\nclass Solution:\n    def kthHighest(self, bids: List[int], k: int) -> int:\n        a = bids[:]\n        target = len(a) - k\n        lo, hi = 0, len(a) - 1\n        while True:\n            p = a[random.randint(lo, hi)]\n            lt, i, gt = lo, lo, hi\n            while i <= gt:\n                if a[i] < p:\n                    a[lt], a[i] = a[i], a[lt]\n                    lt += 1\n                    i += 1\n                elif a[i] > p:\n                    a[i], a[gt] = a[gt], a[i]\n                    gt -= 1\n                else:\n                    i += 1\n            if target < lt:\n                hi = lt - 1\n            elif target > gt:\n                lo = gt + 1\n            else:\n                return p\n",
@@ -562,7 +575,7 @@
    ],
    "complexity": [
     {
-     "md": "**Time O(n) expected:** each round keeps a fraction of the range, so the work is n + n/2 + … ≈ 2n on average (O(n²) only with extremely unlucky pivots). **Space O(n)** for the copy."
+     "md": "**Time O(n)** expected, O(n²) worst case. **Space O(n)** for the copy (O(1) in place)."
     }
    ],
    "walk": {
@@ -646,7 +659,7 @@
  ],
  "takeaways": [
   {
-   "md": "- **One order statistic (k-th smallest/largest) → quickselect**, expected O(n).\n- Three-way partitioning makes repeated values harmless and lets you stop as soon as the target lands in the\n  pivot block.\n- A size-k heap is the streaming alternative: O(n log k) with O(k) memory."
+   "md": "- **k-th largest/smallest:** quickselect (expected O(n)) or a size-k heap (O(n log k), good for streams).\n- Translate \"k-th highest\" to the ascending index `n − k`.\n- **Pitfall:** two-way partitioning with many equal values."
   }
  ]
 }
