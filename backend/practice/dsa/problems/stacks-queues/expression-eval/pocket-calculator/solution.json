@@ -1,0 +1,834 @@
+{
+ "version": 1,
+ "summary": "Handle one level of the expression like the desk calculator (a running list of signed terms, with `*` and `/`\nmodifying the last term). A `(` starts a new level: save the current terms and pending operator on a stack of\nframes. A `)` sums the inner level into a single number and hands it back to the saved operator. One pass, O(n).",
+ "question": [
+  {
+   "md": "Evaluate an expression with non-negative integers, `+ - * /`, parentheses and spaces. Parentheses first, then\n`*` `/`, then `+` `−`, each left to right; division truncates toward zero.\n\n- **A unary `−` may appear only at the start or right after `(`**, and negates the term after it: `−2*3 = −6`,\n  `(−4)*5 = −20`.\n- **Parenthesised results can be negative**, so `/` may divide a negative number: truncate toward zero\n  (`−7/2 = −3`).\n- **Up to 10⁵ characters**, with possibly deep nesting."
+  }
+ ],
+ "think": [
+  {
+   "md": "Take `-(6-2*4)/2 + 3*(1+2)`. Inside the first parentheses: 6 − 2×4 = −2. Divide by 2: −1. The leading `−` negates that term: 1.\nThe second term is 3 × (1 + 2) = 9. Total: 10."
+  },
+  {
+   "panels": [
+    {
+     "type": "row",
+     "cells": [
+      "-",
+      "(",
+      "6",
+      "-",
+      "2",
+      "*",
+      "4",
+      ")",
+      "/",
+      "2",
+      "+",
+      "3",
+      "*",
+      "(",
+      "1",
+      "+",
+      "2",
+      ")"
+     ],
+     "slots": true
+    }
+   ],
+   "caption": "Each parenthesised part is evaluated on its own and becomes a single number."
+  },
+  {
+   "md": "Without parentheses this is the desk calculator: a sum of signed terms. Parentheses just mean \"evaluate this\nsub-expression first and use its value as a number\". So when a `(` arrives, pause the current level (its terms\nand the operator waiting for the next number) and start a fresh one; when the matching `)` arrives, the fresh\nlevel's sum is the number the paused operator was waiting for. Pausing and resuming in nested order is a stack.\n\nThe unary minus fits in for free: at the start of a level, the pending operator is `+` with number 0, so a `−`\nthere pushes 0 and makes the next term negative."
+  }
+ ],
+ "approaches": [
+  {
+   "title": "Recursive descent",
+   "kind": "better",
+   "time": "O(n)",
+   "space": "O(depth)",
+   "idea": [
+    {
+     "md": "Write one function per precedence level, each reading from a shared position:\n\n- `expr()`: an optional leading `−`, then a term, then any number of `+ term` / `− term`.\n- `term()`: a factor, then any number of `* factor` / `/ factor`.\n- `factor()`: a number, or `(` `expr()` `)`.\n\nEach function returns the value of what it read. Nesting in the input becomes nesting of calls."
+    }
+   ],
+   "build": [
+    "Remove spaces (or skip them as you read).",
+    "Implement `expr`, `term`, `factor` with a shared index.",
+    "`expr` handles the leading unary minus by negating its first term.",
+    "Return `expr()` on the whole input."
+   ],
+   "code": {
+    "python": "import sys\n\nclass Solution:\n    def evaluate(self, expr: str) -> int:\n        sys.setrecursionlimit(100000)\n        s = expr.replace(\" \", \"\")\n        i = 0\n        def expression():\n            nonlocal i\n            sign = 1\n            if i < len(s) and s[i] == \"-\":\n                sign, i = -1, i + 1\n            total = sign * term()\n            while i < len(s) and s[i] in \"+-\":\n                op = s[i]\n                i += 1\n                total = total + term() if op == \"+\" else total - term()\n            return total\n        def term():\n            nonlocal i\n            value = factor()\n            while i < len(s) and s[i] in \"*/\":\n                op = s[i]\n                i += 1\n                rhs = factor()\n                if op == \"*\":\n                    value *= rhs\n                else:\n                    q = abs(value) // abs(rhs)\n                    value = q if (value < 0) == (rhs < 0) else -q\n            return value\n        def factor():\n            nonlocal i\n            if s[i] == \"(\":\n                i += 1\n                value = expression()\n                i += 1\n                return value\n            value = 0\n            while i < len(s) and s[i].isdigit():\n                value = value * 10 + int(s[i])\n                i += 1\n            return value\n        return expression()\n",
+    "java": "class Solution {\n    private String s;\n    private int i;\n\n    public int evaluate(String expr) {\n        s = expr.replace(\" \", \"\");\n        i = 0;\n        return expression();\n    }\n\n    private int expression() {\n        int sign = 1;\n        if (i < s.length() && s.charAt(i) == '-') { sign = -1; i++; }\n        int total = sign * term();\n        while (i < s.length() && (s.charAt(i) == '+' || s.charAt(i) == '-')) {\n            char op = s.charAt(i++);\n            total = op == '+' ? total + term() : total - term();\n        }\n        return total;\n    }\n\n    private int term() {\n        int value = factor();\n        while (i < s.length() && (s.charAt(i) == '*' || s.charAt(i) == '/')) {\n            char op = s.charAt(i++);\n            int rhs = factor();\n            value = op == '*' ? value * rhs : value / rhs;\n        }\n        return value;\n    }\n\n    private int factor() {\n        if (s.charAt(i) == '(') {\n            i++;\n            int value = expression();\n            i++;\n            return value;\n        }\n        int value = 0;\n        while (i < s.length() && Character.isDigit(s.charAt(i))) value = value * 10 + (s.charAt(i++) - '0');\n        return value;\n    }\n}\n",
+    "cpp": "class Solution {\n    string s;\n    size_t i = 0;\n\n    int expression() {\n        int sign = 1;\n        if (i < s.size() && s[i] == '-') { sign = -1; i++; }\n        int total = sign * term();\n        while (i < s.size() && (s[i] == '+' || s[i] == '-')) {\n            char op = s[i++];\n            total = op == '+' ? total + term() : total - term();\n        }\n        return total;\n    }\n\n    int term() {\n        int value = factor();\n        while (i < s.size() && (s[i] == '*' || s[i] == '/')) {\n            char op = s[i++];\n            int rhs = factor();\n            value = op == '*' ? value * rhs : value / rhs;\n        }\n        return value;\n    }\n\n    int factor() {\n        if (s[i] == '(') {\n            i++;\n            int value = expression();\n            i++;\n            return value;\n        }\n        int value = 0;\n        while (i < s.size() && isdigit(s[i])) value = value * 10 + (s[i++] - '0');\n        return value;\n    }\n\npublic:\n    int evaluate(string& expr) {\n        for (char c : expr) if (c != ' ') s += c;\n        i = 0;\n        return expression();\n    }\n};\n",
+    "c": "static const char* src;\nstatic int pos;\nstatic int expression(void);\n\nstatic void skip(void) { while (src[pos] == ' ') pos++; }\n\nstatic int factor(void) {\n    skip();\n    if (src[pos] == '(') {\n        pos++;\n        int value = expression();\n        skip();\n        pos++;\n        return value;\n    }\n    int value = 0;\n    while (src[pos] >= '0' && src[pos] <= '9') value = value * 10 + (src[pos++] - '0');\n    return value;\n}\n\nstatic int term(void) {\n    int value = factor();\n    for (skip(); src[pos] == '*' || src[pos] == '/'; skip()) {\n        char op = src[pos++];\n        int rhs = factor();\n        value = op == '*' ? value * rhs : value / rhs;\n    }\n    return value;\n}\n\nstatic int expression(void) {\n    skip();\n    int sign = 1;\n    if (src[pos] == '-') { sign = -1; pos++; }\n    int total = sign * term();\n    for (skip(); src[pos] == '+' || src[pos] == '-'; skip()) {\n        char op = src[pos++];\n        total = op == '+' ? total + term() : total - term();\n    }\n    return total;\n}\n\nint evaluate(char* expr) {\n    src = expr;\n    pos = 0;\n    return expression();\n}\n"
+   },
+   "lines": [
+    {
+     "text": "Spaces carry no meaning; drop or skip them.",
+     "at": {
+      "python": [
+       [
+        6,
+        7
+       ]
+      ],
+      "java": [
+       [
+        6,
+        7
+       ]
+      ],
+      "cpp": [
+       [
+        40,
+        41
+       ]
+      ],
+      "c": [
+       [
+        5,
+        5
+       ],
+       [
+        44,
+        45
+       ]
+      ]
+     },
+     "notes": {
+      "c": "`skip()` steps over spaces before every token."
+     }
+    },
+    {
+     "text": "A sum of terms. A leading `−` negates the first term (that's the only place a sign can appear in a level).",
+     "at": {
+      "python": [
+       [
+        8,
+        18
+       ]
+      ],
+      "java": [
+       [
+        11,
+        20
+       ]
+      ],
+      "cpp": [
+       [
+        5,
+        14
+       ]
+      ],
+      "c": [
+       [
+        31,
+        41
+       ]
+      ]
+     }
+    },
+    {
+     "text": "A product of factors, left to right; division truncates toward zero.",
+     "at": {
+      "python": [
+       [
+        19,
+        31
+       ]
+      ],
+      "java": [
+       [
+        22,
+        30
+       ]
+      ],
+      "cpp": [
+       [
+        16,
+        24
+       ]
+      ],
+      "c": [
+       [
+        21,
+        29
+       ]
+      ]
+     },
+     "notes": {
+      "python": "Python's `//` floors, so the sign is handled separately."
+     }
+    },
+    {
+     "text": "A number, or a parenthesised expression evaluated recursively.",
+     "at": {
+      "python": [
+       [
+        32,
+        43
+       ]
+      ],
+      "java": [
+       [
+        32,
+        42
+       ]
+      ],
+      "cpp": [
+       [
+        26,
+        36
+       ]
+      ],
+      "c": [
+       [
+        7,
+        19
+       ]
+      ]
+     }
+    },
+    {
+     "text": "Evaluate the whole input.",
+     "at": {
+      "python": [
+       [
+        44,
+        44
+       ]
+      ],
+      "java": [
+       [
+        8,
+        8
+       ]
+      ],
+      "cpp": [
+       [
+        42,
+        42
+       ]
+      ],
+      "c": [
+       [
+        46,
+        46
+       ]
+      ]
+     }
+    }
+   ],
+   "complexity": [
+    {
+     "md": "**Time O(n).** **Space O(depth)** on the call stack."
+    }
+   ],
+   "walk": {
+    "steps": [
+     {
+      "text": "'-(6-2*4)/2 + 3*(1+2)': a leading '−' negates the first term, (6−2*4)/2.",
+      "panels": [
+       {
+        "type": "vars",
+        "items": {
+         "expression": "-(6-2*4)/2 + 3*(1+2)"
+        }
+       }
+      ]
+     },
+     {
+      "text": "Factor (6−2*4): recurse into the parentheses: 6 − 8 = −2. Then / 2 → −1. Negated: 1.",
+      "panels": [
+       {
+        "type": "vars",
+        "items": {
+         "first term": 1
+        }
+       }
+      ]
+     },
+     {
+      "text": "Next term 3*(1+2): recurse: 1+2 = 3; 3 × 3 = 9.",
+      "panels": [
+       {
+        "type": "vars",
+        "items": {
+         "second term": 9
+        }
+       }
+      ]
+     },
+     {
+      "text": "Sum of terms: 1 + 9 = 10.",
+      "panels": [
+       {
+        "type": "vars",
+        "items": {
+         "value": 10
+        }
+       }
+      ],
+      "result": "10"
+     }
+    ],
+    "title": "Recursive descent: expression = terms joined by + and −; term = factors joined by * and /; factor = number or (expression)."
+   },
+   "limits": [
+    {
+     "md": "Correct and elegant, but each level of parentheses adds call frames. With ~5 × 10⁴ nested parentheses, the call stack overflows in most languages (Python's default limit is 1000). An explicit stack of frames does the same work on the heap."
+    }
+   ],
+   "slow": true
+  },
+  {
+   "title": "One pass with a stack of frames",
+   "kind": "best",
+   "time": "O(n)",
+   "space": "O(n)",
+   "idea": [
+    {
+     "md": "Run the desk-calculator loop (terms list, pending `op`, current `num`). On `(`, push `(terms, op)` and start a fresh frame. On `)`, first apply the pending op to num, then set `num = sum(terms)` and pop the saved frame; the restored `op` will apply this num when the next operator (or `)`/end) arrives."
+    }
+   ],
+   "build": [
+    "Process characters plus an end sentinel; skip spaces; build numbers.",
+    "`(` → push frame, reset.",
+    "Any operator, `)` or end → apply the pending op to num.",
+    "`)` → num = sum of the frame's terms; restore the outer frame. Otherwise remember the new operator.",
+    "Return the sum of the outermost terms."
+   ],
+   "code": {
+    "python": "class Solution:\n    def evaluate(self, expr: str) -> int:\n        frames = []\n        terms, op, num = [], \"+\", 0\n        for c in expr + \"#\":\n            if c == \" \":\n                continue\n            if c.isdigit():\n                num = num * 10 + int(c)\n                continue\n            if c == \"(\":\n                frames.append((terms, op))\n                terms, op, num = [], \"+\", 0\n                continue\n            if op == \"+\":\n                terms.append(num)\n            elif op == \"-\":\n                terms.append(-num)\n            elif op == \"*\":\n                terms[-1] *= num\n            else:\n                q = abs(terms[-1]) // abs(num)\n                terms[-1] = q if (terms[-1] < 0) == (num < 0) else -q\n            if c == \")\":\n                num = sum(terms)\n                terms, op = frames.pop()\n            else:\n                op, num = c, 0\n        return sum(terms)\n",
+    "java": "class Solution {\n    public int evaluate(String expr) {\n        int n = expr.length();\n        int[] terms = new int[n + 1];\n        int[] frameStart = new int[n + 1];\n        char[] frameOp = new char[n + 1];\n        int top = 0, frames = 0, num = 0, start = 0;\n        char op = '+';\n        for (int i = 0; i <= n; i++) {\n            char c = i < n ? expr.charAt(i) : '#';\n            if (c == ' ') continue;\n            if (Character.isDigit(c)) { num = num * 10 + (c - '0'); continue; }\n            if (c == '(') {\n                frameStart[frames] = start;\n                frameOp[frames++] = op;\n                start = top;\n                op = '+';\n                num = 0;\n                continue;\n            }\n            if (op == '+') terms[top++] = num;\n            else if (op == '-') terms[top++] = -num;\n            else if (op == '*') terms[top - 1] *= num;\n            else terms[top - 1] /= num;\n            if (c == ')') {\n                num = 0;\n                for (int k = start; k < top; k++) num += terms[k];\n                top = start;\n                start = frameStart[--frames];\n                op = frameOp[frames];\n            } else {\n                op = c;\n                num = 0;\n            }\n        }\n        int sum = 0;\n        for (int k = 0; k < top; k++) sum += terms[k];\n        return sum;\n    }\n}\n",
+    "cpp": "class Solution {\npublic:\n    int evaluate(string& expr) {\n        vector<int> terms;\n        vector<pair<size_t, char>> frames;\n        size_t start = 0;\n        int num = 0;\n        char op = '+';\n        for (size_t i = 0; i <= expr.size(); i++) {\n            char c = i < expr.size() ? expr[i] : '#';\n            if (c == ' ') continue;\n            if (isdigit(c)) { num = num * 10 + (c - '0'); continue; }\n            if (c == '(') {\n                frames.push_back({start, op});\n                start = terms.size();\n                op = '+';\n                num = 0;\n                continue;\n            }\n            if (op == '+') terms.push_back(num);\n            else if (op == '-') terms.push_back(-num);\n            else if (op == '*') terms.back() *= num;\n            else terms.back() /= num;\n            if (c == ')') {\n                num = accumulate(terms.begin() + start, terms.end(), 0);\n                terms.resize(start);\n                start = frames.back().first;\n                op = frames.back().second;\n                frames.pop_back();\n            } else {\n                op = c;\n                num = 0;\n            }\n        }\n        return accumulate(terms.begin(), terms.end(), 0);\n    }\n};\n",
+    "c": "int evaluate(char* expr) {\n    int n = strlen(expr);\n    int* terms = malloc((n + 1) * sizeof(int));\n    int* frameStart = malloc((n + 1) * sizeof(int));\n    char* frameOp = malloc(n + 1);\n    int top = 0, frames = 0, num = 0, start = 0;\n    char op = '+';\n    for (int i = 0; i <= n; i++) {\n        char c = i < n ? expr[i] : '#';\n        if (c == ' ') continue;\n        if (c >= '0' && c <= '9') { num = num * 10 + (c - '0'); continue; }\n        if (c == '(') {\n            frameStart[frames] = start;\n            frameOp[frames++] = op;\n            start = top;\n            op = '+';\n            num = 0;\n            continue;\n        }\n        if (op == '+') terms[top++] = num;\n        else if (op == '-') terms[top++] = -num;\n        else if (op == '*') terms[top - 1] *= num;\n        else terms[top - 1] /= num;\n        if (c == ')') {\n            num = 0;\n            for (int k = start; k < top; k++) num += terms[k];\n            top = start;\n            start = frameStart[--frames];\n            op = frameOp[frames];\n        } else {\n            op = c;\n            num = 0;\n        }\n    }\n    int sum = 0;\n    for (int k = 0; k < top; k++) sum += terms[k];\n    free(terms);\n    free(frameStart);\n    free(frameOp);\n    return sum;\n}\n"
+   },
+   "lines": [
+    {
+     "text": "Saved frames, the current frame's terms, the pending operator and the number being read.",
+     "at": {
+      "python": [
+       [
+        3,
+        4
+       ]
+      ],
+      "java": [
+       [
+        4,
+        8
+       ]
+      ],
+      "cpp": [
+       [
+        4,
+        8
+       ]
+      ],
+      "c": [
+       [
+        3,
+        7
+       ]
+      ]
+     },
+     "notes": {
+      "java": "All frames share one `terms` array; each frame remembers where its terms start (`frameStart`) and the operator that was pending outside it (`frameOp`).",
+      "cpp": "All frames share one `terms` vector; each saved frame remembers where its terms start and the operator pending outside it.",
+      "c": "All frames share one `terms` array; each frame remembers where its terms start and the operator pending outside it."
+     }
+    },
+    {
+     "text": "Characters plus an end sentinel `#`; spaces skipped.",
+     "at": {
+      "python": [
+       [
+        5,
+        7
+       ]
+      ],
+      "java": [
+       [
+        9,
+        11
+       ]
+      ],
+      "cpp": [
+       [
+        9,
+        11
+       ]
+      ],
+      "c": [
+       [
+        8,
+        10
+       ]
+      ]
+     }
+    },
+    {
+     "text": "Build multi-digit numbers.",
+     "at": {
+      "python": [
+       [
+        8,
+        10
+       ]
+      ],
+      "java": [
+       [
+        12,
+        12
+       ]
+      ],
+      "cpp": [
+       [
+        12,
+        12
+       ]
+      ],
+      "c": [
+       [
+        11,
+        11
+       ]
+      ]
+     }
+    },
+    {
+     "text": "Pause the current level and start a fresh one with pending `+` and number 0 (which is what makes a unary `−` right after `(` work).",
+     "at": {
+      "python": [
+       [
+        11,
+        14
+       ]
+      ],
+      "java": [
+       [
+        13,
+        19
+       ]
+      ],
+      "cpp": [
+       [
+        13,
+        18
+       ]
+      ],
+      "c": [
+       [
+        12,
+        18
+       ]
+      ]
+     }
+    },
+    {
+     "text": "The number just finished is applied with the pending operator: new signed term for `+`/`−`, or modify the last term for `*`/`/`. A leading unary `−` arrives with num 0: it pushes 0 and makes the next term negative.",
+     "at": {
+      "python": [
+       [
+        15,
+        23
+       ]
+      ],
+      "java": [
+       [
+        21,
+        24
+       ]
+      ],
+      "cpp": [
+       [
+        20,
+        23
+       ]
+      ],
+      "c": [
+       [
+        20,
+        23
+       ]
+      ]
+     },
+     "notes": {
+      "python": "The divisor can be negative (a parenthesised value), so truncate toward zero with absolute values."
+     }
+    },
+    {
+     "text": "The inner level is complete: its sum becomes the number for the outer pending operator, which is restored along with the outer terms.",
+     "at": {
+      "python": [
+       [
+        24,
+        26
+       ]
+      ],
+      "java": [
+       [
+        25,
+        30
+       ]
+      ],
+      "cpp": [
+       [
+        24,
+        29
+       ]
+      ],
+      "c": [
+       [
+        24,
+        29
+       ]
+      ]
+     }
+    },
+    {
+     "text": "Remember the operator for the next number.",
+     "at": {
+      "python": [
+       [
+        27,
+        28
+       ]
+      ],
+      "java": [
+       [
+        31,
+        33
+       ]
+      ],
+      "cpp": [
+       [
+        30,
+        32
+       ]
+      ],
+      "c": [
+       [
+        30,
+        32
+       ]
+      ]
+     }
+    },
+    {
+     "text": "Sum of the outermost terms.",
+     "at": {
+      "python": [
+       [
+        29,
+        29
+       ]
+      ],
+      "java": [
+       [
+        36,
+        38
+       ]
+      ],
+      "cpp": [
+       [
+        35,
+        35
+       ]
+      ],
+      "c": [
+       [
+        35,
+        40
+       ]
+      ]
+     }
+    }
+   ],
+   "complexity": [
+    {
+     "md": "**Time O(n):** each character is handled once and each term is summed once when its level closes. **Space O(n)** for terms and frames."
+    }
+   ],
+   "walk": {
+    "steps": [
+     {
+      "text": "'-': apply '+' to the last number → terms [0]; pending operator is now '-'.",
+      "panels": [
+       {
+        "type": "row",
+        "cells": [
+         "·"
+        ],
+        "label": "saved frames"
+       },
+       {
+        "type": "row",
+        "cells": [
+         0
+        ],
+        "label": "current terms"
+       }
+      ]
+     },
+     {
+      "text": "'(': save terms [0] and pending '-'; start a fresh frame.",
+      "panels": [
+       {
+        "type": "row",
+        "cells": [
+         "[0]|-"
+        ],
+        "label": "saved frames (terms|op)"
+       },
+       {
+        "type": "row",
+        "cells": [
+         "·"
+        ],
+        "label": "current terms"
+       }
+      ]
+     },
+     {
+      "text": "'-': apply '+' to the last number → terms [6]; pending operator is now '-'.",
+      "panels": [
+       {
+        "type": "row",
+        "cells": [
+         "[0]|-"
+        ],
+        "label": "saved frames"
+       },
+       {
+        "type": "row",
+        "cells": [
+         6
+        ],
+        "label": "current terms"
+       }
+      ]
+     },
+     {
+      "text": "'*': apply '-' to the last number → terms [6, -2]; pending operator is now '*'.",
+      "panels": [
+       {
+        "type": "row",
+        "cells": [
+         "[0]|-"
+        ],
+        "label": "saved frames"
+       },
+       {
+        "type": "row",
+        "cells": [
+         6,
+         -2
+        ],
+        "label": "current terms"
+       }
+      ]
+     },
+     {
+      "text": "')': the inner frame sums to -2; it becomes the number for the outer pending '-'.",
+      "panels": [
+       {
+        "type": "row",
+        "cells": [
+         "·"
+        ],
+        "label": "saved frames"
+       },
+       {
+        "type": "row",
+        "cells": [
+         0
+        ],
+        "label": "current terms"
+       },
+       {
+        "type": "vars",
+        "items": {
+         "number": -2
+        }
+       }
+      ]
+     },
+     {
+      "text": "'/': apply '-' to the last number → terms [0, 2]; pending operator is now '/'.",
+      "panels": [
+       {
+        "type": "row",
+        "cells": [
+         "·"
+        ],
+        "label": "saved frames"
+       },
+       {
+        "type": "row",
+        "cells": [
+         0,
+         2
+        ],
+        "label": "current terms"
+       }
+      ]
+     },
+     {
+      "text": "'+': apply '/' to the last number → terms [0, 1]; pending operator is now '+'.",
+      "panels": [
+       {
+        "type": "row",
+        "cells": [
+         "·"
+        ],
+        "label": "saved frames"
+       },
+       {
+        "type": "row",
+        "cells": [
+         0,
+         1
+        ],
+        "label": "current terms"
+       }
+      ]
+     },
+     {
+      "text": "'*': apply '+' to the last number → terms [0, 1, 3]; pending operator is now '*'.",
+      "panels": [
+       {
+        "type": "row",
+        "cells": [
+         "·"
+        ],
+        "label": "saved frames"
+       },
+       {
+        "type": "row",
+        "cells": [
+         0,
+         1,
+         3
+        ],
+        "label": "current terms"
+       }
+      ]
+     },
+     {
+      "text": "'(': save terms [0, 1, 3] and pending '*'; start a fresh frame.",
+      "panels": [
+       {
+        "type": "row",
+        "cells": [
+         "[0, 1, 3]|*"
+        ],
+        "label": "saved frames (terms|op)"
+       },
+       {
+        "type": "row",
+        "cells": [
+         "·"
+        ],
+        "label": "current terms"
+       }
+      ]
+     },
+     {
+      "text": "'+': apply '+' to the last number → terms [1]; pending operator is now '+'.",
+      "panels": [
+       {
+        "type": "row",
+        "cells": [
+         "[0, 1, 3]|*"
+        ],
+        "label": "saved frames"
+       },
+       {
+        "type": "row",
+        "cells": [
+         1
+        ],
+        "label": "current terms"
+       }
+      ]
+     },
+     {
+      "text": "')': the inner frame sums to 3; it becomes the number for the outer pending '*'.",
+      "panels": [
+       {
+        "type": "row",
+        "cells": [
+         "·"
+        ],
+        "label": "saved frames"
+       },
+       {
+        "type": "row",
+        "cells": [
+         0,
+         1,
+         3
+        ],
+        "label": "current terms"
+       },
+       {
+        "type": "vars",
+        "items": {
+         "number": 3
+        }
+       }
+      ]
+     },
+     {
+      "text": "End: apply '*' → terms [0, 1, 9].",
+      "panels": [
+       {
+        "type": "row",
+        "cells": [
+         "·"
+        ],
+        "label": "saved frames"
+       },
+       {
+        "type": "row",
+        "cells": [
+         0,
+         1,
+         9
+        ],
+        "label": "current terms"
+       }
+      ]
+     },
+     {
+      "text": "Sum of the top-level terms: 10.",
+      "panels": [
+       {
+        "type": "row",
+        "cells": [
+         0,
+         1,
+         9
+        ],
+        "label": "terms"
+       }
+      ],
+      "result": "10"
+     }
+    ],
+    "title": "Desk-calculator loop plus a stack of frames: '(' saves the current terms and pending operator; ')' sums the inner terms into a number and restores the outer frame."
+   }
+  }
+ ],
+ "takeaways": [
+  {
+   "md": "- Parentheses = **save the current state on a stack, evaluate the inside, resume**.\n- Recursive descent is the textbook parser; an explicit stack is the same thing without call-stack limits.\n- A pending `+` with number 0 at the start of each level makes a unary minus work without special cases."
+  }
+ ]
+}
