@@ -1,0 +1,1036 @@
+{
+ "version": 1,
+ "summary": "Only a left-moving comet can crash, and the first thing it meets is the nearest survivor to its left, if that\none moves right. Keep survivors on a stack: a left-mover pops smaller right-movers off the top, stops at a bigger\none (and breaks), or ties (both go). O(n): every comet is pushed and popped at most once.",
+ "question": [
+  {
+   "md": "Comets are listed in order of position. The sign is the direction (positive → right, negative → left), the\nabsolute value is the size. All fly at the same speed. When two meet, the smaller breaks; equal sizes both\nbreak. Return the survivors, still in position order.\n\n- **Only a → followed (somewhere to its right) by a ← can meet.** Two comets moving the same way keep their gap\n  forever, and ← … → move apart.\n- **One comet can win many collisions:** a big ← sweeps up several smaller → in a row.\n- **Up to 10⁵ comets.**"
+  }
+ ],
+ "think": [
+  {
+   "md": "Take `[5, 10, -5, 8, -12, 3, -3, -1]`. The `−5` meets the `10` first and breaks. The `−12` meets `8`, then `10`, then `5`, winning\neach time, so it survives and flies off to the left. `3` and `−3` destroy each other. `−1` has only `−12` to its\nleft, which flies the same way. Survivors: `[-12, -1]`."
+  },
+  {
+   "panels": [
+    {
+     "type": "row",
+     "cells": [
+      "5→",
+      "10→",
+      "←5",
+      "8→",
+      "←12",
+      "3→",
+      "←3",
+      "←1"
+     ],
+     "label": "before"
+    },
+    {
+     "type": "row",
+     "cells": [
+      "←12",
+      "←1"
+     ],
+     "label": "after"
+    }
+   ]
+  },
+  {
+   "md": "Look at it from a ← comet's point of view. Everything to its left has already settled among itself: it's some\n←s (flying away) followed by some →s (waiting to meet it). The nearest one is the first it will hit. If it wins,\nthe next nearest is next. That's always the **most recent survivor**, the top of a stack. A → comet just joins\nthe stack: nothing to its left can hit it, and whatever comes from the right will deal with it later."
+  }
+ ],
+ "approaches": [
+  {
+   "title": "Resolve one collision at a time",
+   "kind": "brute",
+   "time": "O(n²)",
+   "space": "O(n)",
+   "idea": [
+    {
+     "md": "Collisions only ever happen between neighbours facing each other (→ immediately followed by ←). Find the first such pair, remove the loser (or both), and scan again. When a full scan finds none, everything left survives."
+    }
+   ],
+   "build": [
+    "Copy the comets into a list.",
+    "Loop: find the first index with `a[i] > 0 and a[i+1] < 0`; if none, stop.",
+    "Remove the smaller one (both if equal) and repeat."
+   ],
+   "code": {
+    "python": "class Solution:\n    def afterCollisions(self, comets: List[int]) -> List[int]:\n        a = list(comets)\n        i = 0\n        while i < len(a) - 1:\n            if a[i] > 0 and a[i + 1] < 0:\n                if a[i] > -a[i + 1]:\n                    del a[i + 1]\n                elif a[i] < -a[i + 1]:\n                    del a[i]\n                else:\n                    del a[i:i + 2]\n                i = 0\n            else:\n                i += 1\n        return a\n",
+    "java": "class Solution {\n    public int[] afterCollisions(int[] comets) {\n        List<Integer> a = new ArrayList<>();\n        for (int c : comets) a.add(c);\n        int i = 0;\n        while (i < a.size() - 1) {\n            int x = a.get(i), y = a.get(i + 1);\n            if (x > 0 && y < 0) {\n                if (x > -y) a.remove(i + 1);\n                else if (x < -y) a.remove(i);\n                else { a.remove(i + 1); a.remove(i); }\n                i = 0;\n            } else i++;\n        }\n        int[] out = new int[a.size()];\n        for (int k = 0; k < out.length; k++) out[k] = a.get(k);\n        return out;\n    }\n}\n",
+    "cpp": "class Solution {\npublic:\n    vector<int> afterCollisions(vector<int>& comets) {\n        vector<int> a = comets;\n        size_t i = 0;\n        while (i + 1 < a.size()) {\n            if (a[i] > 0 && a[i + 1] < 0) {\n                if (a[i] > -a[i + 1]) a.erase(a.begin() + i + 1);\n                else if (a[i] < -a[i + 1]) a.erase(a.begin() + i);\n                else a.erase(a.begin() + i, a.begin() + i + 2);\n                i = 0;\n            } else i++;\n        }\n        return a;\n    }\n};\n",
+    "c": "static void removeAt(int* a, int* n, int i, int count) {\n    for (int k = i; k + count < *n; k++) a[k] = a[k + count];\n    *n -= count;\n}\n\nint* afterCollisions(int* comets, int cometsSize, int* returnSize) {\n    int* a = malloc(cometsSize * sizeof(int));\n    memcpy(a, comets, cometsSize * sizeof(int));\n    int n = cometsSize, i = 0;\n    while (i < n - 1) {\n        if (a[i] > 0 && a[i + 1] < 0) {\n            if (a[i] > -a[i + 1]) removeAt(a, &n, i + 1, 1);\n            else if (a[i] < -a[i + 1]) removeAt(a, &n, i, 1);\n            else removeAt(a, &n, i, 2);\n            i = 0;\n        } else i++;\n    }\n    *returnSize = n;\n    return a;\n}\n"
+   },
+   "lines": [
+    {
+     "text": "Work on a copy we can delete from.",
+     "at": {
+      "python": [
+       [
+        3,
+        3
+       ]
+      ],
+      "java": [
+       [
+        3,
+        4
+       ]
+      ],
+      "cpp": [
+       [
+        4,
+        4
+       ]
+      ],
+      "c": [
+       [
+        7,
+        8
+       ]
+      ]
+     }
+    },
+    {
+     "text": "Walk left to right looking for a collision.",
+     "at": {
+      "python": [
+       [
+        4,
+        5
+       ],
+       [
+        14,
+        15
+       ]
+      ],
+      "java": [
+       [
+        5,
+        6
+       ],
+       [
+        13,
+        13
+       ]
+      ],
+      "cpp": [
+       [
+        5,
+        6
+       ],
+       [
+        12,
+        12
+       ]
+      ],
+      "c": [
+       [
+        9,
+        10
+       ],
+       [
+        16,
+        16
+       ]
+      ]
+     }
+    },
+    {
+     "text": "Neighbours facing each other: the left one flies right, the right one flies left.",
+     "at": {
+      "python": [
+       [
+        6,
+        6
+       ]
+      ],
+      "java": [
+       [
+        7,
+        8
+       ]
+      ],
+      "cpp": [
+       [
+        7,
+        7
+       ]
+      ],
+      "c": [
+       [
+        11,
+        11
+       ]
+      ]
+     }
+    },
+    {
+     "text": "The smaller breaks; equal sizes both break.",
+     "at": {
+      "python": [
+       [
+        7,
+        12
+       ]
+      ],
+      "java": [
+       [
+        9,
+        11
+       ]
+      ],
+      "cpp": [
+       [
+        8,
+        10
+       ]
+      ],
+      "c": [
+       [
+        1,
+        4
+       ],
+       [
+        12,
+        14
+       ]
+      ]
+     },
+     "notes": {
+      "c": "`removeAt` shifts the tail left over the removed comets."
+     }
+    },
+    {
+     "text": "Removing comets can create a new facing pair further left, so scan from the start again.",
+     "at": {
+      "python": [
+       [
+        13,
+        13
+       ]
+      ],
+      "java": [
+       [
+        12,
+        12
+       ]
+      ],
+      "cpp": [
+       [
+        11,
+        11
+       ]
+      ],
+      "c": [
+       [
+        15,
+        15
+       ]
+      ]
+     }
+    },
+    {
+     "text": "No facing neighbours remain: these are the survivors.",
+     "at": {
+      "python": [
+       [
+        16,
+        16
+       ]
+      ],
+      "java": [
+       [
+        15,
+        17
+       ]
+      ],
+      "cpp": [
+       [
+        14,
+        14
+       ]
+      ],
+      "c": [
+       [
+        18,
+        19
+       ]
+      ]
+     }
+    }
+   ],
+   "complexity": [
+    {
+     "md": "**Time O(n²):** up to n collisions, and each costs a rescan plus a deletion that shifts the list. **Space O(n)** for the copy."
+    }
+   ],
+   "walk": {
+    "steps": [
+     {
+      "text": "Start. Positive comets fly right (→), negative ones fly left (←).",
+      "panels": [
+       {
+        "type": "row",
+        "cells": [
+         "5→",
+         "10→",
+         "←5",
+         "8→",
+         "←12",
+         "3→",
+         "←3",
+         "←1"
+        ]
+       }
+      ]
+     },
+     {
+      "text": "First facing pair at positions 1,2: 10 beats 5. Rescan from the start.",
+      "panels": [
+       {
+        "type": "row",
+        "cells": [
+         "5→",
+         "10→",
+         "←5",
+         "8→",
+         "←12",
+         "3→",
+         "←3",
+         "←1"
+        ],
+        "states": {
+         "1": "mark",
+         "2": "mark"
+        }
+       }
+      ]
+     },
+     {
+      "text": "First facing pair at positions 2,3: 12 beats 8. Rescan from the start.",
+      "panels": [
+       {
+        "type": "row",
+        "cells": [
+         "5→",
+         "10→",
+         "8→",
+         "←12",
+         "3→",
+         "←3",
+         "←1"
+        ],
+        "states": {
+         "2": "mark",
+         "3": "mark"
+        }
+       }
+      ]
+     },
+     {
+      "text": "First facing pair at positions 1,2: 12 beats 10. Rescan from the start.",
+      "panels": [
+       {
+        "type": "row",
+        "cells": [
+         "5→",
+         "10→",
+         "←12",
+         "3→",
+         "←3",
+         "←1"
+        ],
+        "states": {
+         "1": "mark",
+         "2": "mark"
+        }
+       }
+      ]
+     },
+     {
+      "text": "First facing pair at positions 0,1: 12 beats 5. Rescan from the start.",
+      "panels": [
+       {
+        "type": "row",
+        "cells": [
+         "5→",
+         "←12",
+         "3→",
+         "←3",
+         "←1"
+        ],
+        "states": {
+         "0": "mark",
+         "1": "mark"
+        }
+       }
+      ]
+     },
+     {
+      "text": "First facing pair at positions 1,2: both size 3: both break. Rescan from the start.",
+      "panels": [
+       {
+        "type": "row",
+        "cells": [
+         "←12",
+         "3→",
+         "←3",
+         "←1"
+        ],
+        "states": {
+         "1": "mark",
+         "2": "mark"
+        }
+       }
+      ]
+     },
+     {
+      "text": "No pair faces each other any more: these survive.",
+      "panels": [
+       {
+        "type": "row",
+        "cells": [
+         "←12",
+         "←1"
+        ]
+       }
+      ],
+      "result": "[-12, -1]"
+     }
+    ],
+    "title": "Find the first neighbouring pair that faces each other (→ then ←), resolve that one collision, and start scanning again."
+   },
+   "limits": [
+    {
+     "md": "Each collision restarts the scan and shifts the array, so 10⁵ comets can take ~10¹⁰ steps. But a collision only ever involves the newest survivor to the left, so nothing needs rescanning: a stack keeps exactly the comets still in play."
+    }
+   ],
+   "slow": true
+  },
+  {
+   "title": "Stack of survivors",
+   "kind": "best",
+   "time": "O(n)",
+   "space": "O(n)",
+   "idea": [
+    {
+     "md": "Go left to right with a stack of survivors so far. A → comet (or a ← with nothing to hit) is pushed. A ← comet of size `s` fights the top while the top is →: a smaller top is popped and the fight continues; an equal top is popped and `s` breaks too; a bigger top survives and `s` breaks. If `s` clears every → it meets, push it."
+    }
+   ],
+   "build": [
+    "An empty stack.",
+    "For each comet, set `alive = true`.",
+    "While alive, the comet moves left, and the top moves right: compare sizes and pop/kill as described.",
+    "If still alive, push it.",
+    "The stack, bottom to top, is the answer."
+   ],
+   "code": {
+    "python": "class Solution:\n    def afterCollisions(self, comets: List[int]) -> List[int]:\n        stack = []\n        for c in comets:\n            alive = True\n            while alive and c < 0 and stack and stack[-1] > 0:\n                if stack[-1] < -c:\n                    stack.pop()\n                elif stack[-1] == -c:\n                    stack.pop()\n                    alive = False\n                else:\n                    alive = False\n            if alive:\n                stack.append(c)\n        return stack\n",
+    "java": "class Solution {\n    public int[] afterCollisions(int[] comets) {\n        int[] stack = new int[comets.length];\n        int top = 0;\n        for (int c : comets) {\n            boolean alive = true;\n            while (alive && c < 0 && top > 0 && stack[top - 1] > 0) {\n                if (stack[top - 1] < -c) top--;\n                else if (stack[top - 1] == -c) { top--; alive = false; }\n                else alive = false;\n            }\n            if (alive) stack[top++] = c;\n        }\n        return Arrays.copyOf(stack, top);\n    }\n}\n",
+    "cpp": "class Solution {\npublic:\n    vector<int> afterCollisions(vector<int>& comets) {\n        vector<int> stack;\n        for (int c : comets) {\n            bool alive = true;\n            while (alive && c < 0 && !stack.empty() && stack.back() > 0) {\n                if (stack.back() < -c) stack.pop_back();\n                else if (stack.back() == -c) { stack.pop_back(); alive = false; }\n                else alive = false;\n            }\n            if (alive) stack.push_back(c);\n        }\n        return stack;\n    }\n};\n",
+    "c": "int* afterCollisions(int* comets, int cometsSize, int* returnSize) {\n    int* stack = malloc(cometsSize * sizeof(int));\n    int top = 0;\n    for (int i = 0; i < cometsSize; i++) {\n        int c = comets[i];\n        bool alive = true;\n        while (alive && c < 0 && top > 0 && stack[top - 1] > 0) {\n            if (stack[top - 1] < -c) top--;\n            else if (stack[top - 1] == -c) { top--; alive = false; }\n            else alive = false;\n        }\n        if (alive) stack[top++] = c;\n    }\n    *returnSize = top;\n    return stack;\n}\n"
+   },
+   "lines": [
+    {
+     "text": "Survivors so far, in position order.",
+     "at": {
+      "python": [
+       [
+        3,
+        3
+       ]
+      ],
+      "java": [
+       [
+        3,
+        4
+       ]
+      ],
+      "cpp": [
+       [
+        4,
+        4
+       ]
+      ],
+      "c": [
+       [
+        2,
+        3
+       ]
+      ]
+     },
+     "notes": {
+      "java": "An array with a `top` counter is the stack.",
+      "c": "An array with a `top` counter is the stack."
+     }
+    },
+    {
+     "text": "Each comet enters alive.",
+     "at": {
+      "python": [
+       [
+        4,
+        5
+       ]
+      ],
+      "java": [
+       [
+        5,
+        6
+       ]
+      ],
+      "cpp": [
+       [
+        5,
+        6
+       ]
+      ],
+      "c": [
+       [
+        4,
+        6
+       ]
+      ]
+     }
+    },
+    {
+     "text": "A fight happens only when the incoming comet flies left and the nearest survivor flies right.",
+     "at": {
+      "python": [
+       [
+        6,
+        6
+       ]
+      ],
+      "java": [
+       [
+        7,
+        7
+       ]
+      ],
+      "cpp": [
+       [
+        7,
+        7
+       ]
+      ],
+      "c": [
+       [
+        7,
+        7
+       ]
+      ]
+     }
+    },
+    {
+     "text": "The top is smaller: it breaks, and the incoming comet goes on to meet the next one.",
+     "at": {
+      "python": [
+       [
+        7,
+        8
+       ]
+      ],
+      "java": [
+       [
+        8,
+        8
+       ]
+      ],
+      "cpp": [
+       [
+        8,
+        8
+       ]
+      ],
+      "c": [
+       [
+        8,
+        8
+       ]
+      ]
+     }
+    },
+    {
+     "text": "Equal sizes: both break.",
+     "at": {
+      "python": [
+       [
+        9,
+        11
+       ]
+      ],
+      "java": [
+       [
+        9,
+        9
+       ]
+      ],
+      "cpp": [
+       [
+        9,
+        9
+       ]
+      ],
+      "c": [
+       [
+        9,
+        9
+       ]
+      ]
+     }
+    },
+    {
+     "text": "The top is bigger: the incoming comet breaks, and the top stays.",
+     "at": {
+      "python": [
+       [
+        12,
+        13
+       ]
+      ],
+      "java": [
+       [
+        10,
+        10
+       ]
+      ],
+      "cpp": [
+       [
+        10,
+        10
+       ]
+      ],
+      "c": [
+       [
+        10,
+        10
+       ]
+      ]
+     }
+    },
+    {
+     "text": "Still alive (it flies right, or it flies left with nothing left to hit): it's a survivor for now.",
+     "at": {
+      "python": [
+       [
+        14,
+        15
+       ]
+      ],
+      "java": [
+       [
+        12,
+        12
+       ]
+      ],
+      "cpp": [
+       [
+        12,
+        12
+       ]
+      ],
+      "c": [
+       [
+        12,
+        12
+       ]
+      ]
+     }
+    },
+    {
+     "text": "The stack, bottom to top, is in position order.",
+     "at": {
+      "python": [
+       [
+        16,
+        16
+       ]
+      ],
+      "java": [
+       [
+        14,
+        14
+       ]
+      ],
+      "cpp": [
+       [
+        14,
+        14
+       ]
+      ],
+      "c": [
+       [
+        14,
+        15
+       ]
+      ]
+     }
+    }
+   ],
+   "complexity": [
+    {
+     "md": "**Time O(n):** each comet is pushed at most once and popped at most once, so the inner loop runs O(n) times in total. **Space O(n)** for the stack."
+    }
+   ],
+   "walk": {
+    "steps": [
+     {
+      "text": "5→: moves right: it can't hit anything to its left. Push.",
+      "panels": [
+       {
+        "type": "row",
+        "cells": [
+         "5→",
+         "10→",
+         "←5",
+         "8→",
+         "←12",
+         "3→",
+         "←3",
+         "←1"
+        ],
+        "states": {
+         "0": "active"
+        }
+       },
+       {
+        "type": "row",
+        "cells": [
+         "5→"
+        ],
+        "states": {
+         "0": "new"
+        },
+        "label": "survivors"
+       }
+      ]
+     },
+     {
+      "text": "10→: moves right: it can't hit anything to its left. Push.",
+      "panels": [
+       {
+        "type": "row",
+        "cells": [
+         "5→",
+         "10→",
+         "←5",
+         "8→",
+         "←12",
+         "3→",
+         "←3",
+         "←1"
+        ],
+        "states": {
+         "1": "active"
+        }
+       },
+       {
+        "type": "row",
+        "cells": [
+         "5→",
+         "10→"
+        ],
+        "states": {
+         "1": "new"
+        },
+        "label": "survivors"
+       }
+      ]
+     },
+     {
+      "text": "←5 meets 10→: 10 > 5, the incoming comet breaks.",
+      "panels": [
+       {
+        "type": "row",
+        "cells": [
+         "5→",
+         "10→",
+         "←5",
+         "8→",
+         "←12",
+         "3→",
+         "←3",
+         "←1"
+        ],
+        "states": {
+         "2": "mark"
+        }
+       },
+       {
+        "type": "row",
+        "cells": [
+         "5→",
+         "10→"
+        ],
+        "label": "survivors"
+       }
+      ]
+     },
+     {
+      "text": "8→: moves right: it can't hit anything to its left. Push.",
+      "panels": [
+       {
+        "type": "row",
+        "cells": [
+         "5→",
+         "10→",
+         "←5",
+         "8→",
+         "←12",
+         "3→",
+         "←3",
+         "←1"
+        ],
+        "states": {
+         "3": "active"
+        }
+       },
+       {
+        "type": "row",
+        "cells": [
+         "5→",
+         "10→",
+         "8→"
+        ],
+        "states": {
+         "2": "new"
+        },
+        "label": "survivors"
+       }
+      ]
+     },
+     {
+      "text": "←12 meets 8→: 12 > 8, the top breaks. Pop and keep going.",
+      "panels": [
+       {
+        "type": "row",
+        "cells": [
+         "5→",
+         "10→",
+         "←5",
+         "8→",
+         "←12",
+         "3→",
+         "←3",
+         "←1"
+        ],
+        "states": {
+         "4": "active"
+        }
+       },
+       {
+        "type": "row",
+        "cells": [
+         "5→",
+         "10→"
+        ],
+        "label": "survivors"
+       }
+      ]
+     },
+     {
+      "text": "←12 meets 10→: 12 > 10, the top breaks. Pop and keep going.",
+      "panels": [
+       {
+        "type": "row",
+        "cells": [
+         "5→",
+         "10→",
+         "←5",
+         "8→",
+         "←12",
+         "3→",
+         "←3",
+         "←1"
+        ],
+        "states": {
+         "4": "active"
+        }
+       },
+       {
+        "type": "row",
+        "cells": [
+         "5→"
+        ],
+        "label": "survivors"
+       }
+      ]
+     },
+     {
+      "text": "←12 meets 5→: 12 > 5, the top breaks. Pop and keep going.",
+      "panels": [
+       {
+        "type": "row",
+        "cells": [
+         "5→",
+         "10→",
+         "←5",
+         "8→",
+         "←12",
+         "3→",
+         "←3",
+         "←1"
+        ],
+        "states": {
+         "4": "active"
+        }
+       },
+       {
+        "type": "row",
+        "cells": [
+         "·"
+        ],
+        "label": "survivors"
+       }
+      ]
+     },
+     {
+      "text": "←12 cleared everything moving right; nothing left to hit. Push.",
+      "panels": [
+       {
+        "type": "row",
+        "cells": [
+         "5→",
+         "10→",
+         "←5",
+         "8→",
+         "←12",
+         "3→",
+         "←3",
+         "←1"
+        ],
+        "states": {
+         "4": "active"
+        }
+       },
+       {
+        "type": "row",
+        "cells": [
+         "←12"
+        ],
+        "states": {
+         "0": "new"
+        },
+        "label": "survivors"
+       }
+      ]
+     },
+     {
+      "text": "3→: moves right: it can't hit anything to its left. Push.",
+      "panels": [
+       {
+        "type": "row",
+        "cells": [
+         "5→",
+         "10→",
+         "←5",
+         "8→",
+         "←12",
+         "3→",
+         "←3",
+         "←1"
+        ],
+        "states": {
+         "5": "active"
+        }
+       },
+       {
+        "type": "row",
+        "cells": [
+         "←12",
+         "3→"
+        ],
+        "states": {
+         "1": "new"
+        },
+        "label": "survivors"
+       }
+      ]
+     },
+     {
+      "text": "←3 meets 3→: same size, both break.",
+      "panels": [
+       {
+        "type": "row",
+        "cells": [
+         "5→",
+         "10→",
+         "←5",
+         "8→",
+         "←12",
+         "3→",
+         "←3",
+         "←1"
+        ],
+        "states": {
+         "6": "mark"
+        }
+       },
+       {
+        "type": "row",
+        "cells": [
+         "←12"
+        ],
+        "label": "survivors"
+       }
+      ]
+     },
+     {
+      "text": "←1: the top also moves left; they never meet. Push.",
+      "panels": [
+       {
+        "type": "row",
+        "cells": [
+         "5→",
+         "10→",
+         "←5",
+         "8→",
+         "←12",
+         "3→",
+         "←3",
+         "←1"
+        ],
+        "states": {
+         "7": "active"
+        }
+       },
+       {
+        "type": "row",
+        "cells": [
+         "←12",
+         "←1"
+        ],
+        "states": {
+         "1": "new"
+        },
+        "label": "survivors"
+       }
+      ]
+     },
+     {
+      "text": "The stack, bottom to top, is the answer: [-12, -1].",
+      "panels": [
+       {
+        "type": "row",
+        "cells": [
+         "←12",
+         "←1"
+        ]
+       }
+      ],
+      "result": "[-12, -1]"
+     }
+    ],
+    "title": "Survivors so far sit on a stack. Only a left-mover can hit anything, and the first thing it meets is the stack's top."
+   }
+  }
+ ],
+ "takeaways": [
+  {
+   "md": "- When each new item only interacts with **the most recent survivors**, keep the survivors on a stack.\n- Amortised O(n): the inner `while` can run many times for one item, but every pop removes something for good.\n- Spell out which pairs can interact at all (here only → … ←) before simulating."
+  }
+ ]
+}

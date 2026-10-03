@@ -1,0 +1,880 @@
+{
+ "version": 1,
+ "summary": "Replay the evening with a real stack. Push the washed plates in order; whenever the top is the next plate to\nserve, take it at once (waiting never helps: the plate can only get buried). It could happen exactly when every\nplate gets served. O(n).",
+ "question": [
+  {
+   "md": "Plates are stacked in `washed` order, and at any moment a waiter can take the top plate. Given the order they\nwere served, could that order have happened?\n\n- **Pushes follow `washed` exactly**, but pops can be interleaved anywhere.\n- **Every plate is pushed once and served once**, and all numbers are distinct.\n- **Up to 10⁵ plates.**"
+  }
+ ],
+ "think": [
+  {
+   "md": "Washed `[3, 1, 4, 2, 5]`, served `[1, 4, 2, 5, 3]`. Wash 3, wash 1, serve 1. Wash 4, serve 4. Wash 2, serve 2. Wash 5, serve\n5. Serve 3, which was waiting at the bottom all along. Yes.\n\nNow served `[4, 3, 5, 1, 2]`. To serve 4 first, 3 and 1 must already be on the stack, 1 on top. Serve 4, then 3 is needed\nbut 1 is on top of it, and 1 can't be served yet. No."
+  },
+  {
+   "panels": [
+    {
+     "type": "row",
+     "cells": [
+      3,
+      1,
+      4,
+      2,
+      5
+     ],
+     "label": "washed"
+    },
+    {
+     "type": "row",
+     "cells": [
+      1,
+      4,
+      2,
+      5,
+      3
+     ],
+     "label": "served ✓"
+    },
+    {
+     "type": "row",
+     "cells": [
+      4,
+      3,
+      5,
+      1,
+      2
+     ],
+     "label": "served ✗"
+    }
+   ]
+  },
+  {
+   "md": "The choice at every moment is \"serve the top now\" or \"wash the next plate\". If the top is the plate that must go\nnext, serving it now is always right: pushing more plates would only bury it. If the top is some other plate,\nserving is not allowed, so wash the next one. With no real choices left, a single replay decides the answer."
+  }
+ ],
+ "approaches": [
+  {
+   "title": "Check the reverse-order rule for every plate",
+   "kind": "brute",
+   "time": "O(n²)",
+   "space": "O(n)",
+   "idea": [
+    {
+     "md": "When plate `x` is served, every plate washed before `x` and not yet served is on the stack below it, in washing order. They can only leave newest-washed first. So for each `x`, the later-served plates that were washed before `x` must appear in decreasing washing position. If every plate passes, the order is possible."
+    }
+   ],
+   "build": [
+    "Find each served plate's washing position (a linear search is fine here, since the check is quadratic anyway).",
+    "For each `j`, scan `served[j+1:]`; among plates washed before `served[j]`, positions must keep decreasing.",
+    "Any increase → false; otherwise true."
+   ],
+   "code": {
+    "python": "class Solution:\n    def couldHappen(self, washed: List[int], served: List[int]) -> bool:\n        n = len(washed)\n        pos = [washed.index(x) for x in served]\n        for j in range(n):\n            last = pos[j]\n            for k in range(j + 1, n):\n                if pos[k] < pos[j]:\n                    if pos[k] > last:\n                        return False\n                    last = pos[k]\n        return True\n",
+    "java": "class Solution {\n    public boolean couldHappen(int[] washed, int[] served) {\n        int n = washed.length;\n        int[] pos = new int[n];\n        for (int j = 0; j < n; j++) for (int i = 0; i < n; i++) if (washed[i] == served[j]) pos[j] = i;\n        for (int j = 0; j < n; j++) {\n            int last = pos[j];\n            for (int k = j + 1; k < n; k++) {\n                if (pos[k] < pos[j]) {\n                    if (pos[k] > last) return false;\n                    last = pos[k];\n                }\n            }\n        }\n        return true;\n    }\n}\n",
+    "cpp": "class Solution {\npublic:\n    bool couldHappen(vector<int>& washed, vector<int>& served) {\n        int n = washed.size();\n        vector<int> pos(n);\n        for (int j = 0; j < n; j++) pos[j] = find(washed.begin(), washed.end(), served[j]) - washed.begin();\n        for (int j = 0; j < n; j++) {\n            int last = pos[j];\n            for (int k = j + 1; k < n; k++) {\n                if (pos[k] < pos[j]) {\n                    if (pos[k] > last) return false;\n                    last = pos[k];\n                }\n            }\n        }\n        return true;\n    }\n};\n",
+    "c": "bool couldHappen(int* washed, int washedSize, int* served, int servedSize) {\n    int n = washedSize;\n    int* pos = malloc(n * sizeof(int));\n    for (int j = 0; j < n; j++) for (int i = 0; i < n; i++) if (washed[i] == served[j]) pos[j] = i;\n    bool ok = true;\n    for (int j = 0; j < n && ok; j++) {\n        int last = pos[j];\n        for (int k = j + 1; k < n && ok; k++) {\n            if (pos[k] < pos[j]) {\n                if (pos[k] > last) ok = false;\n                last = pos[k];\n            }\n        }\n    }\n    free(pos);\n    return ok;\n}\n"
+   },
+   "lines": [
+    {
+     "text": "Translate each served plate into its washing position (when it was pushed).",
+     "at": {
+      "python": [
+       [
+        3,
+        4
+       ]
+      ],
+      "java": [
+       [
+        3,
+        5
+       ]
+      ],
+      "cpp": [
+       [
+        4,
+        6
+       ]
+      ],
+      "c": [
+       [
+        2,
+        4
+       ]
+      ]
+     }
+    },
+    {
+     "text": "Take the plate served at step `j`; `last` tracks the most recent position seen below it.",
+     "at": {
+      "python": [
+       [
+        5,
+        6
+       ]
+      ],
+      "java": [
+       [
+        6,
+        7
+       ]
+      ],
+      "cpp": [
+       [
+        7,
+        8
+       ]
+      ],
+      "c": [
+       [
+        5,
+        7
+       ]
+      ]
+     }
+    },
+    {
+     "text": "Plates served later but washed earlier were under `served[j]` when it left. Walk them in serving order.",
+     "at": {
+      "python": [
+       [
+        7,
+        8
+       ],
+       [
+        11,
+        11
+       ]
+      ],
+      "java": [
+       [
+        8,
+        9
+       ],
+       [
+        11,
+        11
+       ]
+      ],
+      "cpp": [
+       [
+        9,
+        10
+       ],
+       [
+        12,
+        12
+       ]
+      ],
+      "c": [
+       [
+        8,
+        9
+       ],
+       [
+        11,
+        11
+       ]
+      ]
+     }
+    },
+    {
+     "text": "Their positions must decrease (newest-washed leaves first). An increase means a plate had to come out from under another one.",
+     "at": {
+      "python": [
+       [
+        9,
+        10
+       ]
+      ],
+      "java": [
+       [
+        10,
+        10
+       ]
+      ],
+      "cpp": [
+       [
+        11,
+        11
+       ]
+      ],
+      "c": [
+       [
+        10,
+        10
+       ]
+      ]
+     }
+    },
+    {
+     "text": "Every plate passed: the order is possible.",
+     "at": {
+      "python": [
+       [
+        12,
+        12
+       ]
+      ],
+      "java": [
+       [
+        15,
+        15
+       ]
+      ],
+      "cpp": [
+       [
+        16,
+        16
+       ]
+      ],
+      "c": [
+       [
+        15,
+        16
+       ]
+      ]
+     }
+    }
+   ],
+   "complexity": [
+    {
+     "md": "**Time O(n²)** for the position lookups and the nested check. **Space O(n)** for positions."
+    }
+   ],
+   "walk": {
+    "steps": [
+     {
+      "text": "Serve 1. Plates washed before it and served later: [3]. Their washing positions [0] decrease, so the order works.",
+      "panels": [
+       {
+        "type": "row",
+        "cells": [
+         1,
+         4,
+         2,
+         5,
+         3
+        ],
+        "states": {
+         "0": "active"
+        },
+        "label": "served"
+       },
+       {
+        "type": "row",
+        "cells": [
+         3,
+         1,
+         4,
+         2,
+         5
+        ],
+        "states": {
+         "1": "active",
+         "0": "mark"
+        },
+        "label": "washed"
+       }
+      ]
+     },
+     {
+      "text": "Serve 4. Plates washed before it and served later: [3]. Their washing positions [0] decrease, so the order works.",
+      "panels": [
+       {
+        "type": "row",
+        "cells": [
+         1,
+         4,
+         2,
+         5,
+         3
+        ],
+        "states": {
+         "1": "active"
+        },
+        "label": "served"
+       },
+       {
+        "type": "row",
+        "cells": [
+         3,
+         1,
+         4,
+         2,
+         5
+        ],
+        "states": {
+         "2": "active",
+         "0": "mark"
+        },
+        "label": "washed"
+       }
+      ]
+     },
+     {
+      "text": "Serve 2. Plates washed before it and served later: [3]. Their washing positions [0] decrease, so the order works.",
+      "panels": [
+       {
+        "type": "row",
+        "cells": [
+         1,
+         4,
+         2,
+         5,
+         3
+        ],
+        "states": {
+         "2": "active"
+        },
+        "label": "served"
+       },
+       {
+        "type": "row",
+        "cells": [
+         3,
+         1,
+         4,
+         2,
+         5
+        ],
+        "states": {
+         "3": "active",
+         "0": "mark"
+        },
+        "label": "washed"
+       }
+      ]
+     },
+     {
+      "text": "Serve 5. Plates washed before it and served later: [3]. Their washing positions [0] decrease, so the order works.",
+      "panels": [
+       {
+        "type": "row",
+        "cells": [
+         1,
+         4,
+         2,
+         5,
+         3
+        ],
+        "states": {
+         "3": "active"
+        },
+        "label": "served"
+       },
+       {
+        "type": "row",
+        "cells": [
+         3,
+         1,
+         4,
+         2,
+         5
+        ],
+        "states": {
+         "4": "active",
+         "0": "mark"
+        },
+        "label": "washed"
+       }
+      ]
+     },
+     {
+      "text": "Serve 3. Plates washed before it and served later: none.",
+      "panels": [
+       {
+        "type": "row",
+        "cells": [
+         1,
+         4,
+         2,
+         5,
+         3
+        ],
+        "states": {
+         "4": "active"
+        },
+        "label": "served"
+       },
+       {
+        "type": "row",
+        "cells": [
+         3,
+         1,
+         4,
+         2,
+         5
+        ],
+        "states": {
+         "0": "active"
+        },
+        "label": "washed"
+       }
+      ]
+     },
+     {
+      "text": "Every plate passes the rule: it could happen.",
+      "panels": [],
+      "result": "true"
+     }
+    ],
+    "title": "Rule: when a plate is served, every plate washed before it and still unserved is in the stack below it, and those must come out newest-washed first."
+   },
+   "limits": [
+    {
+     "md": "Correct, but it re-derives the stack's contents from scratch for every plate. Simply replaying the stack answers the same question in one pass."
+    }
+   ],
+   "slow": true
+  },
+  {
+   "title": "Replay with a stack",
+   "kind": "best",
+   "time": "O(n)",
+   "space": "O(n)",
+   "idea": [
+    {
+     "md": "Push the washed plates in order. After each push, while the top is `served[j]`, pop it and advance `j`. At the end, the order could happen exactly when `j == n` (equivalently, the stack is empty)."
+    }
+   ],
+   "build": [
+    "An empty stack and `j = 0`.",
+    "For each washed plate: push it, then serve greedily while the top matches `served[j]`.",
+    "Return whether `j` reached `n`."
+   ],
+   "code": {
+    "python": "class Solution:\n    def couldHappen(self, washed: List[int], served: List[int]) -> bool:\n        stack = []\n        j = 0\n        for plate in washed:\n            stack.append(plate)\n            while stack and stack[-1] == served[j]:\n                stack.pop()\n                j += 1\n        return j == len(served)\n",
+    "java": "class Solution {\n    public boolean couldHappen(int[] washed, int[] served) {\n        int[] stack = new int[washed.length];\n        int top = 0, j = 0;\n        for (int plate : washed) {\n            stack[top++] = plate;\n            while (top > 0 && stack[top - 1] == served[j]) {\n                top--;\n                j++;\n            }\n        }\n        return j == served.length;\n    }\n}\n",
+    "cpp": "class Solution {\npublic:\n    bool couldHappen(vector<int>& washed, vector<int>& served) {\n        vector<int> stack;\n        size_t j = 0;\n        for (int plate : washed) {\n            stack.push_back(plate);\n            while (!stack.empty() && stack.back() == served[j]) {\n                stack.pop_back();\n                j++;\n            }\n        }\n        return j == served.size();\n    }\n};\n",
+    "c": "bool couldHappen(int* washed, int washedSize, int* served, int servedSize) {\n    int* stack = malloc(washedSize * sizeof(int));\n    int top = 0, j = 0;\n    for (int i = 0; i < washedSize; i++) {\n        stack[top++] = washed[i];\n        while (top > 0 && stack[top - 1] == served[j]) {\n            top--;\n            j++;\n        }\n    }\n    free(stack);\n    return j == servedSize;\n}\n"
+   },
+   "lines": [
+    {
+     "text": "The plate stack and `j`, the next plate that must be served.",
+     "at": {
+      "python": [
+       [
+        3,
+        4
+       ]
+      ],
+      "java": [
+       [
+        3,
+        4
+       ]
+      ],
+      "cpp": [
+       [
+        4,
+        5
+       ]
+      ],
+      "c": [
+       [
+        2,
+        3
+       ]
+      ]
+     }
+    },
+    {
+     "text": "Wash the next plate onto the stack.",
+     "at": {
+      "python": [
+       [
+        5,
+        6
+       ]
+      ],
+      "java": [
+       [
+        5,
+        6
+       ]
+      ],
+      "cpp": [
+       [
+        6,
+        7
+       ]
+      ],
+      "c": [
+       [
+        4,
+        5
+       ]
+      ]
+     }
+    },
+    {
+     "text": "If the top is the plate that must go next, serve it now; waiting would only bury it. Repeat, since the plate below might be next too. `j` can't run past the end: once all plates are served the stack is empty.",
+     "at": {
+      "python": [
+       [
+        7,
+        9
+       ]
+      ],
+      "java": [
+       [
+        7,
+        9
+       ]
+      ],
+      "cpp": [
+       [
+        8,
+        10
+       ]
+      ],
+      "c": [
+       [
+        6,
+        8
+       ]
+      ]
+     }
+    },
+    {
+     "text": "Possible exactly when every plate got served.",
+     "at": {
+      "python": [
+       [
+        10,
+        10
+       ]
+      ],
+      "java": [
+       [
+        12,
+        12
+       ]
+      ],
+      "cpp": [
+       [
+        13,
+        13
+       ]
+      ],
+      "c": [
+       [
+        11,
+        12
+       ]
+      ]
+     }
+    }
+   ],
+   "complexity": [
+    {
+     "md": "**Time O(n):** each plate is pushed once and popped at most once. **Space O(n)** for the stack."
+    }
+   ],
+   "walk": {
+    "steps": [
+     {
+      "text": "Wash 3: push it.",
+      "panels": [
+       {
+        "type": "row",
+        "cells": [
+         1,
+         4,
+         2,
+         5,
+         3
+        ],
+        "states": {
+         "0": "active"
+        },
+        "label": "served"
+       },
+       {
+        "type": "row",
+        "cells": [
+         3
+        ],
+        "states": {
+         "0": "new"
+        },
+        "label": "stack"
+       }
+      ]
+     },
+     {
+      "text": "Wash 1: push it.",
+      "panels": [
+       {
+        "type": "row",
+        "cells": [
+         1,
+         4,
+         2,
+         5,
+         3
+        ],
+        "states": {
+         "0": "active"
+        },
+        "label": "served"
+       },
+       {
+        "type": "row",
+        "cells": [
+         3,
+         1
+        ],
+        "states": {
+         "1": "new"
+        },
+        "label": "stack"
+       }
+      ]
+     },
+     {
+      "text": "The top is 1, the next plate to serve: take it now.",
+      "panels": [
+       {
+        "type": "row",
+        "cells": [
+         1,
+         4,
+         2,
+         5,
+         3
+        ],
+        "states": {
+         "0": "found"
+        },
+        "label": "served"
+       },
+       {
+        "type": "row",
+        "cells": [
+         3
+        ],
+        "label": "stack"
+       }
+      ]
+     },
+     {
+      "text": "Wash 4: push it.",
+      "panels": [
+       {
+        "type": "row",
+        "cells": [
+         1,
+         4,
+         2,
+         5,
+         3
+        ],
+        "states": {
+         "1": "active"
+        },
+        "label": "served"
+       },
+       {
+        "type": "row",
+        "cells": [
+         3,
+         4
+        ],
+        "states": {
+         "1": "new"
+        },
+        "label": "stack"
+       }
+      ]
+     },
+     {
+      "text": "The top is 4, the next plate to serve: take it now.",
+      "panels": [
+       {
+        "type": "row",
+        "cells": [
+         1,
+         4,
+         2,
+         5,
+         3
+        ],
+        "states": {
+         "0": "found",
+         "1": "found"
+        },
+        "label": "served"
+       },
+       {
+        "type": "row",
+        "cells": [
+         3
+        ],
+        "label": "stack"
+       }
+      ]
+     },
+     {
+      "text": "Wash 2: push it.",
+      "panels": [
+       {
+        "type": "row",
+        "cells": [
+         1,
+         4,
+         2,
+         5,
+         3
+        ],
+        "states": {
+         "2": "active"
+        },
+        "label": "served"
+       },
+       {
+        "type": "row",
+        "cells": [
+         3,
+         2
+        ],
+        "states": {
+         "1": "new"
+        },
+        "label": "stack"
+       }
+      ]
+     },
+     {
+      "text": "The top is 2, the next plate to serve: take it now.",
+      "panels": [
+       {
+        "type": "row",
+        "cells": [
+         1,
+         4,
+         2,
+         5,
+         3
+        ],
+        "states": {
+         "0": "found",
+         "1": "found",
+         "2": "found"
+        },
+        "label": "served"
+       },
+       {
+        "type": "row",
+        "cells": [
+         3
+        ],
+        "label": "stack"
+       }
+      ]
+     },
+     {
+      "text": "Wash 5: push it.",
+      "panels": [
+       {
+        "type": "row",
+        "cells": [
+         1,
+         4,
+         2,
+         5,
+         3
+        ],
+        "states": {
+         "3": "active"
+        },
+        "label": "served"
+       },
+       {
+        "type": "row",
+        "cells": [
+         3,
+         5
+        ],
+        "states": {
+         "1": "new"
+        },
+        "label": "stack"
+       }
+      ]
+     },
+     {
+      "text": "The top is 5, the next plate to serve: take it now.",
+      "panels": [
+       {
+        "type": "row",
+        "cells": [
+         1,
+         4,
+         2,
+         5,
+         3
+        ],
+        "states": {
+         "0": "found",
+         "1": "found",
+         "2": "found",
+         "3": "found"
+        },
+        "label": "served"
+       },
+       {
+        "type": "row",
+        "cells": [
+         3
+        ],
+        "label": "stack"
+       }
+      ]
+     },
+     {
+      "text": "The top is 3, the next plate to serve: take it now.",
+      "panels": [
+       {
+        "type": "row",
+        "cells": [
+         1,
+         4,
+         2,
+         5,
+         3
+        ],
+        "states": {
+         "0": "found",
+         "1": "found",
+         "2": "found",
+         "3": "found",
+         "4": "found"
+        },
+        "label": "served"
+       },
+       {
+        "type": "row",
+        "cells": [
+         "·"
+        ],
+        "label": "stack"
+       }
+      ]
+     },
+     {
+      "text": "All 5 plates were served in order: it could happen.",
+      "panels": [],
+      "result": "true"
+     }
+    ],
+    "title": "Replay with a real stack: push each washed plate, and whenever the top is the next plate to serve, serve it immediately."
+   }
+  }
+ ],
+ "takeaways": [
+  {
+   "md": "- To ask \"could this sequence of stack operations happen?\", **replay it**, choosing greedily when only one choice\n  can be right.\n- The forced choice here: pop as soon as the top is needed. A plate that's needed and buried is a dead end.\n- The same check works for any push order and pop order, and it tells you which plate breaks the order, too."
+  }
+ ]
+}
