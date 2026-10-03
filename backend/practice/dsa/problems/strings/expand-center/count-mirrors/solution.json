@@ -4,26 +4,89 @@
  "question": [
   {
    "md": "Count palindromic substrings of `s`; equal substrings at different positions count separately.\n\n- **Single letters count.**\n- **n ≤ 2000**: about 2 × 10⁶ substrings."
+  },
+  {
+   "md": "**Edge cases to keep in mind**\n\n- A single letter counts, so the answer is at least `n`.\n- Equal substrings at different positions count separately: `\"aaa\"` has 6 (three `a`, two `aa`, one `aaa`).\n- All letters equal is the worst case: every substring is a palindrome, `n(n + 1)/2` of them."
   }
  ],
  "think": [
   {
-   "md": "`\"abaab\"` has **8** palindromic substrings: ['a', 'aba', 'b', 'baab', 'a', 'aa', 'a', 'b'].\n\nChecking each substring separately repeats work: if `s[i..j]` is a palindrome, then `s[i−1..j+1]` is one exactly\nwhen its two new ends match. So grow palindromes outward from their centres, and stop at the first mismatch."
+   "md": "**Restating it.** Count the pairs `(i, j)` with `i ≤ j` such that `s[i..j]` reads the same both ways."
   },
   {
-   "panels": [
-    {
-     "type": "row",
-     "cells": [
+   "md": "**Every palindrome has a centre.** Fold a palindrome in half: an odd-length one folds on its middle letter\n(`aba` on `b`), an even-length one folds on the gap between its two middle letters (`abba` between the `b`s). A string\nof length `n` has `n` letters and `n − 1` gaps, so **2n − 1 centres**. Every palindromic substring belongs to exactly\none of them.\n\n**Growing from a centre.** If `s[i..j]` is a palindrome, then `s[i−1..j+1]` is one exactly when `s[i−1] = s[j+1]`.\nSo from a centre we compare the two letters just outside, extend if they match, and stop at the first mismatch: a\nmismatch at distance `d` means nothing wider around this centre can be a palindrome, because it would contain that\nmismatched pair at mirrored positions."
+  },
+  {
+   "md": "**All 2n − 1 = 9 centres of `\"abaab\"`:**"
+  },
+  {
+   "table": {
+    "head": [
+     "centre",
+     "palindromes found",
+     "count",
+     "stopped by"
+    ],
+    "rows": [
+     [
+      "letter 0 (a)",
       "a",
-      "b",
-      "a",
-      "a",
-      "b"
+      "1",
+      "edge"
      ],
-     "label": "s"
-    }
-   ]
+     [
+      "gap 0|1",
+      "—",
+      "0",
+      "a ≠ b"
+     ],
+     [
+      "letter 1 (b)",
+      "b, aba",
+      "2",
+      "edge"
+     ],
+     [
+      "gap 1|2",
+      "—",
+      "0",
+      "b ≠ a"
+     ],
+     [
+      "letter 2 (a)",
+      "a",
+      "1",
+      "b ≠ a"
+     ],
+     [
+      "gap 2|3",
+      "aa, baab",
+      "2",
+      "edge"
+     ],
+     [
+      "letter 3 (a)",
+      "a",
+      "1",
+      "a ≠ b"
+     ],
+     [
+      "gap 3|4",
+      "—",
+      "0",
+      "a ≠ b"
+     ],
+     [
+      "letter 4 (b)",
+      "b",
+      "1",
+      "edge"
+     ]
+    ]
+   }
+  },
+  {
+   "md": "Adding the counts gives **8**.\n\n**Where brute force wastes work.** Testing each substring separately re-checks its inside: to test `abaab` you\ncompare `a…b`, and to test `baa` you compare `b…a`, again and again for overlapping substrings. Growing outward\nfrom centres tests each matching pair of letters exactly once per centre."
   }
  ],
  "approaches": [
@@ -34,12 +97,13 @@
    "space": "O(1)",
    "idea": [
     {
-     "md": "For every pair `i ≤ j`, test `s[i..j]` with two pointers."
+     "md": "Enumerate every substring `s[i..j]` and test it with two pointers moving inward. Count the ones that\npass.\n\nIt's a correct baseline: every substring is examined, so nothing is missed or double-counted."
     }
    ],
    "build": [
-    "All substrings.",
-    "Two-pointer palindrome test."
+    "Two nested loops pick `i ≤ j`.",
+    "Two pointers `a = i`, `b = j` move inward while `s[a] = s[b]`.",
+    "If they meet or cross, the substring is a palindrome: count it."
    ],
    "code": {
     "python": "class Solution:\n    def countMirrors(self, s: str) -> int:\n        n, total = len(s), 0\n        for i in range(n):\n            for j in range(i, n):\n                a, b = i, j\n                while a < b and s[a] == s[b]:\n                    a, b = a + 1, b - 1\n                if a >= b:\n                    total += 1\n        return total\n",
@@ -49,7 +113,7 @@
    },
    "lines": [
     {
-     "text": "The count.",
+     "text": "The number of palindromic substrings found so far.",
      "at": {
       "python": [
        [
@@ -78,7 +142,7 @@
      }
     },
     {
-     "text": "Every substring `s[i..j]`.",
+     "text": "Every substring `s[i..j]`, including single letters (`i = j`).",
      "at": {
       "python": [
        [
@@ -107,7 +171,7 @@
      }
     },
     {
-     "text": "Two pointers from its ends; it's a palindrome if they meet without a mismatch.",
+     "text": "Compare from both ends toward the middle. If a mismatch appears, `a < b` stays true and the substring isn't counted. If the pointers meet or cross, every mirrored pair matched.",
      "at": {
       "python": [
        [
@@ -136,7 +200,7 @@
      }
     },
     {
-     "text": "Total.",
+     "text": "The total.",
      "at": {
       "python": [
        [
@@ -167,7 +231,7 @@
    ],
    "complexity": [
     {
-     "md": "**Time O(n³)** in the worst case (e.g. all one letter). **Space O(1).**"
+     "md": "**Time O(n³):** about `n²/2` substrings, each tested in up to `n/2` comparisons; all-equal strings hit the worst case. For `n = 2000` that's around 10⁹ steps. **Space O(1).**"
     }
    ],
    "walk": {
@@ -208,7 +272,7 @@
    },
    "limits": [
     {
-     "md": "Re-tests the inside of every substring. A palindrome's inside is a smaller palindrome, which a table or centre expansion reuses."
+     "md": "Each substring is tested from scratch, although its inside is a shorter substring that was already tested. Either remember those results (a table) or grow palindromes from their centres."
     }
    ],
    "slow": true
@@ -220,13 +284,70 @@
    "space": "O(n²)",
    "idea": [
     {
-     "md": "`pal[i][j]` is true when `s[i] == s[j]` and (`j − i < 2` or `pal[i+1][j−1]`). Fill by increasing length (or `i` from the end) and count the true cells."
+     "md": "Let `pal[i][j]` say whether `s[i..j]` is a palindrome. Then:\n\n- substrings of length 1 or 2: `pal[i][j]` is `s[i] == s[j]`;\n- longer ones: `pal[i][j]` is `s[i] == s[j]` **and** `pal[i+1][j−1]`.\n\nFill the table so that `pal[i+1][j−1]` is ready before `pal[i][j]`: rows from the bottom (`i` from `n − 1`\ndown to 0), and within a row `j` from `i` upwards. Count the true cells. For `\"abaab\"` the table is:"
+    },
+    {
+     "table": {
+      "head": [
+       "i \\ j",
+       "0 (a)",
+       "1 (b)",
+       "2 (a)",
+       "3 (a)",
+       "4 (b)"
+      ],
+      "rows": [
+       [
+        "0 (a)",
+        "✓",
+        "·",
+        "✓",
+        "·",
+        "·"
+       ],
+       [
+        "1 (b)",
+        "",
+        "✓",
+        "·",
+        "·",
+        "✓"
+       ],
+       [
+        "2 (a)",
+        "",
+        "",
+        "✓",
+        "✓",
+        "·"
+       ],
+       [
+        "3 (a)",
+        "",
+        "",
+        "",
+        "✓",
+        "·"
+       ],
+       [
+        "4 (b)",
+        "",
+        "",
+        "",
+        "",
+        "✓"
+       ]
+      ]
+     }
+    },
+    {
+     "md": "There are 8 ticks, matching the centre count."
     }
    ],
    "build": [
-    "Table of booleans.",
-    "Fill from short to long substrings.",
-    "Count."
+    "An `n × n` table of booleans.",
+    "For `i` from `n − 1` down to 0, for `j` from `i` to `n − 1`: apply the rule.",
+    "Count every true cell as it's set."
    ],
    "code": {
     "python": "class Solution:\n    def countMirrors(self, s: str) -> int:\n        n, total = len(s), 0\n        pal = [[False] * n for _ in range(n)]\n        for i in range(n - 1, -1, -1):\n            for j in range(i, n):\n                if s[i] == s[j] and (j - i < 2 or pal[i + 1][j - 1]):\n                    pal[i][j] = True\n                    total += 1\n        return total\n",
@@ -236,7 +357,7 @@
    },
    "lines": [
     {
-     "text": "A table for every substring.",
+     "text": "The table, initially all false, and the count. C uses one flat array of `n · n` bytes.",
      "at": {
       "python": [
        [
@@ -268,7 +389,7 @@
      }
     },
     {
-     "text": "Rows from the bottom up, so `pal[i+1][…]` is ready when row `i` needs it.",
+     "text": "Rows from the bottom up guarantee that row `i + 1` is complete when row `i` needs `pal[i+1][j−1]`.",
      "at": {
       "python": [
        [
@@ -297,7 +418,7 @@
      }
     },
     {
-     "text": "Matching ends around a palindromic (or empty / single) inside.",
+     "text": "The two ends must match, and what's inside them must be a palindrome. For lengths 1 and 2 the inside is empty, so `j − i < 2` skips the lookup.",
      "at": {
       "python": [
        [
@@ -326,7 +447,7 @@
      }
     },
     {
-     "text": "Count of true cells.",
+     "text": "Every true cell is one palindromic substring.",
      "at": {
       "python": [
        [
@@ -357,7 +478,7 @@
    ],
    "complexity": [
     {
-     "md": "**Time O(n²).** **Space O(n²):** 4 × 10⁶ cells for n = 2000."
+     "md": "**Time O(n²):** one O(1) rule per cell. **Space O(n²):** 4 × 10⁶ cells for `n = 2000`, which is 4 MB as bytes but much more if stored as objects."
     }
    ],
    "walk": {
@@ -398,7 +519,7 @@
    },
    "limits": [
     {
-     "md": "The table is only read one diagonal step away. Expanding from each centre gets the same answers with O(1) memory."
+     "md": "The table holds `n²` entries, yet each cell is read only once, by the cell diagonally outside it. Expanding from centres follows exactly those diagonals without storing them."
     }
    ]
   },
@@ -409,13 +530,13 @@
    "space": "O(1)",
    "idea": [
     {
-     "md": "For each centre `c` in `0..2n−2` (`i = c / 2`, `j = i + c % 2`): while `s[i] == s[j]`, count one and widen."
+     "md": "Loop over centres `c = 0 … 2n − 2`. Even `c` sits on letter `c/2` (start with `i = j = c/2`); odd `c` sits\non the gap after letter `c/2` (start with `i = c/2`, `j = c/2 + 1`). While `i ≥ 0`, `j < n` and\n`s[i] = s[j]`, the substring `s[i..j]` is a palindrome: count it and widen by one on each side.\n\n**Why every palindrome is counted exactly once.** A palindrome `s[i..j]` has one centre, `c = i + j`. At\nthat centre the expansion reaches `s[i..j]` because every inner mirrored pair also matches, and no other\ncentre can produce the same `(i, j)`."
     }
    ],
    "build": [
-    "Loop over 2n − 1 centres.",
-    "Expand while the ends match.",
-    "Count every step."
+    "Loop over the `2n − 1` centres and compute the starting `i`, `j` from `c`.",
+    "Expand while the letters match, counting each step.",
+    "Return the total."
    ],
    "code": {
     "python": "class Solution:\n    def countMirrors(self, s: str) -> int:\n        n, total = len(s), 0\n        for c in range(2 * n - 1):\n            i, j = c // 2, c // 2 + c % 2\n            while i >= 0 and j < n and s[i] == s[j]:\n                total += 1\n                i, j = i - 1, j + 1\n        return total\n",
@@ -454,7 +575,7 @@
      }
     },
     {
-     "text": "Even `c`: centre on letter `c/2` (odd-length palindromes). Odd `c`: centre on the gap after it (even lengths).",
+     "text": "`c // 2` is the left starting index; `c % 2` adds 1 for gap centres, so odd `c` starts with two different letters `s[i]`, `s[i + 1]`.",
      "at": {
       "python": [
        [
@@ -483,7 +604,7 @@
      }
     },
     {
-     "text": "Each matching step outward is one more palindrome; the first mismatch ends this centre.",
+     "text": "Each successful comparison confirms one more palindrome around this centre. The first mismatch, or the edge of the string, ends this centre for good.",
      "at": {
       "python": [
        [
@@ -512,7 +633,7 @@
      }
     },
     {
-     "text": "Total.",
+     "text": "The total.",
      "at": {
       "python": [
        [
@@ -543,7 +664,7 @@
    ],
    "complexity": [
     {
-     "md": "**Time O(n²)** in the worst case (all one letter), much less typically. **Space O(1).**"
+     "md": "**Time O(n²) worst case, often much less.** Each centre does as many steps as there are palindromes around\nit, so the total work equals the answer plus `2n − 1` failed checks. For all-equal strings that's\n`n(n + 1)/2`; for typical text it's close to linear. **Space O(1).**"
     }
    ],
    "walk": {
@@ -741,7 +862,7 @@
  ],
  "takeaways": [
   {
-   "md": "- **Palindromic substrings ↔ centres:** 2n − 1 of them (letters and gaps).\n- Expansion is O(n²) with O(1) memory; the DP table is the same idea with O(n²) memory.\n- Manacher's algorithm counts them in O(n) (see Palindrome Census)."
+   "md": "- **Recognise it:** anything about palindromic substrings: counting them, the longest one, checking many.\n- **Template:** loop `c` over `0..2n−2`, set `i = c/2`, `j = i + c%2`, expand while they match.\n- **Pitfalls:** forgetting even-length palindromes (gap centres); using the DP table when memory is tight.\n- **Related:** Manacher's algorithm reuses mirror information to make the same count O(n)."
   }
  ]
 }

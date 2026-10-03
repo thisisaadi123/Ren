@@ -55,7 +55,7 @@ def fig(*panels, caption=None):
 
 
 def table(head, *rows):
-    return {"table": {"head": list(head), "rows": [[str(c) for c in r] for r in rows]}}
+    return {"table": {"head": [str(h) for h in head], "rows": [[str(c) for c in r] for r in rows]}}
 
 
 def blocks(items, where):

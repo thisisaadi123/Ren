@@ -4,30 +4,137 @@
  "question": [
   {
    "md": "Find the longest substring of `s` that reads the same both ways, and return its length.\n\n- **Single letters** are palindromes, so the answer is at least 1.\n- **Only the length** is needed.\n- **n ≤ 2000.**"
+  },
+  {
+   "md": "    **Edge cases to keep in mind**\n\n    - A single letter is a palindrome, so the answer is at least 1 letter long.\n    - All letters equal: the whole string.\n\n- Only the length is asked for, so ties don't matter."
   }
  ],
  "think": [
   {
-   "md": "`\"abacdcaba\"` → 9.\n\nInstead of testing substrings, grow palindromes from their middle. From a centre, extending one letter on each\nside keeps the palindrome as long as the two new letters match, and the first mismatch means nothing wider at\nthis centre can work. Even-length palindromes centre on a gap, so there are 2n − 1 centres in total."
+   "md": "**Restating it.** Among all substrings that read the same both ways, find the longest\n(return its length)."
   },
   {
-   "panels": [
-    {
-     "type": "row",
-     "cells": [
+   "md": "**Every palindrome has a centre.** Fold a palindrome in half: an odd-length one folds on its middle letter\n(`aba` on `b`), an even-length one folds on the gap between its two middle letters (`abba` between the `b`s). A string\nof length `n` has `n` letters and `n − 1` gaps, so **2n − 1 centres**. Every palindromic substring belongs to exactly\none of them.\n\n**Growing from a centre.** If `s[i..j]` is a palindrome, then `s[i−1..j+1]` is one exactly when `s[i−1] = s[j+1]`.\nSo from a centre we compare the two letters just outside, extend if they match, and stop at the first mismatch: a\nmismatch at distance `d` means nothing wider around this centre can be a palindrome, because it would contain that\nmismatched pair at mirrored positions."
+  },
+  {
+   "md": "**The widest palindrome around each centre of `\"abacdcaba\"`:**"
+  },
+  {
+   "table": {
+    "head": [
+     "centre",
+     "widest palindrome",
+     "length",
+     "stopped by"
+    ],
+    "rows": [
+     [
+      "letter 0 (a)",
       "a",
-      "b",
-      "a",
-      "c",
-      "d",
-      "c",
-      "a",
-      "b",
-      "a"
+      "1",
+      "edge"
      ],
-     "label": "s"
-    }
-   ]
+     [
+      "gap 0|1",
+      "—",
+      "0",
+      "a ≠ b"
+     ],
+     [
+      "letter 1 (b)",
+      "aba",
+      "3",
+      "edge"
+     ],
+     [
+      "gap 1|2",
+      "—",
+      "0",
+      "b ≠ a"
+     ],
+     [
+      "letter 2 (a)",
+      "a",
+      "1",
+      "b ≠ c"
+     ],
+     [
+      "gap 2|3",
+      "—",
+      "0",
+      "a ≠ c"
+     ],
+     [
+      "letter 3 (c)",
+      "c",
+      "1",
+      "a ≠ d"
+     ],
+     [
+      "gap 3|4",
+      "—",
+      "0",
+      "c ≠ d"
+     ],
+     [
+      "letter 4 (d)",
+      "abacdcaba",
+      "9",
+      "edge"
+     ],
+     [
+      "gap 4|5",
+      "—",
+      "0",
+      "d ≠ c"
+     ],
+     [
+      "letter 5 (c)",
+      "c",
+      "1",
+      "d ≠ a"
+     ],
+     [
+      "gap 5|6",
+      "—",
+      "0",
+      "c ≠ a"
+     ],
+     [
+      "letter 6 (a)",
+      "a",
+      "1",
+      "c ≠ b"
+     ],
+     [
+      "gap 6|7",
+      "—",
+      "0",
+      "a ≠ b"
+     ],
+     [
+      "letter 7 (b)",
+      "aba",
+      "3",
+      "edge"
+     ],
+     [
+      "gap 7|8",
+      "—",
+      "0",
+      "b ≠ a"
+     ],
+     [
+      "letter 8 (a)",
+      "a",
+      "1",
+      "edge"
+     ]
+    ]
+   }
+  },
+  {
+   "md": "The longest is `abacdcaba`, so the answer is **9**.\n\n**Only the widest per centre matters.** Every palindrome around a centre is contained in the widest one, so\nfor the longest overall we just need, for each centre, how far it expands. And the brute-force idea of\ntesting substrings from the longest down wastes time re-checking insides that the expansion verifies once."
   }
  ],
  "approaches": [
@@ -38,13 +145,13 @@
    "space": "O(1)",
    "idea": [
     {
-     "md": "For each start `i`, test every end `j` that would give a longer palindrome than the best so far, with a two-pointer check."
+     "md": "For each start `i`, test ends `j` that would beat the current best (`j ≥ i + best`), each with a\ntwo-pointer palindrome test. Record a palindrome when it's strictly longer than the best.\n\nSkipping ends that can't beat the best already prunes a lot, but each test is still O(n)."
     }
    ],
    "build": [
-    "Loop over starts and longer-than-best ends.",
-    "Two-pointer test.",
-    "Keep the longest (first found on ties)."
+    "The best starts as the first letter (length 1).",
+    "For each `i`, for each `j ≥ i + best`, test `s[i..j]` with two pointers.",
+    "On success, set the best to `(j − i + 1, i)`."
    ],
    "code": {
     "python": "class Solution:\n    def longestEcho(self, s: str) -> int:\n        n = len(s)\n        best_len, best_i = 1, 0\n        for i in range(n):\n            for j in range(i + best_len, n):\n                a, b = i, j\n                while a < b and s[a] == s[b]:\n                    a, b = a + 1, b - 1\n                if a >= b:\n                    best_len, best_i = j - i + 1, i\n        return best_len\n",
@@ -54,7 +161,7 @@
    },
    "lines": [
     {
-     "text": "A single letter is always a palindrome.",
+     "text": "One letter is always a palindrome, so the best is length 1 at position 0.",
      "at": {
       "python": [
        [
@@ -83,7 +190,7 @@
      }
     },
     {
-     "text": "Only ends that would beat the current best need testing.",
+     "text": "Only ends far enough to beat the best are worth testing; this also keeps the leftmost of equal-length palindromes.",
      "at": {
       "python": [
        [
@@ -112,7 +219,7 @@
      }
     },
     {
-     "text": "Two pointers from both ends of `s[i..j]`.",
+     "text": "Two pointers from the ends inward; meeting without a mismatch means a palindrome, which is strictly longer than the best by construction.",
      "at": {
       "python": [
        [
@@ -141,7 +248,7 @@
      }
     },
     {
-     "text": "Return its length.",
+     "text": "Return the length.",
      "at": {
       "python": [
        [
@@ -175,7 +282,7 @@
    ],
    "complexity": [
     {
-     "md": "**Time O(n³)** in the worst case. **Space O(1).**"
+     "md": "**Time O(n³)** in the worst case (many long near-palindromes). **Space O(1).**"
     }
    ],
    "walk": {
@@ -235,7 +342,7 @@
    },
    "limits": [
     {
-     "md": "Each substring is re-tested from its ends. Growing palindromes from their centres reuses the inner match."
+     "md": "Every test starts again from the ends of the substring. Growing outward from centres verifies each mirrored pair once."
     }
    ],
    "slow": true
@@ -247,13 +354,14 @@
    "space": "O(1)",
    "idea": [
     {
-     "md": "For each centre `c` (`i = c / 2`, `j = i + c % 2`), widen while `s[i] == s[j]`. The palindrome is `s[i+1..j−1]`; keep it if strictly longer than the best."
+     "md": "For each centre, expand while the letters match. When it stops, the palindrome is `s[i+1 .. j−1]` with\nlength `j − i − 1`. Keep it if it's strictly longer than the best.\n\n**Why it's correct.** The longest palindrome has some centre, and expanding from that centre reaches\nits full width (all its mirrored pairs match). So it's measured at its centre and kept."
     }
    ],
    "build": [
-    "Loop over centres.",
-    "Expand.",
-    "Keep the longest (strictly longer replaces)."
+    "Best = (1, 0).",
+    "For each centre `c`, set `i = c/2`, `j = i + c%2` and expand.",
+    "After expanding, compare `j − i − 1` with the best length.",
+    "Return the best length."
    ],
    "code": {
     "python": "class Solution:\n    def longestEcho(self, s: str) -> int:\n        n = len(s)\n        best_len, best_i = 1, 0\n        for c in range(2 * n - 1):\n            i, j = c // 2, c // 2 + c % 2\n            while i >= 0 and j < n and s[i] == s[j]:\n                i, j = i - 1, j + 1\n            if j - i - 1 > best_len:\n                best_len, best_i = j - i - 1, i + 1\n        return best_len\n",
@@ -263,7 +371,7 @@
    },
    "lines": [
     {
-     "text": "The best so far: a single letter at position 0.",
+     "text": "The best palindrome so far: one letter at position 0.",
      "at": {
       "python": [
        [
@@ -292,7 +400,7 @@
      }
     },
     {
-     "text": "Letters (even `c`) and gaps (odd `c`).",
+     "text": "Even `c` starts on a letter, odd `c` on a gap.",
      "at": {
       "python": [
        [
@@ -321,7 +429,7 @@
      }
     },
     {
-     "text": "Widen while the ends match; afterwards the palindrome is `s[i+1..j−1]`, of length `j − i − 1`.",
+     "text": "Widen while the outer letters match. When the loop ends, `s[i]` and `s[j]` are the mismatched (or missing) pair, so the palindrome is the part strictly between them.",
      "at": {
       "python": [
        [
@@ -350,7 +458,7 @@
      }
     },
     {
-     "text": "Strictly longer only, so earlier palindromes win ties (centres are visited left to right).",
+     "text": "Only a strictly longer palindrome replaces the best, so the stored length is the maximum.",
      "at": {
       "python": [
        [
@@ -379,7 +487,7 @@
      }
     },
     {
-     "text": "Return its length.",
+     "text": "Return the length.",
      "at": {
       "python": [
        [
@@ -413,7 +521,7 @@
    ],
    "complexity": [
     {
-     "md": "**Time O(n²)** in the worst case. **Space O(1).**"
+     "md": "**Time O(n²)** worst case: the expansions add up to at most the number of palindromic substrings. **Space O(1)**: only indices are stored, and the substring is cut once at the end."
     }
    ],
    "walk": {
@@ -742,7 +850,7 @@
  ],
  "takeaways": [
   {
-   "md": "- **Longest palindromic substring = expand around 2n − 1 centres**, O(n²) and O(1) memory.\n- Track the start and length, not the string, until the end.\n- Manacher's algorithm does it in O(n) when n is large."
+   "md": "- **Longest palindromic substring:** expand around all `2n − 1` centres, O(n²) time, O(1) memory.\n- Track `(length, start)` and cut the substring once at the end.\n- **Pitfalls:** missing even-length centres; off-by-one in `j − i − 1`.\n- **Related:** Manacher's algorithm gives the same answer in O(n)."
   }
  ]
 }
