@@ -1,0 +1,47 @@
+{
+  "id": "buys-per-visit",
+  "title": "Buys per Visit",
+  "topic": "recursive",
+  "pattern": "series",
+  "difficulty": "hard",
+  "statement": "Every purchase happens during a visit: the same user, the same day (a user visits at most once a day). For each\nnumber of purchases from **0 up to the most made in any visit**, count how many visits had exactly that many.\n\nReturn `buys` and `visits`, ordered by `buys`. Numbers no visit had still appear, with 0.",
+  "notes": "In SQLite, `WITH RECURSIVE` goes at the start and covers every CTE in the list, recursive or not.",
+  "tables": [
+    {
+      "name": "visits",
+      "columns": [
+        [
+          "user_id",
+          "INTEGER"
+        ],
+        [
+          "visit_day",
+          "TEXT"
+        ]
+      ]
+    },
+    {
+      "name": "buys",
+      "columns": [
+        [
+          "user_id",
+          "INTEGER"
+        ],
+        [
+          "buy_day",
+          "TEXT"
+        ],
+        [
+          "amount",
+          "INTEGER"
+        ]
+      ]
+    }
+  ],
+  "ordered": true,
+  "reference": "WITH RECURSIVE per_visit AS (\n  SELECT v.user_id, v.visit_day, COUNT(b.user_id) AS buys\n  FROM visits v\n  LEFT JOIN buys b ON b.user_id = v.user_id AND b.buy_day = v.visit_day\n  GROUP BY v.user_id, v.visit_day\n),\ncounts(buys) AS (\n  SELECT 0\n  UNION ALL\n  SELECT buys + 1 FROM counts WHERE buys < (SELECT MAX(buys) FROM per_visit)\n)\nSELECT c.buys, COUNT(p.user_id) AS visits\nFROM counts c\nLEFT JOIN per_visit p ON p.buys = c.buys\nGROUP BY c.buys\nORDER BY c.buys",
+  "wrong": [
+    "SELECT buys, COUNT(*) AS visits FROM (SELECT v.user_id, v.visit_day, COUNT(b.user_id) AS buys FROM visits v LEFT JOIN buys b ON b.user_id = v.user_id AND b.buy_day = v.visit_day GROUP BY v.user_id, v.visit_day) GROUP BY buys ORDER BY buys",
+    "SELECT buys, COUNT(*) AS visits FROM (SELECT v.user_id, v.visit_day, COUNT(*) AS buys FROM visits v LEFT JOIN buys b ON b.user_id = v.user_id AND b.buy_day = v.visit_day GROUP BY v.user_id, v.visit_day) GROUP BY buys ORDER BY buys"
+  ]
+}

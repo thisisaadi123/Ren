@@ -1,0 +1,68 @@
+{
+  "id": "top-rater-and-film",
+  "title": "Top Rater and Top Film",
+  "topic": "set-ops",
+  "pattern": "union",
+  "difficulty": "medium",
+  "statement": "Return a single column `results` with exactly two rows:\n\n- the `name` of the viewer who rated the **most films** (ties: the alphabetically smallest name), and\n- the `title` of the film with the **highest average rating in February 2024** (ties: the alphabetically smallest\n  title).\n\nThe two rows can come in either order.",
+  "notes": "In SQLite, a `SELECT` with its own `ORDER BY` and `LIMIT` must be wrapped in a subquery before it can be part of a `UNION`.",
+  "tables": [
+    {
+      "name": "viewers",
+      "columns": [
+        [
+          "user_id",
+          "INTEGER",
+          "pk"
+        ],
+        [
+          "name",
+          "TEXT"
+        ]
+      ]
+    },
+    {
+      "name": "films",
+      "columns": [
+        [
+          "film_id",
+          "INTEGER",
+          "pk"
+        ],
+        [
+          "title",
+          "TEXT"
+        ]
+      ]
+    },
+    {
+      "name": "ratings",
+      "columns": [
+        [
+          "film_id",
+          "INTEGER",
+          "fk films.film_id"
+        ],
+        [
+          "user_id",
+          "INTEGER",
+          "fk viewers.user_id"
+        ],
+        [
+          "rating",
+          "INTEGER"
+        ],
+        [
+          "rated_on",
+          "TEXT"
+        ]
+      ]
+    }
+  ],
+  "ordered": false,
+  "reference": "SELECT * FROM (\n  SELECT v.name AS results FROM ratings r JOIN viewers v ON v.user_id = r.user_id\n  GROUP BY v.user_id, v.name ORDER BY COUNT(*) DESC, v.name LIMIT 1\n)\nUNION ALL\nSELECT * FROM (\n  SELECT f.title FROM ratings r JOIN films f ON f.film_id = r.film_id\n  WHERE r.rated_on BETWEEN '2024-02-01' AND '2024-02-29'\n  GROUP BY f.film_id, f.title ORDER BY AVG(r.rating) DESC, f.title LIMIT 1\n)",
+  "wrong": [
+    "SELECT * FROM (SELECT v.name AS results FROM ratings r JOIN viewers v ON v.user_id = r.user_id GROUP BY v.user_id, v.name ORDER BY COUNT(*) DESC LIMIT 1) UNION ALL SELECT * FROM (SELECT f.title FROM ratings r JOIN films f ON f.film_id = r.film_id WHERE r.rated_on BETWEEN '2024-02-01' AND '2024-02-29' GROUP BY f.film_id, f.title ORDER BY AVG(r.rating) DESC LIMIT 1)",
+    "SELECT * FROM (SELECT v.name AS results FROM ratings r JOIN viewers v ON v.user_id = r.user_id GROUP BY v.user_id, v.name ORDER BY COUNT(*) DESC, v.name LIMIT 1) UNION ALL SELECT * FROM (SELECT f.title FROM ratings r JOIN films f ON f.film_id = r.film_id GROUP BY f.film_id, f.title ORDER BY AVG(r.rating) DESC, f.title LIMIT 1)"
+  ]
+}

@@ -1,0 +1,40 @@
+{
+  "id": "new-customers-so-far",
+  "title": "New Customers So Far",
+  "topic": "window-aggregates",
+  "pattern": "running-totals",
+  "difficulty": "medium",
+  "statement": "A customer is **new** on the day of their first order. For each day with orders, return `ordered_on`,\n`new_customers` (customers whose first order was that day) and `customers_so_far` (everyone who had ordered by the\nend of that day). Order by `ordered_on`.",
+  "notes": "",
+  "tables": [
+    {
+      "name": "orders",
+      "columns": [
+        [
+          "id",
+          "INTEGER",
+          "pk"
+        ],
+        [
+          "customer_id",
+          "INTEGER",
+          "fk customers.id"
+        ],
+        [
+          "ordered_on",
+          "TEXT"
+        ],
+        [
+          "status",
+          "TEXT"
+        ]
+      ]
+    }
+  ],
+  "ordered": true,
+  "reference": "WITH firsts AS (\n  SELECT customer_id, MIN(ordered_on) AS first_day FROM orders GROUP BY customer_id\n),\ndays AS (\n  SELECT DISTINCT ordered_on FROM orders\n)\nSELECT d.ordered_on,\n       COUNT(f.customer_id) AS new_customers,\n       SUM(COUNT(f.customer_id)) OVER (ORDER BY d.ordered_on) AS customers_so_far\nFROM days d\nLEFT JOIN firsts f ON f.first_day = d.ordered_on\nGROUP BY d.ordered_on\nORDER BY d.ordered_on",
+  "wrong": [
+    "SELECT ordered_on, COUNT(DISTINCT customer_id) AS new_customers, SUM(COUNT(DISTINCT customer_id)) OVER (ORDER BY ordered_on) AS customers_so_far FROM orders GROUP BY ordered_on ORDER BY ordered_on",
+    "WITH firsts AS (SELECT customer_id, MIN(ordered_on) AS first_day FROM orders GROUP BY customer_id) SELECT first_day AS ordered_on, COUNT(*) AS new_customers, SUM(COUNT(*)) OVER (ORDER BY first_day) AS customers_so_far FROM firsts GROUP BY first_day ORDER BY ordered_on"
+  ]
+}

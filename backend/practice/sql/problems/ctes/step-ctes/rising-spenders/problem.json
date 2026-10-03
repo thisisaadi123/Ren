@@ -1,0 +1,103 @@
+{
+  "id": "rising-spenders",
+  "title": "Rising Spenders",
+  "topic": "ctes",
+  "pattern": "step-ctes",
+  "difficulty": "hard",
+  "statement": "A customer's monthly spend is the sum of `quantity × price` over their **delivered** orders placed that month\n(`YYYY-MM`). A **rising spender** has spend in **at least two** months, and every one of those months beats the\nprevious month they spent in.\n\nReturn the `name` of every rising spender, ordered by `name`.",
+  "notes": "",
+  "tables": [
+    {
+      "name": "customers",
+      "columns": [
+        [
+          "id",
+          "INTEGER",
+          "pk"
+        ],
+        [
+          "name",
+          "TEXT"
+        ],
+        [
+          "city",
+          "TEXT"
+        ],
+        [
+          "joined_on",
+          "TEXT"
+        ]
+      ]
+    },
+    {
+      "name": "products",
+      "columns": [
+        [
+          "id",
+          "INTEGER",
+          "pk"
+        ],
+        [
+          "name",
+          "TEXT"
+        ],
+        [
+          "category",
+          "TEXT"
+        ],
+        [
+          "price",
+          "REAL"
+        ]
+      ]
+    },
+    {
+      "name": "orders",
+      "columns": [
+        [
+          "id",
+          "INTEGER",
+          "pk"
+        ],
+        [
+          "customer_id",
+          "INTEGER",
+          "fk customers.id"
+        ],
+        [
+          "ordered_on",
+          "TEXT"
+        ],
+        [
+          "status",
+          "TEXT"
+        ]
+      ]
+    },
+    {
+      "name": "order_items",
+      "columns": [
+        [
+          "order_id",
+          "INTEGER",
+          "fk orders.id"
+        ],
+        [
+          "product_id",
+          "INTEGER",
+          "fk products.id"
+        ],
+        [
+          "quantity",
+          "INTEGER"
+        ]
+      ]
+    }
+  ],
+  "ordered": true,
+  "reference": "WITH monthly AS (\n  SELECT o.customer_id, strftime('%Y-%m', o.ordered_on) AS month, SUM(i.quantity * p.price) AS spend\n  FROM orders o\n  JOIN order_items i ON i.order_id = o.id\n  JOIN products p ON p.id = i.product_id\n  WHERE o.status = 'delivered'\n  GROUP BY o.customer_id, month\n),\ncompared AS (\n  SELECT customer_id, spend, LAG(spend) OVER (PARTITION BY customer_id ORDER BY month) AS prev\n  FROM monthly\n)\nSELECT c.name\nFROM compared x\nJOIN customers c ON c.id = x.customer_id\nGROUP BY x.customer_id, c.name\nHAVING COUNT(*) >= 2 AND SUM(CASE WHEN x.prev IS NOT NULL AND x.spend <= x.prev THEN 1 ELSE 0 END) = 0\nORDER BY c.name",
+  "wrong": [
+    "WITH monthly AS (SELECT o.customer_id, strftime('%Y-%m', o.ordered_on) AS month, SUM(i.quantity * p.price) AS spend FROM orders o JOIN order_items i ON i.order_id = o.id JOIN products p ON p.id = i.product_id WHERE o.status = 'delivered' GROUP BY o.customer_id, month), compared AS (SELECT customer_id, spend, LAG(spend) OVER (PARTITION BY customer_id ORDER BY month) AS prev FROM monthly) SELECT c.name FROM compared x JOIN customers c ON c.id = x.customer_id GROUP BY x.customer_id, c.name HAVING SUM(CASE WHEN x.prev IS NOT NULL AND x.spend <= x.prev THEN 1 ELSE 0 END) = 0 ORDER BY c.name",
+    "WITH monthly AS (SELECT o.customer_id, strftime('%Y-%m', o.ordered_on) AS month, SUM(i.quantity * p.price) AS spend FROM orders o JOIN order_items i ON i.order_id = o.id JOIN products p ON p.id = i.product_id WHERE o.status = 'delivered' GROUP BY o.customer_id, month), compared AS (SELECT customer_id, spend, LAG(spend) OVER (PARTITION BY customer_id ORDER BY month) AS prev FROM monthly) SELECT c.name FROM compared x JOIN customers c ON c.id = x.customer_id GROUP BY x.customer_id, c.name HAVING COUNT(*) >= 2 AND SUM(CASE WHEN x.prev IS NOT NULL AND x.spend < x.prev THEN 1 ELSE 0 END) = 0 ORDER BY c.name"
+  ]
+}

@@ -1,0 +1,63 @@
+{
+  "id": "cancellation-rate-unbanned",
+  "title": "Cancellation Rate Without Banned Users",
+  "topic": "conditional",
+  "pattern": "conditional-aggregation",
+  "difficulty": "hard",
+  "statement": "A trip counts only if **neither** its client nor its driver is banned (`banned = 'Yes'`). For each day from\n**2024-10-01 to 2024-10-03**, the cancellation rate is the share of counted trips whose status starts with\n`'cancelled'` (by the driver or by the client).\n\nReturn `day` and `cancellation_rate` (a fraction between 0 and 1, rounded to 2 decimal places) for each of those days\nthat has counted trips, ordered by `day`.",
+  "notes": "",
+  "tables": [
+    {
+      "name": "riders",
+      "columns": [
+        [
+          "user_id",
+          "INTEGER",
+          "pk"
+        ],
+        [
+          "banned",
+          "TEXT"
+        ],
+        [
+          "role",
+          "TEXT"
+        ]
+      ]
+    },
+    {
+      "name": "trips",
+      "columns": [
+        [
+          "id",
+          "INTEGER",
+          "pk"
+        ],
+        [
+          "client_id",
+          "INTEGER",
+          "fk riders.user_id"
+        ],
+        [
+          "driver_id",
+          "INTEGER",
+          "fk riders.user_id"
+        ],
+        [
+          "status",
+          "TEXT"
+        ],
+        [
+          "requested_on",
+          "TEXT"
+        ]
+      ]
+    }
+  ],
+  "ordered": true,
+  "reference": "SELECT t.requested_on AS day,\n       ROUND(1.0 * SUM(CASE WHEN t.status <> 'completed' THEN 1 ELSE 0 END) / COUNT(*), 2) AS cancellation_rate\nFROM trips t\nJOIN riders c ON c.user_id = t.client_id AND c.banned = 'No'\nJOIN riders d ON d.user_id = t.driver_id AND d.banned = 'No'\nWHERE t.requested_on BETWEEN '2024-10-01' AND '2024-10-03'\nGROUP BY t.requested_on\nORDER BY day",
+  "wrong": [
+    "SELECT t.requested_on AS day, ROUND(1.0 * SUM(CASE WHEN t.status <> 'completed' THEN 1 ELSE 0 END) / COUNT(*), 2) AS cancellation_rate FROM trips t WHERE t.requested_on BETWEEN '2024-10-01' AND '2024-10-03' GROUP BY t.requested_on ORDER BY day",
+    "SELECT t.requested_on AS day, ROUND(1.0 * SUM(CASE WHEN t.status = 'cancelled_by_driver' THEN 1 ELSE 0 END) / COUNT(*), 2) AS cancellation_rate FROM trips t JOIN riders c ON c.user_id = t.client_id AND c.banned = 'No' JOIN riders d ON d.user_id = t.driver_id AND d.banned = 'No' WHERE t.requested_on BETWEEN '2024-10-01' AND '2024-10-03' GROUP BY t.requested_on ORDER BY day"
+  ]
+}
