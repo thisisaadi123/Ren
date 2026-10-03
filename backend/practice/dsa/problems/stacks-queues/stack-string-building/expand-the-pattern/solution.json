@@ -1,0 +1,1054 @@
+{
+ "version": 1,
+ "summary": "Nested `k[...]` groups are a stack problem: on `[`, save the text built so far and the repeat count, then build\nthe group's contents fresh; on `]`, repeat those contents and append them to the saved text. One pass over the\npattern, O(pattern + output).",
+ "question": [
+  {
+   "md": "Expand every `k[...]` (repeat the inside k times), including nested groups.\n\n- **Counts can have several digits:** `12[a]`.\n- **Groups nest:** `3[a2[c]]` → `accaccacc`.\n- **Letters can appear outside groups:** `2[abc]3[cd]ef`.\n- **Output ≤ 10⁵ characters**, though the pattern is only up to 3000."
+  }
+ ],
+ "think": [
+  {
+   "md": "Take `2[ab3[c]]d`. The innermost group `3[c]` becomes `ccc`, so the outer group is `2[abccc]` → `abcccabccc`, then\n`d`: `abcccabcccd`."
+  },
+  {
+   "panels": [
+    {
+     "type": "row",
+     "cells": [
+      "2",
+      "[",
+      "a",
+      "b",
+      "3",
+      "[",
+      "c",
+      "]",
+      "]",
+      "d"
+     ],
+     "slots": true
+    }
+   ],
+   "caption": "Groups expand from the inside out."
+  },
+  {
+   "md": "Inside-out evaluation suggests recursion (evaluate the inside, then repeat it) or, equivalently, an explicit\nstack: when a group opens, park what you've built so far; when it closes, combine. The stack remembers exactly\nthe outer contexts that are waiting for the inner group to finish."
+  }
+ ],
+ "approaches": [
+  {
+   "title": "Expand the innermost group, repeat",
+   "kind": "brute",
+   "time": "O(groups × output)",
+   "space": "O(output)",
+   "idea": [
+    {
+     "md": "Find a group with no brackets inside (`k[letters]`), replace it by its expansion, and repeat until no brackets remain."
+    }
+   ],
+   "build": [
+    "While the text contains `[`: locate an innermost `k[letters]`.",
+    "Replace it with `letters × k`.",
+    "Return the text."
+   ],
+   "code": {
+    "python": "import re\n\nclass Solution:\n    def expand(self, pattern: str) -> str:\n        inner = re.compile(r\"(\\d+)\\[([a-z]*)\\]\")\n        while \"[\" in pattern:\n            m = inner.search(pattern)\n            pattern = pattern[:m.start()] + m.group(2) * int(m.group(1)) + pattern[m.end():]\n        return pattern\n",
+    "java": "class Solution {\n    public String expand(String pattern) {\n        java.util.regex.Pattern inner = java.util.regex.Pattern.compile(\"(\\\\d+)\\\\[([a-z]*)\\\\]\");\n        while (pattern.indexOf('[') >= 0) {\n            java.util.regex.Matcher m = inner.matcher(pattern);\n            m.find();\n            String body = m.group(2).repeat(Integer.parseInt(m.group(1)));\n            pattern = pattern.substring(0, m.start()) + body + pattern.substring(m.end());\n        }\n        return pattern;\n    }\n}\n",
+    "cpp": "class Solution {\npublic:\n    string expand(string& pattern) {\n        string t = pattern;\n        while (t.find('[') != string::npos) {\n            size_t close = t.find(']');\n            size_t open = t.rfind('[', close);\n            size_t start = open;\n            while (start > 0 && isdigit(t[start - 1])) start--;\n            int k = stoi(t.substr(start, open - start));\n            string body = t.substr(open + 1, close - open - 1), rep;\n            for (int i = 0; i < k; i++) rep += body;\n            t = t.substr(0, start) + rep + t.substr(close + 1);\n        }\n        return t;\n    }\n};\n",
+    "c": "char* expand(char* pattern) {\n    int cap = strlen(pattern) + 1;\n    char* t = malloc(cap);\n    strcpy(t, pattern);\n    char* close;\n    while ((close = strchr(t, ']')) != NULL) {\n        char* open = close;\n        while (*open != '[') open--;\n        char* start = open;\n        while (start > t && start[-1] >= '0' && start[-1] <= '9') start--;\n        int k = atoi(start);\n        int bodyLen = close - open - 1, before = start - t, after = strlen(close + 1);\n        int need = before + k * bodyLen + after + 1;\n        char* u = malloc(need);\n        memcpy(u, t, before);\n        for (int i = 0; i < k; i++) memcpy(u + before + i * bodyLen, open + 1, bodyLen);\n        memcpy(u + before + k * bodyLen, close + 1, after + 1);\n        free(t);\n        t = u;\n    }\n    return t;\n}\n"
+   },
+   "lines": [
+    {
+     "text": "Keep going while any group remains.",
+     "at": {
+      "python": [
+       [
+        6,
+        6
+       ]
+      ],
+      "java": [
+       [
+        4,
+        4
+       ]
+      ],
+      "cpp": [
+       [
+        4,
+        5
+       ]
+      ],
+      "c": [
+       [
+        3,
+        6
+       ]
+      ]
+     }
+    },
+    {
+     "text": "An innermost group: the first `]` closes the nearest `[` before it, and the digits right before that `[` are the count.",
+     "at": {
+      "python": [
+       [
+        5,
+        5
+       ],
+       [
+        7,
+        7
+       ]
+      ],
+      "java": [
+       [
+        3,
+        3
+       ],
+       [
+        5,
+        6
+       ]
+      ],
+      "cpp": [
+       [
+        6,
+        10
+       ]
+      ],
+      "c": [
+       [
+        7,
+        11
+       ]
+      ]
+     },
+     "notes": {
+      "python": "A regular expression for `digits[letters]` only matches groups with no brackets inside.",
+      "java": "A regular expression for `digits[letters]` only matches groups with no brackets inside."
+     }
+    },
+    {
+     "text": "Splice in the repeated body, rebuilding the whole string.",
+     "at": {
+      "python": [
+       [
+        8,
+        8
+       ]
+      ],
+      "java": [
+       [
+        7,
+        8
+       ]
+      ],
+      "cpp": [
+       [
+        11,
+        13
+       ]
+      ],
+      "c": [
+       [
+        12,
+        19
+       ]
+      ]
+     }
+    },
+    {
+     "text": "No brackets left.",
+     "at": {
+      "python": [
+       [
+        9,
+        9
+       ]
+      ],
+      "java": [
+       [
+        10,
+        10
+       ]
+      ],
+      "cpp": [
+       [
+        15,
+        15
+       ]
+      ],
+      "c": [
+       [
+        21,
+        21
+       ]
+      ]
+     }
+    }
+   ],
+   "complexity": [
+    {
+     "md": "**Time O(groups × output):** every replacement copies the whole (growing) string. **Space O(output).**"
+    }
+   ],
+   "walk": {
+    "steps": [
+     {
+      "text": "Start: 2[ab3[c]]d",
+      "panels": [
+       {
+        "type": "vars",
+        "items": {
+         "text": "2[ab3[c]]d"
+        }
+       }
+      ]
+     },
+     {
+      "text": "Innermost group '3[c]' → 'ccc': 2[abccc]d",
+      "panels": [
+       {
+        "type": "vars",
+        "items": {
+         "text": "2[abccc]d"
+        }
+       }
+      ]
+     },
+     {
+      "text": "Innermost group '2[abccc]' → 'abcccabccc': abcccabcccd",
+      "panels": [
+       {
+        "type": "vars",
+        "items": {
+         "text": "abcccabcccd"
+        }
+       }
+      ],
+      "result": "abcccabcccd"
+     }
+    ],
+    "title": "Repeatedly find an innermost group k[letters] (no brackets inside) and replace it by its expansion."
+   },
+   "limits": [
+    {
+     "md": "Each replacement rebuilds the entire text. Processing the pattern once, left to right, with saved contexts builds each piece only as many times as it's actually repeated."
+    }
+   ],
+   "slow": true
+  },
+  {
+   "title": "Recursive descent",
+   "kind": "better",
+   "time": "O(pattern + output)",
+   "space": "O(output + depth)",
+   "idea": [
+    {
+     "md": "`parse()` reads from a shared position until `]` or the end: letters are appended; a number is followed by `[`, so recursively parse the group, then append its result k times. The recursion depth equals the nesting depth."
+    }
+   ],
+   "build": [
+    "Shared index `i`.",
+    "`parse()`: loop until `]`/end; letters → append; digits → read k, skip `[`, `inner = parse()`, skip `]`, append inner k times.",
+    "Return `parse()` on the whole pattern."
+   ],
+   "code": {
+    "python": "class Solution:\n    def expand(self, pattern: str) -> str:\n        i = 0\n        def parse():\n            nonlocal i\n            out = []\n            while i < len(pattern) and pattern[i] != \"]\":\n                c = pattern[i]\n                if c.isdigit():\n                    k = 0\n                    while pattern[i].isdigit():\n                        k = k * 10 + int(pattern[i])\n                        i += 1\n                    i += 1\n                    inner = parse()\n                    i += 1\n                    out.append(inner * k)\n                else:\n                    out.append(c)\n                    i += 1\n            return \"\".join(out)\n        return parse()\n",
+    "java": "class Solution {\n    private String p;\n    private int i;\n\n    public String expand(String pattern) {\n        p = pattern;\n        i = 0;\n        return parse();\n    }\n\n    private String parse() {\n        StringBuilder out = new StringBuilder();\n        while (i < p.length() && p.charAt(i) != ']') {\n            char c = p.charAt(i);\n            if (Character.isDigit(c)) {\n                int k = 0;\n                while (Character.isDigit(p.charAt(i))) k = k * 10 + (p.charAt(i++) - '0');\n                i++;\n                String inner = parse();\n                i++;\n                out.append(inner.repeat(k));\n            } else {\n                out.append(c);\n                i++;\n            }\n        }\n        return out.toString();\n    }\n}\n",
+    "cpp": "class Solution {\n    string p;\n    size_t i = 0;\n\n    string parse() {\n        string out;\n        while (i < p.size() && p[i] != ']') {\n            if (isdigit(p[i])) {\n                int k = 0;\n                while (isdigit(p[i])) k = k * 10 + (p[i++] - '0');\n                i++;\n                string inner = parse();\n                i++;\n                for (int r = 0; r < k; r++) out += inner;\n            } else {\n                out += p[i++];\n            }\n        }\n        return out;\n    }\n\npublic:\n    string expand(string& pattern) {\n        p = pattern;\n        i = 0;\n        return parse();\n    }\n};\n",
+    "c": "typedef struct { char* s; int len, cap; } Buf;\n\nstatic void put(Buf* b, const char* src, int n) {\n    if (b->len + n + 1 > b->cap) {\n        while (b->len + n + 1 > b->cap) b->cap *= 2;\n        b->s = realloc(b->s, b->cap);\n    }\n    memcpy(b->s + b->len, src, n);\n    b->len += n;\n}\n\nstatic Buf parse(const char* p, int* i) {\n    Buf out = {malloc(16), 0, 16};\n    while (p[*i] && p[*i] != ']') {\n        if (p[*i] >= '0' && p[*i] <= '9') {\n            int k = 0;\n            while (p[*i] >= '0' && p[*i] <= '9') k = k * 10 + (p[(*i)++] - '0');\n            (*i)++;\n            Buf inner = parse(p, i);\n            (*i)++;\n            for (int r = 0; r < k; r++) put(&out, inner.s, inner.len);\n            free(inner.s);\n        } else {\n            put(&out, p + *i, 1);\n            (*i)++;\n        }\n    }\n    out.s[out.len] = '\\0';\n    return out;\n}\n\nchar* expand(char* pattern) {\n    int i = 0;\n    return parse(pattern, &i).s;\n}\n"
+   },
+   "lines": [
+    {
+     "text": "A read position shared by all recursive calls.",
+     "at": {
+      "python": [
+       [
+        3,
+        3
+       ]
+      ],
+      "java": [
+       [
+        6,
+        7
+       ]
+      ],
+      "cpp": [
+       [
+        24,
+        25
+       ]
+      ],
+      "c": [
+       [
+        1,
+        1
+       ],
+       [
+        3,
+        10
+       ]
+      ]
+     },
+     "notes": {
+      "c": "A growable buffer (doubling capacity) holds the text built at each level; `put` appends to it."
+     }
+    },
+    {
+     "text": "Parse a sequence of letters and groups until the `]` that closes the current group (or the end).",
+     "at": {
+      "python": [
+       [
+        4,
+        8
+       ],
+       [
+        21,
+        21
+       ]
+      ],
+      "java": [
+       [
+        11,
+        14
+       ],
+       [
+        27,
+        27
+       ]
+      ],
+      "cpp": [
+       [
+        5,
+        7
+       ],
+       [
+        19,
+        19
+       ]
+      ],
+      "c": [
+       [
+        12,
+        14
+       ],
+       [
+        28,
+        29
+       ]
+      ]
+     }
+    },
+    {
+     "text": "Read the count, skip `[`, recursively expand the inside, skip `]`, append the inside k times.",
+     "at": {
+      "python": [
+       [
+        9,
+        17
+       ]
+      ],
+      "java": [
+       [
+        15,
+        21
+       ]
+      ],
+      "cpp": [
+       [
+        8,
+        14
+       ]
+      ],
+      "c": [
+       [
+        15,
+        22
+       ]
+      ]
+     }
+    },
+    {
+     "text": "A plain letter is copied.",
+     "at": {
+      "python": [
+       [
+        18,
+        20
+       ]
+      ],
+      "java": [
+       [
+        22,
+        24
+       ]
+      ],
+      "cpp": [
+       [
+        15,
+        16
+       ]
+      ],
+      "c": [
+       [
+        23,
+        25
+       ]
+      ]
+     }
+    },
+    {
+     "text": "Expand the whole pattern.",
+     "at": {
+      "python": [
+       [
+        22,
+        22
+       ]
+      ],
+      "java": [
+       [
+        8,
+        8
+       ]
+      ],
+      "cpp": [
+       [
+        26,
+        26
+       ]
+      ],
+      "c": [
+       [
+        34,
+        34
+       ]
+      ]
+     }
+    }
+   ],
+   "complexity": [
+    {
+     "md": "**Time O(pattern + output)** for building and copying pieces. **Space O(output)** plus a call stack as deep as the nesting (up to ~1500 levels)."
+    }
+   ],
+   "walk": {
+    "steps": [
+     {
+      "text": "digit: count = 2.",
+      "panels": [
+       {
+        "type": "row",
+        "cells": [],
+        "label": "saved (text before group × count)"
+       },
+       {
+        "type": "vars",
+        "items": {
+         "current": ""
+        }
+       }
+      ]
+     },
+     {
+      "text": "'[': save ('', 2); start an empty group.",
+      "panels": [
+       {
+        "type": "row",
+        "cells": [
+         "''×2"
+        ],
+        "label": "saved (text before group × count)"
+       },
+       {
+        "type": "vars",
+        "items": {
+         "current": ""
+        }
+       }
+      ]
+     },
+     {
+      "text": "letter 'a': current = 'a'.",
+      "panels": [
+       {
+        "type": "row",
+        "cells": [
+         "''×2"
+        ],
+        "label": "saved (text before group × count)"
+       },
+       {
+        "type": "vars",
+        "items": {
+         "current": "a"
+        }
+       }
+      ]
+     },
+     {
+      "text": "letter 'b': current = 'ab'.",
+      "panels": [
+       {
+        "type": "row",
+        "cells": [
+         "''×2"
+        ],
+        "label": "saved (text before group × count)"
+       },
+       {
+        "type": "vars",
+        "items": {
+         "current": "ab"
+        }
+       }
+      ]
+     },
+     {
+      "text": "digit: count = 3.",
+      "panels": [
+       {
+        "type": "row",
+        "cells": [
+         "''×2"
+        ],
+        "label": "saved (text before group × count)"
+       },
+       {
+        "type": "vars",
+        "items": {
+         "current": "ab"
+        }
+       }
+      ]
+     },
+     {
+      "text": "'[': save ('ab', 3); start an empty group.",
+      "panels": [
+       {
+        "type": "row",
+        "cells": [
+         "''×2",
+         "'ab'×3"
+        ],
+        "label": "saved (text before group × count)"
+       },
+       {
+        "type": "vars",
+        "items": {
+         "current": ""
+        }
+       }
+      ]
+     },
+     {
+      "text": "letter 'c': current = 'c'.",
+      "panels": [
+       {
+        "type": "row",
+        "cells": [
+         "''×2",
+         "'ab'×3"
+        ],
+        "label": "saved (text before group × count)"
+       },
+       {
+        "type": "vars",
+        "items": {
+         "current": "c"
+        }
+       }
+      ]
+     },
+     {
+      "text": "']': group 'c' × 3 = 'ccc', appended to 'ab'.",
+      "panels": [
+       {
+        "type": "row",
+        "cells": [
+         "''×2"
+        ],
+        "label": "saved (text before group × count)"
+       },
+       {
+        "type": "vars",
+        "items": {
+         "current": "abccc"
+        }
+       }
+      ]
+     },
+     {
+      "text": "']': group 'abccc' × 2 = 'abcccabccc', appended to ''.",
+      "panels": [
+       {
+        "type": "row",
+        "cells": [],
+        "label": "saved (text before group × count)"
+       },
+       {
+        "type": "vars",
+        "items": {
+         "current": "abcccabccc"
+        }
+       }
+      ]
+     },
+     {
+      "text": "letter 'd': current = 'abcccabcccd'.",
+      "panels": [
+       {
+        "type": "row",
+        "cells": [],
+        "label": "saved (text before group × count)"
+       },
+       {
+        "type": "vars",
+        "items": {
+         "current": "abcccabcccd"
+        }
+       }
+      ],
+      "result": "abcccabcccd"
+     }
+    ],
+    "title": "Explicit stack: '[' saves (text so far, repeat count) and starts fresh; ']' repeats the group and appends it to the saved text."
+   },
+   "limits": [
+    {
+     "md": "Deep nesting means deep recursion, which can overflow the call stack in some environments. An explicit stack holds the same information in ordinary memory."
+    }
+   ]
+  },
+  {
+   "title": "Explicit stack",
+   "kind": "best",
+   "time": "O(pattern + output)",
+   "space": "O(output)",
+   "idea": [
+    {
+     "md": "Keep `cur` (text of the current group) and `num` (count being read). On `[`: push `(cur, num)`, start empty. On `]`: pop `(prev, k)`, set `cur = prev + cur × k`. Letters append to `cur`."
+    }
+   ],
+   "build": [
+    "`stack = []`, `cur = \"\"`, `num = 0`.",
+    "Digits build num; `[` pushes and resets; `]` pops and combines; letters append.",
+    "Return `cur`."
+   ],
+   "code": {
+    "python": "class Solution:\n    def expand(self, pattern: str) -> str:\n        stack, cur, num = [], [], 0\n        for c in pattern:\n            if c.isdigit():\n                num = num * 10 + int(c)\n            elif c == \"[\":\n                stack.append((cur, num))\n                cur, num = [], 0\n            elif c == \"]\":\n                prev, k = stack.pop()\n                prev.append(\"\".join(cur) * k)\n                cur = prev\n            else:\n                cur.append(c)\n        return \"\".join(cur)\n",
+    "java": "class Solution {\n    public String expand(String pattern) {\n        Deque<StringBuilder> texts = new ArrayDeque<>();\n        Deque<Integer> counts = new ArrayDeque<>();\n        StringBuilder cur = new StringBuilder();\n        int num = 0;\n        for (char c : pattern.toCharArray()) {\n            if (Character.isDigit(c)) num = num * 10 + (c - '0');\n            else if (c == '[') {\n                texts.push(cur);\n                counts.push(num);\n                cur = new StringBuilder();\n                num = 0;\n            } else if (c == ']') {\n                StringBuilder prev = texts.pop();\n                prev.append(cur.toString().repeat(counts.pop()));\n                cur = prev;\n            } else cur.append(c);\n        }\n        return cur.toString();\n    }\n}\n",
+    "cpp": "class Solution {\npublic:\n    string expand(string& pattern) {\n        vector<pair<string, int>> stack;\n        string cur;\n        int num = 0;\n        for (char c : pattern) {\n            if (isdigit(c)) num = num * 10 + (c - '0');\n            else if (c == '[') {\n                stack.push_back({cur, num});\n                cur.clear();\n                num = 0;\n            } else if (c == ']') {\n                auto [prev, k] = stack.back();\n                stack.pop_back();\n                for (int r = 0; r < k; r++) prev += cur;\n                cur = prev;\n            } else cur += c;\n        }\n        return cur;\n    }\n};\n",
+    "c": "char* expand(char* pattern) {\n    int cap = 1 << 17;\n    char* out = malloc(cap);\n    int len = 0, top = 0, num = 0;\n    int* startAt = malloc(strlen(pattern) * sizeof(int) + sizeof(int));\n    int* times = malloc(strlen(pattern) * sizeof(int) + sizeof(int));\n    for (char* p = pattern; *p; p++) {\n        if (*p >= '0' && *p <= '9') num = num * 10 + (*p - '0');\n        else if (*p == '[') {\n            startAt[top] = len;\n            times[top++] = num;\n            num = 0;\n        } else if (*p == ']') {\n            int start = startAt[--top], body = len - start;\n            for (int r = 1; r < times[top]; r++) {\n                memcpy(out + len, out + start, body);\n                len += body;\n            }\n        } else out[len++] = *p;\n    }\n    out[len] = '\\0';\n    free(startAt);\n    free(times);\n    return out;\n}\n"
+   },
+   "lines": [
+    {
+     "text": "Saved outer contexts, the current group's text, and the count being read.",
+     "at": {
+      "python": [
+       [
+        3,
+        3
+       ]
+      ],
+      "java": [
+       [
+        3,
+        6
+       ]
+      ],
+      "cpp": [
+       [
+        4,
+        6
+       ]
+      ],
+      "c": [
+       [
+        2,
+        6
+       ]
+      ]
+     },
+     "notes": {
+      "c": "One output buffer (2¹⁷ bytes covers the 10⁵-character limit). The stack stores where each open group's text starts in that buffer, and its repeat count."
+     }
+    },
+    {
+     "text": "One pass over the pattern.",
+     "at": {
+      "python": [
+       [
+        4,
+        4
+       ]
+      ],
+      "java": [
+       [
+        7,
+        7
+       ]
+      ],
+      "cpp": [
+       [
+        7,
+        7
+       ]
+      ],
+      "c": [
+       [
+        7,
+        7
+       ]
+      ]
+     }
+    },
+    {
+     "text": "Counts can have several digits.",
+     "at": {
+      "python": [
+       [
+        5,
+        6
+       ]
+      ],
+      "java": [
+       [
+        8,
+        8
+       ]
+      ],
+      "cpp": [
+       [
+        8,
+        8
+       ]
+      ],
+      "c": [
+       [
+        8,
+        8
+       ]
+      ]
+     }
+    },
+    {
+     "text": "A group starts: park the text built so far and the count, and build the group from scratch.",
+     "at": {
+      "python": [
+       [
+        7,
+        9
+       ]
+      ],
+      "java": [
+       [
+        9,
+        13
+       ]
+      ],
+      "cpp": [
+       [
+        9,
+        12
+       ]
+      ],
+      "c": [
+       [
+        9,
+        12
+       ]
+      ]
+     },
+     "notes": {
+      "c": "Just remember where the group begins in the buffer; its text is written in place."
+     }
+    },
+    {
+     "text": "The group ends: repeat its text k times and continue the parked outer text.",
+     "at": {
+      "python": [
+       [
+        10,
+        13
+       ]
+      ],
+      "java": [
+       [
+        14,
+        17
+       ]
+      ],
+      "cpp": [
+       [
+        13,
+        17
+       ]
+      ],
+      "c": [
+       [
+        13,
+        17
+       ]
+      ]
+     },
+     "notes": {
+      "c": "The group's text is already in the buffer once; copy it k − 1 more times right after itself."
+     }
+    },
+    {
+     "text": "Letters extend the current group.",
+     "at": {
+      "python": [
+       [
+        14,
+        15
+       ]
+      ],
+      "java": [
+       [
+        18,
+        18
+       ]
+      ],
+      "cpp": [
+       [
+        18,
+        18
+       ]
+      ],
+      "c": [
+       [
+        19,
+        19
+       ]
+      ]
+     }
+    },
+    {
+     "text": "The fully expanded text.",
+     "at": {
+      "python": [
+       [
+        16,
+        16
+       ]
+      ],
+      "java": [
+       [
+        20,
+        20
+       ]
+      ],
+      "cpp": [
+       [
+        20,
+        20
+       ]
+      ],
+      "c": [
+       [
+        21,
+        24
+       ]
+      ]
+     }
+    }
+   ],
+   "complexity": [
+    {
+     "md": "**Time O(pattern + output).** **Space O(output)** for the text, plus a stack as deep as the nesting."
+    }
+   ],
+   "walk": {
+    "steps": [
+     {
+      "text": "digit: count = 2.",
+      "panels": [
+       {
+        "type": "row",
+        "cells": [],
+        "label": "saved (text before group × count)"
+       },
+       {
+        "type": "vars",
+        "items": {
+         "current": ""
+        }
+       }
+      ]
+     },
+     {
+      "text": "'[': save ('', 2); start an empty group.",
+      "panels": [
+       {
+        "type": "row",
+        "cells": [
+         "''×2"
+        ],
+        "label": "saved (text before group × count)"
+       },
+       {
+        "type": "vars",
+        "items": {
+         "current": ""
+        }
+       }
+      ]
+     },
+     {
+      "text": "letter 'a': current = 'a'.",
+      "panels": [
+       {
+        "type": "row",
+        "cells": [
+         "''×2"
+        ],
+        "label": "saved (text before group × count)"
+       },
+       {
+        "type": "vars",
+        "items": {
+         "current": "a"
+        }
+       }
+      ]
+     },
+     {
+      "text": "letter 'b': current = 'ab'.",
+      "panels": [
+       {
+        "type": "row",
+        "cells": [
+         "''×2"
+        ],
+        "label": "saved (text before group × count)"
+       },
+       {
+        "type": "vars",
+        "items": {
+         "current": "ab"
+        }
+       }
+      ]
+     },
+     {
+      "text": "digit: count = 3.",
+      "panels": [
+       {
+        "type": "row",
+        "cells": [
+         "''×2"
+        ],
+        "label": "saved (text before group × count)"
+       },
+       {
+        "type": "vars",
+        "items": {
+         "current": "ab"
+        }
+       }
+      ]
+     },
+     {
+      "text": "'[': save ('ab', 3); start an empty group.",
+      "panels": [
+       {
+        "type": "row",
+        "cells": [
+         "''×2",
+         "'ab'×3"
+        ],
+        "label": "saved (text before group × count)"
+       },
+       {
+        "type": "vars",
+        "items": {
+         "current": ""
+        }
+       }
+      ]
+     },
+     {
+      "text": "letter 'c': current = 'c'.",
+      "panels": [
+       {
+        "type": "row",
+        "cells": [
+         "''×2",
+         "'ab'×3"
+        ],
+        "label": "saved (text before group × count)"
+       },
+       {
+        "type": "vars",
+        "items": {
+         "current": "c"
+        }
+       }
+      ]
+     },
+     {
+      "text": "']': group 'c' × 3 = 'ccc', appended to 'ab'.",
+      "panels": [
+       {
+        "type": "row",
+        "cells": [
+         "''×2"
+        ],
+        "label": "saved (text before group × count)"
+       },
+       {
+        "type": "vars",
+        "items": {
+         "current": "abccc"
+        }
+       }
+      ]
+     },
+     {
+      "text": "']': group 'abccc' × 2 = 'abcccabccc', appended to ''.",
+      "panels": [
+       {
+        "type": "row",
+        "cells": [],
+        "label": "saved (text before group × count)"
+       },
+       {
+        "type": "vars",
+        "items": {
+         "current": "abcccabccc"
+        }
+       }
+      ]
+     },
+     {
+      "text": "letter 'd': current = 'abcccabcccd'.",
+      "panels": [
+       {
+        "type": "row",
+        "cells": [],
+        "label": "saved (text before group × count)"
+       },
+       {
+        "type": "vars",
+        "items": {
+         "current": "abcccabcccd"
+        }
+       }
+      ],
+      "result": "abcccabcccd"
+     }
+    ],
+    "title": "Explicit stack: '[' saves (text so far, repeat count) and starts fresh; ']' repeats the group and appends it to the saved text."
+   }
+  }
+ ],
+ "takeaways": [
+  {
+   "md": "- Nested repetition (`k[...]`) → **stack of (outer text, count)**, or recursion.\n- An explicit stack avoids call-stack overflow on deep nesting.\n- Read multi-digit numbers by accumulating `num = num × 10 + digit`."
+  }
+ ]
+}

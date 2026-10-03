@@ -1,0 +1,619 @@
+{
+ "version": 1,
+ "summary": "Split the path on `/` and process the parts with a stack of folder names: empty parts and `.` change nothing,\n`..` pops (if anything is there), and every other name is pushed. Join the stack with `/` behind a leading `/`.\nO(n).",
+ "question": [
+  {
+   "md": "Rewrite an absolute path into its tidy form: single slashes, no `.` or `..`, no trailing slash (except the root\nitself).\n\n- **`..` at the root stays at the root:** `/../a` → `/a`.\n- **`...` is just a folder name**, as is anything that isn't exactly `.` or `..`.\n- **Repeated slashes collapse:** `/a//b` → `/a/b`."
+  }
+ ],
+ "think": [
+  {
+   "md": "Take `/usr//local/./bin/../lib/.../`. Reading folder by folder: `usr`, `local`, `.` (stay), `bin`, `..` (back out of bin), `lib`,\n`...` (a normal name). Result: `/usr/local/lib/...`."
+  },
+  {
+   "panels": [
+    {
+     "type": "row",
+     "cells": [
+      "",
+      "usr",
+      "",
+      "local",
+      ".",
+      "bin",
+      "..",
+      "lib",
+      "...",
+      ""
+     ],
+     "label": "parts after splitting on '/'"
+    },
+    {
+     "type": "row",
+     "cells": [
+      "usr",
+      "local",
+      "lib",
+      "..."
+     ],
+     "label": "kept"
+    }
+   ],
+   "caption": "Empty parts come from repeated or trailing slashes."
+  },
+  {
+   "md": "`..` undoes the most recently entered folder: last in, first out. That's a stack of folder names."
+  }
+ ],
+ "approaches": [
+  {
+   "title": "Rewrite the text until it stops changing",
+   "kind": "brute",
+   "time": "O(n²)",
+   "space": "O(n)",
+   "idea": [
+    {
+     "md": "Apply local rewrite rules repeatedly: collapse `//`, delete `/./`, cancel `/name/../`, and turn a leading `/../` into `/`. When nothing applies, trim the trailing slash."
+    }
+   ],
+   "build": [
+    "Append `/` so every part is surrounded by slashes.",
+    "Loop over the rules until a full round changes nothing.",
+    "Remove the trailing `/` (keep `/` for the root)."
+   ],
+   "code": {
+    "python": "import re\n\nclass Solution:\n    def tidyPath(self, path: str) -> str:\n        t = path + \"/\"\n        rules = [(r\"//+\", \"/\"), (r\"/\\./\", \"/\"), (r\"/(?!\\.\\./)[^/]+/\\.\\./\", \"/\"), (r\"^/\\.\\./\", \"/\")]\n        changed = True\n        while changed:\n            changed = False\n            for pattern, repl in rules:\n                new = re.sub(pattern, repl, t, count=1)\n                if new != t:\n                    t, changed = new, True\n        return t.rstrip(\"/\") or \"/\"\n",
+    "java": "class Solution {\n    public String tidyPath(String path) {\n        String t = path + \"/\";\n        String[][] rules = {{\"//+\", \"/\"}, {\"/\\\\./\", \"/\"}, {\"/(?!\\\\.\\\\./)[^/]+/\\\\.\\\\./\", \"/\"}, {\"^/\\\\.\\\\./\", \"/\"}};\n        boolean changed = true;\n        while (changed) {\n            changed = false;\n            for (String[] r : rules) {\n                String next = t.replaceFirst(r[0], r[1]);\n                if (!next.equals(t)) { t = next; changed = true; }\n            }\n        }\n        while (t.length() > 1 && t.endsWith(\"/\")) t = t.substring(0, t.length() - 1);\n        return t;\n    }\n}\n",
+    "cpp": "class Solution {\n    // One rewrite step on t (which always ends with '/'); returns true if something changed.\n    bool rewrite(string& t) {\n        int n = t.size();\n        for (int i = 0; i + 1 < n; i++) {\n            if (t[i] != '/') continue;\n            int j = i + 1;\n            while (j < n && t[j] != '/') j++;\n            if (j == n) break;\n            string part = t.substr(i + 1, j - i - 1);\n            if (part.empty() || part == \".\") { t.erase(i, j - i); return true; }\n            if (part == \"..\") {\n                int s = i - 1;\n                while (s >= 0 && t[s] != '/') s--;\n                if (s < 0) s = i;\n                t.erase(s, j - s);\n                return true;\n            }\n        }\n        return false;\n    }\n\npublic:\n    string tidyPath(string& path) {\n        string t = path + \"/\";\n        while (rewrite(t)) {}\n        while (t.size() > 1 && t.back() == '/') t.pop_back();\n        return t;\n    }\n};\n",
+    "c": "// One rewrite step on t (which always ends with '/'); returns true if something changed.\nstatic bool rewrite(char* t) {\n    int n = strlen(t);\n    for (int i = 0; i + 1 < n; i++) {\n        if (t[i] != '/') continue;\n        int j = i + 1;\n        while (j < n && t[j] != '/') j++;\n        int len = j - i - 1;\n        if (j == n) break;\n        if (len == 0 || (len == 1 && t[i + 1] == '.')) {\n            memmove(t + i, t + j, n - j + 1);\n            return true;\n        }\n        if (len == 2 && t[i + 1] == '.' && t[i + 2] == '.') {\n            int s = i - 1;\n            while (s >= 0 && t[s] != '/') s--;\n            if (s < 0) s = i;\n            memmove(t + s, t + j, n - j + 1);\n            return true;\n        }\n    }\n    return false;\n}\n\nchar* tidyPath(char* path) {\n    int n = strlen(path);\n    char* t = malloc(n + 2);\n    memcpy(t, path, n);\n    t[n] = '/';\n    t[n + 1] = '\\0';\n    while (rewrite(t)) {}\n    int len = strlen(t);\n    while (len > 1 && t[len - 1] == '/') t[--len] = '\\0';\n    return t;\n}\n"
+   },
+   "lines": [
+    {
+     "text": "A trailing `/` makes every part, including the last, look like `/part/`.",
+     "at": {
+      "python": [
+       [
+        5,
+        5
+       ]
+      ],
+      "java": [
+       [
+        3,
+        3
+       ]
+      ],
+      "cpp": [
+       [
+        25,
+        25
+       ]
+      ],
+      "c": [
+       [
+        27,
+        30
+       ]
+      ]
+     }
+    },
+    {
+     "text": "Local simplifications: empty part (`//`), `.` part, `name/..` pair, and `..` right at the root.",
+     "at": {
+      "python": [
+       [
+        6,
+        6
+       ]
+      ],
+      "java": [
+       [
+        4,
+        4
+       ]
+      ],
+      "cpp": [
+       [
+        3,
+        21
+       ]
+      ],
+      "c": [
+       [
+        2,
+        23
+       ]
+      ]
+     },
+     "notes": {
+      "cpp": "One scan finds the first part that is empty, `.` or `..`, and removes it (for `..`, together with the folder before it, unless it's at the root).",
+      "c": "One scan finds the first part that is empty, `.` or `..`, and removes it (for `..`, together with the folder before it, unless it's at the root)."
+     }
+    },
+    {
+     "text": "Apply rewrites until none applies.",
+     "at": {
+      "python": [
+       [
+        7,
+        13
+       ]
+      ],
+      "java": [
+       [
+        5,
+        10
+       ]
+      ],
+      "cpp": [
+       [
+        26,
+        26
+       ]
+      ],
+      "c": [
+       [
+        31,
+        31
+       ]
+      ]
+     }
+    },
+    {
+     "text": "Remove trailing slashes, keeping a lone `/` for the root.",
+     "at": {
+      "python": [
+       [
+        14,
+        14
+       ]
+      ],
+      "java": [
+       [
+        13,
+        14
+       ]
+      ],
+      "cpp": [
+       [
+        27,
+        28
+       ]
+      ],
+      "c": [
+       [
+        32,
+        34
+       ]
+      ]
+     }
+    }
+   ],
+   "complexity": [
+    {
+     "md": "**Time O(n²):** each rewrite rescans and shifts the string. **Space O(n).**"
+    }
+   ],
+   "walk": {
+    "steps": [
+     {
+      "text": "Add a trailing '/' so every part is wrapped in slashes: /usr//local/./bin/../lib/...//",
+      "panels": [
+       {
+        "type": "vars",
+        "items": {
+         "path": "/usr//local/./bin/../lib/...//"
+        }
+       }
+      ]
+     },
+     {
+      "text": "collapse repeated slashes: /usr/local/./bin/../lib/...//",
+      "panels": [
+       {
+        "type": "vars",
+        "items": {
+         "path": "/usr/local/./bin/../lib/...//"
+        }
+       }
+      ]
+     },
+     {
+      "text": "collapse repeated slashes: /usr/local/./bin/../lib/.../",
+      "panels": [
+       {
+        "type": "vars",
+        "items": {
+         "path": "/usr/local/./bin/../lib/.../"
+        }
+       }
+      ]
+     },
+     {
+      "text": "drop a '.' part: /usr/local/bin/../lib/.../",
+      "panels": [
+       {
+        "type": "vars",
+        "items": {
+         "path": "/usr/local/bin/../lib/.../"
+        }
+       }
+      ]
+     },
+     {
+      "text": "cancel 'name/..': /usr/local/lib/.../",
+      "panels": [
+       {
+        "type": "vars",
+        "items": {
+         "path": "/usr/local/lib/.../"
+        }
+       }
+      ]
+     },
+     {
+      "text": "Drop the trailing slash: /usr/local/lib/...",
+      "panels": [
+       {
+        "type": "vars",
+        "items": {
+         "path": "/usr/local/lib/..."
+        }
+       }
+      ],
+      "result": "/usr/local/lib/..."
+     }
+    ],
+    "title": "Repeatedly apply text rewrites: '//' → '/', '/./' → '/', '/name/../' → '/', until nothing changes."
+   },
+   "limits": [
+    {
+     "md": "Each fix rescans from the start. The structure is just \"enter folder / leave folder\", which a stack processes in one pass."
+    }
+   ],
+   "slow": true
+  },
+  {
+   "title": "Split, then a stack of folders",
+   "kind": "best",
+   "time": "O(n)",
+   "space": "O(n)",
+   "idea": [
+    {
+     "md": "Split on `/`. For each part: empty or `.` → nothing; `..` → pop if non-empty; else push. Answer: `/` + parts joined by `/`."
+    }
+   ],
+   "build": [
+    "Split the path on `/`.",
+    "Process parts with the stack rules.",
+    "Return `\"/\" + join(stack, \"/\")`."
+   ],
+   "code": {
+    "python": "class Solution:\n    def tidyPath(self, path: str) -> str:\n        stack = []\n        for part in path.split(\"/\"):\n            if part == \"..\":\n                if stack:\n                    stack.pop()\n            elif part and part != \".\":\n                stack.append(part)\n        return \"/\" + \"/\".join(stack)\n",
+    "java": "class Solution {\n    public String tidyPath(String path) {\n        Deque<String> stack = new ArrayDeque<>();\n        for (String part : path.split(\"/\")) {\n            if (part.equals(\"..\")) { if (!stack.isEmpty()) stack.pollLast(); }\n            else if (!part.isEmpty() && !part.equals(\".\")) stack.addLast(part);\n        }\n        return \"/\" + String.join(\"/\", stack);\n    }\n}\n",
+    "cpp": "class Solution {\npublic:\n    string tidyPath(string& path) {\n        vector<string> stack;\n        stringstream in(path);\n        string part;\n        while (getline(in, part, '/')) {\n            if (part == \"..\") { if (!stack.empty()) stack.pop_back(); }\n            else if (!part.empty() && part != \".\") stack.push_back(part);\n        }\n        string out;\n        for (auto& p : stack) out += \"/\" + p;\n        return out.empty() ? \"/\" : out;\n    }\n};\n",
+    "c": "char* tidyPath(char* path) {\n    int n = strlen(path), top = 0;\n    int* start = malloc((n + 1) * sizeof(int));\n    int* len = malloc((n + 1) * sizeof(int));\n    for (int i = 0; i < n;) {\n        while (i < n && path[i] == '/') i++;\n        int j = i;\n        while (j < n && path[j] != '/') j++;\n        int L = j - i;\n        if (L == 2 && path[i] == '.' && path[i + 1] == '.') { if (top > 0) top--; }\n        else if (L > 0 && !(L == 1 && path[i] == '.')) { start[top] = i; len[top] = L; top++; }\n        i = j;\n    }\n    char* out = malloc(n + 2);\n    int w = 0;\n    for (int k = 0; k < top; k++) {\n        out[w++] = '/';\n        memcpy(out + w, path + start[k], len[k]);\n        w += len[k];\n    }\n    if (w == 0) out[w++] = '/';\n    out[w] = '\\0';\n    free(start);\n    free(len);\n    return out;\n}\n"
+   },
+   "lines": [
+    {
+     "text": "Folder names currently entered, deepest last.",
+     "at": {
+      "python": [
+       [
+        3,
+        3
+       ]
+      ],
+      "java": [
+       [
+        3,
+        3
+       ]
+      ],
+      "cpp": [
+       [
+        4,
+        4
+       ]
+      ],
+      "c": [
+       [
+        3,
+        4
+       ]
+      ]
+     },
+     "notes": {
+      "c": "The stack stores where each kept name starts in the input and how long it is; no copying until the end."
+     }
+    },
+    {
+     "text": "Pieces between slashes; repeated or trailing slashes produce empty pieces.",
+     "at": {
+      "python": [
+       [
+        4,
+        4
+       ]
+      ],
+      "java": [
+       [
+        4,
+        4
+       ]
+      ],
+      "cpp": [
+       [
+        5,
+        7
+       ]
+      ],
+      "c": [
+       [
+        5,
+        9
+       ],
+       [
+        12,
+        12
+       ]
+      ]
+     },
+     "notes": {
+      "cpp": "`getline` with `'/'` as the delimiter yields each piece.",
+      "c": "Skip slashes, then take the run of non-slash characters as the next piece."
+     }
+    },
+    {
+     "text": "`..` leaves the current folder; at the root there's nothing to leave.",
+     "at": {
+      "python": [
+       [
+        5,
+        7
+       ]
+      ],
+      "java": [
+       [
+        5,
+        5
+       ]
+      ],
+      "cpp": [
+       [
+        8,
+        8
+       ]
+      ],
+      "c": [
+       [
+        10,
+        10
+       ]
+      ]
+     }
+    },
+    {
+     "text": "Anything else that isn't empty or `.` is a folder to enter (including `...`).",
+     "at": {
+      "python": [
+       [
+        8,
+        9
+       ]
+      ],
+      "java": [
+       [
+        6,
+        6
+       ]
+      ],
+      "cpp": [
+       [
+        9,
+        9
+       ]
+      ],
+      "c": [
+       [
+        11,
+        11
+       ]
+      ]
+     }
+    },
+    {
+     "text": "Rebuild with single slashes; an empty stack is the root `/`.",
+     "at": {
+      "python": [
+       [
+        10,
+        10
+       ]
+      ],
+      "java": [
+       [
+        8,
+        8
+       ]
+      ],
+      "cpp": [
+       [
+        11,
+        13
+       ]
+      ],
+      "c": [
+       [
+        14,
+        25
+       ]
+      ]
+     }
+    }
+   ],
+   "complexity": [
+    {
+     "md": "**Time O(n).** **Space O(n)** for the parts and the result."
+    }
+   ],
+   "walk": {
+    "steps": [
+     {
+      "text": "empty part (from '//' or the ends) → ignore.",
+      "panels": [
+       {
+        "type": "row",
+        "cells": [],
+        "label": "folders"
+       }
+      ]
+     },
+     {
+      "text": "'usr' → push.",
+      "panels": [
+       {
+        "type": "row",
+        "cells": [
+         "usr"
+        ],
+        "label": "folders"
+       }
+      ]
+     },
+     {
+      "text": "empty part (from '//' or the ends) → ignore.",
+      "panels": [
+       {
+        "type": "row",
+        "cells": [
+         "usr"
+        ],
+        "label": "folders"
+       }
+      ]
+     },
+     {
+      "text": "'local' → push.",
+      "panels": [
+       {
+        "type": "row",
+        "cells": [
+         "usr",
+         "local"
+        ],
+        "label": "folders"
+       }
+      ]
+     },
+     {
+      "text": "'.' → ignore.",
+      "panels": [
+       {
+        "type": "row",
+        "cells": [
+         "usr",
+         "local"
+        ],
+        "label": "folders"
+       }
+      ]
+     },
+     {
+      "text": "'bin' → push.",
+      "panels": [
+       {
+        "type": "row",
+        "cells": [
+         "usr",
+         "local",
+         "bin"
+        ],
+        "label": "folders"
+       }
+      ]
+     },
+     {
+      "text": "'..' → go up (pop).",
+      "panels": [
+       {
+        "type": "row",
+        "cells": [
+         "usr",
+         "local"
+        ],
+        "label": "folders"
+       }
+      ]
+     },
+     {
+      "text": "'lib' → push.",
+      "panels": [
+       {
+        "type": "row",
+        "cells": [
+         "usr",
+         "local",
+         "lib"
+        ],
+        "label": "folders"
+       }
+      ]
+     },
+     {
+      "text": "'...' → push.",
+      "panels": [
+       {
+        "type": "row",
+        "cells": [
+         "usr",
+         "local",
+         "lib",
+         "..."
+        ],
+        "label": "folders"
+       }
+      ]
+     },
+     {
+      "text": "empty part (from '//' or the ends) → ignore.",
+      "panels": [
+       {
+        "type": "row",
+        "cells": [
+         "usr",
+         "local",
+         "lib",
+         "..."
+        ],
+        "label": "folders"
+       }
+      ]
+     },
+     {
+      "text": "Join with '/': /usr/local/lib/...",
+      "panels": [
+       {
+        "type": "row",
+        "cells": [
+         "usr",
+         "local",
+         "lib",
+         "..."
+        ],
+        "label": "folders"
+       }
+      ],
+      "result": "/usr/local/lib/..."
+     }
+    ],
+    "title": "Split on '/', then use a stack of folder names: skip empty parts and '.', pop on '..', push anything else."
+   }
+  }
+ ],
+ "takeaways": [
+  {
+   "md": "- Path normalisation = **stack of components**: push names, pop on `..`, ignore `.` and empty parts.\n- Split first; work with tokens rather than characters."
+  }
+ ]
+}
