@@ -1,0 +1,788 @@
+{
+ "version": 1,
+ "summary": "Every run's sum is `P[j] − P[i]` for prefix sums `P` with i < j, so the task is to count index pairs whose\nprefix difference lies in `[lower, upper]`. Merge sort counts such pairs in O(n log n): when merging two\nsorted halves, the right-half values compatible with each left value form one contiguous window, found\nwith two pointers that only move forward.",
+ "question": [
+  {
+   "md": "Count the non-empty runs of consecutive elements whose sum lies in `[lower, upper]` (inclusive).\n\n- **Values are huge:** each element can be anywhere in the 32-bit range, and up to 3 × 10⁴ of them add up\n  to about ±6.4 × 10¹³. All sums must be 64-bit.\n- **Negatives allowed**, so no sliding window.\n- **n up to 3 × 10⁴:** the O(n²) count (~4.5 × 10⁸ runs) is explicitly too slow; aim for O(n log n)."
+  }
+ ],
+ "think": [
+  {
+   "md": "Take `nums = [3, -2, 4, -5, 1]`, bounds [-1, 2]. Prefix sums: `P = [0, 3, 1, 5, 0, 1]` (P[0] = 0 is the empty prefix).\nRun `i … j − 1` has sum `P[j] − P[i]`. So we're counting pairs `i < j` with\n`-1 ≤ P[j] − P[i] ≤ 2`, i.e. for each `P[i]`, the later `P[j]` in `[P[i] + -1, P[i] + 2]`."
+  },
+  {
+   "panels": [
+    {
+     "type": "row",
+     "cells": [
+      3,
+      -2,
+      4,
+      -5,
+      1
+     ],
+     "label": "nums",
+     "slots": true
+    },
+    {
+     "type": "row",
+     "cells": [
+      0,
+      3,
+      1,
+      5,
+      0,
+      1
+     ],
+     "label": "P",
+     "slots": true
+    }
+   ],
+   "caption": "Each run = a pair of prefix sums, later minus earlier."
+  },
+  {
+   "md": "\"Count later values within a window\" is easy if the later values are **sorted**: the matching ones form a\ncontiguous block. But we must also respect \"later\". Merge sort gives both at once: split P into a left half\n(earlier positions) and a right half (later positions); after recursively sorting each half, every\nleft-right pair is automatically \"earlier, later\", and both halves are sorted, so two forward-moving\npointers find each left value's window in the right half. The answer here is 7."
+  }
+ ],
+ "approaches": [
+  {
+   "title": "Every run with a running sum",
+   "kind": "brute",
+   "time": "O(n²)",
+   "space": "O(1)",
+   "idea": [
+    {
+     "md": "For each start, extend to every end carrying a 64-bit sum; count sums inside the bounds."
+    }
+   ],
+   "build": [
+    "For each i: `s = 0` (64-bit).",
+    "For each j ≥ i: `s += nums[j]`; count it if `lower ≤ s ≤ upper`."
+   ],
+   "code": {
+    "python": "class Solution:\n    def countSumsInBounds(self, nums: List[int], lower: int, upper: int) -> int:\n        n, count = len(nums), 0\n        for i in range(n):\n            s = 0\n            for j in range(i, n):\n                s += nums[j]\n                if lower <= s <= upper:\n                    count += 1\n        return count\n",
+    "java": "class Solution {\n    public long countSumsInBounds(int[] nums, int lower, int upper) {\n        int n = nums.length;\n        long count = 0;\n        for (int i = 0; i < n; i++) {\n            long s = 0;\n            for (int j = i; j < n; j++) {\n                s += nums[j];\n                if (s >= lower && s <= upper) count++;\n            }\n        }\n        return count;\n    }\n}\n",
+    "cpp": "class Solution {\npublic:\n    long long countSumsInBounds(vector<int>& nums, int lower, int upper) {\n        int n = nums.size();\n        long long count = 0;\n        for (int i = 0; i < n; i++) {\n            long long s = 0;\n            for (int j = i; j < n; j++) {\n                s += nums[j];\n                if (s >= lower && s <= upper) count++;\n            }\n        }\n        return count;\n    }\n};\n",
+    "c": "long long countSumsInBounds(int* nums, int numsSize, int lower, int upper) {\n    long long count = 0;\n    for (int i = 0; i < numsSize; i++) {\n        long long s = 0;\n        for (int j = i; j < numsSize; j++) {\n            s += nums[j];\n            if (s >= lower && s <= upper) count++;\n        }\n    }\n    return count;\n}\n"
+   },
+   "lines": [
+    {
+     "text": "Each start, with a 64-bit sum (32-bit values add up fast).",
+     "at": {
+      "python": [
+       [
+        4,
+        5
+       ]
+      ],
+      "java": [
+       [
+        5,
+        6
+       ]
+      ],
+      "cpp": [
+       [
+        6,
+        7
+       ]
+      ],
+      "c": [
+       [
+        3,
+        4
+       ]
+      ]
+     }
+    },
+    {
+     "text": "Extend the run one element.",
+     "at": {
+      "python": [
+       [
+        6,
+        7
+       ]
+      ],
+      "java": [
+       [
+        7,
+        8
+       ]
+      ],
+      "cpp": [
+       [
+        8,
+        9
+       ]
+      ],
+      "c": [
+       [
+        5,
+        6
+       ]
+      ]
+     }
+    },
+    {
+     "text": "Inside the bounds?",
+     "at": {
+      "python": [
+       [
+        8,
+        9
+       ]
+      ],
+      "java": [
+       [
+        9,
+        9
+       ]
+      ],
+      "cpp": [
+       [
+        10,
+        10
+       ]
+      ],
+      "c": [
+       [
+        7,
+        7
+       ]
+      ]
+     }
+    },
+    {
+     "text": "Total runs.",
+     "at": {
+      "python": [
+       [
+        10,
+        10
+       ]
+      ],
+      "java": [
+       [
+        12,
+        12
+       ]
+      ],
+      "cpp": [
+       [
+        13,
+        13
+       ]
+      ],
+      "c": [
+       [
+        10,
+        10
+       ]
+      ]
+     }
+    }
+   ],
+   "complexity": [
+    {
+     "md": "**Time O(n²):** about 4.5 × 10⁸ runs at the limit. **Space O(1).**"
+    }
+   ],
+   "walk": {
+    "steps": [
+     {
+      "text": "Run 0…1 sums to 1: inside the bounds. Count 1.",
+      "panels": [
+       {
+        "type": "row",
+        "cells": [
+         3,
+         -2,
+         4,
+         -5,
+         1
+        ],
+        "states": {
+         "0": "answer",
+         "1": "answer"
+        },
+        "slots": true
+       },
+       {
+        "type": "vars",
+        "items": {
+         "count": 1
+        }
+       }
+      ]
+     },
+     {
+      "text": "Run 0…3 sums to 0: inside the bounds. Count 2.",
+      "panels": [
+       {
+        "type": "row",
+        "cells": [
+         3,
+         -2,
+         4,
+         -5,
+         1
+        ],
+        "states": {
+         "0": "answer",
+         "1": "answer",
+         "2": "answer",
+         "3": "answer"
+        },
+        "slots": true
+       },
+       {
+        "type": "vars",
+        "items": {
+         "count": 2
+        }
+       }
+      ]
+     },
+     {
+      "text": "Run 0…4 sums to 1: inside the bounds. Count 3.",
+      "panels": [
+       {
+        "type": "row",
+        "cells": [
+         3,
+         -2,
+         4,
+         -5,
+         1
+        ],
+        "states": {
+         "0": "answer",
+         "1": "answer",
+         "2": "answer",
+         "3": "answer",
+         "4": "answer"
+        },
+        "slots": true
+       },
+       {
+        "type": "vars",
+        "items": {
+         "count": 3
+        }
+       }
+      ]
+     },
+     {
+      "text": "Run 1…2 sums to 2: inside the bounds. Count 4.",
+      "panels": [
+       {
+        "type": "row",
+        "cells": [
+         3,
+         -2,
+         4,
+         -5,
+         1
+        ],
+        "states": {
+         "1": "answer",
+         "2": "answer"
+        },
+        "slots": true
+       },
+       {
+        "type": "vars",
+        "items": {
+         "count": 4
+        }
+       }
+      ]
+     },
+     {
+      "text": "Run 2…3 sums to -1: inside the bounds. Count 5.",
+      "panels": [
+       {
+        "type": "row",
+        "cells": [
+         3,
+         -2,
+         4,
+         -5,
+         1
+        ],
+        "states": {
+         "2": "answer",
+         "3": "answer"
+        },
+        "slots": true
+       },
+       {
+        "type": "vars",
+        "items": {
+         "count": 5
+        }
+       }
+      ]
+     },
+     {
+      "text": "Run 2…4 sums to 0: inside the bounds. Count 6.",
+      "panels": [
+       {
+        "type": "row",
+        "cells": [
+         3,
+         -2,
+         4,
+         -5,
+         1
+        ],
+        "states": {
+         "2": "answer",
+         "3": "answer",
+         "4": "answer"
+        },
+        "slots": true
+       },
+       {
+        "type": "vars",
+        "items": {
+         "count": 6
+        }
+       }
+      ]
+     },
+     {
+      "text": "Run 4…4 sums to 1: inside the bounds. Count 7.",
+      "panels": [
+       {
+        "type": "row",
+        "cells": [
+         3,
+         -2,
+         4,
+         -5,
+         1
+        ],
+        "states": {
+         "4": "answer"
+        },
+        "slots": true
+       },
+       {
+        "type": "vars",
+        "items": {
+         "count": 7
+        }
+       }
+      ]
+     },
+     {
+      "text": "Total 7.",
+      "panels": [
+       {
+        "type": "row",
+        "cells": [
+         3,
+         -2,
+         4,
+         -5,
+         1
+        ],
+        "slots": true
+       }
+      ],
+      "result": "7"
+     }
+    ],
+    "title": "Every start, every end, running sum; count sums within [-1, 2]."
+   },
+   "limits": [
+    {
+     "md": "It enumerates every pair explicitly. Counting pairs within a range is a job for sorted data: merge sort can count all valid pairs in O(n log n) without listing them."
+    }
+   ],
+   "slow": true
+  },
+  {
+   "title": "Merge sort over prefix sums",
+   "kind": "best",
+   "time": "O(n log n)",
+   "space": "O(n)",
+   "idea": [
+    {
+     "md": "Build the n + 1 prefix sums. `sortCount(lo, hi)` sorts `P[lo … hi)` and returns how many pairs inside it\nhave a difference in bounds:\n\n1. Split at `mid`; recurse on both halves (each returns its internal count and comes back sorted).\n2. **Cross pairs:** for each left value `p` (in increasing order), the right values in\n   `[p + lower, p + upper]` form a contiguous block `[a, b)`. As `p` grows, both ends of the block only\n   move right, so two pointers scan the right half once in total.\n3. Merge the halves so the caller gets sorted data."
+    }
+   ],
+   "build": [
+    "Prefix sums `P[0 … n]` in 64 bits.",
+    "Recursive `sortCount(lo, hi)`; base case of 0 or 1 values counts nothing.",
+    "Count cross pairs with two forward pointers `a` (first ≥ p + lower) and `b` (first > p + upper).",
+    "Merge into a temporary buffer and copy back. Return the sum of the three counts."
+   ],
+   "code": {
+    "python": "class Solution:\n    def countSumsInBounds(self, nums: List[int], lower: int, upper: int) -> int:\n        prefix = [0]\n        for x in nums:\n            prefix.append(prefix[-1] + x)\n\n        def sort_count(a):\n            if len(a) <= 1:\n                return a, 0\n            mid = len(a) // 2\n            left, c1 = sort_count(a[:mid])\n            right, c2 = sort_count(a[mid:])\n            count, lo, hi = c1 + c2, 0, 0\n            for p in left:\n                while lo < len(right) and right[lo] - p < lower:\n                    lo += 1\n                while hi < len(right) and right[hi] - p <= upper:\n                    hi += 1\n                count += hi - lo\n            merged, i, j = [], 0, 0\n            while i < len(left) and j < len(right):\n                if left[i] <= right[j]:\n                    merged.append(left[i]); i += 1\n                else:\n                    merged.append(right[j]); j += 1\n            merged += left[i:] + right[j:]\n            return merged, count\n\n        return sort_count(prefix)[1]\n",
+    "java": "class Solution {\n    private int lower, upper;\n\n    public long countSumsInBounds(int[] nums, int lower, int upper) {\n        this.lower = lower;\n        this.upper = upper;\n        int n = nums.length;\n        long[] p = new long[n + 1];\n        for (int i = 0; i < n; i++) p[i + 1] = p[i] + nums[i];\n        return sortCount(p, new long[n + 1], 0, n + 1);\n    }\n\n    private long sortCount(long[] p, long[] tmp, int lo, int hi) {\n        if (hi - lo <= 1) return 0;\n        int mid = (lo + hi) >>> 1;\n        long count = sortCount(p, tmp, lo, mid) + sortCount(p, tmp, mid, hi);\n        int a = mid, b = mid;\n        for (int i = lo; i < mid; i++) {\n            while (a < hi && p[a] - p[i] < lower) a++;\n            while (b < hi && p[b] - p[i] <= upper) b++;\n            count += b - a;\n        }\n        int i = lo, j = mid, k = lo;\n        while (i < mid && j < hi) tmp[k++] = p[i] <= p[j] ? p[i++] : p[j++];\n        while (i < mid) tmp[k++] = p[i++];\n        while (j < hi) tmp[k++] = p[j++];\n        System.arraycopy(tmp, lo, p, lo, hi - lo);\n        return count;\n    }\n}\n",
+    "cpp": "class Solution {\n    long long lower, upper;\n    vector<long long> p, tmp;\n\n    long long sortCount(int lo, int hi) {\n        if (hi - lo <= 1) return 0;\n        int mid = lo + (hi - lo) / 2;\n        long long count = sortCount(lo, mid) + sortCount(mid, hi);\n        int a = mid, b = mid;\n        for (int i = lo; i < mid; i++) {\n            while (a < hi && p[a] - p[i] < lower) a++;\n            while (b < hi && p[b] - p[i] <= upper) b++;\n            count += b - a;\n        }\n        merge(p.begin() + lo, p.begin() + mid, p.begin() + mid, p.begin() + hi, tmp.begin() + lo);\n        copy(tmp.begin() + lo, tmp.begin() + hi, p.begin() + lo);\n        return count;\n    }\n\npublic:\n    long long countSumsInBounds(vector<int>& nums, int lower, int upper) {\n        this->lower = lower;\n        this->upper = upper;\n        int n = nums.size();\n        p.assign(n + 1, 0);\n        for (int i = 0; i < n; i++) p[i + 1] = p[i] + nums[i];\n        tmp.assign(n + 1, 0);\n        return sortCount(0, n + 1);\n    }\n};\n",
+    "c": "static long long gLower, gUpper;\n\nstatic long long sortCount(long long* p, long long* tmp, int lo, int hi) {\n    if (hi - lo <= 1) return 0;\n    int mid = lo + (hi - lo) / 2;\n    long long count = sortCount(p, tmp, lo, mid) + sortCount(p, tmp, mid, hi);\n    int a = mid, b = mid;\n    for (int i = lo; i < mid; i++) {\n        while (a < hi && p[a] - p[i] < gLower) a++;\n        while (b < hi && p[b] - p[i] <= gUpper) b++;\n        count += b - a;\n    }\n    int i = lo, j = mid, k = lo;\n    while (i < mid && j < hi) tmp[k++] = p[i] <= p[j] ? p[i++] : p[j++];\n    while (i < mid) tmp[k++] = p[i++];\n    while (j < hi) tmp[k++] = p[j++];\n    memcpy(p + lo, tmp + lo, (hi - lo) * sizeof(long long));\n    return count;\n}\n\nlong long countSumsInBounds(int* nums, int numsSize, int lower, int upper) {\n    gLower = lower;\n    gUpper = upper;\n    long long* p = malloc((numsSize + 1) * sizeof(long long));\n    long long* tmp = malloc((numsSize + 1) * sizeof(long long));\n    p[0] = 0;\n    for (int i = 0; i < numsSize; i++) p[i + 1] = p[i] + nums[i];\n    long long count = sortCount(p, tmp, 0, numsSize + 1);\n    free(p);\n    free(tmp);\n    return count;\n}\n"
+   },
+   "lines": [
+    {
+     "text": "n + 1 prefix sums in 64 bits, including the empty prefix 0. Every run is a pair of them.",
+     "at": {
+      "python": [
+       [
+        3,
+        5
+       ]
+      ],
+      "java": [
+       [
+        8,
+        9
+       ]
+      ],
+      "cpp": [
+       [
+        25,
+        27
+       ]
+      ],
+      "c": [
+       [
+        24,
+        27
+       ]
+      ]
+     }
+    },
+    {
+     "text": "Split the range in half; each recursive call counts the pairs fully inside its half and leaves that half sorted.",
+     "at": {
+      "python": [
+       [
+        7,
+        12
+       ]
+      ],
+      "java": [
+       [
+        13,
+        16
+       ]
+      ],
+      "cpp": [
+       [
+        5,
+        8
+       ]
+      ],
+      "c": [
+       [
+        3,
+        6
+       ]
+      ]
+     }
+    },
+    {
+     "text": "Pairs with the earlier prefix in the left half and the later one in the right half. For each left value p (increasing), `a` stops at the first right value ≥ p + lower and `b` at the first > p + upper; the `b − a` values between them complete in-bounds runs. Since p only grows, `a` and `b` never move back.",
+     "at": {
+      "python": [
+       [
+        13,
+        19
+       ]
+      ],
+      "java": [
+       [
+        17,
+        21
+       ]
+      ],
+      "cpp": [
+       [
+        9,
+        13
+       ]
+      ],
+      "c": [
+       [
+        7,
+        11
+       ]
+      ]
+     }
+    },
+    {
+     "text": "Merge the two sorted halves (via a buffer) so the level above gets sorted input.",
+     "at": {
+      "python": [
+       [
+        20,
+        27
+       ]
+      ],
+      "java": [
+       [
+        23,
+        28
+       ]
+      ],
+      "cpp": [
+       [
+        15,
+        17
+       ]
+      ],
+      "c": [
+       [
+        13,
+        18
+       ]
+      ]
+     },
+     "notes": {
+      "cpp": "`std::merge` writes the merged range into the buffer, then it's copied back."
+     }
+    },
+    {
+     "text": "The count for the whole array.",
+     "at": {
+      "python": [
+       [
+        29,
+        29
+       ]
+      ],
+      "java": [
+       [
+        10,
+        10
+       ]
+      ],
+      "cpp": [
+       [
+        28,
+        28
+       ]
+      ],
+      "c": [
+       [
+        28,
+        31
+       ]
+      ]
+     },
+     "notes": {
+      "c": "Free both buffers."
+     }
+    }
+   ],
+   "complexity": [
+    {
+     "md": "**Time O(n log n):** log n levels, each doing O(n) pointer moves and merging. **Space O(n)** for the buffer (plus O(log n) recursion)."
+    }
+   ],
+   "walk": {
+    "steps": [
+     {
+      "text": "Prefix sums P = [0, 3, 1, 5, 0, 1]. Every run is a pair i < j of these, with sum P[j] − P[i].",
+      "panels": [
+       {
+        "type": "row",
+        "cells": [
+         3,
+         -2,
+         4,
+         -5,
+         1
+        ],
+        "label": "nums",
+        "slots": true
+       },
+       {
+        "type": "row",
+        "cells": [
+         0,
+         3,
+         1,
+         5,
+         0,
+         1
+        ],
+        "label": "P",
+        "slots": true
+       }
+      ]
+     },
+     {
+      "text": "Split P into halves; recursively each half counts its own pairs and comes back sorted.",
+      "panels": [
+       {
+        "type": "row",
+        "cells": [
+         0,
+         1,
+         3
+        ],
+        "label": "left half (sorted)"
+       },
+       {
+        "type": "row",
+        "cells": [
+         0,
+         1,
+         5
+        ],
+        "label": "right half (sorted)"
+       }
+      ]
+     },
+     {
+      "text": "Left value 0: right values in [-1, 2] are positions 0…1 of the right half: 2 pairs. Both pointers only move right.",
+      "panels": [
+       {
+        "type": "row",
+        "cells": [
+         0,
+         1,
+         3
+        ],
+        "states": {
+         "0": "active"
+        },
+        "label": "left"
+       },
+       {
+        "type": "row",
+        "cells": [
+         0,
+         1,
+         5
+        ],
+        "states": {
+         "0": "answer",
+         "1": "answer"
+        },
+        "pointers": {
+         "lo": 0,
+         "hi": 2
+        },
+        "label": "right"
+       },
+       {
+        "type": "vars",
+        "items": {
+         "cross pairs": 2
+        }
+       }
+      ]
+     },
+     {
+      "text": "Left value 1: right values in [0, 3] are positions 0…1 of the right half: 2 pairs. Both pointers only move right.",
+      "panels": [
+       {
+        "type": "row",
+        "cells": [
+         0,
+         1,
+         3
+        ],
+        "states": {
+         "1": "active"
+        },
+        "label": "left"
+       },
+       {
+        "type": "row",
+        "cells": [
+         0,
+         1,
+         5
+        ],
+        "states": {
+         "0": "answer",
+         "1": "answer"
+        },
+        "pointers": {
+         "lo": 0,
+         "hi": 2
+        },
+        "label": "right"
+       },
+       {
+        "type": "vars",
+        "items": {
+         "cross pairs": 4
+        }
+       }
+      ]
+     },
+     {
+      "text": "Left value 3: right values in [2, 5] are positions 2…2 of the right half: 1 pair. Both pointers only move right.",
+      "panels": [
+       {
+        "type": "row",
+        "cells": [
+         0,
+         1,
+         3
+        ],
+        "states": {
+         "2": "active"
+        },
+        "label": "left"
+       },
+       {
+        "type": "row",
+        "cells": [
+         0,
+         1,
+         5
+        ],
+        "states": {
+         "2": "answer"
+        },
+        "pointers": {
+         "lo": 2
+        },
+        "label": "right"
+       },
+       {
+        "type": "vars",
+        "items": {
+         "cross pairs": 5
+        }
+       }
+      ]
+     },
+     {
+      "text": "Cross pairs at this level: 5. Adding the pairs counted inside each half (recursively) gives 7 in total. Then merge the halves so the level above also sees sorted input.",
+      "panels": [
+       {
+        "type": "row",
+        "cells": [
+         0,
+         0,
+         1,
+         1,
+         3,
+         5
+        ],
+        "label": "merged"
+       }
+      ],
+      "result": "7"
+     }
+    ],
+    "title": "Count pairs of prefix sums (i < j) with lower ≤ P[j] − P[i] ≤ upper, using merge sort: count across halves while both halves are sorted."
+   }
+  }
+ ],
+ "takeaways": [
+  {
+   "md": "- Subarray sums = **differences of prefix sums**; \"count subarrays with a property of the sum\" becomes \"count\n  pairs i < j of prefix sums\".\n- **Merge sort counts pairs:** while merging, the left half is all earlier and the right half all later, and\n  both are sorted, so ranges can be counted with forward-only pointers. (Counting inversions is the classic\n  example.)\n- A Fenwick tree over compressed prefix values is another O(n log n) route."
+  }
+ ]
+}
