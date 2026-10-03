@@ -4,51 +4,61 @@
  "question": [
   {
    "md": "Count the words that can be turned into `pattern` by a **consistent, one-to-one** letter replacement.\n\n- **Consistent:** a letter always becomes the same letter. In `\"moon\"` → `\"feet\"`, both o's become e.\n- **One-to-one:** different letters must become different letters. `\"moan\"` can't become `\"feet\"`\n  (o and a would both have to become e), and `\"cc\"` can't become `\"xy\"` (one c can't become two\n  letters).\n- **Lengths must match.** Different lengths can never have the same shape.\n- **Single letters all match:** any one-letter word has the shape of any other.\n- **Size:** up to 10⁴ words, each at most 20 letters."
+  },
+  {
+   "md": "**Edge cases to keep in mind**\n\n- Words of a different length can never match.\n- The mapping must be one-to-one: `\"aaaa\"` doesn't match `\"abcd\"` (several letters can't map to one).\n- A word always has the same shape as itself."
   }
  ],
  "think": [
   {
-   "md": "Take pattern `\"boot\"` and the words feet, moon, moan, deed, abba, keep.\n\nIgnore what the letters *are* and look at where they **repeat**. In `boot` the middle two letters are\nthe same and everything else is different. Write that down by numbering letters in order of first\nappearance: b is new (0), o is new (1), o again (1), t is new (2): **0 1 1 2**."
+   "md": "**Group by a canonical key.** When \"belongs together\" is an equivalence (anagrams, same shape, shift-equivalent),\nfind a **key** that every member of a group shares and no other item has. Then grouping is just a hash map from key\nto items: one pass, no pairwise comparisons. The art is in choosing the key:\n\n- it must be **identical** for items that belong together (otherwise one group splits in two);\n- it must **differ** for items that don't (otherwise two groups merge);\n- it should be cheap to compute."
   },
   {
-   "panels": [
-    {
-     "type": "row",
-     "cells": [
-      "boot",
+   "md": "**The key for shapes.** Replace each letter by the order in which it first appeared: the first new letter is 0,\nthe next new letter 1, and so on; a repeated letter reuses its number. Two words have the same shape exactly when\nthese number lists are equal. Pattern `\"boot\"` → `[0, 1, 1, 2]`:"
+  },
+  {
+   "table": {
+    "head": [
+     "word",
+     "shape",
+     "matches?"
+    ],
+    "rows": [
+     [
       "feet",
+      "[0, 1, 1, 2]",
+      "yes"
+     ],
+     [
       "moon",
-      "keep",
+      "[0, 1, 1, 2]",
+      "yes"
+     ],
+     [
       "moan",
+      "[0, 1, 2, 3]",
+      "no"
+     ],
+     [
       "deed",
-      "abba"
+      "[0, 1, 1, 0]",
+      "no"
      ],
-     "label": "word"
-    },
-    {
-     "type": "row",
-     "cells": [
-      "0112",
-      "0112",
-      "0112",
-      "0112",
-      "0123",
-      "0110",
-      "0110"
+     [
+      "abba",
+      "[0, 1, 1, 0]",
+      "no"
      ],
-     "states": {
-      "0": "answer",
-      "1": "answer",
-      "2": "answer",
-      "3": "answer"
-     },
-     "label": "shape"
-    }
-   ],
-   "caption": "feet, moon and keep have the pattern's shape 0 1 1 2."
+     [
+      "keep",
+      "[0, 1, 1, 2]",
+      "yes"
+     ]
+    ]
+   }
   },
   {
-   "md": "This numbering captures exactly the two rules: a repeated letter repeats its number (consistent), and\na new letter always gets a new number (one-to-one). So \"same shape\" becomes \"same number sequence\",\na plain equality check, and the sequence works as a **group key** too."
+   "md": "**3** words match.\n\n**Why the numbering works.** It records exactly *which positions hold equal letters*. A one-to-one renaming of\nletters keeps that information unchanged, and two words with the same equal-position pattern can be renamed into\neach other."
   }
  ],
  "approaches": [
@@ -59,13 +69,13 @@
    "space": "O(1)",
    "idea": [
     {
-     "md": "Two strings of equal length have the same shape exactly when, for every pair of positions `i < j`, the word's letters are equal if and only if the pattern's letters are equal. Check all pairs."
+     "md": "For each word of the right length, check every pair of positions: the letters are equal in the word exactly when they're equal in the pattern."
     }
    ],
    "build": [
-    "For each word of the right length, loop over all position pairs `i < j`.",
-    "If `(w[i] == w[j]) != (p[i] == p[j])`, the shapes differ.",
-    "Count the words with no disagreement."
+    "Skip words of a different length.",
+    "Compare all pairs of positions.",
+    "Count words with no disagreement."
    ],
    "code": {
     "python": "class Solution:\n    def countSameShape(self, words: List[str], pattern: str) -> int:\n        L = len(pattern)\n        total = 0\n        for w in words:\n            if len(w) != L:\n                continue\n            if all((w[i] == w[j]) == (pattern[i] == pattern[j])\n                   for i in range(L) for j in range(i + 1, L)):\n                total += 1\n        return total\n",
@@ -193,7 +203,7 @@
    ],
    "complexity": [
     {
-     "md": "**Time O(N · L²)** for N words of length L: L(L − 1)/2 pairs per word. **Space O(1).**"
+     "md": "**Time O(W · L²)** for `W` words of length `L`. **Space O(1).**"
     }
    ],
    "walk": {
@@ -344,7 +354,7 @@
    },
    "limits": [
     {
-     "md": "Each pair is compared from scratch. Remembering what each letter maps to as you scan replaces the pairs with a single pass."
+     "md": "Quadratic in the word length. Two maps, or a canonical shape, check a word in O(L)."
     }
    ]
   },
@@ -355,14 +365,13 @@
    "space": "O(1)",
    "idea": [
     {
-     "md": "Scan the word and pattern together, building two maps: word letter → pattern letter, and pattern\nletter → word letter. A word letter that's already mapped to something else breaks consistency; a\npattern letter that already stands for a different word letter breaks one-to-one. If neither\nhappens, the shapes match. With 26 letters, both maps are arrays of 26."
+     "md": "For each word, walk it together with the pattern using two maps (word letter → pattern letter and back). A\nconflict in either direction means a different shape.\n\nBoth directions are needed: one map alone would accept `\"aaaa\"` against `\"abcd\"`."
     }
    ],
    "build": [
     "Skip words of a different length.",
-    "Keep `fwd[26]` and `back[26]`, both empty.",
-    "At each position with letters x (word) and y (pattern): if `fwd[x]` is set and isn't y, or `back[y]` is set and isn't x, fail. Otherwise set both.",
-    "Count the words that never fail."
+    "Two maps per word.",
+    "Fail on any conflict."
    ],
    "code": {
     "python": "class Solution:\n    def countSameShape(self, words: List[str], pattern: str) -> int:\n        total = 0\n        for w in words:\n            if len(w) != len(pattern):\n                continue\n            fwd, back = {}, {}\n            ok = True\n            for x, y in zip(w, pattern):\n                if fwd.setdefault(x, y) != y or back.setdefault(y, x) != x:\n                    ok = False\n                    break\n            total += ok\n        return total\n",
@@ -560,7 +569,7 @@
    ],
    "complexity": [
     {
-     "md": "**Time O(N · L):** one pass per word. **Space O(1):** two 26-letter maps."
+     "md": "**Time O(W · L).** **Space O(L)** for the maps."
     }
    ],
    "walk": {
@@ -703,7 +712,7 @@
    },
    "limits": [
     {
-     "md": "Correct and linear, but it needs two maps, and forgetting the reverse map is the classic bug. It also only answers \"does this word match that pattern?\"; it doesn't give each word a key you could group or hash by."
+     "md": "It re-walks the pattern for every word. Computing the pattern's canonical shape once lets each word be compared directly."
     }
    ]
   },
@@ -714,13 +723,13 @@
    "space": "O(L)",
    "idea": [
     {
-     "md": "Map each string to its shape: walk it and replace each letter by the order of its first appearance\n(0 for the first new letter, 1 for the second, …). Compute the pattern's shape once, then count the\nwords whose shape is equal. One map per string, no reverse map needed: two different letters can\nnever receive the same number, so one-to-one is built in."
+     "md": "Compute the pattern's shape once. For each word, compute its shape and compare.\n\n**Why it's correct.** Equal shapes ⇔ the same positions hold equal letters ⇔ a one-to-one letter mapping\nexists."
     }
    ],
    "build": [
-    "Write `shape(s)`: a 26-slot table of first-appearance numbers, filled as letters are first seen.",
-    "Compute `target = shape(pattern)`.",
-    "Count the words with `shape(word) == target` (different lengths give different shapes)."
+    "Shape function (first-appearance numbering).",
+    "Pattern's shape once.",
+    "Count words with the same shape."
    ],
    "code": {
     "python": "class Solution:\n    def countSameShape(self, words: List[str], pattern: str) -> int:\n        def shape(s):\n            first = {}\n            return [first.setdefault(ch, len(first)) for ch in s]\n        target = shape(pattern)\n        return sum(shape(w) == target for w in words)\n",
@@ -830,7 +839,7 @@
    ],
    "complexity": [
     {
-     "md": "**Time O(N · L):** each string's shape takes one pass. **Space O(L)** for the shape being compared."
+     "md": "**Time O(W · L).** **Space O(L).**"
     }
    ],
    "walk": {
@@ -1135,7 +1144,7 @@
  ],
  "takeaways": [
   {
-   "md": "- \"Equal up to renaming\" problems (isomorphic strings, word patterns) become simple equality once you\n  map each item to a **canonical form**: number things in order of first appearance.\n- A canonical form is also a **group key**: you could count how many words share each shape with a\n  hash map.\n- If you check a mapping directly instead, check **both directions**; one map alone lets two letters\n  collapse into one."
+   "md": "- **Isomorphism / same pattern:** canonical form by first-appearance numbering.\n- Equivalent to two maps, but the canonical form can be reused as a hash key for grouping.\n- **Pitfall:** checking only one direction of the mapping."
   }
  ]
 }

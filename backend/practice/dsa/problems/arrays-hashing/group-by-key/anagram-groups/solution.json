@@ -4,45 +4,69 @@
  "question": [
   {
    "md": "Put words that are anagrams of each other (same letters, rearranged) in the same group.\n\n- **\"Same letters\" means same counts.** `\"aab\"` and `\"abb\"` both use a and b, but they aren't\n  anagrams.\n- **The output order is fixed**, so there's one right answer: words sorted inside each group, groups\n  ordered by their first word.\n- **Duplicates stay:** `[\"ab\", \"ba\", \"ab\"]` gives `[[\"ab\", \"ab\", \"ba\"]]`.\n- **The empty word** is a valid word and forms a group with other empty words.\n- **Size:** up to 10⁴ words of at most 30 lowercase letters."
+  },
+  {
+   "md": "**Edge cases to keep in mind**\n\n- The empty word is a valid word; all empty words form one group.\n- Duplicates stay: two copies of `\"tea\"` both appear in their group.\n- Output order is fixed: words sorted within each group, groups sorted by their first word."
   }
  ],
  "think": [
   {
-   "md": "Take `[\"pots\", \"tea\", \"stop\", \"eat\", \"opts\", \"tan\", \"ate\"]`. By hand you'd notice that tea, eat and\nate all \"spell\" a-e-t if you rearrange the letters. That's the trick: give each word a **fingerprint**\nthat doesn't depend on letter order."
+   "md": "**Group by a canonical key.** When \"belongs together\" is an equivalence (anagrams, same shape, shift-equivalent),\nfind a **key** that every member of a group shares and no other item has. Then grouping is just a hash map from key\nto items: one pass, no pairwise comparisons. The art is in choosing the key:\n\n- it must be **identical** for items that belong together (otherwise one group splits in two);\n- it must **differ** for items that don't (otherwise two groups merge);\n- it should be cheap to compute."
   },
   {
-   "panels": [
-    {
-     "type": "row",
-     "cells": [
+   "md": "**The key for anagrams.** Rearranging letters doesn't change *which* letters there are or how many. Two keys\ncapture exactly that: the sorted letters (`\"tea\" → \"aet\"`) or the 26 letter counts. Counts cost O(L) per word,\nsorting O(L log L)."
+  },
+  {
+   "md": "**Keys for `['pots', 'tea', 'stop', 'eat', 'opts', 'tan', 'ate']`:**"
+  },
+  {
+   "table": {
+    "head": [
+     "word",
+     "sorted-letter key",
+     "26-count key (non-zero letters)"
+    ],
+    "rows": [
+     [
       "pots",
+      "opst",
+      "o1 p1 s1 t1"
+     ],
+     [
       "tea",
+      "aet",
+      "a1 e1 t1"
+     ],
+     [
       "stop",
+      "opst",
+      "o1 p1 s1 t1"
+     ],
+     [
       "eat",
+      "aet",
+      "a1 e1 t1"
+     ],
+     [
       "opts",
+      "opst",
+      "o1 p1 s1 t1"
+     ],
+     [
       "tan",
-      "ate"
-     ],
-     "label": "word"
-    },
-    {
-     "type": "row",
-     "cells": [
-      "opst",
-      "aet",
-      "opst",
-      "aet",
-      "opst",
       "ant",
-      "aet"
+      "a1 n1 t1"
      ],
-     "label": "letters sorted"
-    }
-   ],
-   "caption": "Anagrams get the same fingerprint: aet, opst, ant."
+     [
+      "ate",
+      "aet",
+      "a1 e1 t1"
+     ]
+    ]
+   }
   },
   {
-   "md": "Two good fingerprints:\n\n- **The letters in sorted order:** `\"tea\"` → `\"aet\"`. Costs a small sort per word.\n- **The 26 letter counts:** `\"tea\"` → a:1, e:1, t:1, zeros elsewhere. Costs one pass per word.\n\nOnce every word has a fingerprint, \"group anagrams\" becomes \"group equal keys\", which a hash map\ndoes in one pass (or a sort, which puts equal keys next to each other)."
+   "md": "Grouped and ordered: **`[['ate', 'eat', 'tea'], ['opts', 'pots', 'stop'], ['tan']]`**."
   }
  ],
  "approaches": [
@@ -53,14 +77,14 @@
    "space": "O(n · L)",
    "idea": [
     {
-     "md": "Keep a list of groups, each with its letter counts. For each word, count its letters and compare against every group until one matches; if none does, start a new group. Finally sort for the output order."
+     "md": "Keep a list of groups with their letter counts. For each word, compare its counts with every existing group's counts; join the first match or start a new group. Finally sort."
     }
    ],
    "build": [
-    "For each word, count its 26 letters.",
-    "Scan the existing groups; join the first group with identical counts.",
-    "If none matches, start a new group with these counts.",
-    "Sort words in each group, then order groups by first word."
+    "Letter counts per word.",
+    "Linear search through existing groups.",
+    "Join or create.",
+    "Sort the output."
    ],
    "code": {
     "python": "class Solution:\n    def groupAnagrams(self, words: List[str]) -> List[List[str]]:\n        counts, groups = [], []\n        for w in words:\n            c = [0] * 26\n            for ch in w:\n                c[ord(ch) - 97] += 1\n            for k in range(len(groups)):\n                if counts[k] == c:\n                    groups[k].append(w)\n                    break\n            else:\n                counts.append(c)\n                groups.append([w])\n        result = [sorted(g) for g in groups]\n        result.sort(key=lambda g: g[0])\n        return result\n",
@@ -294,7 +318,7 @@
    ],
    "complexity": [
     {
-     "md": "**Time O(n · g · L)** in the spirit of the problem (each of n words is compared with up to g groups;\nwith 26 counts per comparison and L ≤ 30, each comparison is O(26)). With 10⁴ distinct groups that's\n~10⁸ comparisons, plus the output sort.\n\n**Space O(n · L)** for the groups."
+     "md": "**Time O(n · g · 26)** for `g` groups, up to O(n²) when most words are in their own group. **Space O(n · L).**"
     }
    ],
    "walk": {
@@ -635,7 +659,7 @@
    },
    "limits": [
     {
-     "md": "Finding a word's group is a linear search through all groups. A key that can be **looked up** (hash map) or **sorted** removes that search."
+     "md": "Each word is compared with every group. A hash map keyed by the counts finds the right group in O(1) expected time."
     }
    ],
    "slow": true
@@ -647,14 +671,14 @@
    "space": "O(n · L)",
    "idea": [
     {
-     "md": "Give every word the key \"its letters sorted\" (`\"tea\"` → `\"aet\"`). Sort the (key, word) pairs.\nAnagrams now sit next to each other, and since ties are broken by the word, each run is already\nsorted inside. Cut the list wherever the key changes, then order the groups by first word."
+     "md": "Pair each word with its sorted-letter key and sort the pairs. Words with the same key become one consecutive run; cut the runs into groups, then sort the groups by first word."
     }
    ],
    "build": [
-    "For each word, build its key by sorting its letters.",
-    "Sort (key, word) pairs by key, then word.",
-    "Walk the sorted pairs; start a new group whenever the key changes.",
-    "Order the groups by their first word."
+    "Key = sorted letters.",
+    "Sort (key, word) pairs.",
+    "Cut equal-key runs.",
+    "Order groups by first word."
    ],
    "code": {
     "python": "class Solution:\n    def groupAnagrams(self, words: List[str]) -> List[List[str]]:\n        pairs = sorted((\"\".join(sorted(w)), w) for w in words)\n        result = []\n        for i, (key, w) in enumerate(pairs):\n            if i == 0 or key != pairs[i - 1][0]:\n                result.append([])\n            result[-1].append(w)\n        result.sort(key=lambda g: g[0])\n        return result\n",
@@ -798,7 +822,7 @@
    ],
    "complexity": [
     {
-     "md": "**Time O(n · L · log n):** building keys costs O(L log L) per word, and sorting n pairs costs\nO(n log n) comparisons of up to L characters each. **Space O(n · L)** for the keys."
+     "md": "**Time O(n · L log L + n log n · L).** **Space O(n · L).**"
     }
    ],
    "walk": {
@@ -1017,7 +1041,7 @@
    },
    "limits": [
     {
-     "md": "The big sort does the grouping by comparing strings, about n log n times. A hash map groups\nequal keys in one pass instead; only the (required) output ordering still needs a sort."
+     "md": "Sorting all words costs O(n log n) comparisons of strings; a hash map groups them in one pass."
     }
    ]
   },
@@ -1028,13 +1052,13 @@
    "space": "O(n · L)",
    "idea": [
     {
-     "md": "Use the 26 letter counts as the key of a hash map from key to the list of words. Each word costs\none O(L) pass to count and one map lookup; the map's lists are the groups. Then sort each group\nand order the groups, because the output format requires it.\n\nThe grouping itself is O(n · L), linear in the input size. The final O(n log n) ordering is only\nthere because the problem asks for a canonical order."
+     "md": "For each word, build its 26 letter counts and use them (as a tuple or a string) as a hash-map key; append\nthe word to that key's list. Then sort each group and order the groups by first word.\n\n**Why it's correct.** Two words have equal count vectors exactly when they're anagrams, so each map entry\nis exactly one anagram group."
     }
    ],
    "build": [
-    "For each word, count its 26 letters.",
-    "Turn the counts into a hashable key and append the word to `groups[key]`.",
-    "Sort each group's words, then order the groups by first word."
+    "Empty map key → list.",
+    "Count letters for each word; append to its key's list.",
+    "Sort inside groups, then the groups."
    ],
    "code": {
     "python": "from collections import defaultdict\n\nclass Solution:\n    def groupAnagrams(self, words: List[str]) -> List[List[str]]:\n        groups = defaultdict(list)\n        for w in words:\n            count = [0] * 26\n            for ch in w:\n                count[ord(ch) - 97] += 1\n            groups[tuple(count)].append(w)\n        result = [sorted(g) for g in groups.values()]\n        result.sort(key=lambda g: g[0])\n        return result\n",
@@ -1246,7 +1270,7 @@
    ],
    "complexity": [
     {
-     "md": "**Time:** grouping is **O(n · L)** (one counting pass and one O(1) map operation per word). The\nrequired output order adds a sort, **O(n · L · log n)** in total. Without the fixed output order the\nwhole solution would be linear.\n\n**Space O(n · L)** for the groups and keys."
+     "md": "**Time O(n · L)** to build the groups, plus sorting for the required output order. **Space O(n · L).**"
     }
    ],
    "walk": {
@@ -1525,7 +1549,7 @@
  ],
  "takeaways": [
   {
-   "md": "- **Group by key:** design a key that is equal exactly for items that belong together, then let a hash\n  map collect them.\n- For anagrams the key can be the sorted letters (O(L log L)) or the letter counts (O(L) with a small\n  alphabet).\n- Sorting by key is the hash-free fallback: equal keys become adjacent runs.\n- Read the required output format carefully; a canonical order can dominate the running time."
+   "md": "- **Group anagrams:** key = letter counts (or sorted letters), hash map key → list.\n- Pick a key that is equal exactly for items that belong together.\n- **Pitfall:** using a set of letters as the key (it ignores counts: `\"aab\"` and `\"abb\"` would merge)."
   }
  ]
 }
