@@ -1,4 +1,6 @@
 """Advanced: recursive queries, gaps & islands, reporting patterns."""
+import datetime
+
 import _common  # noqa: F401
 from _common import only
 from author import FIRST, P, T, day, done, firsts, names
@@ -272,10 +274,7 @@ def retention_gen(rng, n, k):
     # Make sure some people come back the very next day.
     for uid, _, _, signed in d["users"]:
         if rng.random() < 0.4:
-            nxt = day(0)
-            import datetime
-            nxt = (datetime.date.fromisoformat(signed) + datetime.timedelta(days=1)).isoformat()
-            d["logins"].append((uid, nxt))
+            d["logins"].append((uid, (datetime.date.fromisoformat(signed) + datetime.timedelta(days=1)).isoformat()))
     return d
 
 P("came-back-next-day", "Came Back the Next Day", "reporting", "retention", "medium",
