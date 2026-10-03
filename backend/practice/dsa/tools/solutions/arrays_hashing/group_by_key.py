@@ -1,6 +1,8 @@
 """Arrays & Hashing: group by key."""
 from collections import defaultdict
 
+import textwrap
+
 from sol import Grid, Row, Steps, Vars, approach, fig, problem, sol, table  # noqa: F401
 
 # Shared C tail for Anagram Groups: sort each group, order the groups, hand them back.
@@ -30,6 +32,7 @@ C_ANAGRAM_FINISH = """
         return out;  //@order
     }  //@order
 """
+C_ANAGRAM_FINISH = textwrap.indent(C_ANAGRAM_FINISH, " " * 20)  # match the code strings it is joined to
 ORDER_ROW = ("order", "The required output order: words sorted inside each group, groups ordered by their first word. Different groups can never share a first word (equal words are anagrams), so that order is unambiguous.",
              {"c": "A group is an array of word pointers and its size. `finish` sorts each group with `strcmp`, sorts the groups by first word, and returns them with each group's length in `returnColumnSizes`. The words themselves are the input's strings; only the arrays are new."})
 

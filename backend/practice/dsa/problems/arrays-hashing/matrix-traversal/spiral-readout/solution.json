@@ -1,0 +1,1019 @@
+{
+ "version": 1,
+ "summary": "Track the four borders of the part not yet read. Each lap reads the top row, the right column, the bottom\nrow (backwards) and the left column (upwards), moving each border inward right after its side is read.\nThe only subtle part is stopping the bottom and left sides when a single row or column is left.",
+ "question": [
+  {
+   "md": "Read all values clockwise in a spiral, starting at the top-left: right along the top, down the right\nside, left along the bottom, up the left side, then repeat on the inner part.\n\n- **The grid needn't be square.** A 3 × 4 grid's last lap is a single row; a 3 × 1 grid is read straight\n  down.\n- **Every value exactly once.** Double-reading the middle row or column of a thin grid is the classic bug.\n- **Size:** up to 500 × 500."
+  }
+ ],
+ "think": [
+  {
+   "md": "Take the 3 × 4 grid numbered 1 to 12. Outer lap: top row 1, 2, 3, 4; right column 8, 12; bottom row\nbackwards 11, 10, 9; left column upwards 5. Inner part: just the row 6, 7."
+  },
+  {
+   "panels": [
+    {
+     "type": "grid",
+     "cells": [
+      [
+       1,
+       2,
+       3,
+       4
+      ],
+      [
+       5,
+       6,
+       7,
+       8
+      ],
+      [
+       9,
+       10,
+       11,
+       12
+      ]
+     ],
+     "states": {
+      "0,0": "active",
+      "0,1": "active",
+      "0,2": "active",
+      "0,3": "active",
+      "1,3": "found",
+      "2,3": "found",
+      "2,0": "mark",
+      "2,1": "mark",
+      "2,2": "mark",
+      "1,0": "new"
+     }
+    }
+   ],
+   "caption": "Outer lap: top, right, bottom (backwards), left (upwards). The cells 6 and 7 remain."
+  },
+  {
+   "md": "After reading a side, that side is used up, so its border moves inward: after the top row, `top` goes\ndown by one; after the right column, `right` goes left; and so on. The unread part is always the\nrectangle `top … bottom × left … right`.\n\nWhen the rectangle shrinks to **one row**, reading its top row uses it up completely, so there's no\nbottom row left to read backwards. The check `top <= bottom` before the bottom side (and `left <= right`\nbefore the left side) prevents reading the same cells twice."
+  }
+ ],
+ "approaches": [
+  {
+   "title": "Walk and turn, with a visited grid",
+   "kind": "better",
+   "time": "O(m · n)",
+   "space": "O(m · n)",
+   "idea": [
+    {
+     "md": "Simulate a walker: start at (0, 0) heading right. After reading a cell, if the next cell ahead is outside the grid or already visited, turn right (right → down → left → up). Mark visited cells in an m × n boolean grid. Stop after reading m · n cells."
+    }
+   ],
+   "build": [
+    "Directions in clockwise order: right, down, left, up.",
+    "Repeat m · n times: read the cell, mark it visited.",
+    "Look ahead; if blocked, turn clockwise.",
+    "Step forward."
+   ],
+   "code": {
+    "python": "class Solution:\n    def spiralOrder(self, grid: List[List[int]]) -> List[int]:\n        m, n = len(grid), len(grid[0])\n        seen = [[False] * n for _ in range(m)]\n        dr, dc = [0, 1, 0, -1], [1, 0, -1, 0]\n        r = c = d = 0\n        out = []\n        for _ in range(m * n):\n            out.append(grid[r][c])\n            seen[r][c] = True\n            nr, nc = r + dr[d], c + dc[d]\n            if not (0 <= nr < m and 0 <= nc < n) or seen[nr][nc]:\n                d = (d + 1) % 4\n            r, c = r + dr[d], c + dc[d]\n        return out\n",
+    "java": "class Solution {\n    public int[] spiralOrder(int[][] grid) {\n        int m = grid.length, n = grid[0].length;\n        boolean[][] seen = new boolean[m][n];\n        int[] dr = {0, 1, 0, -1}, dc = {1, 0, -1, 0};\n        int r = 0, c = 0, d = 0;\n        int[] out = new int[m * n];\n        for (int k = 0; k < m * n; k++) {\n            out[k] = grid[r][c];\n            seen[r][c] = true;\n            int nr = r + dr[d], nc = c + dc[d];\n            if (nr < 0 || nr >= m || nc < 0 || nc >= n || seen[nr][nc]) d = (d + 1) % 4;\n            r += dr[d];\n            c += dc[d];\n        }\n        return out;\n    }\n}\n",
+    "cpp": "class Solution {\npublic:\n    vector<int> spiralOrder(vector<vector<int>>& grid) {\n        int m = grid.size(), n = grid[0].size();\n        vector<vector<bool>> seen(m, vector<bool>(n, false));\n        int dr[] = {0, 1, 0, -1}, dc[] = {1, 0, -1, 0};\n        int r = 0, c = 0, d = 0;\n        vector<int> out;\n        for (int k = 0; k < m * n; k++) {\n            out.push_back(grid[r][c]);\n            seen[r][c] = true;\n            int nr = r + dr[d], nc = c + dc[d];\n            if (nr < 0 || nr >= m || nc < 0 || nc >= n || seen[nr][nc]) d = (d + 1) % 4;\n            r += dr[d];\n            c += dc[d];\n        }\n        return out;\n    }\n};\n",
+    "c": "int* spiralOrder(int** grid, int gridSize, int* gridColSize, int* returnSize) {\n    int m = gridSize, n = gridColSize[0];\n    bool* seen = calloc(m * n, sizeof(bool));\n    int dr[] = {0, 1, 0, -1}, dc[] = {1, 0, -1, 0};\n    int r = 0, c = 0, d = 0;\n    int* out = malloc(m * n * sizeof(int));\n    for (int k = 0; k < m * n; k++) {\n        out[k] = grid[r][c];\n        seen[r * n + c] = true;\n        int nr = r + dr[d], nc = c + dc[d];\n        if (nr < 0 || nr >= m || nc < 0 || nc >= n || seen[nr * n + nc]) d = (d + 1) % 4;\n        r += dr[d];\n        c += dc[d];\n    }\n    free(seen);\n    *returnSize = m * n;\n    return out;\n}\n"
+   },
+   "lines": [
+    {
+     "text": "Which cells have been read, so the walker knows when to turn.",
+     "at": {
+      "python": [
+       [
+        4,
+        4
+       ]
+      ],
+      "java": [
+       [
+        4,
+        4
+       ]
+      ],
+      "cpp": [
+       [
+        5,
+        5
+       ]
+      ],
+      "c": [
+       [
+        3,
+        3
+       ]
+      ]
+     },
+     "notes": {
+      "c": "One flat array; cell (r, c) is at `r * n + c`."
+     }
+    },
+    {
+     "text": "Row and column steps for right, down, left, up: clockwise order, so `d + 1` is always a right turn.",
+     "at": {
+      "python": [
+       [
+        5,
+        6
+       ]
+      ],
+      "java": [
+       [
+        5,
+        6
+       ]
+      ],
+      "cpp": [
+       [
+        6,
+        7
+       ]
+      ],
+      "c": [
+       [
+        4,
+        5
+       ]
+      ]
+     }
+    },
+    {
+     "text": "Read the current cell and mark it.",
+     "at": {
+      "python": [
+       [
+        8,
+        10
+       ]
+      ],
+      "java": [
+       [
+        8,
+        10
+       ]
+      ],
+      "cpp": [
+       [
+        9,
+        11
+       ]
+      ],
+      "c": [
+       [
+        7,
+        9
+       ]
+      ]
+     }
+    },
+    {
+     "text": "If the cell ahead is off the grid or already read, turn clockwise. One turn is always enough while unread cells remain.",
+     "at": {
+      "python": [
+       [
+        11,
+        13
+       ]
+      ],
+      "java": [
+       [
+        11,
+        12
+       ]
+      ],
+      "cpp": [
+       [
+        12,
+        13
+       ]
+      ],
+      "c": [
+       [
+        10,
+        11
+       ]
+      ]
+     }
+    },
+    {
+     "text": "Move one cell in the current direction. After the very last read the walker may step off the grid, but the loop ends before reading again.",
+     "at": {
+      "python": [
+       [
+        14,
+        14
+       ]
+      ],
+      "java": [
+       [
+        13,
+        14
+       ]
+      ],
+      "cpp": [
+       [
+        14,
+        15
+       ]
+      ],
+      "c": [
+       [
+        12,
+        13
+       ]
+      ]
+     }
+    },
+    {
+     "text": "All m · n values in spiral order.",
+     "at": {
+      "python": [
+       [
+        15,
+        15
+       ]
+      ],
+      "java": [
+       [
+        16,
+        16
+       ]
+      ],
+      "cpp": [
+       [
+        17,
+        17
+       ]
+      ],
+      "c": [
+       [
+        15,
+        17
+       ]
+      ]
+     },
+     "notes": {
+      "c": "Free the marks; report the length."
+     }
+    }
+   ],
+   "complexity": [
+    {
+     "md": "**Time O(m · n).** **Space O(m · n)** for the visited grid."
+    }
+   ],
+   "walk": {
+    "steps": [
+     {
+      "text": "Read 1 at (0, 0).",
+      "panels": [
+       {
+        "type": "grid",
+        "cells": [
+         [
+          1,
+          2,
+          3,
+          4
+         ],
+         [
+          5,
+          6,
+          7,
+          8
+         ],
+         [
+          9,
+          10,
+          11,
+          12
+         ]
+        ],
+        "states": {
+         "0,0": "active"
+        }
+       },
+       {
+        "type": "vars",
+        "items": {
+         "output": "[1]"
+        }
+       }
+      ]
+     },
+     {
+      "text": "Read 4 at (0, 3). Blocked ahead, so turn down.",
+      "panels": [
+       {
+        "type": "grid",
+        "cells": [
+         [
+          1,
+          2,
+          3,
+          4
+         ],
+         [
+          5,
+          6,
+          7,
+          8
+         ],
+         [
+          9,
+          10,
+          11,
+          12
+         ]
+        ],
+        "states": {
+         "0,1": "dim",
+         "0,2": "dim",
+         "0,3": "active",
+         "0,0": "dim"
+        }
+       },
+       {
+        "type": "vars",
+        "items": {
+         "output": "[1, 2, 3, 4]"
+        }
+       }
+      ]
+     },
+     {
+      "text": "Read 12 at (2, 3). Blocked ahead, so turn left.",
+      "panels": [
+       {
+        "type": "grid",
+        "cells": [
+         [
+          1,
+          2,
+          3,
+          4
+         ],
+         [
+          5,
+          6,
+          7,
+          8
+         ],
+         [
+          9,
+          10,
+          11,
+          12
+         ]
+        ],
+        "states": {
+         "0,1": "dim",
+         "0,0": "dim",
+         "0,3": "dim",
+         "2,3": "active",
+         "0,2": "dim",
+         "1,3": "dim"
+        }
+       },
+       {
+        "type": "vars",
+        "items": {
+         "output": "[1, 2, 3, 4, 8, 12]"
+        }
+       }
+      ]
+     },
+     {
+      "text": "Read 9 at (2, 0). Blocked ahead, so turn up.",
+      "panels": [
+       {
+        "type": "grid",
+        "cells": [
+         [
+          1,
+          2,
+          3,
+          4
+         ],
+         [
+          5,
+          6,
+          7,
+          8
+         ],
+         [
+          9,
+          10,
+          11,
+          12
+         ]
+        ],
+        "states": {
+         "0,1": "dim",
+         "2,1": "dim",
+         "0,0": "dim",
+         "0,3": "dim",
+         "2,0": "active",
+         "2,3": "dim",
+         "0,2": "dim",
+         "2,2": "dim",
+         "1,3": "dim"
+        }
+       },
+       {
+        "type": "vars",
+        "items": {
+         "output": "[1, 2, 3, 4, 8, 12, 11, 10, 9]"
+        }
+       }
+      ]
+     },
+     {
+      "text": "Read 5 at (1, 0). Blocked ahead, so turn right.",
+      "panels": [
+       {
+        "type": "grid",
+        "cells": [
+         [
+          1,
+          2,
+          3,
+          4
+         ],
+         [
+          5,
+          6,
+          7,
+          8
+         ],
+         [
+          9,
+          10,
+          11,
+          12
+         ]
+        ],
+        "states": {
+         "0,1": "dim",
+         "2,1": "dim",
+         "0,0": "dim",
+         "0,3": "dim",
+         "2,0": "dim",
+         "2,3": "dim",
+         "0,2": "dim",
+         "2,2": "dim",
+         "1,0": "active",
+         "1,3": "dim"
+        }
+       },
+       {
+        "type": "vars",
+        "items": {
+         "output": "[1, 2, 3, 4, 8, 12, 11, 10, 9, 5]"
+        }
+       }
+      ]
+     },
+     {
+      "text": "Read 7 at (1, 2).",
+      "panels": [
+       {
+        "type": "grid",
+        "cells": [
+         [
+          1,
+          2,
+          3,
+          4
+         ],
+         [
+          5,
+          6,
+          7,
+          8
+         ],
+         [
+          9,
+          10,
+          11,
+          12
+         ]
+        ],
+        "states": {
+         "0,1": "dim",
+         "1,2": "active",
+         "2,1": "dim",
+         "0,0": "dim",
+         "1,1": "dim",
+         "0,3": "dim",
+         "2,0": "dim",
+         "2,3": "dim",
+         "0,2": "dim",
+         "2,2": "dim",
+         "1,0": "dim",
+         "1,3": "dim"
+        }
+       },
+       {
+        "type": "vars",
+        "items": {
+         "output": "[1, 2, 3, 4, 8, 12, 11, 10, 9, 5, 6, 7]"
+        }
+       }
+      ],
+      "result": "[1, 2, 3, 4, 8, 12, 11, 10, 9, 5, 6, 7]"
+     }
+    ],
+    "title": "Walk like a robot: go straight, and turn right when the next cell is outside or already visited."
+   },
+   "limits": [
+    {
+     "md": "The visited grid only answers \"where does the unread part end?\", and that's always a rectangle described by four numbers."
+    }
+   ]
+  },
+  {
+   "title": "Shrinking borders",
+   "kind": "best",
+   "time": "O(m · n)",
+   "space": "O(1)",
+   "idea": [
+    {
+     "md": "Keep `top`, `bottom`, `left`, `right` around the unread rectangle. While it's non-empty:\n\n1. read row `top` from `left` to `right`, then `top += 1`;\n2. read column `right` from `top` to `bottom`, then `right −= 1`;\n3. if `top ≤ bottom`, read row `bottom` from `right` down to `left`, then `bottom −= 1`;\n4. if `left ≤ right`, read column `left` from `bottom` up to `top`, then `left += 1`.\n\nChecks 3 and 4 matter when only one row or one column remains: steps 1 and 2 already used it up."
+    }
+   ],
+   "build": [
+    "Set the four borders to the grid's edges.",
+    "Loop while `top ≤ bottom` and `left ≤ right`, doing the four sides in order and moving each border after its side.",
+    "Guard the bottom and left sides with `top ≤ bottom` and `left ≤ right`."
+   ],
+   "code": {
+    "python": "class Solution:\n    def spiralOrder(self, grid: List[List[int]]) -> List[int]:\n        top, bottom, left, right = 0, len(grid) - 1, 0, len(grid[0]) - 1\n        out = []\n        while top <= bottom and left <= right:\n            for c in range(left, right + 1):\n                out.append(grid[top][c])\n            top += 1\n            for r in range(top, bottom + 1):\n                out.append(grid[r][right])\n            right -= 1\n            if top <= bottom:\n                for c in range(right, left - 1, -1):\n                    out.append(grid[bottom][c])\n                bottom -= 1\n            if left <= right:\n                for r in range(bottom, top - 1, -1):\n                    out.append(grid[r][left])\n                left += 1\n        return out\n",
+    "java": "class Solution {\n    public int[] spiralOrder(int[][] grid) {\n        int m = grid.length, n = grid[0].length;\n        int top = 0, bottom = m - 1, left = 0, right = n - 1;\n        int[] out = new int[m * n];\n        int k = 0;\n        while (top <= bottom && left <= right) {\n            for (int c = left; c <= right; c++) out[k++] = grid[top][c];\n            top++;\n            for (int r = top; r <= bottom; r++) out[k++] = grid[r][right];\n            right--;\n            if (top <= bottom) {\n                for (int c = right; c >= left; c--) out[k++] = grid[bottom][c];\n                bottom--;\n            }\n            if (left <= right) {\n                for (int r = bottom; r >= top; r--) out[k++] = grid[r][left];\n                left++;\n            }\n        }\n        return out;\n    }\n}\n",
+    "cpp": "class Solution {\npublic:\n    vector<int> spiralOrder(vector<vector<int>>& grid) {\n        int top = 0, bottom = grid.size() - 1, left = 0, right = grid[0].size() - 1;\n        vector<int> out;\n        while (top <= bottom && left <= right) {\n            for (int c = left; c <= right; c++) out.push_back(grid[top][c]);\n            top++;\n            for (int r = top; r <= bottom; r++) out.push_back(grid[r][right]);\n            right--;\n            if (top <= bottom) {\n                for (int c = right; c >= left; c--) out.push_back(grid[bottom][c]);\n                bottom--;\n            }\n            if (left <= right) {\n                for (int r = bottom; r >= top; r--) out.push_back(grid[r][left]);\n                left++;\n            }\n        }\n        return out;\n    }\n};\n",
+    "c": "int* spiralOrder(int** grid, int gridSize, int* gridColSize, int* returnSize) {\n    int m = gridSize, n = gridColSize[0];\n    int top = 0, bottom = m - 1, left = 0, right = n - 1;\n    int* out = malloc(m * n * sizeof(int));\n    int k = 0;\n    while (top <= bottom && left <= right) {\n        for (int c = left; c <= right; c++) out[k++] = grid[top][c];\n        top++;\n        for (int r = top; r <= bottom; r++) out[k++] = grid[r][right];\n        right--;\n        if (top <= bottom) {\n            for (int c = right; c >= left; c--) out[k++] = grid[bottom][c];\n            bottom--;\n        }\n        if (left <= right) {\n            for (int r = bottom; r >= top; r--) out[k++] = grid[r][left];\n            left++;\n        }\n    }\n    *returnSize = k;\n    return out;\n}\n"
+   },
+   "lines": [
+    {
+     "text": "The unread rectangle starts as the whole grid.",
+     "at": {
+      "python": [
+       [
+        3,
+        3
+       ]
+      ],
+      "java": [
+       [
+        4,
+        4
+       ]
+      ],
+      "cpp": [
+       [
+        4,
+        4
+       ]
+      ],
+      "c": [
+       [
+        3,
+        3
+       ]
+      ]
+     }
+    },
+    {
+     "text": "Keep going while the rectangle has at least one cell.",
+     "at": {
+      "python": [
+       [
+        5,
+        5
+       ]
+      ],
+      "java": [
+       [
+        7,
+        7
+       ]
+      ],
+      "cpp": [
+       [
+        6,
+        6
+       ]
+      ],
+      "c": [
+       [
+        6,
+        6
+       ]
+      ]
+     }
+    },
+    {
+     "text": "Top row, left to right; then that row is used up.",
+     "at": {
+      "python": [
+       [
+        6,
+        8
+       ]
+      ],
+      "java": [
+       [
+        8,
+        9
+       ]
+      ],
+      "cpp": [
+       [
+        7,
+        8
+       ]
+      ],
+      "c": [
+       [
+        7,
+        8
+       ]
+      ]
+     }
+    },
+    {
+     "text": "Right column, from the new top down; then that column is used up.",
+     "at": {
+      "python": [
+       [
+        9,
+        11
+       ]
+      ],
+      "java": [
+       [
+        10,
+        11
+       ]
+      ],
+      "cpp": [
+       [
+        9,
+        10
+       ]
+      ],
+      "c": [
+       [
+        9,
+        10
+       ]
+      ]
+     }
+    },
+    {
+     "text": "Bottom row, right to left, only if a row is still left (a single-row rectangle was fully read by the top step).",
+     "at": {
+      "python": [
+       [
+        12,
+        15
+       ]
+      ],
+      "java": [
+       [
+        12,
+        14
+       ]
+      ],
+      "cpp": [
+       [
+        11,
+        13
+       ]
+      ],
+      "c": [
+       [
+        11,
+        13
+       ]
+      ]
+     }
+    },
+    {
+     "text": "Left column, bottom to top, only if a column is still left.",
+     "at": {
+      "python": [
+       [
+        16,
+        19
+       ]
+      ],
+      "java": [
+       [
+        16,
+        18
+       ]
+      ],
+      "cpp": [
+       [
+        15,
+        17
+       ]
+      ],
+      "c": [
+       [
+        15,
+        17
+       ]
+      ]
+     }
+    },
+    {
+     "text": "Every value read once.",
+     "at": {
+      "python": [
+       [
+        20,
+        20
+       ]
+      ],
+      "java": [
+       [
+        21,
+        21
+       ]
+      ],
+      "cpp": [
+       [
+        20,
+        20
+       ]
+      ],
+      "c": [
+       [
+        20,
+        21
+       ]
+      ]
+     },
+     "notes": {
+      "c": "`k` counted the values written: m · n."
+     }
+    }
+   ],
+   "complexity": [
+    {
+     "md": "**Time O(m · n).** **Space O(1)** besides the output."
+    }
+   ],
+   "walk": {
+    "steps": [
+     {
+      "text": "Top row 0, columns 0…3: [1, 2, 3, 4]. Then top moves down.",
+      "panels": [
+       {
+        "type": "grid",
+        "cells": [
+         [
+          1,
+          2,
+          3,
+          4
+         ],
+         [
+          5,
+          6,
+          7,
+          8
+         ],
+         [
+          9,
+          10,
+          11,
+          12
+         ]
+        ],
+        "states": {
+         "0,0": "active",
+         "0,1": "active",
+         "0,2": "active",
+         "0,3": "active"
+        }
+       },
+       {
+        "type": "vars",
+        "items": {
+         "top": 0,
+         "bottom": 2,
+         "left": 0,
+         "right": 3
+        }
+       }
+      ]
+     },
+     {
+      "text": "Right column 3, rows 1…2: [8, 12]. Then right moves left.",
+      "panels": [
+       {
+        "type": "grid",
+        "cells": [
+         [
+          1,
+          2,
+          3,
+          4
+         ],
+         [
+          5,
+          6,
+          7,
+          8
+         ],
+         [
+          9,
+          10,
+          11,
+          12
+         ]
+        ],
+        "states": {
+         "1,3": "active",
+         "2,3": "active"
+        }
+       },
+       {
+        "type": "vars",
+        "items": {
+         "top": 1,
+         "bottom": 2,
+         "left": 0,
+         "right": 3
+        }
+       }
+      ]
+     },
+     {
+      "text": "Bottom row 2, right to left: [11, 10, 9]. Then bottom moves up.",
+      "panels": [
+       {
+        "type": "grid",
+        "cells": [
+         [
+          1,
+          2,
+          3,
+          4
+         ],
+         [
+          5,
+          6,
+          7,
+          8
+         ],
+         [
+          9,
+          10,
+          11,
+          12
+         ]
+        ],
+        "states": {
+         "2,0": "active",
+         "2,1": "active",
+         "2,2": "active"
+        }
+       },
+       {
+        "type": "vars",
+        "items": {
+         "top": 1,
+         "bottom": 2,
+         "left": 0,
+         "right": 2
+        }
+       }
+      ]
+     },
+     {
+      "text": "Left column 0, bottom to top: [5]. Then left moves right.",
+      "panels": [
+       {
+        "type": "grid",
+        "cells": [
+         [
+          1,
+          2,
+          3,
+          4
+         ],
+         [
+          5,
+          6,
+          7,
+          8
+         ],
+         [
+          9,
+          10,
+          11,
+          12
+         ]
+        ],
+        "states": {
+         "1,0": "active"
+        }
+       },
+       {
+        "type": "vars",
+        "items": {
+         "top": 1,
+         "bottom": 1,
+         "left": 0,
+         "right": 2
+        }
+       }
+      ]
+     },
+     {
+      "text": "Top row 1, columns 1…2: [6, 7]. Then top moves down.",
+      "panels": [
+       {
+        "type": "grid",
+        "cells": [
+         [
+          1,
+          2,
+          3,
+          4
+         ],
+         [
+          5,
+          6,
+          7,
+          8
+         ],
+         [
+          9,
+          10,
+          11,
+          12
+         ]
+        ],
+        "states": {
+         "1,1": "active",
+         "1,2": "active"
+        }
+       },
+       {
+        "type": "vars",
+        "items": {
+         "top": 1,
+         "bottom": 1,
+         "left": 1,
+         "right": 2
+        }
+       }
+      ]
+     },
+     {
+      "text": "Borders crossed: done. [1, 2, 3, 4, 8, 12, 11, 10, 9, 5, 6, 7]",
+      "panels": [
+       {
+        "type": "grid",
+        "cells": [
+         [
+          1,
+          2,
+          3,
+          4
+         ],
+         [
+          5,
+          6,
+          7,
+          8
+         ],
+         [
+          9,
+          10,
+          11,
+          12
+         ]
+        ]
+       }
+      ],
+      "result": "[1, 2, 3, 4, 8, 12, 11, 10, 9, 5, 6, 7]"
+     }
+    ],
+    "title": "Keep four borders. Read the top row, right column, bottom row, left column, shrinking the border after each."
+   }
+  }
+ ],
+ "takeaways": [
+  {
+   "md": "- For layer-by-layer grid walks, keep **four borders** and shrink the one you just consumed.\n- Re-check the borders before the third and fourth sides; thin rectangles break naive loops.\n- The \"walk and turn when blocked\" simulation is a general fallback for any path that hugs walls."
+  }
+ ]
+}

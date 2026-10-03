@@ -1,0 +1,997 @@
+{
+ "version": 1,
+ "summary": "Decide first, then paint: record which rows and columns contain an original 0, and only afterwards set\ncells to 0. Painting while scanning would let new zeros cause blackouts of their own. The records can\nlive in two small arrays, or, for O(1) extra space, in the grid's own first row and first column.",
+ "question": [
+  {
+   "md": "Every pixel that is 0 in the **original** grid blacks out its entire row and entire column. Return the\nresulting grid.\n\n- **Only original zeros count.** A pixel that becomes 0 because of a blackout must not trigger another\n  blackout; otherwise one zero would wipe out the whole grid.\n- **Values can be negative or large,** so there's no spare \"special\" value to use as a marker except\n  0 itself.\n- **Size:** up to 300 × 300."
+  }
+ ],
+ "think": [
+  {
+   "md": "Take this 4 × 4 grid with zeros at (1, 1) and (2, 3). Rows 1 and 2, and columns 1 and 3, go dark."
+  },
+  {
+   "panels": [
+    {
+     "type": "grid",
+     "cells": [
+      [
+       5,
+       2,
+       7,
+       1
+      ],
+      [
+       3,
+       0,
+       4,
+       6
+      ],
+      [
+       8,
+       9,
+       2,
+       0
+      ],
+      [
+       1,
+       4,
+       6,
+       3
+      ]
+     ],
+     "states": {
+      "1,1": "active",
+      "2,3": "active"
+     },
+     "label": "original"
+    },
+    {
+     "type": "grid",
+     "cells": [
+      [
+       5,
+       0,
+       7,
+       0
+      ],
+      [
+       0,
+       0,
+       0,
+       0
+      ],
+      [
+       0,
+       0,
+       0,
+       0
+      ],
+      [
+       1,
+       0,
+       6,
+       0
+      ]
+     ],
+     "states": {
+      "0,1": "mark",
+      "0,3": "mark",
+      "1,0": "mark",
+      "1,1": "mark",
+      "1,2": "mark",
+      "1,3": "mark",
+      "2,0": "mark",
+      "2,1": "mark",
+      "2,2": "mark",
+      "2,3": "mark",
+      "3,1": "mark",
+      "3,3": "mark"
+     },
+     "label": "after blackout"
+    }
+   ]
+  },
+  {
+   "md": "The trap: if you zero row 1 as soon as you find (1, 1), then cell (1, 2) becomes 0, and when the scan\nreaches it, it looks like an original zero and blacks out column 2 too. Wrong.\n\nSo separate **deciding** from **painting**. All you need to decide is *which rows* and *which columns*\ncontain an original 0: that's m + n yes/no answers, not m × n."
+  }
+ ],
+ "approaches": [
+  {
+   "title": "Paint into a copy for each zero",
+   "kind": "brute",
+   "time": "O(m · n · (m + n))",
+   "space": "O(m · n)",
+   "idea": [
+    {
+     "md": "Copy the grid. Scan the **original**; for each 0 found, set its whole row and column to 0 **in the copy**. Since decisions come from the untouched original, painted zeros never spread."
+    }
+   ],
+   "build": [
+    "Copy the grid.",
+    "For every original cell equal to 0: zero row r and column c in the copy.",
+    "Return the copy."
+   ],
+   "code": {
+    "python": "class Solution:\n    def blackout(self, grid: List[List[int]]) -> List[List[int]]:\n        m, n = len(grid), len(grid[0])\n        out = [row[:] for row in grid]\n        for r in range(m):\n            for c in range(n):\n                if grid[r][c] == 0:\n                    for k in range(n):\n                        out[r][k] = 0\n                    for k in range(m):\n                        out[k][c] = 0\n        return out\n",
+    "java": "class Solution {\n    public int[][] blackout(int[][] grid) {\n        int m = grid.length, n = grid[0].length;\n        int[][] out = new int[m][];\n        for (int r = 0; r < m; r++) out[r] = grid[r].clone();\n        for (int r = 0; r < m; r++)\n            for (int c = 0; c < n; c++)\n                if (grid[r][c] == 0) {\n                    for (int k = 0; k < n; k++) out[r][k] = 0;\n                    for (int k = 0; k < m; k++) out[k][c] = 0;\n                }\n        return out;\n    }\n}\n",
+    "cpp": "class Solution {\npublic:\n    vector<vector<int>> blackout(vector<vector<int>>& grid) {\n        int m = grid.size(), n = grid[0].size();\n        vector<vector<int>> out = grid;\n        for (int r = 0; r < m; r++)\n            for (int c = 0; c < n; c++)\n                if (grid[r][c] == 0) {\n                    for (int k = 0; k < n; k++) out[r][k] = 0;\n                    for (int k = 0; k < m; k++) out[k][c] = 0;\n                }\n        return out;\n    }\n};\n",
+    "c": "int** blackout(int** grid, int gridSize, int* gridColSize, int* returnSize, int** returnColumnSizes) {\n    int m = gridSize, n = gridColSize[0];\n    int** out = malloc(m * sizeof(int*));\n    for (int r = 0; r < m; r++) {\n        out[r] = malloc(n * sizeof(int));\n        memcpy(out[r], grid[r], n * sizeof(int));\n    }\n    for (int r = 0; r < m; r++)\n        for (int c = 0; c < n; c++)\n            if (grid[r][c] == 0) {\n                for (int k = 0; k < n; k++) out[r][k] = 0;\n                for (int k = 0; k < m; k++) out[k][c] = 0;\n            }\n    *returnSize = m;\n    *returnColumnSizes = malloc(m * sizeof(int));\n    for (int i = 0; i < m; i++) (*returnColumnSizes)[i] = n;\n    return out;\n}\n"
+   },
+   "lines": [
+    {
+     "text": "The result starts as a copy; the original is only ever read.",
+     "at": {
+      "python": [
+       [
+        4,
+        4
+       ]
+      ],
+      "java": [
+       [
+        4,
+        5
+       ]
+      ],
+      "cpp": [
+       [
+        5,
+        5
+       ]
+      ],
+      "c": [
+       [
+        3,
+        7
+       ]
+      ]
+     }
+    },
+    {
+     "text": "Find the original zeros.",
+     "at": {
+      "python": [
+       [
+        5,
+        7
+       ]
+      ],
+      "java": [
+       [
+        6,
+        8
+       ]
+      ],
+      "cpp": [
+       [
+        6,
+        8
+       ]
+      ],
+      "c": [
+       [
+        8,
+        10
+       ]
+      ]
+     }
+    },
+    {
+     "text": "Black out the zero's row and column in the copy.",
+     "at": {
+      "python": [
+       [
+        8,
+        11
+       ]
+      ],
+      "java": [
+       [
+        9,
+        10
+       ]
+      ],
+      "cpp": [
+       [
+        9,
+        10
+       ]
+      ],
+      "c": [
+       [
+        11,
+        12
+       ]
+      ]
+     }
+    },
+    {
+     "text": "The blacked-out grid.",
+     "at": {
+      "python": [
+       [
+        12,
+        12
+       ]
+      ],
+      "java": [
+       [
+        12,
+        12
+       ]
+      ],
+      "cpp": [
+       [
+        12,
+        12
+       ]
+      ],
+      "c": [
+       [
+        14,
+        17
+       ]
+      ]
+     },
+     "notes": {
+      "c": "Report the row count and each row's length."
+     }
+    }
+   ],
+   "complexity": [
+    {
+     "md": "**Time O(m · n · (m + n))**: up to m · n zeros, each painting m + n cells. **Space O(m · n)** for the copy."
+    }
+   ],
+   "walk": {
+    "steps": [
+     {
+      "text": "Original (1, 1) is 0: zero row 1 and column 1 in the copy.",
+      "panels": [
+       {
+        "type": "grid",
+        "cells": [
+         [
+          5,
+          0,
+          7,
+          1
+         ],
+         [
+          0,
+          0,
+          0,
+          0
+         ],
+         [
+          8,
+          0,
+          2,
+          0
+         ],
+         [
+          1,
+          0,
+          6,
+          3
+         ]
+        ],
+        "states": {
+         "1,0": "mark",
+         "1,1": "active",
+         "1,2": "mark",
+         "1,3": "mark",
+         "0,1": "mark",
+         "2,1": "mark",
+         "3,1": "mark"
+        },
+        "label": "copy"
+       }
+      ]
+     },
+     {
+      "text": "Original (2, 3) is 0: zero row 2 and column 3 in the copy.",
+      "panels": [
+       {
+        "type": "grid",
+        "cells": [
+         [
+          5,
+          0,
+          7,
+          0
+         ],
+         [
+          0,
+          0,
+          0,
+          0
+         ],
+         [
+          0,
+          0,
+          0,
+          0
+         ],
+         [
+          1,
+          0,
+          6,
+          0
+         ]
+        ],
+        "states": {
+         "2,0": "mark",
+         "2,1": "mark",
+         "2,2": "mark",
+         "2,3": "active",
+         "0,3": "mark",
+         "1,3": "mark",
+         "3,3": "mark"
+        },
+        "label": "copy"
+       }
+      ]
+     },
+     {
+      "text": "Every original zero handled. Zeros we wrote never trigger more blackouts, because we only look at the original.",
+      "panels": [
+       {
+        "type": "grid",
+        "cells": [
+         [
+          5,
+          0,
+          7,
+          0
+         ],
+         [
+          0,
+          0,
+          0,
+          0
+         ],
+         [
+          0,
+          0,
+          0,
+          0
+         ],
+         [
+          1,
+          0,
+          6,
+          0
+         ]
+        ],
+        "label": "result"
+       }
+      ],
+      "result": "[[5, 0, 7, 0], [0, 0, 0, 0], [0, 0, 0, 0], [1, 0, 6, 0]]"
+     }
+    ],
+    "title": "Copy the grid. For each 0 in the original, black out its row and column in the copy."
+   },
+   "limits": [
+    {
+     "md": "Rows and columns get painted over and over (a row with 50 zeros is blacked out 50 times), and the copy costs a whole grid. Only *which* rows and columns are affected matters."
+    }
+   ],
+   "slow": true
+  },
+  {
+   "title": "Row and column flags",
+   "kind": "better",
+   "time": "O(m · n)",
+   "space": "O(m + n)",
+   "idea": [
+    {
+     "md": "One pass fills `zeroRow[r]` and `zeroCol[c]` for every original 0. A second pass sets a cell to 0 if its row or its column is flagged. Deciding happens entirely before painting."
+    }
+   ],
+   "build": [
+    "Make `zeroRow` (size m) and `zeroCol` (size n).",
+    "First pass: for every 0 at (r, c), set both flags.",
+    "Second pass: zero every cell with `zeroRow[r] or zeroCol[c]`.",
+    "Return the grid."
+   ],
+   "code": {
+    "python": "class Solution:\n    def blackout(self, grid: List[List[int]]) -> List[List[int]]:\n        m, n = len(grid), len(grid[0])\n        zero_row, zero_col = [False] * m, [False] * n\n        for r in range(m):\n            for c in range(n):\n                if grid[r][c] == 0:\n                    zero_row[r] = zero_col[c] = True\n        for r in range(m):\n            for c in range(n):\n                if zero_row[r] or zero_col[c]:\n                    grid[r][c] = 0\n        return grid\n",
+    "java": "class Solution {\n    public int[][] blackout(int[][] grid) {\n        int m = grid.length, n = grid[0].length;\n        boolean[] zeroRow = new boolean[m], zeroCol = new boolean[n];\n        for (int r = 0; r < m; r++)\n            for (int c = 0; c < n; c++)\n                if (grid[r][c] == 0) zeroRow[r] = zeroCol[c] = true;\n        for (int r = 0; r < m; r++)\n            for (int c = 0; c < n; c++)\n                if (zeroRow[r] || zeroCol[c]) grid[r][c] = 0;\n        return grid;\n    }\n}\n",
+    "cpp": "class Solution {\npublic:\n    vector<vector<int>> blackout(vector<vector<int>>& grid) {\n        int m = grid.size(), n = grid[0].size();\n        vector<bool> zeroRow(m, false), zeroCol(n, false);\n        for (int r = 0; r < m; r++)\n            for (int c = 0; c < n; c++)\n                if (grid[r][c] == 0) zeroRow[r] = zeroCol[c] = true;\n        for (int r = 0; r < m; r++)\n            for (int c = 0; c < n; c++)\n                if (zeroRow[r] || zeroCol[c]) grid[r][c] = 0;\n        return grid;\n    }\n};\n",
+    "c": "int** blackout(int** grid, int gridSize, int* gridColSize, int* returnSize, int** returnColumnSizes) {\n    int m = gridSize, n = gridColSize[0];\n    bool* zeroRow = calloc(m, sizeof(bool));\n    bool* zeroCol = calloc(n, sizeof(bool));\n    for (int r = 0; r < m; r++)\n        for (int c = 0; c < n; c++)\n            if (grid[r][c] == 0) zeroRow[r] = zeroCol[c] = true;\n    for (int r = 0; r < m; r++)\n        for (int c = 0; c < n; c++)\n            if (zeroRow[r] || zeroCol[c]) grid[r][c] = 0;\n    free(zeroRow);\n    free(zeroCol);\n    *returnSize = m;\n    *returnColumnSizes = malloc(m * sizeof(int));\n    for (int i = 0; i < m; i++) (*returnColumnSizes)[i] = n;\n    return grid;\n}\n"
+   },
+   "lines": [
+    {
+     "text": "One flag per row and one per column: m + n booleans instead of a full copy.",
+     "at": {
+      "python": [
+       [
+        4,
+        4
+       ]
+      ],
+      "java": [
+       [
+        4,
+        4
+       ]
+      ],
+      "cpp": [
+       [
+        5,
+        5
+       ]
+      ],
+      "c": [
+       [
+        3,
+        4
+       ]
+      ]
+     }
+    },
+    {
+     "text": "Every original zero flags its row and its column. No painting yet.",
+     "at": {
+      "python": [
+       [
+        5,
+        8
+       ]
+      ],
+      "java": [
+       [
+        5,
+        7
+       ]
+      ],
+      "cpp": [
+       [
+        6,
+        8
+       ]
+      ],
+      "c": [
+       [
+        5,
+        7
+       ]
+      ]
+     }
+    },
+    {
+     "text": "Now paint: a cell goes dark if its row or column was flagged. Flags were decided from the original, so new zeros can't spread.",
+     "at": {
+      "python": [
+       [
+        9,
+        12
+       ]
+      ],
+      "java": [
+       [
+        8,
+        10
+       ]
+      ],
+      "cpp": [
+       [
+        9,
+        11
+       ]
+      ],
+      "c": [
+       [
+        8,
+        10
+       ]
+      ]
+     }
+    },
+    {
+     "text": "The grid, updated in place.",
+     "at": {
+      "python": [
+       [
+        13,
+        13
+       ]
+      ],
+      "java": [
+       [
+        11,
+        11
+       ]
+      ],
+      "cpp": [
+       [
+        12,
+        12
+       ]
+      ],
+      "c": [
+       [
+        11,
+        16
+       ]
+      ]
+     },
+     "notes": {
+      "c": "Free the flags; only the column-size array is new."
+     }
+    }
+   ],
+   "complexity": [
+    {
+     "md": "**Time O(m · n):** two passes. **Space O(m + n)** for the flags."
+    }
+   ],
+   "walk": {
+    "steps": [
+     {
+      "text": "Scan once: rows [1, 2] and columns [1, 3] contain a 0.",
+      "panels": [
+       {
+        "type": "grid",
+        "cells": [
+         [
+          5,
+          2,
+          7,
+          1
+         ],
+         [
+          3,
+          0,
+          4,
+          6
+         ],
+         [
+          8,
+          9,
+          2,
+          0
+         ],
+         [
+          1,
+          4,
+          6,
+          3
+         ]
+        ],
+        "states": {
+         "1,1": "active",
+         "2,3": "active"
+        }
+       },
+       {
+        "type": "row",
+        "cells": [
+         null,
+         "x",
+         "x",
+         null
+        ],
+        "label": "row has 0"
+       },
+       {
+        "type": "row",
+        "cells": [
+         null,
+         "x",
+         null,
+         "x"
+        ],
+        "label": "column has 0"
+       }
+      ]
+     },
+     {
+      "text": "Second scan: a cell becomes 0 if its row or its column is marked.",
+      "panels": [
+       {
+        "type": "grid",
+        "cells": [
+         [
+          5,
+          0,
+          7,
+          0
+         ],
+         [
+          0,
+          0,
+          0,
+          0
+         ],
+         [
+          0,
+          0,
+          0,
+          0
+         ],
+         [
+          1,
+          0,
+          6,
+          0
+         ]
+        ],
+        "states": {
+         "0,1": "new",
+         "0,3": "new",
+         "1,0": "new",
+         "1,1": "new",
+         "1,2": "new",
+         "1,3": "new",
+         "2,0": "new",
+         "2,1": "new",
+         "2,2": "new",
+         "2,3": "new",
+         "3,1": "new",
+         "3,3": "new"
+        }
+       }
+      ],
+      "result": "[[5, 0, 7, 0], [0, 0, 0, 0], [0, 0, 0, 0], [1, 0, 6, 0]]"
+     }
+    ],
+    "title": "Record which rows and which columns contain a 0, then zero every cell in a marked row or column."
+   },
+   "limits": [
+    {
+     "md": "m + n extra booleans. The grid's own first row and first column can hold the same flags."
+    }
+   ]
+  },
+  {
+   "title": "Use the first row and column as the flags",
+   "kind": "best",
+   "time": "O(m · n)",
+   "space": "O(1)",
+   "idea": [
+    {
+     "md": "Cell `(r, 0)` can act as row r's flag and `(0, c)` as column c's flag: setting them to 0 is\nharmless, because a flagged row or column will be zeroed anyway. The only catch is that row 0 and\ncolumn 0 are themselves real data, so first save two booleans: \"row 0 had a zero\" and \"column 0\nhad a zero\".\n\n1. Save the two booleans.\n2. For each inner 0 at (r, c) with r, c ≥ 1, set `grid[r][0] = 0` and `grid[0][c] = 0`.\n3. Zero every inner cell whose row flag or column flag is 0.\n4. Zero row 0 and column 0 if their booleans say so. (They're done last, because their cells were\n   the flags.)"
+    }
+   ],
+   "build": [
+    "`row0` = row 0 contains a 0; `col0` = column 0 contains a 0.",
+    "Mark inner zeros into row 0 / column 0.",
+    "Zero inner cells using the marks.",
+    "Zero row 0 if `row0`, column 0 if `col0`."
+   ],
+   "code": {
+    "python": "class Solution:\n    def blackout(self, grid: List[List[int]]) -> List[List[int]]:\n        m, n = len(grid), len(grid[0])\n        row0 = any(grid[0][c] == 0 for c in range(n))\n        col0 = any(grid[r][0] == 0 for r in range(m))\n        for r in range(1, m):\n            for c in range(1, n):\n                if grid[r][c] == 0:\n                    grid[r][0] = grid[0][c] = 0\n        for r in range(1, m):\n            for c in range(1, n):\n                if grid[r][0] == 0 or grid[0][c] == 0:\n                    grid[r][c] = 0\n        if row0:\n            for c in range(n):\n                grid[0][c] = 0\n        if col0:\n            for r in range(m):\n                grid[r][0] = 0\n        return grid\n",
+    "java": "class Solution {\n    public int[][] blackout(int[][] grid) {\n        int m = grid.length, n = grid[0].length;\n        boolean row0 = false, col0 = false;\n        for (int c = 0; c < n; c++) if (grid[0][c] == 0) row0 = true;\n        for (int r = 0; r < m; r++) if (grid[r][0] == 0) col0 = true;\n        for (int r = 1; r < m; r++)\n            for (int c = 1; c < n; c++)\n                if (grid[r][c] == 0) grid[r][0] = grid[0][c] = 0;\n        for (int r = 1; r < m; r++)\n            for (int c = 1; c < n; c++)\n                if (grid[r][0] == 0 || grid[0][c] == 0) grid[r][c] = 0;\n        if (row0) for (int c = 0; c < n; c++) grid[0][c] = 0;\n        if (col0) for (int r = 0; r < m; r++) grid[r][0] = 0;\n        return grid;\n    }\n}\n",
+    "cpp": "class Solution {\npublic:\n    vector<vector<int>> blackout(vector<vector<int>>& grid) {\n        int m = grid.size(), n = grid[0].size();\n        bool row0 = false, col0 = false;\n        for (int c = 0; c < n; c++) if (grid[0][c] == 0) row0 = true;\n        for (int r = 0; r < m; r++) if (grid[r][0] == 0) col0 = true;\n        for (int r = 1; r < m; r++)\n            for (int c = 1; c < n; c++)\n                if (grid[r][c] == 0) grid[r][0] = grid[0][c] = 0;\n        for (int r = 1; r < m; r++)\n            for (int c = 1; c < n; c++)\n                if (grid[r][0] == 0 || grid[0][c] == 0) grid[r][c] = 0;\n        if (row0) for (int c = 0; c < n; c++) grid[0][c] = 0;\n        if (col0) for (int r = 0; r < m; r++) grid[r][0] = 0;\n        return grid;\n    }\n};\n",
+    "c": "int** blackout(int** grid, int gridSize, int* gridColSize, int* returnSize, int** returnColumnSizes) {\n    int m = gridSize, n = gridColSize[0];\n    bool row0 = false, col0 = false;\n    for (int c = 0; c < n; c++) if (grid[0][c] == 0) row0 = true;\n    for (int r = 0; r < m; r++) if (grid[r][0] == 0) col0 = true;\n    for (int r = 1; r < m; r++)\n        for (int c = 1; c < n; c++)\n            if (grid[r][c] == 0) grid[r][0] = grid[0][c] = 0;\n    for (int r = 1; r < m; r++)\n        for (int c = 1; c < n; c++)\n            if (grid[r][0] == 0 || grid[0][c] == 0) grid[r][c] = 0;\n    if (row0) for (int c = 0; c < n; c++) grid[0][c] = 0;\n    if (col0) for (int r = 0; r < m; r++) grid[r][0] = 0;\n    *returnSize = m;\n    *returnColumnSizes = malloc(m * sizeof(int));\n    for (int i = 0; i < m; i++) (*returnColumnSizes)[i] = n;\n    return grid;\n}\n"
+   },
+   "lines": [
+    {
+     "text": "Row 0 and column 0 are about to be used as flag storage, so first remember whether they had original zeros of their own.",
+     "at": {
+      "python": [
+       [
+        4,
+        5
+       ]
+      ],
+      "java": [
+       [
+        4,
+        6
+       ]
+      ],
+      "cpp": [
+       [
+        5,
+        7
+       ]
+      ],
+      "c": [
+       [
+        3,
+        5
+       ]
+      ]
+     }
+    },
+    {
+     "text": "An inner zero flags its row (in column 0) and its column (in row 0). Overwriting those cells with 0 loses nothing: that row and column will be zeroed anyway.",
+     "at": {
+      "python": [
+       [
+        6,
+        9
+       ]
+      ],
+      "java": [
+       [
+        7,
+        9
+       ]
+      ],
+      "cpp": [
+       [
+        8,
+        10
+       ]
+      ],
+      "c": [
+       [
+        6,
+        8
+       ]
+      ]
+     }
+    },
+    {
+     "text": "Inner cells read their two flags. Row 0 and column 0 aren't touched yet, because they're still being read as flags.",
+     "at": {
+      "python": [
+       [
+        10,
+        13
+       ]
+      ],
+      "java": [
+       [
+        10,
+        12
+       ]
+      ],
+      "cpp": [
+       [
+        11,
+        13
+       ]
+      ],
+      "c": [
+       [
+        9,
+        11
+       ]
+      ]
+     }
+    },
+    {
+     "text": "Last, zero row 0 and/or column 0 if they had their own zeros. Doing this earlier would corrupt the flags.",
+     "at": {
+      "python": [
+       [
+        14,
+        19
+       ]
+      ],
+      "java": [
+       [
+        13,
+        14
+       ]
+      ],
+      "cpp": [
+       [
+        14,
+        15
+       ]
+      ],
+      "c": [
+       [
+        12,
+        13
+       ]
+      ]
+     }
+    },
+    {
+     "text": "The grid, in place.",
+     "at": {
+      "python": [
+       [
+        20,
+        20
+       ]
+      ],
+      "java": [
+       [
+        15,
+        15
+       ]
+      ],
+      "cpp": [
+       [
+        16,
+        16
+       ]
+      ],
+      "c": [
+       [
+        14,
+        17
+       ]
+      ]
+     },
+     "notes": {
+      "c": "Only the column-size array is new."
+     }
+    }
+   ],
+   "complexity": [
+    {
+     "md": "**Time O(m · n).** **Space O(1):** two booleans."
+    }
+   ],
+   "walk": {
+    "steps": [
+     {
+      "text": "First: does row 0 contain a 0 of its own? No. Does column 0? No. Save that, because row 0 and column 0 are about to hold markers.",
+      "panels": [
+       {
+        "type": "grid",
+        "cells": [
+         [
+          5,
+          2,
+          7,
+          1
+         ],
+         [
+          3,
+          0,
+          4,
+          6
+         ],
+         [
+          8,
+          9,
+          2,
+          0
+         ],
+         [
+          1,
+          4,
+          6,
+          3
+         ]
+        ],
+        "states": {
+         "0,0": "mark",
+         "0,1": "mark",
+         "0,2": "mark",
+         "0,3": "mark",
+         "1,0": "mark",
+         "2,0": "mark",
+         "3,0": "mark"
+        }
+       },
+       {
+        "type": "vars",
+        "items": {
+         "row0 zero": false,
+         "col0 zero": false
+        }
+       }
+      ]
+     },
+     {
+      "text": "For each 0 inside (rows ≥ 1, columns ≥ 1), write a 0 into the first cell of its row and its column.",
+      "panels": [
+       {
+        "type": "grid",
+        "cells": [
+         [
+          5,
+          0,
+          7,
+          0
+         ],
+         [
+          0,
+          0,
+          4,
+          6
+         ],
+         [
+          0,
+          9,
+          2,
+          0
+         ],
+         [
+          1,
+          4,
+          6,
+          3
+         ]
+        ],
+        "states": {
+         "1,0": "new",
+         "2,0": "new",
+         "0,1": "new",
+         "0,3": "new"
+        }
+       }
+      ]
+     },
+     {
+      "text": "Zero every inner cell whose row marker or column marker is 0.",
+      "panels": [
+       {
+        "type": "grid",
+        "cells": [
+         [
+          5,
+          0,
+          7,
+          0
+         ],
+         [
+          0,
+          0,
+          0,
+          0
+         ],
+         [
+          0,
+          0,
+          0,
+          0
+         ],
+         [
+          1,
+          0,
+          6,
+          0
+         ]
+        ]
+       }
+      ]
+     },
+     {
+      "text": "Finally blank row 0 and/or column 0 if they had their own zeros. (Here neither did.)",
+      "panels": [
+       {
+        "type": "grid",
+        "cells": [
+         [
+          5,
+          0,
+          7,
+          0
+         ],
+         [
+          0,
+          0,
+          0,
+          0
+         ],
+         [
+          0,
+          0,
+          0,
+          0
+         ],
+         [
+          1,
+          0,
+          6,
+          0
+         ]
+        ]
+       }
+      ],
+      "result": "[[5, 0, 7, 0], [0, 0, 0, 0], [0, 0, 0, 0], [1, 0, 6, 0]]"
+     }
+    ],
+    "title": "Use row 0 and column 0 themselves as the markers; two booleans remember whether they had zeros of their own."
+   }
+  }
+ ],
+ "takeaways": [
+  {
+   "md": "- Never let the effects of an update trigger more updates: **decide first, then paint**.\n- What you need to remember is often much smaller than the grid: here m + n flags.\n- To get O(1) space, store flags inside the data itself (first row/column), saving whatever those cells\n  originally meant, and process the flag cells **last**."
+  }
+ ]
+}

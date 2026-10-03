@@ -111,6 +111,13 @@ def parse(src):
             tags.setdefault(m.group(1), []).append(i)
             line = line[: m.start()]
         lines.append(line.rstrip())
+    # Pieces joined from differently indented strings dedent badly: the top-level
+    # lines would then sit far to the right. Catch that here.
+    starts = [l for l in lines if l.strip()][:1]
+    assert starts and not starts[0].startswith(" "), "code starts indented"
+    ind = [len(l) - len(l.lstrip(" ")) for l in lines if l.strip()]
+    jumps = [b - a for a, b in zip(ind, ind[1:])]
+    assert max(jumps, default=0) <= 12, "code indentation jumps too far (pieces joined with mixed indentation?)"
     return "\n".join(lines) + "\n", tags
 
 
