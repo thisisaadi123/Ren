@@ -4,43 +4,75 @@
  "question": [
   {
    "md": "Count the pairs of positions `i < j` where `nums[i] + nums[j]` is a multiple of `k`.\n\n- **Pairs of positions.** Two equal numbers at different positions are two different\n  elements, and `(i, j)` with `i < j` means each pair is counted once (not also as `(j, i)`),\n  and no number pairs with itself.\n- **\"Divisible by k\"** means the remainder is 0: `(nums[i] + nums[j]) % k == 0`.\n- **k = 1** makes every sum divisible, so the answer is just n(n − 1)/2.\n- **Size:** up to 10⁵ numbers, so checking all ~5 × 10⁹ pairs is too slow.\n- **The answer can be huge:** with 10⁵ numbers that all work, it's about 5 × 10⁹, more than a\n  32-bit `int` holds. That's why the return type is `long`. Also, two numbers near 10⁹ add up to\n  2 × 10⁹, right at the `int` limit, so in Java, C++ and C, add them as 64-bit values."
+  },
+  {
+   "md": "**Edge cases to keep in mind**\n\n- Remainder 0 pairs with remainder 0.\n- When `k` is even, remainder `k/2` pairs with itself.\n- `k = 1`: every pair works, `n(n − 1)/2` of them; the count needs 64 bits."
   }
  ],
  "think": [
   {
-   "md": "Take `nums = [4, 7, 2, 5, 9, 1]` and `k = 3`.\n\nChecking pairs by hand: 4 + 2 = 6 ✓, 4 + 5 = 9 ✓, 7 + 2 = 9 ✓, 7 + 5 = 12 ✓, 2 + 1 = 3 ✓,\n5 + 1 = 6 ✓. Six pairs. But look at *why* each one works. Write every number as its remainder\nwhen divided by 3:"
+   "md": "**The complement idea.** When a pair has to satisfy an equation like `x + y = target`, choosing `x` *forces* `y`: it\nmust be exactly `target − x`. So instead of trying every partner, **store what you've seen** in a hash map and **look\nup the one value you need**. One pass, O(1) expected per lookup, O(n) total. Looking up *before* storing the current\nelement guarantees an element never pairs with itself."
   },
   {
-   "panels": [
-    {
-     "type": "row",
-     "cells": [
-      4,
-      7,
-      2,
-      5,
-      9,
-      1
-     ],
-     "label": "nums"
-    },
-    {
-     "type": "row",
-     "cells": [
-      1,
-      1,
-      2,
-      2,
-      0,
-      1
-     ],
-     "label": "nums[i] % 3"
-    }
-   ],
-   "caption": "4 → 1, 7 → 1, 2 → 2, 5 → 2, 9 → 0, 1 → 1."
+   "md": "**Work with remainders.** Whether `x + y` is divisible by `k` depends only on `x mod k` and `y mod k`: their\nremainders must add up to 0 or `k`. So remainder `r` needs a partner with remainder `(k − r) mod k`. For\n`[4, 7, 2, 5, 9, 1]` and `k = 3` the remainders are `[1, 1, 2, 2, 0, 1]`.\n\n**Counting without pairs.** Walk the numbers once, keeping how many earlier numbers had each remainder. Each\nnumber pairs with all earlier numbers whose remainder complements its own:"
   },
   {
-   "md": "Every working pair is a **1 with a 2** (1 + 2 = 3, a multiple of 3). And that's the whole rule:\nadding two numbers adds their remainders, so `a + b` is a multiple of `k` exactly when\n`a % k + b % k` is 0 or `k`.\n\nSo for a number with remainder `r`, the partners it needs have remainder:\n\n- `k − r`, if `r` isn't 0 (here 1 needs 2, and 2 needs 1);\n- `0`, if `r` is 0 (a multiple of `k` only pairs with another multiple of `k`).\n\nBoth cases are `(k − r) % k`. The 9 (remainder 0) would need another remainder-0 number, and\nthere isn't one, so it's in no pair.\n\nOnce you see that, the actual numbers stop mattering. Three numbers have remainder 1 and two\nhave remainder 2, so there are 3 × 2 = 6 pairs, without looking at a single sum."
+   "table": {
+    "head": [
+     "number",
+     "remainder",
+     "partner remainder",
+     "earlier partners",
+     "total"
+    ],
+    "rows": [
+     [
+      "4",
+      "1",
+      "2",
+      "0",
+      "0"
+     ],
+     [
+      "7",
+      "1",
+      "2",
+      "0",
+      "0"
+     ],
+     [
+      "2",
+      "2",
+      "1",
+      "2",
+      "2"
+     ],
+     [
+      "5",
+      "2",
+      "1",
+      "2",
+      "4"
+     ],
+     [
+      "9",
+      "0",
+      "0",
+      "0",
+      "4"
+     ],
+     [
+      "1",
+      "1",
+      "2",
+      "2",
+      "6"
+     ]
+    ]
+   }
+  },
+  {
+   "md": "Total **6** pairs."
   }
  ],
  "approaches": [
@@ -51,14 +83,12 @@
    "space": "O(1)",
    "idea": [
     {
-     "md": "Loop over every pair `i < j`, add the two numbers, and count the sums whose remainder is 0.\nIt's the definition of the problem turned straight into code."
+     "md": "Test every pair `i < j` for `(nums[i] + nums[j]) % k == 0`."
     }
    ],
    "build": [
-    "Start a counter `total = 0` (64-bit, since the answer can exceed 2³¹).",
-    "Loop `i` over every index, and `j` from `i + 1` to the end.",
-    "If `(nums[i] + nums[j]) % k == 0`, add 1 to `total`. Add as 64-bit in Java, C++ and C.",
-    "Return `total`."
+    "Two nested loops.",
+    "Count divisible sums."
    ],
    "code": {
     "python": "class Solution:\n    def countDivisiblePairs(self, nums: List[int], k: int) -> int:\n        n = len(nums)\n        total = 0\n        for i in range(n):\n            for j in range(i + 1, n):\n                if (nums[i] + nums[j]) % k == 0:\n                    total += 1\n        return total\n",
@@ -191,7 +221,7 @@
    ],
    "complexity": [
     {
-     "md": "**Time O(n²):** n(n − 1)/2 pairs, about 5 × 10⁹ for n = 10⁵.\n\n**Space O(1):** a counter and two loop variables."
+     "md": "**Time O(n²):** 5 × 10⁹ pairs at the limit. **Space O(1).**"
     }
    ],
    "walk": {
@@ -406,7 +436,7 @@
    },
    "limits": [
     {
-     "md": "Each number gets compared with every other number one by one, even though all it cares\nabout is *how many* earlier numbers have one particular remainder. That count can be kept\nup to date instead of rediscovered, which is what the next two approaches do."
+     "md": "Divisibility only depends on remainders, so numbers with the same remainder are interchangeable; counting them by remainder avoids looking at pairs."
     }
    ],
    "slow": true
@@ -418,15 +448,14 @@
    "space": "O(k)",
    "idea": [
     {
-     "md": "Put every number into a group by its remainder: `count[r]` = how many numbers have\nremainder `r`. Then count pairs **between groups** with multiplication:\n\n- Remainder `r` with remainder `k − r` (for `0 < r < k − r`): every number in one group\n  pairs with every number in the other, `count[r] × count[k − r]` pairs.\n- Remainder 0 with itself: choose any 2 of the `count[0]` numbers,\n  `count[0] × (count[0] − 1) / 2` pairs.\n- If `k` is even, remainder `k/2` also pairs with itself (k/2 + k/2 = k): another\n  \"choose 2\".\n\nThe loop over `r` stops before the middle, so each pair of groups is counted once."
+     "md": "Count how many numbers have each remainder. Then pair up groups:\n\n- remainder 0 with itself: `c₀ (c₀ − 1) / 2` pairs;\n- remainder `r` with `k − r` for `0 < r < k − r`: `c_r · c_(k−r)` pairs;\n- if `k` is even, remainder `k/2` with itself: `c (c − 1) / 2` pairs.\n\nHere the counts are {0: 1, 1: 3, 2: 2}."
     }
    ],
    "build": [
-    "Make an array `count` of size `k`, all zeros, and add 1 to `count[x % k]` for every `x`.",
-    "Start `total` with the remainder-0 pairs: `c0 × (c0 − 1) / 2`.",
-    "For `r = 1, 2, …` while `r < k − r`, add `count[r] × count[k − r]`.",
-    "If `k` is even, add the pairs inside the middle group: `c × (c − 1) / 2` with `c = count[k/2]`.",
-    "Return `total`. Do the multiplications in 64 bits: 5 × 10⁴ × 5 × 10⁴ is already past `int`."
+    "Count remainders.",
+    "Pairs within remainder 0.",
+    "Pairs across `r` and `k − r`.",
+    "Pairs within `k/2` when `k` is even."
    ],
    "code": {
     "python": "class Solution:\n    def countDivisiblePairs(self, nums: List[int], k: int) -> int:\n        count = [0] * k\n        for x in nums:\n            count[x % k] += 1\n        total = count[0] * (count[0] - 1) // 2\n        r = 1\n        while r < k - r:\n            total += count[r] * count[k - r]\n            r += 1\n        if k % 2 == 0:\n            c = count[k // 2]\n            total += c * (c - 1) // 2\n        return total\n",
@@ -591,7 +620,7 @@
    ],
    "complexity": [
     {
-     "md": "**Time O(n + k):** one pass to fill the groups, then a sweep over about k/2 remainders.\n\n**Space O(k):** the `count` array, up to 10⁵ entries."
+     "md": "**Time O(n + k).** **Space O(k)** for the counts."
     }
    ],
    "walk": {
@@ -710,7 +739,7 @@
    },
    "limits": [
     {
-     "md": "This is already as fast as the problem allows. Its weakness is **correctness risk**: it\nneeds two special cases (remainder 0 and remainder k/2) and an exact loop bound, and\nforgetting either one gives wrong answers only on some inputs. The next approach gets the\nsame speed with no special cases at all, because it never has to reason about pairs of\ngroups."
+     "md": "Correct, but it has three separate cases to get right. Counting partners as you go handles all of them with one rule."
     }
    ]
   },
@@ -721,15 +750,12 @@
    "space": "O(k)",
    "idea": [
     {
-     "md": "This is the complement idea from pair-sum problems, applied to remainders. Walk left to\nright, keeping `seen[r]`: how many **earlier** numbers have remainder `r`.\n\nAt each number with remainder `r`, its partners are the earlier numbers with remainder\n`(k − r) % k`, and there are exactly `seen[(k − r) % k]` of them. Add that, then record the\ncurrent number: `seen[r] += 1`.\n\nEvery pair `i < j` is counted exactly once, at `j`, when `i` is already in `seen`. The\nspecial cases disappear: a remainder-0 number looks up `seen[0]` (other multiples of k),\nand with even k a remainder-k/2 number looks up `seen[k/2]`. Because the current number is\nrecorded **after** the lookup, it never pairs with itself."
+     "md": "One pass. For each number with remainder `r`, add how many **earlier** numbers have remainder\n`(k − r) mod k`, then record `r`.\n\n**Why each pair is counted once.** A pair `i < j` is counted exactly when `j` is processed, because `i` was\nrecorded earlier. The `(k − r) mod k` form makes remainder 0 look up remainder 0, and remainder `k/2` look\nup itself, without special cases."
     }
    ],
    "build": [
-    "Make `seen`, an array of `k` zeros, and `total = 0` (64-bit).",
-    "For each number `x`: compute `r = x % k` and the needed remainder `need = (k − r) % k`.",
-    "Add `seen[need]` to `total`: one pair for each earlier partner.",
-    "Then do `seen[r] += 1`, so later numbers can pair with this one.",
-    "Return `total`."
+    "Remainder counts, all 0.",
+    "For each number: add the partner count, then record its remainder."
    ],
    "code": {
     "python": "class Solution:\n    def countDivisiblePairs(self, nums: List[int], k: int) -> int:\n        seen = [0] * k\n        total = 0\n        for x in nums:\n            r = x % k\n            total += seen[(k - r) % k]\n            seen[r] += 1\n        return total\n",
@@ -918,7 +944,7 @@
    ],
    "complexity": [
     {
-     "md": "**Time O(n + k):** O(k) to create `seen`, then O(1) work per number.\n\n**Space O(k)** for `seen`. If `k` were huge compared with n (say 10¹⁸), you'd use a hash map\nfrom remainder to count instead, which only stores remainders that actually occur:\nO(n) time and O(min(n, k)) space."
+     "md": "**Time O(n + k).** **Space O(k).**"
     }
    ],
    "walk": {
@@ -1228,7 +1254,7 @@
  ],
  "takeaways": [
   {
-   "md": "- For \"is the sum divisible by k?\", work with **remainders**. `(a + b) % k` depends only on\n  `a % k` and `b % k`.\n- The partner remainder of `r` is `(k − r) % k`, which handles `r = 0` without a special case.\n- \"Count earlier partners, then record yourself\" counts each pair exactly once and never pairs an\n  element with itself. It's the counting version of the two-sum lookup.\n- When the answer counts pairs among up to 10⁵ items, it can exceed 2³¹. Use 64-bit totals."
+   "md": "- **Divisibility of sums → remainders:** `r` pairs with `(k − r) mod k`.\n- Counting partners seen so far counts each pair once, with no special cases.\n- **Pitfall:** forgetting the self-paired remainders (0, and `k/2` for even `k`)."
   }
  ]
 }

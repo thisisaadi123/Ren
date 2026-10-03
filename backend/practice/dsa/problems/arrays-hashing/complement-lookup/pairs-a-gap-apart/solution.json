@@ -4,49 +4,61 @@
  "question": [
   {
    "md": "Count the **distinct** pairs of values `(x, y)` in the list with `y − x = k`.\n\n- **Distinct value pairs, not position pairs.** In `[3, 1, 4, 1, 5]` with k = 2, both 1s pair\n  with the 3, but `(1, 3)` counts once. The answer is 2: `(1, 3)` and `(3, 5)`.\n- **The pair is ordered by the gap:** `y = x + k`, so `(1, 3)` and `(3, 1)` aren't two different\n  pairs; only `(1, 3)` has `y − x = 2`.\n- **Different positions.** `x` and `y` must be two different elements. That only matters when\n  **k = 0**: then `y = x`, so the value must appear **at least twice**. `[1, 3, 1, 5, 4]` with\n  k = 0 has one pair, `(1, 1)`.\n- **k is never negative**, so `y ≥ x`.\n- **Size:** up to 10⁵ numbers, so comparing all pairs (10¹⁰) is too slow."
+  },
+  {
+   "md": "**Edge cases to keep in mind**\n\n- Pairs are counted by **values**, so duplicates don't create extra pairs.\n- `k = 0`: the pair is `(x, x)`, which needs `x` at two different positions.\n- `k > 0`: `x` and `x + k` are different values, so they're automatically at different positions."
   }
  ],
  "think": [
   {
-   "md": "Take `nums = [6, 2, 9, 4, 2, 11, 7]` and `k = 2`.\n\nA pair is `(x, x + 2)`. Once you pick `x`, there's only one possible `y`. So instead of\nthinking about pairs, think about **values**: which values `x` have their partner `x + 2` in the\nlist?"
+   "md": "**The complement idea.** When a pair has to satisfy an equation like `x + y = target`, choosing `x` *forces* `y`: it\nmust be exactly `target − x`. So instead of trying every partner, **store what you've seen** in a hash map and **look\nup the one value you need**. One pass, O(1) expected per lookup, O(n) total. Looking up *before* storing the current\nelement guarantees an element never pairs with itself."
   },
   {
-   "panels": [
-    {
-     "type": "row",
-     "cells": [
-      2,
-      4,
-      6,
-      7,
-      9,
-      11
-     ],
-     "label": "distinct values"
-    },
-    {
-     "type": "row",
-     "cells": [
-      4,
-      6,
-      8,
-      9,
-      11,
-      13
-     ],
-     "states": {
-      "0": "answer",
-      "1": "answer",
-      "3": "answer",
-      "4": "answer"
-     },
-     "label": "partner x + 2 (shaded = present)"
-    }
-   ],
-   "caption": "2 → 4 ✓, 4 → 6 ✓, 6 → 8, 7 → 9 ✓, 9 → 11 ✓, 11 → 13. Four pairs."
+   "md": "**Think in values, not positions.** A pair is `(x, x + k)`, so choosing `x` decides the pair. Count each distinct\nvalue once and ask whether its partner exists. For `[6, 2, 9, 4, 2, 11, 7]` and `k = 2`:"
   },
   {
-   "md": "Two observations:\n\n1. **Duplicates don't matter** (when k > 0): the second 2 adds nothing new, because `(2, 4)` is\n   already counted. So work with the **set** of distinct values.\n2. **For k = 0**, the partner of `x` is `x` itself, which is always \"in the set\". The real\n   question becomes \"does `x` appear at least twice?\" Here only 2 does, so with k = 0 the answer\n   would be 1. Keeping **counts** instead of just a set answers both questions with one table."
+   "table": {
+    "head": [
+     "x (distinct)",
+     "partner x + k",
+     "present?"
+    ],
+    "rows": [
+     [
+      "2",
+      "4",
+      "yes"
+     ],
+     [
+      "4",
+      "6",
+      "yes"
+     ],
+     [
+      "6",
+      "8",
+      "no"
+     ],
+     [
+      "7",
+      "9",
+      "yes"
+     ],
+     [
+      "9",
+      "11",
+      "yes"
+     ],
+     [
+      "11",
+      "13",
+      "no"
+     ]
+    ]
+   }
+  },
+  {
+   "md": "**4** distinct pairs.\n\n**The `k = 0` case.** Then the \"partner\" is `x` itself, and every value trivially finds itself. What's actually\nneeded is a second copy, so count the values that appear at least twice."
   }
  ],
  "approaches": [
@@ -57,14 +69,13 @@
    "space": "O(1)",
    "idea": [
     {
-     "md": "Go through the positions. For position `i` with value `x`:\n\n- If `x` already appeared at an earlier position, skip it: that value's pair was already\n  decided, and counting it again would break \"distinct\".\n- Otherwise scan every other position `j ≠ i` for the value `x + k`. If you find one,\n  count the pair.\n\nRequiring `j ≠ i` is what makes k = 0 work: the value needs a *second* copy."
+     "md": "For each position whose value hasn't appeared earlier, scan the whole list for `x + k` at another position."
     }
    ],
    "build": [
-    "Loop `i` over every position, with `x = nums[i]`.",
-    "Scan positions `0 … i − 1`; if any equals `x`, skip this `i` (already handled).",
-    "Scan all positions `j ≠ i`; if any equals `x + k`, add 1 and stop scanning.",
-    "Return the count."
+    "Skip values seen to the left.",
+    "Search for the partner elsewhere.",
+    "Count each distinct value once."
    ],
    "code": {
     "python": "class Solution:\n    def countGapPairs(self, nums: List[int], k: int) -> int:\n        n = len(nums)\n        total = 0\n        for i in range(n):\n            x = nums[i]\n            if any(nums[p] == x for p in range(i)):\n                continue\n            if any(j != i and nums[j] == x + k for j in range(n)):\n                total += 1\n        return total\n",
@@ -192,7 +203,7 @@
    ],
    "complexity": [
     {
-     "md": "**Time O(n²):** each position may scan the whole list (twice). That's ~10¹⁰ steps for\nn = 10⁵.\n\n**Space O(1):** no extra structures."
+     "md": "**Time O(n²).** **Space O(1).**"
     }
    ],
    "walk": {
@@ -460,7 +471,7 @@
    },
    "limits": [
     {
-     "md": "Two linear scans per position: \"have I seen x?\" and \"does x + k exist?\". Both are\nmembership questions, and scanning is the slowest way to answer them. Sorting makes the\nfirst trivial and the second a binary search."
+     "md": "Both the duplicate check and the partner search are linear scans. Sorting or a hash map makes them fast."
     }
    ],
    "slow": true
@@ -472,14 +483,13 @@
    "space": "O(n)",
    "idea": [
     {
-     "md": "Sort a copy of the list. Now:\n\n- Copies of a value sit next to each other, so \"is this value new?\" is just\n  `i == 0 or s[i] != s[i − 1]`.\n- The partner `x + k` is at least `x`, so if it exists at another position it lies **to\n  the right** of `i`. Binary-search for it in `s[i + 1 …]`.\n\nSearching from `i + 1` handles k = 0 for free: the search looks for `x` itself among the\nlater positions, which only succeeds if a second copy exists."
+     "md": "Sort a copy. For each first copy of a value `x`, binary-search for `x + k` strictly to its right. Searching\nto the right handles `k = 0` correctly: a second copy of `x` must sit just after the first."
     }
    ],
    "build": [
-    "Sort a copy `s` of `nums`.",
-    "Loop `i` over `s`; skip `i` when `s[i] == s[i − 1]` (not the first copy).",
-    "Binary-search `x + k` in `s[i + 1 … n − 1]`; if found, add 1.",
-    "Return the count."
+    "Sort.",
+    "Skip repeated values.",
+    "Binary-search the partner to the right."
    ],
    "code": {
     "python": "from bisect import bisect_left\n\nclass Solution:\n    def countGapPairs(self, nums: List[int], k: int) -> int:\n        s = sorted(nums)\n        n = len(s)\n        total = 0\n        for i in range(n):\n            if i > 0 and s[i] == s[i - 1]:\n                continue\n            j = bisect_left(s, s[i] + k, i + 1)\n            if j < n and s[j] == s[i] + k:\n                total += 1\n        return total\n",
@@ -662,7 +672,7 @@
    ],
    "complexity": [
     {
-     "md": "**Time O(n log n):** the sort, plus one O(log n) search per position.\n\n**Space O(n)** for the sorted copy."
+     "md": "**Time O(n log n).** **Space O(n)** for the sorted copy."
     }
    ],
    "walk": {
@@ -966,7 +976,7 @@
    },
    "limits": [
     {
-     "md": "The sort exists only to make lookups fast, but a hash table gives O(1) lookups without\nsorting. With up to 10⁵ numbers either is fast enough; the hash version is simpler and\nasymptotically better."
+     "md": "A binary search per value. A hash map of counts answers each lookup in O(1) expected time."
     }
    ]
   },
@@ -977,13 +987,13 @@
    "space": "O(n)",
    "idea": [
     {
-     "md": "Count every value: `count[v]` = how many times `v` appears. Then loop over the **distinct**\nvalues (the map's keys), which automatically ignores duplicates:\n\n- **k > 0:** count `x` when `x + k` is a key.\n- **k = 0:** count `x` when `count[x] ≥ 2` (a second copy at another position)."
+     "md": "Count every value in a hash map. If `k = 0`, count values with at least two copies. Otherwise count the\ndistinct values `x` whose `x + k` is also a key.\n\n**Why pairs aren't double-counted.** Each pair `(x, x + k)` is counted only from its smaller value `x`."
     }
    ],
    "build": [
-    "Build `count`: value → number of copies.",
-    "If `k == 0`, return how many values have a count of at least 2.",
-    "Otherwise return how many keys `x` have `x + k` also as a key."
+    "Count values.",
+    "`k = 0`: values with count ≥ 2.",
+    "`k > 0`: distinct `x` with `x + k` present."
    ],
    "code": {
     "python": "from collections import Counter\n\nclass Solution:\n    def countGapPairs(self, nums: List[int], k: int) -> int:\n        count = Counter(nums)\n        if k == 0:\n            return sum(1 for c in count.values() if c >= 2)\n        return sum(1 for x in count if x + k in count)\n",
@@ -1166,7 +1176,7 @@
    ],
    "complexity": [
     {
-     "md": "**Time O(n):** one pass to count, then one O(1) lookup per distinct value.\n\n**Space O(n):** the table holds up to n distinct values."
+     "md": "**Time O(n)** expected. **Space O(n).**"
     }
    ],
    "walk": {
@@ -1389,7 +1399,7 @@
  ],
  "takeaways": [
   {
-   "md": "- When a pair condition **fixes** the partner (`y = x + k`), count pairs by checking each `x`'s\n  partner instead of comparing everything with everything.\n- \"Distinct pairs\" usually means \"work over distinct values\": the keys of a count table.\n- Watch the degenerate case where the partner equals the element itself (k = 0 here): a\n  presence check isn't enough, you need a **count ≥ 2**.\n- Sorting turns \"seen before?\" into a neighbour check and \"exists?\" into a binary search, a\n  useful fallback when you can't use a hash map."
+   "md": "- **Distinct pairs with a fixed difference:** iterate distinct values, look up `x + k`.\n- Handle `k = 0` separately: it needs a second copy, not a different value.\n- **Pitfall:** counting from both ends of a pair (looking up `x − k` as well)."
   }
  ]
 }
