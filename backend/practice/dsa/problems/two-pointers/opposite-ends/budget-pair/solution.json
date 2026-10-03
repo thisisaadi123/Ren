@@ -4,27 +4,65 @@
  "question": [
   {
    "md": "Prices are in increasing order; exactly one pair of different items sums to `budget`. Return their positions\n`[i, j]` with `i < j`.\n\n- **Sorted input** is the hint.\n- **Prices can be negative**, and sums reach 2 × 10⁹ (use 64-bit sums in C-like languages)."
+  },
+  {
+   "md": "**Edge cases to keep in mind**\n\n- Negative prices are allowed; the reasoning only needs the list to be sorted.\n- Sums can reach `2 × 10⁹`, past 32-bit range, so add in 64 bits.\n- The pair uses two **different** positions, even if their values are equal."
   }
  ],
  "think": [
   {
-   "md": "Prices `[2, 5, 9, 14, 20, 27]`, budget 34: 14 + 20 = 34, so the answer is\n`[3, 4]`.\n\nWith sorted prices, compare the smallest and largest. If `2 + 27 = 29`, done; if the sum were too small, the\nsmallest price can't be in the pair with **anything** (even the largest isn't enough), so drop it. If too big,\nthe largest can't be in the pair with anything, so drop it. Each comparison removes one candidate."
+   "md": "**Why moving inward is safe: every step rules out a whole row of pairs.** Picture all pairs `(i, j)` with `i < j`\nas a triangle. With the pointers at the two ends we look at one pair, and the comparison proves that one of its two\nelements **can't be part of a better answer with any partner still between the pointers**. So we drop that element:\na whole row (or column) of the triangle disappears in O(1). After at most `n − 1` steps every pair has been either\nchecked or ruled out, which is why one pass is enough."
   },
   {
-   "panels": [
-    {
-     "type": "row",
-     "cells": [
-      2,
-      5,
-      9,
-      14,
-      20,
-      27
+   "md": "**The two moves.** With `s = prices[i] + prices[j]`:\n\n- `s < budget`: `prices[i]` plus any remaining partner is at most `s` (the largest partner is `prices[j]`), so\n  `i` can't be in the pair. Move `i` right.\n- `s > budget`: `prices[j]` plus any remaining partner is at least `s`, so `j` can't be in the pair. Move `j` left."
+  },
+  {
+   "md": "**Trace for budget 34 on `[2, 5, 9, 14, 20, 27]`:**"
+  },
+  {
+   "table": {
+    "head": [
+     "i",
+     "j",
+     "sum",
+     "decision"
+    ],
+    "rows": [
+     [
+      "0",
+      "5",
+      "2 + 27 = 29",
+      "too small: 2 + anything left ≤ 29, drop index 0"
      ],
-     "label": "prices"
-    }
-   ]
+     [
+      "1",
+      "5",
+      "5 + 27 = 32",
+      "too small: 5 + anything left ≤ 32, drop index 1"
+     ],
+     [
+      "2",
+      "5",
+      "9 + 27 = 36",
+      "too big: anything + 27 ≥ 36, drop index 5"
+     ],
+     [
+      "2",
+      "4",
+      "9 + 20 = 29",
+      "too small: 9 + anything left ≤ 29, drop index 2"
+     ],
+     [
+      "3",
+      "4",
+      "14 + 20 = 34",
+      "found"
+     ]
+    ]
+   }
+  },
+  {
+   "md": "Answer `[3, 4]`."
   }
  ],
  "approaches": [
@@ -35,12 +73,12 @@
    "space": "O(1)",
    "idea": [
     {
-     "md": "Check every `i < j` until the sum matches."
+     "md": "Check every pair `i < j` and return the one that sums to the budget."
     }
    ],
    "build": [
-    "Double loop.",
-    "Return the first match."
+    "Two nested loops.",
+    "Return the first matching pair."
    ],
    "code": {
     "python": "class Solution:\n    def budgetPair(self, prices: List[int], budget: int) -> List[int]:\n        for i in range(len(prices)):\n            for j in range(i + 1, len(prices)):\n                if prices[i] + prices[j] == budget:\n                    return [i, j]\n        return [-1, -1]\n",
@@ -50,7 +88,7 @@
    },
    "lines": [
     {
-     "text": "Every pair of positions.",
+     "text": "Every pair of positions with `i < j`.",
      "at": {
       "python": [
        [
@@ -79,7 +117,7 @@
      }
     },
     {
-     "text": "The pair that adds up (64-bit sum).",
+     "text": "The pair that costs exactly the budget (sum in 64 bits).",
      "at": {
       "python": [
        [
@@ -111,7 +149,7 @@
      }
     },
     {
-     "text": "Not reached: the input always has a pair.",
+     "text": "Unreachable when a pair is guaranteed; kept as a safe default.",
      "at": {
       "python": [
        [
@@ -234,7 +272,7 @@
    },
    "limits": [
     {
-     "md": "Ignores that the prices are sorted. A hash map gets O(n) but needs O(n) memory; sortedness allows O(n) with no memory."
+     "md": "Ignores that the prices are sorted. A hash map gives O(n) without using the order; two pointers use the order to get O(n) with no extra memory."
     }
    ],
    "slow": true
@@ -246,12 +284,13 @@
    "space": "O(n)",
    "idea": [
     {
-     "md": "Walk the prices; for each, check if `budget − price` was seen (store price → position)."
+     "md": "Walk the prices once, remembering each price's position. For price `p` at `j`, the partner must cost\n`budget − p`; if it was seen earlier, return its position and `j`.\n\nThis works on unsorted lists too, but uses O(n) memory."
     }
    ],
    "build": [
-    "Empty map.",
-    "For each position: look up the complement, else store the price."
+    "Empty map price → position.",
+    "Look up the complement.",
+    "Store the current price."
    ],
    "code": {
     "python": "class Solution:\n    def budgetPair(self, prices: List[int], budget: int) -> List[int]:\n        seen = {}\n        for j, p in enumerate(prices):\n            if budget - p in seen:\n                return [seen[budget - p], j]\n            seen[p] = j\n        return [-1, -1]\n",
@@ -261,7 +300,7 @@
    },
    "lines": [
     {
-     "text": "Price → position for the prices seen so far.",
+     "text": "Prices seen so far and their positions.",
      "at": {
       "python": [
        [
@@ -293,7 +332,7 @@
      }
     },
     {
-     "text": "Each price as the right half of the pair.",
+     "text": "Each price in order.",
      "at": {
       "python": [
        [
@@ -322,7 +361,7 @@
      }
     },
     {
-     "text": "Its complement among earlier prices finishes the pair.",
+     "text": "The needed partner was seen earlier: that's the pair, with the earlier position first.",
      "at": {
       "python": [
        [
@@ -351,7 +390,7 @@
      }
     },
     {
-     "text": "Remember this price for later ones.",
+     "text": "Remember this price for later positions (after the lookup, so it never pairs with itself).",
      "at": {
       "python": [
        [
@@ -380,7 +419,7 @@
      }
     },
     {
-     "text": "The pair.",
+     "text": "Unreachable when a pair is guaranteed.",
      "at": {
       "python": [
        [
@@ -415,7 +454,7 @@
    ],
    "complexity": [
     {
-     "md": "**Time O(n).** **Space O(n).**"
+     "md": "**Time O(n)** expected. **Space O(n).**"
     }
    ],
    "walk": {
@@ -522,7 +561,7 @@
    },
    "limits": [
     {
-     "md": "Works for unsorted input too, but here it spends O(n) memory to learn what the order already tells us."
+     "md": "It needs a hash map. Sorted input allows the same answer in O(1) memory."
     }
    ]
   },
@@ -533,13 +572,13 @@
    "space": "O(1)",
    "idea": [
     {
-     "md": "`i = 0`, `j = n − 1`. If the sum is too small, `i += 1`; too big, `j −= 1`; equal, return `[i, j]`."
+     "md": "Pointers at both ends. If the sum is the budget, done; if it's too small, move `i` right; if too big, move\n`j` left.\n\n**Invariant.** If the answer pair is `(p, q)`, then `i ≤ p` and `q ≤ j` at all times. A pointer only moves\npast an index that was proven not to be in the pair."
     }
    ],
    "build": [
     "Pointers at both ends.",
     "Compare the sum with the budget.",
-    "Move one pointer or return."
+    "Move the side that can't be in the pair."
    ],
    "code": {
     "python": "class Solution:\n    def budgetPair(self, prices: List[int], budget: int) -> List[int]:\n        i, j = 0, len(prices) - 1\n        while i < j:\n            s = prices[i] + prices[j]\n            if s == budget:\n                return [i, j]\n            if s < budget:\n                i += 1\n            else:\n                j -= 1\n        return [-1, -1]\n",
@@ -549,7 +588,7 @@
    },
    "lines": [
     {
-     "text": "Cheapest and dearest.",
+     "text": "The cheapest and the most expensive item.",
      "at": {
       "python": [
        [
@@ -578,7 +617,7 @@
      }
     },
     {
-     "text": "The current pair's sum (64-bit).",
+     "text": "While two different items remain.",
      "at": {
       "python": [
        [
@@ -607,7 +646,7 @@
      }
     },
     {
-     "text": "Found it.",
+     "text": "Exactly the budget: return the positions.",
      "at": {
       "python": [
        [
@@ -636,7 +675,7 @@
      }
     },
     {
-     "text": "Too small: `prices[i]` is too cheap even with the dearest item left, so it's out. Too big: `prices[j]` is too dear even with the cheapest, so it's out.",
+     "text": "Too small: the cheap item fails with every remaining partner, drop it. Too big: the expensive item fails with every remaining partner, drop it.",
      "at": {
       "python": [
        [
@@ -665,7 +704,7 @@
      }
     },
     {
-     "text": "The pair.",
+     "text": "Unreachable when a pair is guaranteed.",
      "at": {
       "python": [
        [
@@ -833,7 +872,7 @@
  ],
  "takeaways": [
   {
-   "md": "- **Sorted array + target sum = two pointers from the ends**, O(n) and O(1) memory.\n- Each comparison eliminates one end: the excluded item can't pair with anything left.\n- Unsorted input → hash map (or sort first, but then track original positions)."
+   "md": "- **Pair sum on a sorted array:** two pointers, O(n) time, O(1) memory.\n- **Unsorted:** a hash map of complements, O(n) memory.\n- **Pitfall:** 32-bit overflow when adding two large values."
   }
  ]
 }

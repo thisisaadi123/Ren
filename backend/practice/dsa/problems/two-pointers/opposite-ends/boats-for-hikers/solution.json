@@ -4,27 +4,48 @@
  "question": [
   {
    "md": "Each boat carries at most **two** hikers with total weight at most `limit`. Everyone weighs at most `limit`.\nReturn the fewest boats.\n\n- **Two per boat at most**, even if three light hikers would fit by weight.\n- **Up to 10⁵ hikers.**"
+  },
+  {
+   "md": "**Edge cases to keep in mind**\n\n- One hiker: one boat.\n- Everyone can pair: `n / 2` boats (rounded up).\n- Nobody can pair: `n` boats.\n- A boat holds at most **two** hikers, even if three would fit by weight."
   }
  ],
  "think": [
   {
-   "md": "Weights `[70, 50, 80, 50, 30, 90]`, limit 100. Sorted: `[30, 50, 50, 70, 80, 90]`. Trips: 90, 80, 70+30, 50+50: **4** boats.\n\nThe heaviest hiker is the hardest to pair. If the lightest hiker can join them, pairing those two is never\nworse than any other plan (swap partners in any optimal plan and it stays valid). If the lightest can't join,\nnobody can, so the heaviest rides alone. Either way, decide the heaviest and repeat."
+   "md": "**Restating it.** Split the hikers into groups of one or two, with every pair's total at most `limit`, using as\nfew groups as possible. Fewest boats = most pairs.\n\n**Start with the heaviest hiker.** They need a boat anyway. Their best partner is the **lightest** hiker:\n\n- If even the lightest doesn't fit with them, nobody does, so the heaviest goes alone.\n- If the lightest fits, pairing them is never worse. Take any optimal plan: if the heaviest is paired with\n  someone else (or alone), swap partners with the lightest. Every boat still fits, because the lightest is no\n  heavier than whoever they swapped with, and the number of boats doesn't increase.\n\nAfter that decision, the same reasoning applies to the remaining hikers. Sorted weights `[30, 50, 50, 70, 80, 90]`:"
   },
   {
-   "panels": [
-    {
-     "type": "row",
-     "cells": [
-      30,
-      50,
-      50,
-      70,
-      80,
-      90
+   "table": {
+    "head": [
+     "heaviest left",
+     "lightest left",
+     "decision"
+    ],
+    "rows": [
+     [
+      "90",
+      "—",
+      "90 + 30 = 120 > 100: alone"
      ],
-     "label": "sorted weights"
-    }
-   ]
+     [
+      "80",
+      "—",
+      "80 + 30 = 110 > 100: alone"
+     ],
+     [
+      "70",
+      "30",
+      "70 + 30 = 100 ≤ 100: together"
+     ],
+     [
+      "50",
+      "50",
+      "50 + 50 = 100 ≤ 100: together"
+     ]
+    ]
+   }
+  },
+  {
+   "md": "Boats: **4**."
   }
  ],
  "approaches": [
@@ -35,12 +56,13 @@
    "space": "O(n)",
    "idea": [
     {
-     "md": "Sort descending. Repeatedly take the heaviest remaining hiker and scan the rest for the heaviest partner who still fits; remove both (or just the one)."
+     "md": "Sort heaviest first. For each hiker not yet seated, start a boat and look for the **heaviest** remaining\nhiker who still fits as a partner. This greedy also gives the optimum (it's the same exchange argument in\nanother form), but searching for the partner is a linear scan."
     }
    ],
    "build": [
-    "Sort descending; mark taken hikers.",
-    "For each untaken hiker, scan forward for the first untaken partner that fits.",
+    "Sort descending.",
+    "For each unseated hiker, open a boat.",
+    "Scan for the heaviest partner who fits.",
     "Count boats."
    ],
    "code": {
@@ -51,7 +73,7 @@
    },
    "lines": [
     {
-     "text": "Heaviest first, with a mark for hikers already on a boat.",
+     "text": "Heaviest first, so the hardest hikers are placed first.",
      "at": {
       "python": [
        [
@@ -88,7 +110,7 @@
      }
     },
     {
-     "text": "The heaviest hiker still waiting gets a new boat.",
+     "text": "This hiker isn't seated yet: they get a new boat.",
      "at": {
       "python": [
        [
@@ -117,7 +139,7 @@
      }
     },
     {
-     "text": "The heaviest waiting hiker who still fits joins them.",
+     "text": "Seat the heaviest unseated hiker who still fits with them, if any.",
      "at": {
       "python": [
        [
@@ -146,7 +168,7 @@
      }
     },
     {
-     "text": "Boats used.",
+     "text": "The number of boats.",
      "at": {
       "python": [
        [
@@ -177,7 +199,7 @@
    ],
    "complexity": [
     {
-     "md": "**Time O(n²)** for the partner scans. **Space O(n).**"
+     "md": "**Time O(n²)** for the partner searches. **Space O(n)** for the seated flags."
     }
    ],
    "walk": {
@@ -272,7 +294,7 @@
    },
    "limits": [
     {
-     "md": "The partner scan is wasted effort: if any partner fits the heaviest hiker, the lightest one does, and pairing with the lightest is just as good. That makes it two pointers."
+     "md": "The partner search rescans the list. Since the lightest hiker is always the best partner to test, two pointers on the sorted list answer it in O(1)."
     }
    ],
    "slow": true
@@ -284,13 +306,14 @@
    "space": "O(n)",
    "idea": [
     {
-     "md": "Sort ascending; `i` at the lightest, `j` at the heaviest. Each boat takes hiker `j`, plus hiker `i` if `a[i] + a[j] ≤ limit`. Move the pointers and count."
+     "md": "Sort ascending. `i` points at the lightest unseated hiker and `j` at the heaviest. Each step fills one\nboat: the heaviest always goes; the lightest joins if the two fit together.\n\n**Invariant.** Hikers outside `[i, j]` are seated optimally, and an optimal plan for the rest exists that\ndoesn't touch them (exchange argument above)."
     }
    ],
    "build": [
-    "Sort.",
-    "While `i ≤ j`: if the pair fits, `i += 1`; always `j −= 1`; count a boat.",
-    "Return the count."
+    "Sort ascending.",
+    "Pointers at the lightest and heaviest.",
+    "Heaviest goes every step; the lightest joins if they fit.",
+    "One boat per step."
    ],
    "code": {
     "python": "class Solution:\n    def fewestBoats(self, weights: List[int], limit: int) -> int:\n        a = sorted(weights)\n        i, j, boats = 0, len(a) - 1, 0\n        while i <= j:\n            if a[i] + a[j] <= limit:\n                i += 1\n            j -= 1\n            boats += 1\n        return boats\n",
@@ -300,7 +323,7 @@
    },
    "lines": [
     {
-     "text": "Lightest to heaviest.",
+     "text": "Light to heavy, so both extremes are at the ends.",
      "at": {
       "python": [
        [
@@ -333,7 +356,7 @@
      }
     },
     {
-     "text": "`i` at the lightest waiting hiker, `j` at the heaviest.",
+     "text": "Lightest and heaviest unseated hikers, and the boat count.",
      "at": {
       "python": [
        [
@@ -362,7 +385,7 @@
      }
     },
     {
-     "text": "While anyone is waiting (`i == j` is a single last hiker).",
+     "text": "While someone is still on shore. `i == j` is the last hiker, who goes alone.",
      "at": {
       "python": [
        [
@@ -391,7 +414,7 @@
      }
     },
     {
-     "text": "If the lightest fits with the heaviest, they share. (When `i == j`, this just moves `i` past the same hiker, which is harmless.)",
+     "text": "If the lightest fits with the heaviest, they share this boat.",
      "at": {
       "python": [
        [
@@ -449,7 +472,7 @@
      }
     },
     {
-     "text": "Boats used.",
+     "text": "One boat per step.",
      "at": {
       "python": [
        [
@@ -480,7 +503,7 @@
    ],
    "complexity": [
     {
-     "md": "**Time O(n log n)** for the sort; the pairing pass is O(n). **Space O(n)** for the sorted copy."
+     "md": "**Time O(n log n)** for the sort; the pairing pass is O(n). **Space O(1)** besides the sort (O(n) for the copy in Python)."
     }
    ],
    "walk": {
@@ -615,7 +638,7 @@
  ],
  "takeaways": [
   {
-   "md": "- **Pairing greedy:** the hardest item (heaviest) takes the most accommodating partner (lightest), or goes alone.\n- Sorting turns \"find the best partner\" into moving two pointers.\n- Exchange arguments justify greedy pairings: swapping partners in any optimal plan never makes it worse."
+   "md": "- **Pairing to minimise groups:** sort, then try heaviest with lightest.\n- Justify greedy choices with an **exchange argument**: swap into any optimal plan without making it worse.\n- **Pitfall:** pairing heaviest with the heaviest that fits is fine but slow; with the lightest it's O(1)."
   }
  ]
 }

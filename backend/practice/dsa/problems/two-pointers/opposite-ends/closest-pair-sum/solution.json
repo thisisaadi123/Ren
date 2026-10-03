@@ -4,39 +4,80 @@
  "question": [
   {
    "md": "Return the sum of two different elements that is closest to `target`; on a tie, the smaller sum.\n\n- **Values up to ±10⁹ and target up to ±2 × 10⁹**: distances need 64-bit arithmetic.\n- **Up to 10⁵ elements.**"
+  },
+  {
+   "md": "**Edge cases to keep in mind**\n\n- Ties: if two sums are equally close, return the **smaller** sum.\n- An exact match can stop the search immediately.\n- Values and target are large: sums and distances need 64 bits."
   }
  ],
  "think": [
   {
-   "md": "`[8, -4, 15, 3, -9, 6]`, target 5. The closest sums are [4, 6, 2]…, so the answer is **4**.\n\nAfter sorting, look at the smallest and largest values. If their sum is below the target, the smallest value\npaired with anything else would be even smaller, so it has no better pairing left: move past it. Symmetrically\nfor a sum above the target. Every pair that could be the closest is still visited."
+   "md": "**Restating it.** Among all pairs, the sum with the smallest distance to `target`, preferring the smaller sum on\nties."
   },
   {
-   "panels": [
-    {
-     "type": "row",
-     "cells": [
-      8,
-      -4,
-      15,
-      3,
-      -9,
-      6
+   "md": "**Why moving inward is safe: every step rules out a whole row of pairs.** Picture all pairs `(i, j)` with `i < j`\nas a triangle. With the pointers at the two ends we look at one pair, and the comparison proves that one of its two\nelements **can't be part of a better answer with any partner still between the pointers**. So we drop that element:\na whole row (or column) of the triangle disappears in O(1). After at most `n − 1` steps every pair has been either\nchecked or ruled out, which is why one pass is enough."
+  },
+  {
+   "md": "**Which side is finished?** After sorting, with `s = a[i] + a[j]`:\n\n- `s < target`: every other partner of `a[i]` between the pointers is at most `a[j]`, so those sums are at most\n  `s`: even further below the target (or equal to `s`). `a[i]` has nothing better left; drop it.\n- `s > target`: symmetric, drop `a[j]`.\n- `s = target`: distance 0 can't be beaten."
+  },
+  {
+   "md": "**Trace for target 5** on sorted `[-9, -4, 3, 6, 8, 15]`:"
+  },
+  {
+   "table": {
+    "head": [
+     "i",
+     "j",
+     "sum",
+     "distance",
+     "best so far",
+     "decision"
+    ],
+    "rows": [
+     [
+      "0",
+      "5",
+      "-9 + 15 = 6",
+      "1",
+      "6",
+      "above target: drop 15"
      ],
-     "label": "nums"
-    },
-    {
-     "type": "row",
-     "cells": [
-      -9,
-      -4,
-      3,
-      6,
-      8,
-      15
+     [
+      "0",
+      "4",
+      "-9 + 8 = -1",
+      "6",
+      "6",
+      "below target: drop -9"
      ],
-     "label": "sorted"
-    }
-   ]
+     [
+      "1",
+      "4",
+      "-4 + 8 = 4",
+      "1",
+      "4",
+      "below target: drop -4"
+     ],
+     [
+      "2",
+      "4",
+      "3 + 8 = 11",
+      "6",
+      "4",
+      "above target: drop 8"
+     ],
+     [
+      "2",
+      "3",
+      "3 + 6 = 9",
+      "4",
+      "4",
+      "above target: drop 6"
+     ]
+    ]
+   }
+  },
+  {
+   "md": "Answer **4**."
   }
  ],
  "approaches": [
@@ -47,12 +88,13 @@
    "space": "O(1)",
    "idea": [
     {
-     "md": "Check every pair, keeping the best by (distance, sum)."
+     "md": "Check every pair and keep the sum that's closest, using `(distance, sum)` as the comparison key so ties prefer the smaller sum."
     }
    ],
    "build": [
-    "Double loop.",
-    "Compare (|s − target|, s) with the best."
+    "Two nested loops.",
+    "Compare by `(distance, sum)`.",
+    "Keep the best."
    ],
    "code": {
     "python": "class Solution:\n    def closestPairSum(self, nums: List[int], target: int) -> int:\n        best = None\n        for i in range(len(nums)):\n            for j in range(i + 1, len(nums)):\n                s = nums[i] + nums[j]\n                if best is None or (abs(s - target), s) < (abs(best - target), best):\n                    best = s\n        return best\n",
@@ -62,7 +104,7 @@
    },
    "lines": [
     {
-     "text": "No pair yet.",
+     "text": "No pair seen yet.",
      "at": {
       "python": [
        [
@@ -96,7 +138,7 @@
      }
     },
     {
-     "text": "Every pair.",
+     "text": "Every pair of different positions.",
      "at": {
       "python": [
        [
@@ -125,7 +167,7 @@
      }
     },
     {
-     "text": "Closer wins; on equal distance, the smaller sum. 64-bit so `s − target` can't overflow.",
+     "text": "Closer to the target wins; on equal distance, the smaller sum wins. Java and C compute in 64 bits.",
      "at": {
       "python": [
        [
@@ -154,7 +196,7 @@
      }
     },
     {
-     "text": "A sum of two values within ±10⁹ fits in an `int`, so the answer can be returned as one.",
+     "text": "The best sum.",
      "at": {
       "python": [
        [
@@ -350,7 +392,7 @@
    },
    "limits": [
     {
-     "md": "5 × 10⁹ pairs for 10⁵ values. After sorting, two pointers visit only O(n) candidate pairs, and the skipped ones are provably no closer."
+     "md": "Quadratic. After sorting, each comparison with the target rules out one element entirely."
     }
    ],
    "slow": true
@@ -362,13 +404,14 @@
    "space": "O(n)",
    "idea": [
     {
-     "md": "Sort. `i = 0`, `j = n − 1`. Compute `s`, update the best; if `s < target` move `i` right, if `s > target` move `j` left, if equal return `s`."
+     "md": "Sort, then squeeze from both ends: record each pair's sum if it's better, then move `i` right when the sum\nis below the target, `j` left when above, and stop on an exact hit.\n\n**Invariant.** The best pair is either already recorded or lies between the pointers, because every\ndropped element had no better partner left (argument above)."
     }
    ],
    "build": [
     "Sort a copy.",
-    "Two pointers; update best by (distance, sum).",
-    "Move toward the target."
+    "Pointers at both ends.",
+    "Record if better, then move toward the target.",
+    "Stop on exact."
    ],
    "code": {
     "python": "class Solution:\n    def closestPairSum(self, nums: List[int], target: int) -> int:\n        a = sorted(nums)\n        i, j, best = 0, len(a) - 1, None\n        while i < j:\n            s = a[i] + a[j]\n            if best is None or (abs(s - target), s) < (abs(best - target), best):\n                best = s\n            if s < target:\n                i += 1\n            elif s > target:\n                j -= 1\n            else:\n                return s\n        return best\n",
@@ -378,7 +421,7 @@
    },
    "lines": [
     {
-     "text": "Sort a copy.",
+     "text": "Sorting puts the smallest and largest values at the ends.",
      "at": {
       "python": [
        [
@@ -440,7 +483,7 @@
      }
     },
     {
-     "text": "The current pair's sum, in 64 bits.",
+     "text": "While two different elements remain.",
      "at": {
       "python": [
        [
@@ -469,7 +512,7 @@
      }
     },
     {
-     "text": "Keep it if closer, or equally close and smaller.",
+     "text": "Keep this sum if it's closer, or equally close and smaller.",
      "at": {
       "python": [
        [
@@ -498,7 +541,7 @@
      }
     },
     {
-     "text": "Below the target, `a[i]` has no closer partner left (all are ≤ `a[j]`): drop it. Above, drop `a[j]`. Exact hits can't be beaten.",
+     "text": "Below the target, the small end can't do better: move it right. Above, move the large end left. An exact hit can't be beaten.",
      "at": {
       "python": [
        [
@@ -558,7 +601,7 @@
    ],
    "complexity": [
     {
-     "md": "**Time O(n log n)** for the sort; the squeeze is O(n). **Space O(n)** for the copy."
+     "md": "**Time O(n log n)** for the sort, O(n) for the squeeze. **Space O(n)** for the sorted copy."
     }
    ],
    "walk": {
@@ -741,7 +784,7 @@
  ],
  "takeaways": [
   {
-   "md": "- **Closest pair sum = sort + squeeze**; the moving rule is the same as for an exact target.\n- Track ties explicitly (here: smaller sum wins).\n- Compute differences in 64 bits when values and targets are near the 32-bit limit."
+   "md": "- **Closest pair sum:** sort, squeeze toward the target, record on every step.\n- Express tie rules as a tuple key `(distance, value)`.\n- **Pitfall:** stopping as soon as the distance grows; it can shrink again later."
   }
  ]
 }
