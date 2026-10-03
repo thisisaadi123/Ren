@@ -4,41 +4,66 @@
  "question": [
   {
    "md": "Sort `readings` without the built-in sort. Most readings repeat a handful of values.\n\n- **Up to 10⁵ readings**, possibly all equal.\n- The statement warns that a quick sort which ignores repeats becomes very slow."
+  },
+  {
+   "md": "**Edge cases to keep in mind**\n\n- All readings equal: a two-way quick sort degrades to O(n²) and n-deep recursion.\n- Only a few distinct values: most of the work should be skipped.\n- The built-in sort isn't allowed."
   }
  ],
  "think": [
   {
-   "md": "Readings `[5, 3, 5, 1, 5, 3, 5]`, sorted `[1, 3, 3, 5, 5, 5, 5]`.\n\nOrdinary (two-way) partitioning puts values equal to the pivot on one side. If all values are equal, every\npartition peels off just the pivot itself: n levels of n work, O(n²), and recursion n deep.\n\nThe fix is to treat \"equal to the pivot\" as its own group. After a three-way partition, the equal block is in\nits final place and never touched again. With all-equal input, one pass finishes everything."
+   "md": "**Why O(n log n) sorts work.** Insertion sort places each value by scanning a sorted prefix: up to `n` steps per value,\nO(n²) total. The O(n log n) sorts **divide** the problem:\n\n- **Merge sort** splits the array in half, sorts each half, and merges two sorted halves in linear time. There are\n  `log₂ n` levels of halving and each level does O(n) merging: O(n log n), always. It's **stable** (equal values keep\n  their order) but needs an O(n) buffer for arrays.\n- **Quick sort** picks a pivot, partitions the values into \"smaller\" and \"larger\" around it, then sorts both sides. With\n  a random pivot the split is balanced on average: O(n log n) expected, in place, but O(n²) if pivots keep being\n  extreme, and not stable."
   },
   {
-   "panels": [
-    {
-     "type": "row",
-     "cells": [
-      5,
-      3,
-      5,
-      1,
-      5,
-      3,
-      5
+   "md": "**What goes wrong with repeats.** Two-way partitioning puts values equal to the pivot on one side. When almost\neverything equals the pivot, each partition removes only the pivot itself: `n` levels of O(n) work.\n\n**Three-way partitioning.** Split into `< pivot | = pivot | > pivot`. The middle block is already in its final\nplace and is never touched again, so a value repeated many times is handled in one pass. The loop is the Dutch\nnational flag: `lt` ends the \"less\" zone, `i` scans, `gt` starts the \"greater\" zone."
+  },
+  {
+   "md": "**Partitioning `[5, 3, 5, 1, 5, 3, 5]` around pivot 5:**"
+  },
+  {
+   "table": {
+    "head": [
+     "value at i",
+     "action",
+     "zones after"
+    ],
+    "rows": [
+     [
+      "5",
+      "5 = 5: stays in the 'equal' zone",
+      "less [] | equal [5] | ? [3, 5, 1, 5, 3, 5] | greater []"
      ],
-     "label": "readings"
-    },
-    {
-     "type": "row",
-     "cells": [
-      1,
-      3,
-      3,
-      5,
-      5,
-      5,
-      5
+     [
+      "3",
+      "3 < 5: swap into the 'less' zone",
+      "less [3] | equal [5] | ? [5, 1, 5, 3, 5] | greater []"
      ],
-     "label": "sorted"
-    }
-   ]
+     [
+      "5",
+      "5 = 5: stays in the 'equal' zone",
+      "less [3] | equal [5, 5] | ? [1, 5, 3, 5] | greater []"
+     ],
+     [
+      "1",
+      "1 < 5: swap into the 'less' zone",
+      "less [3, 1] | equal [5, 5] | ? [5, 3, 5] | greater []"
+     ],
+     [
+      "5",
+      "5 = 5: stays in the 'equal' zone",
+      "less [3, 1] | equal [5, 5, 5] | ? [3, 5] | greater []"
+     ],
+     [
+      "3",
+      "3 < 5: swap into the 'less' zone",
+      "less [3, 1, 3] | equal [5, 5, 5] | ? [5] | greater []"
+     ],
+     [
+      "5",
+      "5 = 5: stays in the 'equal' zone",
+      "less [3, 1, 3] | equal [5, 5, 5, 5] | ? [] | greater []"
+     ]
+    ]
+   }
   }
  ],
  "approaches": [
@@ -49,12 +74,12 @@
    "space": "O(n) recursion",
    "idea": [
     {
-     "md": "Classic quick sort: random pivot, values strictly smaller go left, the rest go right, recurse on both sides."
+     "md": "Quick sort with a random pivot and two-way partitioning (`< pivot` on the left, everything else on the right)."
     }
    ],
    "build": [
-    "Random pivot swapped to the end.",
-    "Partition by `< pivot`.",
+    "Random pivot.",
+    "Two-way partition.",
     "Recurse on both sides."
    ],
    "code": {
@@ -220,7 +245,7 @@
    ],
    "complexity": [
     {
-     "md": "**Time O(n²)** when values repeat heavily (all-equal input peels one element per level). **Space O(n)** recursion depth in that case."
+     "md": "**Time O(n²)** when most values are equal (each partition peels off one value). **Space O(n)** recursion in that case."
     }
    ],
    "walk": {
@@ -326,7 +351,7 @@
    },
    "limits": [
     {
-     "md": "Repeats defeat it: 10⁵ equal readings mean ~5 × 10⁹ comparisons and 10⁵-deep recursion. Grouping the pivot's copies in the middle removes them all at once."
+     "md": "Equal values keep landing on the same side. Grouping them into their own block removes them from further work."
     }
    ],
    "slow": true
@@ -338,13 +363,14 @@
    "space": "O(log n) expected",
    "idea": [
     {
-     "md": "Partition `a[lo..hi]` around a random pivot value `p` with three pointers: `a[lo..lt-1] < p`, `a[lt..i-1] = p`, `a[gt+1..hi] > p`, and `i..gt` unseen. Then recurse only on the `< p` and `> p` parts."
+     "md": "Three-way quick sort with an explicit stack: partition `[lo, hi]` into `< p`, `= p`, `> p` with `lt`, `i`,\n`gt`, then push only `[lo, lt − 1]` and `[gt + 1, hi]`.\n\n**Why it's fast with repeats.** With `d` distinct values, each value becomes the pivot's equal block once,\nso the work is about O(n log d) expected."
     }
    ],
    "build": [
-    "Pick `p` at random; `lt = i = lo`, `gt = hi`.",
-    "While `i ≤ gt`: smaller → swap to `lt`, advance both; bigger → swap with `gt`, shrink `gt`; equal → advance `i`.",
-    "Recurse on `[lo, lt-1]` and `[gt+1, hi]`."
+    "Stack of ranges.",
+    "Random pivot value.",
+    "Dutch-flag partition.",
+    "Push the less and greater ranges only."
    ],
    "code": {
     "python": "import random\n\nclass Solution:\n    def sortReadings(self, readings: List[int]) -> List[int]:\n        a = readings[:]\n        stack = [(0, len(a) - 1)]\n        while stack:\n            lo, hi = stack.pop()\n            if lo >= hi:\n                continue\n            p = a[random.randint(lo, hi)]\n            lt, i, gt = lo, lo, hi\n            while i <= gt:\n                if a[i] < p:\n                    a[lt], a[i] = a[i], a[lt]\n                    lt += 1\n                    i += 1\n                elif a[i] > p:\n                    a[i], a[gt] = a[gt], a[i]\n                    gt -= 1\n                else:\n                    i += 1\n            stack.append((lo, lt - 1))\n            stack.append((gt + 1, hi))\n        return a\n",
@@ -541,7 +567,7 @@
    ],
    "complexity": [
     {
-     "md": "**Time O(n log n) expected**; with only d distinct values it's closer to O(n log d), since each pass removes a whole value. **Space O(log n)** expected for the pending ranges."
+     "md": "**Time O(n log n)** expected, O(n log d) with `d` distinct values. **Space O(log n)** expected stack."
     }
    ],
    "walk": {
@@ -783,7 +809,7 @@
  ],
  "takeaways": [
   {
-   "md": "- **Many duplicates → three-way partition** (the \"Dutch national flag\" split): `< p | = p | > p`.\n- Two-way partitioning degrades to O(n²) on equal keys, which is a classic interview trap.\n- The same three-pointer partition sorts an array of only 0s, 1s and 2s in one pass."
+   "md": "- **Many duplicates → three-way partition** (`<`, `=`, `>`).\n- The equal block is final and skipped from then on.\n- **Pitfall:** advancing `i` after swapping with `gt` (the arriving value is unexamined)."
   }
  ]
 }

@@ -4,39 +4,46 @@
  "question": [
   {
    "md": "Sort up to 10⁵ integers (negative ones included) from lowest to highest, **without** the language's built-in\nsort.\n\n- **Duplicates** are allowed and must all be kept.\n- **10⁵ values** rule out O(n²) sorts: that's up to 10¹⁰ steps."
+  },
+  {
+   "md": "**Edge cases to keep in mind**\n\n- One score: already sorted.\n- Repeated scores, and already sorted or reverse-sorted input (worst cases for a careless quick sort).\n- The built-in sort isn't allowed: write merge sort or quick sort."
   }
  ],
  "think": [
   {
-   "md": "Take `[42, -7, 15, 42, 0, 9]`. Sorted: `[-7, 0, 9, 15, 42, 42]`.\n\nThe simple idea (insert each value into a sorted prefix) costs up to n steps per value. To do better, use the\nfact that **merging two sorted lists is cheap**: compare their fronts and take the smaller, n steps for n\nvalues. If we can get two sorted halves, one merge finishes the job; and each half can be sorted the same way."
+   "md": "**Why O(n log n) sorts work.** Insertion sort places each value by scanning a sorted prefix: up to `n` steps per value,\nO(n²) total. The O(n log n) sorts **divide** the problem:\n\n- **Merge sort** splits the array in half, sorts each half, and merges two sorted halves in linear time. There are\n  `log₂ n` levels of halving and each level does O(n) merging: O(n log n), always. It's **stable** (equal values keep\n  their order) but needs an O(n) buffer for arrays.\n- **Quick sort** picks a pivot, partitions the values into \"smaller\" and \"larger\" around it, then sorts both sides. With\n  a random pivot the split is balanced on average: O(n log n) expected, in place, but O(n²) if pivots keep being\n  extreme, and not stable."
   },
   {
-   "panels": [
-    {
-     "type": "row",
-     "cells": [
-      42,
-      -7,
-      15,
-      42,
-      0,
-      9
+   "md": "**Merge sort on `[42, -7, 15, 42, 0, 9]`, bottom-up view** (each level merges neighbouring sorted runs):"
+  },
+  {
+   "table": {
+    "head": [
+     "stage",
+     "runs"
+    ],
+    "rows": [
+     [
+      "start",
+      "42 | -7 | 15 | 42 | 0 | 9"
      ],
-     "label": "scores"
-    },
-    {
-     "type": "row",
-     "cells": [
-      -7,
-      0,
-      9,
-      15,
-      42,
-      42
+     [
+      "after merge level 1",
+      "-7 42 | 15 42 | 0 9"
      ],
-     "label": "sorted"
-    }
-   ]
+     [
+      "after merge level 2",
+      "-7 15 42 42 | 0 9"
+     ],
+     [
+      "after merge level 3",
+      "-7 0 9 15 42 42"
+     ]
+    ]
+   }
+  },
+  {
+   "md": "**Quick sort's partition step**, with pivot 9: values smaller than the pivot go left, the rest go right, and\nthe pivot lands between them in its final position: `[-7, 0]` · `[9]` · `[42, 15, 42]`. Each side is then sorted the\nsame way."
   }
  ],
  "approaches": [
@@ -47,13 +54,12 @@
    "space": "O(n)",
    "idea": [
     {
-     "md": "Keep the first `i` values sorted. Take value `i`, shift every bigger value in the prefix one place right, and drop it into the gap."
+     "md": "Insertion sort: grow a sorted prefix, inserting each new value by shifting larger values one place right."
     }
    ],
    "build": [
-    "Copy the input.",
-    "For each `i ≥ 1`, hold `x = a[i]` and walk `j` left while `a[j] > x`, shifting.",
-    "Put `x` at `j + 1`."
+    "For each value, shift larger values in the prefix right.",
+    "Drop the value into the gap."
    ],
    "code": {
     "python": "class Solution:\n    def sortScores(self, scores: List[int]) -> List[int]:\n        a = scores[:]\n        for i in range(1, len(a)):\n            x, j = a[i], i - 1\n            while j >= 0 and a[j] > x:\n                a[j + 1] = a[j]\n                j -= 1\n            a[j + 1] = x\n        return a\n",
@@ -210,7 +216,7 @@
    ],
    "complexity": [
     {
-     "md": "**Time O(n²)** in the worst case (a reversed array shifts everything every time), O(n) if already sorted. **Space O(n)** for the copy."
+     "md": "**Time O(n²)** in the worst case (reverse-sorted input). **Space O(1).**"
     }
    ],
    "walk": {
@@ -354,7 +360,7 @@
    },
    "limits": [
     {
-     "md": "Up to 5 × 10⁹ shifts for 10⁵ scores. Sorting halves and merging them avoids comparing values that are far apart one by one."
+     "md": "Each insertion can scan the whole prefix. Dividing the array into halves gives O(n log n)."
     }
    ],
    "slow": true
@@ -366,14 +372,14 @@
    "space": "O(log n) expected",
    "idea": [
     {
-     "md": "Pick a random pivot, partition so smaller values come first and the pivot sits in its final place, then quick-sort the two sides. A random pivot splits the range reasonably evenly on average."
+     "md": "Pick a random pivot, swap it to the end, and partition: one pointer `i` marks the end of the \"smaller than\npivot\" region while `j` scans. Swap the pivot into position `i`; it's now in its final place. Recurse on\nboth sides.\n\n**Why random.** A fixed pivot (say the last element) splits sorted input into sizes `n − 1` and 0 every\ntime: O(n²). A random pivot makes such bad splits unlikely, giving O(n log n) expected."
     }
    ],
    "build": [
-    "Recursive `sort(lo, hi)`: stop when the range has fewer than 2 values.",
-    "Swap a random element to `hi` as the pivot.",
-    "Partition: walk `j` over the range, moving values smaller than the pivot to the front.",
-    "Put the pivot after them and recurse on both sides."
+    "Random pivot to the end.",
+    "Partition with a write pointer.",
+    "Place the pivot.",
+    "Recurse on both sides."
    ],
    "code": {
     "python": "import random\n\nclass Solution:\n    def sortScores(self, scores: List[int]) -> List[int]:\n        a = scores[:]\n        def sort(lo, hi):\n            if lo >= hi:\n                return\n            r = random.randint(lo, hi)\n            a[r], a[hi] = a[hi], a[r]\n            p, i = a[hi], lo\n            for j in range(lo, hi):\n                if a[j] < p:\n                    a[i], a[j] = a[j], a[i]\n                    i += 1\n            a[i], a[hi] = a[hi], a[i]\n            sort(lo, i - 1)\n            sort(i + 1, hi)\n        sort(0, len(a) - 1)\n        return a\n",
@@ -596,7 +602,7 @@
    ],
    "complexity": [
     {
-     "md": "**Time O(n log n) expected**, O(n²) in the unlucky worst case. **Space O(log n)** expected for the recursion."
+     "md": "**Time O(n log n)** expected, O(n²) worst case. **Space O(log n)** expected recursion depth."
     }
    ],
    "walk": {
@@ -696,7 +702,7 @@
    },
    "limits": [
     {
-     "md": "Only fast on average: an unlucky run of pivots (or many equal values, which all land on one side) degrades it to O(n²) with deep recursion. Merge sort guarantees O(n log n) on every input."
+     "md": "Its guarantee is only in expectation, and it isn't stable. Merge sort is O(n log n) on every input."
     }
    ]
   },
@@ -707,13 +713,13 @@
    "space": "O(n)",
    "idea": [
     {
-     "md": "Sort the left half and the right half (recursively), then merge them: compare the two front values, take the smaller (the left one on ties, which keeps equal values in order), and repeat until both halves are used up."
+     "md": "Recursively sort the left half and the right half, then merge them into a buffer by repeatedly taking the\nsmaller front value (the left one on ties, which keeps the sort stable), and copy back.\n\n**Recurrence.** `T(n) = 2·T(n/2) + O(n)`: `log₂ n` levels, each doing O(n) total work, so O(n log n)."
     }
    ],
    "build": [
-    "`sort(lo, hi)` on a half-open range; stop at length 1.",
-    "Sort `[lo, mid)` and `[mid, hi)`.",
-    "Merge into a buffer with two pointers, then copy the buffer back."
+    "Split at the middle.",
+    "Sort both halves recursively.",
+    "Merge into a buffer, then copy back."
    ],
    "code": {
     "python": "class Solution:\n    def sortScores(self, scores: List[int]) -> List[int]:\n        a = scores[:]\n        buf = [0] * len(a)\n        def sort(lo, hi):\n            if hi - lo <= 1:\n                return\n            mid = (lo + hi) // 2\n            sort(lo, mid)\n            sort(mid, hi)\n            i, j, k = lo, mid, lo\n            while i < mid and j < hi:\n                if a[i] <= a[j]:\n                    buf[k] = a[i]; i += 1\n                else:\n                    buf[k] = a[j]; j += 1\n                k += 1\n            buf[k:k + mid - i] = a[i:mid]\n            k += mid - i\n            buf[k:k + hi - j] = a[j:hi]\n            a[lo:hi] = buf[lo:hi]\n        sort(0, len(a))\n        return a\n",
@@ -928,7 +934,7 @@
    ],
    "complexity": [
     {
-     "md": "**Time O(n log n)** on every input: log n levels of halving, O(n) merging per level. **Space O(n)** for the buffer, plus O(log n) recursion."
+     "md": "**Time O(n log n)** on every input. **Space O(n)** for the buffer plus O(log n) recursion."
     }
    ],
    "walk": {
@@ -1067,7 +1073,7 @@
  ],
  "takeaways": [
   {
-   "md": "- **Merge sort** guarantees O(n log n) and is stable; **quick sort** is in place and fast on average, but only with\n  a good pivot.\n- Merging two sorted lists takes linear time: that's the heart of many problems (counting inversions, sorting\n  linked lists, k-way merges).\n- Know when a quadratic sort is fine (tiny or nearly sorted inputs) and when it isn't."
+   "md": "- **Merge sort:** guaranteed O(n log n), stable, O(n) extra space.\n- **Quick sort:** in place and fast in practice; randomise the pivot to avoid O(n²).\n- **Pitfall:** a fixed pivot on sorted input; forgetting to copy the merged buffer back."
   }
  ]
 }
