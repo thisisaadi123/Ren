@@ -4,29 +4,78 @@
  "question": [
   {
    "md": "For every window of `k` consecutive `items`, return the number of different values in it.\n\n- **n up to 10⁵**, values up to 10⁹."
+  },
+  {
+   "md": "**Edge cases to keep in mind**\n\n- `k = 1`: every answer is 1.\n- `k = n`: a single answer, the number of distinct values overall.\n- Values up to 10⁹: hash map or compression, not a direct array."
   }
  ],
  "think": [
   {
-   "md": "`items = [4, 1, 4, 4, 7, 1, 7, 2]`, `k = 3` → **[2, 2, 2, 3, 2, 3]**.\n\nRecomputing each window's distinct count is O(k). But one slide changes just two items, and the distinct count\nonly changes when an item's count crosses zero, so keeping counts makes each step O(1)."
+   "md": "**What changes per slide.** One item enters and one leaves, and the number of distinct types changes only if\nthe entering type wasn't in the window or the leaving item was the last of its type."
   },
   {
-   "panels": [
-    {
-     "type": "row",
-     "cells": [
-      4,
-      1,
-      4,
-      4,
-      7,
-      1,
-      7,
-      2
+   "md": "**Maintaining a summary in O(1).** Recomputing \"how many distinct values\" or \"is anything repeated\" from the whole\nwindow costs O(k). Instead keep a count per value plus one summary number, and change the summary only when a count\n**crosses a threshold**:\n\n- distinct values change when a count goes 0 → 1 (one more) or 1 → 0 (one fewer);\n- repeated values change when a count goes 1 → 2 (one more duplicate) or 2 → 1 (one fewer).\n\nEvery other change to a count leaves the summary alone. One value enters and one leaves per slide, so the summary is\nupdated in O(1)."
+  },
+  {
+   "md": "**Trace** for `items = [4, 1, 4, 4, 7, 1, 7, 2]`, `k = 3`:"
+  },
+  {
+   "table": {
+    "head": [
+     "window start",
+     "window",
+     "entered",
+     "left",
+     "distinct"
+    ],
+    "rows": [
+     [
+      "0",
+      "4 1 4",
+      "4 (already present)",
+      "—",
+      "2"
      ],
-     "label": "items"
-    }
-   ]
+     [
+      "1",
+      "1 4 4",
+      "4 (already present)",
+      "4 (still present)",
+      "2"
+     ],
+     [
+      "2",
+      "4 4 7",
+      "7 (new)",
+      "1 (gone)",
+      "2"
+     ],
+     [
+      "3",
+      "4 7 1",
+      "1 (new)",
+      "4 (still present)",
+      "3"
+     ],
+     [
+      "4",
+      "7 1 7",
+      "7 (already present)",
+      "4 (gone)",
+      "2"
+     ],
+     [
+      "5",
+      "1 7 2",
+      "2 (new)",
+      "7 (still present)",
+      "3"
+     ]
+    ]
+   }
+  },
+  {
+   "md": "**Order of operations.** Add the entering item first and remove the leaving one second (or the reverse); both give\nthe right count, as long as each update adjusts `distinct` on its own 0 ↔ 1 crossing."
   }
  ],
  "approaches": [
@@ -37,7 +86,7 @@
    "space": "O(k)",
    "idea": [
     {
-     "md": "For each window, build a set and record its size."
+     "md": "For each window, build a set and take its size. O(k) per window."
     }
    ],
    "build": [
@@ -274,13 +323,14 @@
    "space": "O(k)",
    "idea": [
     {
-     "md": "Add `items[i]` (0 → 1 raises `distinct`), remove `items[i − k]` (1 → 0 lowers it); from `i = k − 1` on, append `distinct`."
+     "md": "Keep `count[type]` and `distinct`. For each `i`: add `items[i]` (0 → 1 raises `distinct`); if `i ≥ k`,\nremove `items[i − k]` (1 → 0 lowers it); if `i ≥ k − 1`, append `distinct`.\n\n**Invariant.** After step `i`, the counts describe `items[i − k + 1 .. i]` and `distinct` is the number of\npositive counts."
     }
    ],
    "build": [
-    "Count map and `distinct`.",
-    "Add and remove.",
-    "Record each full window."
+    "Map of counts, `distinct = 0`, output list.",
+    "Add the entering item; adjust `distinct` on 0 → 1.",
+    "Remove the leaving item (once the window is longer than `k`); adjust on 1 → 0.",
+    "Append `distinct` for every full window."
    ],
    "code": {
     "python": "class Solution:\n    def varietyPerWindow(self, items: List[int], k: int) -> List[int]:\n        count, distinct, out = {}, 0, []\n        for i, v in enumerate(items):\n            count[v] = count.get(v, 0) + 1\n            if count[v] == 1:\n                distinct += 1\n            if i >= k:\n                u = items[i - k]\n                count[u] -= 1\n                if count[u] == 0:\n                    distinct -= 1\n            if i >= k - 1:\n                out.append(distinct)\n        return out\n",
@@ -455,7 +505,7 @@
    ],
    "complexity": [
     {
-     "md": "**Time O(n)** expected (O(n log n) for C's compression). **Space O(k)** for the map (O(n) in C)."
+     "md": "**Time O(n)** expected (C sorts once to compress values: O(n log n)). **Space O(k)** for the map."
     }
    ],
    "walk": {
@@ -673,7 +723,7 @@
  ],
  "takeaways": [
   {
-   "md": "- **Distinct count per window:** a count map + a counter updated on 0 ↔ 1 transitions.\n- Large values: hash map, or compress once.\n- The same machinery powers \"at most k distinct\" windows."
+   "md": "- **Distinct count per window:** counts + a counter updated on 0 ↔ 1.\n- The same machinery powers \"at most k distinct\" and \"exactly k distinct\".\n- Large values: hash map, or compress once."
   }
  ]
 }

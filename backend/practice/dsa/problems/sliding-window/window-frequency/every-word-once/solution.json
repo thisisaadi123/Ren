@@ -4,47 +4,39 @@
  "question": [
   {
    "md": "`words` all have the same length. Return every index of `s` where some ordering of all the words (with their\nmultiplicities) appears concatenated.\n\n- **s up to 10⁴**, **up to 5000 words**, word length up to 30."
+  },
+  {
+   "md": "**Edge cases to keep in mind**\n\n- Duplicate words in the list must be used as many times as they appear.\n- A chunk that isn't a word breaks every chain through it.\n- Results from different offsets interleave, so they must be sorted."
   }
  ],
  "think": [
   {
-   "md": "`s = \"catdogcatcatdogdog\"`, `words = ['cat', 'dog']` → **[0, 3, 9]**.\n\nChecking a start means cutting `2` chunks and comparing word counts. Neighbouring starts that differ by `L`\nshare all but one chunk, so they belong to the same sliding window. Starts at different offsets mod `L` never\nshare chunks, so we run `L` independent windows, each stepping one whole word at a time."
+   "md": "**Chains are made of fixed-size chunks.** All words have length `L = 3`, so a chain starting at `i` consists of\nthe chunks at `i, i + L, i + 2L, …`. A start `i` and a start `i + L` share every chunk but one: a sliding\nwindow, but stepping a whole word at a time.\n\n**Split by offset.** Starts with different remainders mod `L` never share chunks. So run `L` separate windows,\none per offset. Here are the chunk sequences for `s = \"catdogcatcatdogdog\"`:"
   },
   {
-   "panels": [
-    {
-     "type": "row",
-     "cells": [
-      "c",
-      "a",
-      "t",
-      "d",
-      "o",
-      "g",
-      "c",
-      "a",
-      "t",
-      "c",
-      "a",
-      "t",
-      "d",
-      "o",
-      "g",
-      "d",
-      "o",
-      "g"
+   "table": {
+    "head": [
+     "offset",
+     "chunks"
+    ],
+    "rows": [
+     [
+      "0",
+      "cat | dog | cat | cat | dog | dog"
      ],
-     "label": "s"
-    },
-    {
-     "type": "row",
-     "cells": [
-      "cat",
-      "dog"
+     [
+      "1",
+      "atd | ogc | atc | atd | ogd"
      ],
-     "label": "words"
-    }
-   ]
+     [
+      "2",
+      "tdo | gca | tca | tdo | gdo"
+     ]
+    ]
+   }
+  },
+  {
+   "md": "In each sequence we look for `2` consecutive chunks that use every word the right number of times.\nThat's an anagram-style window over words. Matches start at **[0, 3, 9]**.\n\n**Three moves per chunk:**\n\n1. **Unknown chunk:** no chain can contain it, so empty the window and restart after it.\n2. **Over-used word:** the window holds this word more often than allowed; drop words from the left until it\n   doesn't. Every chain containing the current chunk must start after the dropped part.\n3. **Window holds all words:** record its start, then drop its first word to keep searching."
   }
  ],
  "approaches": [
@@ -55,7 +47,7 @@
    "space": "O(w · L)",
    "idea": [
     {
-     "md": "For each start, cut `w` chunks and compare their counts with the word counts."
+     "md": "For every start, cut the next `w` chunks and compare their counts with the word counts. Correct, but neighbouring starts that share almost every chunk are checked from scratch."
     }
    ],
    "build": [
@@ -238,7 +230,7 @@
    ],
    "complexity": [
     {
-     "md": "**Time O(n · w · L)** (cutting and hashing `w` chunks per start). **Space O(w · L).**"
+     "md": "**Time O(n · w · L):** `n` starts, `w` chunks each, `L` characters to hash per chunk. **Space O(w · L).**"
     }
    ],
    "walk": {
@@ -733,14 +725,15 @@
    "space": "O(w · L)",
    "idea": [
     {
-     "md": "For each offset `0..L−1`: walk chunks `j = off, off + L, …`. Unknown chunk: reset. Otherwise count it; while it's over-used, drop the window's first chunk. When the window holds `w` chunks, record `left` and drop its first chunk. Sort the results."
+     "md": "For each offset `0..L−1`: walk the chunks, keeping `have[word]`, `used` (words in the window) and `left`.\nApply the three moves above. Collect every recorded `left`, then sort.\n\n**Invariant per offset.** The window `s[left .. j + L)` consists of known words, none used more often\nthan required. When `used == w` it uses every word exactly as required, which is a chain.\n\n**Why no chain is missed.** A chain starting at `x` lies on offset `x mod L`. While the window's right end\nwalks through the chain, `left` never passes `x` (nothing inside the chain is unknown or over-used), so\nwhen the last chunk of the chain arrives, the window is exactly that chain."
     }
    ],
    "build": [
-    "Word counts.",
-    "Offsets.",
-    "Grow by a word, shrink on overuse, reset on unknown.",
-    "Record full windows; sort."
+    "Word counts `need`.",
+    "For each offset: `have = {}`, `left = offset`, `used = 0`.",
+    "Unknown chunk → reset. Known → `have[chunk] += 1`, `used += 1`, then drop from the left while over-used.",
+    "If `used == w`: record `left`, drop the first word.",
+    "Sort and return the starts."
    ],
    "code": {
     "python": "class Solution:\n    def everyWordOnce(self, s: str, words: List[str]) -> List[int]:\n        L, w = len(words[0]), len(words)\n        need = {}\n        for x in words:\n            need[x] = need.get(x, 0) + 1\n        out = []\n        for off in range(L):\n            have, left, used = {}, off, 0\n            for j in range(off, len(s) - L + 1, L):\n                chunk = s[j:j + L]\n                if chunk not in need:\n                    have, left, used = {}, j + L, 0\n                    continue\n                have[chunk] = have.get(chunk, 0) + 1\n                used += 1\n                while have[chunk] > need[chunk]:\n                    have[s[left:left + L]] -= 1\n                    used -= 1\n                    left += L\n                if used == w:\n                    out.append(left)\n                    have[s[left:left + L]] -= 1\n                    used -= 1\n                    left += L\n        return sorted(out)\n",
@@ -1016,7 +1009,7 @@
    ],
    "complexity": [
     {
-     "md": "**Time O(n · L):** each offset walks `n / L` chunks, each hashed in O(L), and every chunk enters and leaves once. **Space O(w · L)** for the word table."
+     "md": "**Time O(n · L):** each offset visits about `n / L` chunks; each enters and leaves once and costs O(L) to\nhash. That's `L · (n / L) · L = n · L`. **Space O(w · L)** for the word table."
     }
    ],
    "walk": {
@@ -1570,7 +1563,7 @@
  ],
  "takeaways": [
   {
-   "md": "- **Fixed-length tokens:** split the starts by offset mod `L` and slide over whole tokens.\n- Shrink on over-use, reset on an unknown token.\n- Same idea as anagram windows, with words instead of letters."
+   "md": "- **Fixed-length tokens → split starts by offset mod `L`** and slide over whole tokens.\n- It's an anagram window over words: counts, shrink on over-use, reset on unknown.\n- Sort at the end when results come from several independent passes."
   }
  ]
 }
