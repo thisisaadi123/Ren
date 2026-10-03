@@ -1,0 +1,802 @@
+{
+ "version": 1,
+ "summary": "Manacher's algorithm. Insert `#` between letters (and sentinels at the ends) so every palindrome has odd length.\nFor each centre, start its radius from the mirror image inside the rightmost palindrome found so far, then\nexpand. Each radius `r` accounts for `(r + 1) / 2` palindromic substrings of `s`. O(n), with a 64-bit total.",
+ "question": [
+  {
+   "md": "Count every palindromic substring of `s` (single letters included; equal substrings at different positions\ncount separately).\n\n- **n up to 2 × 10⁵**: centre expansion is O(n²) on inputs like `aaaa…a`, too slow.\n- **The count can reach ~2 × 10¹⁰**, beyond 32 bits."
+  }
+ ],
+ "think": [
+  {
+   "md": "`\"aabaa\"` has **9** palindromic substrings.\n\nExpanding from every centre is quadratic on repetitive strings because neighbouring centres redo the same\ncomparisons. Manacher's trick: inside a big palindrome centred at `C`, the picture is mirrored, so the radius at\nposition `i` is at least the radius at its mirror `2C − i` (capped at the big palindrome's edge). Only the part\nbeyond the right edge needs new comparisons, and that edge only moves right: O(n) total.\n\nThe `#` separators make even and odd palindromes look the same: every palindrome in the new string has a\ncentre on a character."
+  },
+  {
+   "panels": [
+    {
+     "type": "row",
+     "cells": [
+      "a",
+      "a",
+      "b",
+      "a",
+      "a"
+     ],
+     "label": "s"
+    },
+    {
+     "type": "row",
+     "cells": [
+      "^",
+      "#",
+      "a",
+      "#",
+      "a",
+      "#",
+      "b",
+      "#",
+      "a",
+      "#",
+      "a",
+      "#",
+      "$"
+     ],
+     "label": "with separators"
+    }
+   ]
+  }
+ ],
+ "approaches": [
+  {
+   "title": "Expand around every centre",
+   "kind": "brute",
+   "time": "O(n²)",
+   "space": "O(1)",
+   "idea": [
+    {
+     "md": "For each of the 2n − 1 centres, expand while the ends match and count each step."
+    }
+   ],
+   "build": [
+    "Loop over centres.",
+    "Expand and count (64-bit)."
+   ],
+   "code": {
+    "python": "class Solution:\n    def palindromeCensus(self, s: str) -> int:\n        n, total = len(s), 0\n        for c in range(2 * n - 1):\n            i, j = c // 2, c // 2 + c % 2\n            while i >= 0 and j < n and s[i] == s[j]:\n                total += 1\n                i, j = i - 1, j + 1\n        return total\n",
+    "java": "class Solution {\n    public long palindromeCensus(String s) {\n        int n = s.length();\n        long total = 0;\n        for (int c = 0; c < 2 * n - 1; c++) {\n            int i = c / 2, j = c / 2 + c % 2;\n            while (i >= 0 && j < n && s.charAt(i) == s.charAt(j)) { total++; i--; j++; }\n        }\n        return total;\n    }\n}\n",
+    "cpp": "class Solution {\npublic:\n    long long palindromeCensus(string& s) {\n        int n = s.size();\n        long long total = 0;\n        for (int c = 0; c < 2 * n - 1; c++) {\n            int i = c / 2, j = c / 2 + c % 2;\n            while (i >= 0 && j < n && s[i] == s[j]) { total++; i--; j++; }\n        }\n        return total;\n    }\n};\n",
+    "c": "long long palindromeCensus(char* s) {\n    int n = strlen(s);\n    long long total = 0;\n    for (int c = 0; c < 2 * n - 1; c++) {\n        int i = c / 2, j = c / 2 + c % 2;\n        while (i >= 0 && j < n && s[i] == s[j]) { total++; i--; j++; }\n    }\n    return total;\n}\n"
+   },
+   "lines": [
+    {
+     "text": "A 64-bit total.",
+     "at": {
+      "python": [
+       [
+        3,
+        3
+       ]
+      ],
+      "java": [
+       [
+        3,
+        4
+       ]
+      ],
+      "cpp": [
+       [
+        4,
+        5
+       ]
+      ],
+      "c": [
+       [
+        2,
+        3
+       ]
+      ]
+     }
+    },
+    {
+     "text": "Letters and gaps.",
+     "at": {
+      "python": [
+       [
+        4,
+        5
+       ]
+      ],
+      "java": [
+       [
+        5,
+        6
+       ]
+      ],
+      "cpp": [
+       [
+        6,
+        7
+       ]
+      ],
+      "c": [
+       [
+        4,
+        5
+       ]
+      ]
+     }
+    },
+    {
+     "text": "Each matching step outward is one palindrome.",
+     "at": {
+      "python": [
+       [
+        6,
+        8
+       ]
+      ],
+      "java": [
+       [
+        7,
+        7
+       ]
+      ],
+      "cpp": [
+       [
+        8,
+        8
+       ]
+      ],
+      "c": [
+       [
+        6,
+        6
+       ]
+      ]
+     }
+    },
+    {
+     "text": "Total.",
+     "at": {
+      "python": [
+       [
+        9,
+        9
+       ]
+      ],
+      "java": [
+       [
+        9,
+        9
+       ]
+      ],
+      "cpp": [
+       [
+        10,
+        10
+       ]
+      ],
+      "c": [
+       [
+        8,
+        8
+       ]
+      ]
+     }
+    }
+   ],
+   "complexity": [
+    {
+     "md": "**Time O(n²)** worst case: 2 × 10¹⁰ steps on 2 × 10⁵ equal letters. **Space O(1).**"
+    }
+   ],
+   "walk": {
+    "steps": [
+     {
+      "text": "Centre at letter 0: expands 1 step(s); the widest is 'a'.",
+      "panels": [
+       {
+        "type": "row",
+        "cells": [
+         "a",
+         "a",
+         "b",
+         "a",
+         "a"
+        ],
+        "states": {
+         "0": "found"
+        }
+       },
+       {
+        "type": "vars",
+        "items": {
+         "palindromes": 1
+        }
+       }
+      ]
+     },
+     {
+      "text": "Centre at gap 0.5: expands 1 step(s); the widest is 'aa'.",
+      "panels": [
+       {
+        "type": "row",
+        "cells": [
+         "a",
+         "a",
+         "b",
+         "a",
+         "a"
+        ],
+        "states": {
+         "0": "found",
+         "1": "found"
+        }
+       },
+       {
+        "type": "vars",
+        "items": {
+         "palindromes": 2
+        }
+       }
+      ]
+     },
+     {
+      "text": "Centre at letter 1: expands 1 step(s); the widest is 'a'.",
+      "panels": [
+       {
+        "type": "row",
+        "cells": [
+         "a",
+         "a",
+         "b",
+         "a",
+         "a"
+        ],
+        "states": {
+         "1": "found"
+        }
+       },
+       {
+        "type": "vars",
+        "items": {
+         "palindromes": 3
+        }
+       }
+      ]
+     },
+     {
+      "text": "Centre at letter 2: expands 3 step(s); the widest is 'aabaa'.",
+      "panels": [
+       {
+        "type": "row",
+        "cells": [
+         "a",
+         "a",
+         "b",
+         "a",
+         "a"
+        ],
+        "states": {
+         "0": "found",
+         "1": "found",
+         "2": "found",
+         "3": "found",
+         "4": "found"
+        }
+       },
+       {
+        "type": "vars",
+        "items": {
+         "palindromes": 6
+        }
+       }
+      ]
+     },
+     {
+      "text": "Centre at letter 3: expands 1 step(s); the widest is 'a'.",
+      "panels": [
+       {
+        "type": "row",
+        "cells": [
+         "a",
+         "a",
+         "b",
+         "a",
+         "a"
+        ],
+        "states": {
+         "3": "found"
+        }
+       },
+       {
+        "type": "vars",
+        "items": {
+         "palindromes": 7
+        }
+       }
+      ]
+     },
+     {
+      "text": "Centre at gap 3.5: expands 1 step(s); the widest is 'aa'.",
+      "panels": [
+       {
+        "type": "row",
+        "cells": [
+         "a",
+         "a",
+         "b",
+         "a",
+         "a"
+        ],
+        "states": {
+         "3": "found",
+         "4": "found"
+        }
+       },
+       {
+        "type": "vars",
+        "items": {
+         "palindromes": 8
+        }
+       }
+      ]
+     },
+     {
+      "text": "Centre at letter 4: expands 1 step(s); the widest is 'a'.",
+      "panels": [
+       {
+        "type": "row",
+        "cells": [
+         "a",
+         "a",
+         "b",
+         "a",
+         "a"
+        ],
+        "states": {
+         "4": "found"
+        }
+       },
+       {
+        "type": "vars",
+        "items": {
+         "palindromes": 9
+        }
+       }
+      ]
+     },
+     {
+      "text": "Total: 9.",
+      "panels": [],
+      "result": "9"
+     }
+    ],
+    "title": "Expand around each centre and count every successful step (O(n²) in the worst case)."
+   },
+   "limits": [
+    {
+     "md": "Neighbouring centres inside a long palindrome repeat the same comparisons. Manacher reuses the mirrored radius so every comparison moves the right edge forward."
+    }
+   ],
+   "slow": true
+  },
+  {
+   "title": "Manacher's algorithm",
+   "kind": "best",
+   "time": "O(n)",
+   "space": "O(n)",
+   "idea": [
+    {
+     "md": "Build `t = ^#a#b#…#$`. Keep the palindrome reaching furthest right (`center`, `right`). For each `i`: start `p[i]` at `min(right − i, p[2·center − i])` if `i < right`, expand while the neighbours match, and update `center/right`. The answer is `Σ (p[i] + 1) / 2`."
+    }
+   ],
+   "build": [
+    "Transformed string with sentinels.",
+    "Radius array with mirror reuse.",
+    "Sum of `(r + 1) / 2`."
+   ],
+   "code": {
+    "python": "class Solution:\n    def palindromeCensus(self, s: str) -> int:\n        t = \"^#\" + \"#\".join(s) + \"#$\"\n        p = [0] * len(t)\n        center = right = 0\n        for i in range(1, len(t) - 1):\n            if i < right:\n                p[i] = min(right - i, p[2 * center - i])\n            while t[i + p[i] + 1] == t[i - p[i] - 1]:\n                p[i] += 1\n            if i + p[i] > right:\n                center, right = i, i + p[i]\n        return sum((r + 1) // 2 for r in p)\n",
+    "java": "class Solution {\n    public long palindromeCensus(String s) {\n        int n = s.length(), m = 2 * n + 3;\n        char[] t = new char[m];\n        t[0] = '^';\n        t[m - 1] = '$';\n        for (int i = 0; i < n; i++) { t[2 * i + 1] = '#'; t[2 * i + 2] = s.charAt(i); }\n        t[2 * n + 1] = '#';\n        int[] p = new int[m];\n        int center = 0, right = 0;\n        long total = 0;\n        for (int i = 1; i < m - 1; i++) {\n            if (i < right) p[i] = Math.min(right - i, p[2 * center - i]);\n            while (t[i + p[i] + 1] == t[i - p[i] - 1]) p[i]++;\n            if (i + p[i] > right) { center = i; right = i + p[i]; }\n            total += (p[i] + 1) / 2;\n        }\n        return total;\n    }\n}\n",
+    "cpp": "class Solution {\npublic:\n    long long palindromeCensus(string& s) {\n        string t = \"^#\";\n        for (char c : s) { t += c; t += '#'; }\n        t += '$';\n        int m = t.size(), center = 0, right = 0;\n        vector<int> p(m, 0);\n        long long total = 0;\n        for (int i = 1; i < m - 1; i++) {\n            if (i < right) p[i] = min(right - i, p[2 * center - i]);\n            while (t[i + p[i] + 1] == t[i - p[i] - 1]) p[i]++;\n            if (i + p[i] > right) { center = i; right = i + p[i]; }\n            total += (p[i] + 1) / 2;\n        }\n        return total;\n    }\n};\n",
+    "c": "long long palindromeCensus(char* s) {\n    int n = strlen(s), m = 2 * n + 3;\n    char* t = malloc(m + 1);\n    t[0] = '^';\n    for (int i = 0; i < n; i++) { t[2 * i + 1] = '#'; t[2 * i + 2] = s[i]; }\n    t[2 * n + 1] = '#';\n    t[m - 1] = '$';\n    t[m] = '\\0';\n    int* p = calloc(m, sizeof(int));\n    int center = 0, right = 0;\n    long long total = 0;\n    for (int i = 1; i < m - 1; i++) {\n        if (i < right) p[i] = right - i < p[2 * center - i] ? right - i : p[2 * center - i];\n        while (t[i + p[i] + 1] == t[i - p[i] - 1]) p[i]++;\n        if (i + p[i] > right) { center = i; right = i + p[i]; }\n        total += (p[i] + 1) / 2;\n    }\n    free(t); free(p);\n    return total;\n}\n"
+   },
+   "lines": [
+    {
+     "text": "`#` between letters makes every palindrome odd-length; the distinct sentinels `^` and `$` stop expansion without bounds checks. `p[i]` will be the radius at `i`.",
+     "at": {
+      "python": [
+       [
+        3,
+        5
+       ]
+      ],
+      "java": [
+       [
+        3,
+        11
+       ]
+      ],
+      "cpp": [
+       [
+        4,
+        9
+       ]
+      ],
+      "c": [
+       [
+        2,
+        11
+       ]
+      ]
+     }
+    },
+    {
+     "text": "Every position of the transformed string.",
+     "at": {
+      "python": [
+       [
+        6,
+        6
+       ]
+      ],
+      "java": [
+       [
+        12,
+        12
+       ]
+      ],
+      "cpp": [
+       [
+        10,
+        10
+       ]
+      ],
+      "c": [
+       [
+        12,
+        12
+       ]
+      ]
+     }
+    },
+    {
+     "text": "Inside the rightmost palindrome, position `i` mirrors `2·center − i`, so its radius is at least the mirror's (but not past `right`, which we haven't verified).",
+     "at": {
+      "python": [
+       [
+        7,
+        8
+       ]
+      ],
+      "java": [
+       [
+        13,
+        13
+       ]
+      ],
+      "cpp": [
+       [
+        11,
+        11
+       ]
+      ],
+      "c": [
+       [
+        13,
+        13
+       ]
+      ]
+     }
+    },
+    {
+     "text": "Compare beyond what's known. Every successful comparison pushes the right edge further, so all expansions together are O(n).",
+     "at": {
+      "python": [
+       [
+        9,
+        10
+       ]
+      ],
+      "java": [
+       [
+        14,
+        14
+       ]
+      ],
+      "cpp": [
+       [
+        12,
+        12
+       ]
+      ],
+      "c": [
+       [
+        14,
+        14
+       ]
+      ]
+     }
+    },
+    {
+     "text": "Track the palindrome reaching furthest right.",
+     "at": {
+      "python": [
+       [
+        11,
+        12
+       ]
+      ],
+      "java": [
+       [
+        15,
+        15
+       ]
+      ],
+      "cpp": [
+       [
+        13,
+        13
+       ]
+      ],
+      "c": [
+       [
+        15,
+        15
+       ]
+      ]
+     }
+    },
+    {
+     "text": "A radius `r` in `t` is a palindrome of length `r` in `s`; centred there are `(r + 1) / 2` palindromes of `s` (lengths r, r − 2, …). Sum in 64 bits.",
+     "at": {
+      "python": [
+       [
+        13,
+        13
+       ]
+      ],
+      "java": [
+       [
+        16,
+        16
+       ],
+       [
+        18,
+        18
+       ]
+      ],
+      "cpp": [
+       [
+        14,
+        14
+       ],
+       [
+        16,
+        16
+       ]
+      ],
+      "c": [
+       [
+        16,
+        16
+       ],
+       [
+        18,
+        19
+       ]
+      ]
+     }
+    }
+   ],
+   "complexity": [
+    {
+     "md": "**Time O(n).** **Space O(n).**"
+    }
+   ],
+   "walk": {
+    "steps": [
+     {
+      "text": "Transformed: ^#a#a#b#a#a#$.",
+      "panels": [
+       {
+        "type": "row",
+        "cells": [
+         "^",
+         "#",
+         "a",
+         "#",
+         "a",
+         "#",
+         "b",
+         "#",
+         "a",
+         "#",
+         "a",
+         "#",
+         "$"
+        ]
+       }
+      ]
+     },
+     {
+      "text": "Position 5: the mirror gives a head start of 0; expanding reaches radius 0.",
+      "panels": [
+       {
+        "type": "row",
+        "cells": [
+         "^",
+         "#",
+         "a",
+         "#",
+         "a",
+         "#",
+         "b",
+         "#",
+         "a",
+         "#",
+         "a",
+         "#",
+         "$"
+        ],
+        "states": {
+         "5": "found"
+        }
+       },
+       {
+        "type": "row",
+        "cells": [
+         0,
+         0,
+         1,
+         2,
+         1,
+         0,
+         "·",
+         "·",
+         "·",
+         "·",
+         "·",
+         "·",
+         "·"
+        ],
+        "label": "radius"
+       }
+      ]
+     },
+     {
+      "text": "Position 6: the mirror gives a head start of 0; expanding reaches radius 5.",
+      "panels": [
+       {
+        "type": "row",
+        "cells": [
+         "^",
+         "#",
+         "a",
+         "#",
+         "a",
+         "#",
+         "b",
+         "#",
+         "a",
+         "#",
+         "a",
+         "#",
+         "$"
+        ],
+        "states": {
+         "1": "found",
+         "2": "found",
+         "3": "found",
+         "4": "found",
+         "5": "found",
+         "6": "found",
+         "7": "found",
+         "8": "found",
+         "9": "found",
+         "10": "found",
+         "11": "found"
+        }
+       },
+       {
+        "type": "row",
+        "cells": [
+         0,
+         0,
+         1,
+         2,
+         1,
+         0,
+         5,
+         "·",
+         "·",
+         "·",
+         "·",
+         "·",
+         "·"
+        ],
+        "label": "radius"
+       }
+      ]
+     },
+     {
+      "text": "Position 7: the mirror gives a head start of 0; expanding reaches radius 0.",
+      "panels": [
+       {
+        "type": "row",
+        "cells": [
+         "^",
+         "#",
+         "a",
+         "#",
+         "a",
+         "#",
+         "b",
+         "#",
+         "a",
+         "#",
+         "a",
+         "#",
+         "$"
+        ],
+        "states": {
+         "7": "found"
+        }
+       },
+       {
+        "type": "row",
+        "cells": [
+         0,
+         0,
+         1,
+         2,
+         1,
+         0,
+         5,
+         0,
+         "·",
+         "·",
+         "·",
+         "·",
+         "·"
+        ],
+        "label": "radius"
+       }
+      ]
+     },
+     {
+      "text": "Each radius r covers (r + 1) // 2 palindromes centred there. Sum: 9.",
+      "panels": [
+       {
+        "type": "row",
+        "cells": [
+         0,
+         0,
+         1,
+         2,
+         1,
+         0,
+         5,
+         0,
+         1,
+         2,
+         1,
+         0,
+         0
+        ],
+        "label": "radius"
+       }
+      ],
+      "result": "9"
+     }
+    ],
+    "title": "Manacher: put # between letters so every palindrome has odd length, and reuse the mirror image of the current widest palindrome to start each expansion far out."
+   }
+  }
+ ],
+ "takeaways": [
+  {
+   "md": "- **Manacher** gives every centre's palindrome radius in O(n), via mirror reuse.\n- Separators unify odd and even palindromes; sentinels remove bounds checks.\n- From radii you can count palindromes or find the longest one."
+  }
+ ]
+}
