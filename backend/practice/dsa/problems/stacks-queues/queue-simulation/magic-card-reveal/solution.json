@@ -1,0 +1,742 @@
+{
+ "version": 1,
+ "summary": "The trick's order of revealing positions doesn't depend on the numbers at all. So run the trick on the\npositions `0..n−1` with a queue (reveal the front, move the next to the back) and hand out the sorted cards in\nthat order: the k-th revealed position gets the k-th smallest card. O(n log n) for the sort.",
+ "question": [
+  {
+   "md": "Repeatedly: reveal the top card, then move the next top card to the bottom. Arrange the deck so the cards come\nout in increasing order, and return it top to bottom.\n\n- **Cards are distinct**, so \"increasing order\" fixes exactly which card is revealed at each turn.\n- **The last card** is just revealed; there's nothing to move.\n- **Up to 10⁵ cards.**"
+  }
+ ],
+ "think": [
+  {
+   "md": "Cards `[5, 2, 9, 7, 1, 4]`. The answer is `[1, 5, 2, 9, 4, 7]`: running the trick on it reveals 1, 2, 4, 5, 7, 9.\n\nNotice the trick never looks at the numbers: it moves **positions** around in a fixed pattern. Number the deck\npositions 0 (top) to 5. Run the trick on the positions: the first position revealed must hold the smallest\ncard, the second the next smallest, and so on."
+  },
+  {
+   "panels": [
+    {
+     "type": "row",
+     "cells": [
+      0,
+      1,
+      2,
+      3,
+      4,
+      5
+     ],
+     "label": "positions"
+    },
+    {
+     "type": "row",
+     "cells": [
+      1,
+      5,
+      2,
+      9,
+      4,
+      7
+     ],
+     "label": "deck"
+    }
+   ]
+  },
+  {
+   "md": "\"Reveal the front, move the next to the back\" is exactly a queue. Alternatively, the trick can be **run in\nreverse**: starting from the largest card, put cards back on top, undoing the move each time."
+  }
+ ],
+ "approaches": [
+  {
+   "title": "Undo the trick with an array",
+   "kind": "brute",
+   "time": "O(n²)",
+   "space": "O(n)",
+   "idea": [
+    {
+     "md": "Go through the sorted cards from largest to smallest and rebuild the deck backwards. Undoing one round means: undo 'move the top card to the bottom' (take the bottom card back to the top), then undo 'reveal' (put the card back on top). With a plain array, each move to the front costs O(n)."
+    }
+   ],
+   "build": [
+    "Sort the cards.",
+    "From the largest: if the deck isn't empty, move its last card to the front; then insert the card at the front.",
+    "Return the deck."
+   ],
+   "code": {
+    "python": "class Solution:\n    def stackDeck(self, cards: List[int]) -> List[int]:\n        deck = []\n        for card in sorted(cards, reverse=True):\n            if deck:\n                deck.insert(0, deck.pop())\n            deck.insert(0, card)\n        return deck\n",
+    "java": "class Solution {\n    public int[] stackDeck(int[] cards) {\n        int n = cards.length;\n        int[] sorted = cards.clone();\n        Arrays.sort(sorted);\n        List<Integer> deck = new ArrayList<>();\n        for (int k = n - 1; k >= 0; k--) {\n            if (!deck.isEmpty()) deck.add(0, deck.remove(deck.size() - 1));\n            deck.add(0, sorted[k]);\n        }\n        int[] out = new int[n];\n        for (int i = 0; i < n; i++) out[i] = deck.get(i);\n        return out;\n    }\n}\n",
+    "cpp": "class Solution {\npublic:\n    vector<int> stackDeck(vector<int>& cards) {\n        vector<int> sorted = cards;\n        sort(sorted.rbegin(), sorted.rend());\n        vector<int> deck;\n        for (int card : sorted) {\n            if (!deck.empty()) {\n                int bottom = deck.back();\n                deck.pop_back();\n                deck.insert(deck.begin(), bottom);\n            }\n            deck.insert(deck.begin(), card);\n        }\n        return deck;\n    }\n};\n",
+    "c": "static int descending(const void* a, const void* b) {\n    int x = *(const int*) a, y = *(const int*) b;\n    return (y > x) - (y < x);\n}\n\nint* stackDeck(int* cards, int cardsSize, int* returnSize) {\n    int n = cardsSize, size = 0;\n    int* sorted = malloc(n * sizeof(int));\n    memcpy(sorted, cards, n * sizeof(int));\n    qsort(sorted, n, sizeof(int), descending);\n    int* deck = malloc(n * sizeof(int));\n    for (int k = 0; k < n; k++) {\n        if (size > 0) {\n            int bottom = deck[size - 1];\n            memmove(deck + 1, deck, (size - 1) * sizeof(int));\n            deck[0] = bottom;\n        }\n        memmove(deck + 1, deck, size * sizeof(int));\n        deck[0] = sorted[k];\n        size++;\n    }\n    free(sorted);\n    *returnSize = n;\n    return deck;\n}\n"
+   },
+   "lines": [
+    {
+     "text": "The deck being rebuilt, top first.",
+     "at": {
+      "python": [
+       [
+        3,
+        3
+       ]
+      ],
+      "java": [
+       [
+        3,
+        3
+       ],
+       [
+        6,
+        6
+       ]
+      ],
+      "cpp": [
+       [
+        6,
+        6
+       ]
+      ],
+      "c": [
+       [
+        7,
+        7
+       ],
+       [
+        11,
+        11
+       ]
+      ]
+     }
+    },
+    {
+     "text": "Cards from largest to smallest: the last card revealed is put back first.",
+     "at": {
+      "python": [
+       [
+        4,
+        4
+       ]
+      ],
+      "java": [
+       [
+        4,
+        5
+       ],
+       [
+        7,
+        7
+       ]
+      ],
+      "cpp": [
+       [
+        4,
+        5
+       ],
+       [
+        7,
+        7
+       ]
+      ],
+      "c": [
+       [
+        1,
+        4
+       ],
+       [
+        8,
+        10
+       ],
+       [
+        12,
+        12
+       ]
+      ]
+     },
+     "notes": {
+      "c": "The comparator returns the sign without subtracting, so it can't overflow."
+     }
+    },
+    {
+     "text": "The forward trick moved the top card to the bottom right after revealing; undo it by taking the bottom card back to the top.",
+     "at": {
+      "python": [
+       [
+        5,
+        6
+       ]
+      ],
+      "java": [
+       [
+        8,
+        8
+       ]
+      ],
+      "cpp": [
+       [
+        8,
+        11
+       ]
+      ],
+      "c": [
+       [
+        13,
+        16
+       ]
+      ]
+     }
+    },
+    {
+     "text": "Undo the reveal: this card goes back on top.",
+     "at": {
+      "python": [
+       [
+        7,
+        7
+       ]
+      ],
+      "java": [
+       [
+        9,
+        9
+       ]
+      ],
+      "cpp": [
+       [
+        13,
+        13
+       ]
+      ],
+      "c": [
+       [
+        18,
+        20
+       ]
+      ]
+     },
+     "notes": {
+      "c": "`memmove` shifts the deck down one slot to make room at the front."
+     }
+    },
+    {
+     "text": "The deck, top to bottom.",
+     "at": {
+      "python": [
+       [
+        8,
+        8
+       ]
+      ],
+      "java": [
+       [
+        11,
+        13
+       ]
+      ],
+      "cpp": [
+       [
+        15,
+        15
+       ]
+      ],
+      "c": [
+       [
+        22,
+        24
+       ]
+      ]
+     }
+    }
+   ],
+   "complexity": [
+    {
+     "md": "**Time O(n²):** each insertion at the front shifts the whole array. **Space O(n).**"
+    }
+   ],
+   "walk": {
+    "steps": [
+     {
+      "text": "Put back 9: then place 9 on top.",
+      "panels": [
+       {
+        "type": "row",
+        "cells": [
+         9
+        ],
+        "states": {
+         "0": "active"
+        },
+        "label": "deck (top first)"
+       }
+      ]
+     },
+     {
+      "text": "Put back 7: first move the bottom card 9 to the top (undoing 'top to bottom'), then place 7 on top.",
+      "panels": [
+       {
+        "type": "row",
+        "cells": [
+         7,
+         9
+        ],
+        "states": {
+         "0": "active"
+        },
+        "label": "deck (top first)"
+       }
+      ]
+     },
+     {
+      "text": "Put back 5: first move the bottom card 9 to the top (undoing 'top to bottom'), then place 5 on top.",
+      "panels": [
+       {
+        "type": "row",
+        "cells": [
+         5,
+         9,
+         7
+        ],
+        "states": {
+         "0": "active"
+        },
+        "label": "deck (top first)"
+       }
+      ]
+     },
+     {
+      "text": "Put back 4: first move the bottom card 7 to the top (undoing 'top to bottom'), then place 4 on top.",
+      "panels": [
+       {
+        "type": "row",
+        "cells": [
+         4,
+         7,
+         5,
+         9
+        ],
+        "states": {
+         "0": "active"
+        },
+        "label": "deck (top first)"
+       }
+      ]
+     },
+     {
+      "text": "Put back 2: first move the bottom card 9 to the top (undoing 'top to bottom'), then place 2 on top.",
+      "panels": [
+       {
+        "type": "row",
+        "cells": [
+         2,
+         9,
+         4,
+         7,
+         5
+        ],
+        "states": {
+         "0": "active"
+        },
+        "label": "deck (top first)"
+       }
+      ]
+     },
+     {
+      "text": "Put back 1: first move the bottom card 5 to the top (undoing 'top to bottom'), then place 1 on top.",
+      "panels": [
+       {
+        "type": "row",
+        "cells": [
+         1,
+         5,
+         2,
+         9,
+         4,
+         7
+        ],
+        "states": {
+         "0": "active"
+        },
+        "label": "deck (top first)"
+       }
+      ]
+     },
+     {
+      "text": "Deck from top to bottom: [1, 5, 2, 9, 4, 7].",
+      "panels": [],
+      "result": "[1, 5, 2, 9, 4, 7]"
+     }
+    ],
+    "title": "Undo the trick from the end. Take cards from largest to smallest; each step reverses one round: move the bottom card back to the top, then put the card back on top."
+   },
+   "limits": [
+    {
+     "md": "Front insertions make it quadratic: ~10¹⁰ shifts for 10⁵ cards. A deque would fix that, and so does running the trick forwards on positions with a queue."
+    }
+   ],
+   "slow": true
+  },
+  {
+   "title": "Deal sorted cards into positions with a queue",
+   "kind": "best",
+   "time": "O(n log n)",
+   "space": "O(n)",
+   "idea": [
+    {
+     "md": "Queue the positions `0..n−1`. For each card in increasing order: pop the front position and put the card there; then, if positions remain, move the next front position to the back."
+    }
+   ],
+   "build": [
+    "Sort the cards.",
+    "Queue of positions `0..n−1`.",
+    "For each card: assign it to the popped front; rotate one position to the back.",
+    "Return the filled deck."
+   ],
+   "code": {
+    "python": "from collections import deque\n\nclass Solution:\n    def stackDeck(self, cards: List[int]) -> List[int]:\n        n = len(cards)\n        spots = deque(range(n))\n        deck = [0] * n\n        for card in sorted(cards):\n            deck[spots.popleft()] = card\n            if spots:\n                spots.append(spots.popleft())\n        return deck\n",
+    "java": "class Solution {\n    public int[] stackDeck(int[] cards) {\n        int n = cards.length;\n        int[] spots = new int[2 * n], deck = new int[n];\n        int head = 0, tail = 0;\n        for (int i = 0; i < n; i++) spots[tail++] = i;\n        int[] sorted = cards.clone();\n        Arrays.sort(sorted);\n        for (int card : sorted) {\n            deck[spots[head++]] = card;\n            if (head < tail) spots[tail++] = spots[head++];\n        }\n        return deck;\n    }\n}\n",
+    "cpp": "class Solution {\npublic:\n    vector<int> stackDeck(vector<int>& cards) {\n        int n = cards.size();\n        deque<int> spots;\n        for (int i = 0; i < n; i++) spots.push_back(i);\n        vector<int> deck(n), sorted = cards;\n        sort(sorted.begin(), sorted.end());\n        for (int card : sorted) {\n            deck[spots.front()] = card;\n            spots.pop_front();\n            if (!spots.empty()) {\n                spots.push_back(spots.front());\n                spots.pop_front();\n            }\n        }\n        return deck;\n    }\n};\n",
+    "c": "static int ascending(const void* a, const void* b) {\n    int x = *(const int*) a, y = *(const int*) b;\n    return (x > y) - (x < y);\n}\n\nint* stackDeck(int* cards, int cardsSize, int* returnSize) {\n    int n = cardsSize;\n    int* spots = malloc(2 * n * sizeof(int));\n    int* deck = malloc(n * sizeof(int));\n    int* sorted = malloc(n * sizeof(int));\n    int head = 0, tail = 0;\n    for (int i = 0; i < n; i++) spots[tail++] = i;\n    memcpy(sorted, cards, n * sizeof(int));\n    qsort(sorted, n, sizeof(int), ascending);\n    for (int k = 0; k < n; k++) {\n        deck[spots[head++]] = sorted[k];\n        if (head < tail) spots[tail++] = spots[head++];\n    }\n    free(spots);\n    free(sorted);\n    *returnSize = n;\n    return deck;\n}\n"
+   },
+   "lines": [
+    {
+     "text": "A queue of deck positions, top (0) first, and the deck to fill.",
+     "at": {
+      "python": [
+       [
+        5,
+        7
+       ]
+      ],
+      "java": [
+       [
+        3,
+        6
+       ]
+      ],
+      "cpp": [
+       [
+        4,
+        7
+       ]
+      ],
+      "c": [
+       [
+        7,
+        12
+       ]
+      ]
+     },
+     "notes": {
+      "java": "A plain array works as the queue: `n` positions start in it and at most `n − 1` are re-added, so `2n` slots never run out.",
+      "c": "A plain array works as the queue: `n` positions start in it and at most `n − 1` are re-added, so `2n` slots never run out."
+     }
+    },
+    {
+     "text": "Cards in the order they must be revealed: increasing.",
+     "at": {
+      "python": [
+       [
+        8,
+        8
+       ]
+      ],
+      "java": [
+       [
+        7,
+        9
+       ]
+      ],
+      "cpp": [
+       [
+        8,
+        9
+       ]
+      ],
+      "c": [
+       [
+        1,
+        4
+       ],
+       [
+        13,
+        15
+       ]
+      ]
+     }
+    },
+    {
+     "text": "The trick reveals whatever is at the front position now, so the next smallest card must sit there.",
+     "at": {
+      "python": [
+       [
+        9,
+        9
+       ]
+      ],
+      "java": [
+       [
+        10,
+        10
+       ]
+      ],
+      "cpp": [
+       [
+        10,
+        11
+       ]
+      ],
+      "c": [
+       [
+        16,
+        16
+       ]
+      ]
+     }
+    },
+    {
+     "text": "Then the next top card goes to the bottom: rotate one position. Skipped after the last card.",
+     "at": {
+      "python": [
+       [
+        10,
+        11
+       ]
+      ],
+      "java": [
+       [
+        11,
+        11
+       ]
+      ],
+      "cpp": [
+       [
+        12,
+        14
+       ]
+      ],
+      "c": [
+       [
+        17,
+        17
+       ]
+      ]
+     }
+    },
+    {
+     "text": "The deck, top to bottom.",
+     "at": {
+      "python": [
+       [
+        12,
+        12
+       ]
+      ],
+      "java": [
+       [
+        13,
+        13
+       ]
+      ],
+      "cpp": [
+       [
+        17,
+        17
+       ]
+      ],
+      "c": [
+       [
+        19,
+        22
+       ]
+      ]
+     }
+    }
+   ],
+   "complexity": [
+    {
+     "md": "**Time O(n log n)** for the sort; the dealing is O(n). **Space O(n).**"
+    }
+   ],
+   "walk": {
+    "steps": [
+     {
+      "text": "Reveal position 0: it gets 1. Position 1 goes to the bottom.",
+      "panels": [
+       {
+        "type": "row",
+        "cells": [
+         1,
+         "·",
+         "·",
+         "·",
+         "·",
+         "·"
+        ],
+        "states": {
+         "0": "found"
+        },
+        "label": "deck positions"
+       },
+       {
+        "type": "row",
+        "cells": [
+         2,
+         3,
+         4,
+         5,
+         1
+        ],
+        "label": "queue of positions"
+       }
+      ]
+     },
+     {
+      "text": "Reveal position 2: it gets 2. Position 3 goes to the bottom.",
+      "panels": [
+       {
+        "type": "row",
+        "cells": [
+         1,
+         "·",
+         2,
+         "·",
+         "·",
+         "·"
+        ],
+        "states": {
+         "2": "found"
+        },
+        "label": "deck positions"
+       },
+       {
+        "type": "row",
+        "cells": [
+         4,
+         5,
+         1,
+         3
+        ],
+        "label": "queue of positions"
+       }
+      ]
+     },
+     {
+      "text": "Reveal position 4: it gets 4. Position 5 goes to the bottom.",
+      "panels": [
+       {
+        "type": "row",
+        "cells": [
+         1,
+         "·",
+         2,
+         "·",
+         4,
+         "·"
+        ],
+        "states": {
+         "4": "found"
+        },
+        "label": "deck positions"
+       },
+       {
+        "type": "row",
+        "cells": [
+         1,
+         3,
+         5
+        ],
+        "label": "queue of positions"
+       }
+      ]
+     },
+     {
+      "text": "Reveal position 1: it gets 5. Position 3 goes to the bottom.",
+      "panels": [
+       {
+        "type": "row",
+        "cells": [
+         1,
+         5,
+         2,
+         "·",
+         4,
+         "·"
+        ],
+        "states": {
+         "1": "found"
+        },
+        "label": "deck positions"
+       },
+       {
+        "type": "row",
+        "cells": [
+         5,
+         3
+        ],
+        "label": "queue of positions"
+       }
+      ]
+     },
+     {
+      "text": "Reveal position 5: it gets 7. Position 3 goes to the bottom.",
+      "panels": [
+       {
+        "type": "row",
+        "cells": [
+         1,
+         5,
+         2,
+         "·",
+         4,
+         7
+        ],
+        "states": {
+         "5": "found"
+        },
+        "label": "deck positions"
+       },
+       {
+        "type": "row",
+        "cells": [
+         3
+        ],
+        "label": "queue of positions"
+       }
+      ]
+     },
+     {
+      "text": "Reveal position 3: it gets 9.",
+      "panels": [
+       {
+        "type": "row",
+        "cells": [
+         1,
+         5,
+         2,
+         9,
+         4,
+         7
+        ],
+        "states": {
+         "3": "found"
+        },
+        "label": "deck positions"
+       },
+       {
+        "type": "row",
+        "cells": [
+         "·"
+        ],
+        "label": "queue of positions"
+       }
+      ]
+     },
+     {
+      "text": "Deck from top to bottom: [1, 5, 2, 9, 4, 7].",
+      "panels": [],
+      "result": "[1, 5, 2, 9, 4, 7]"
+     }
+    ],
+    "title": "Run the trick on the empty positions 0..n−1 with a queue. The position revealed at each turn receives the next smallest card."
+   }
+  }
+ ],
+ "takeaways": [
+  {
+   "md": "- If a process moves **positions** in a fixed pattern regardless of values, simulate it on indices and then\n  assign values.\n- Any shuffle can also be undone step by step in reverse; use a deque so front operations are O(1).\n- \"Take from the front, put at the back\" = queue."
+  }
+ ]
+}
