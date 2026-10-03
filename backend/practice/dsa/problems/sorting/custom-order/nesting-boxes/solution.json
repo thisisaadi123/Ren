@@ -1,0 +1,660 @@
+{
+ "version": 1,
+ "summary": "Sort boxes by width ascending, breaking width ties by height **descending**. Then a valid nesting is exactly a\nstrictly increasing run of heights, so the answer is the longest increasing subsequence of the heights, found\nin O(n log n) with patience tails and binary search.",
+ "question": [
+  {
+   "md": "A box fits in another only if it's strictly smaller in **both** width and height (no rotating). Return the most\nboxes you can nest in one chain.\n\n- **Equal widths can't nest**, even if the heights differ.\n- **Up to 10⁵ boxes**, so O(n²) is too slow."
+  }
+ ],
+ "think": [
+  {
+   "md": "Boxes `[[5, 4], [6, 4], [6, 7], [2, 3], [5, 6]]`. One best chain is 2×3 ⊂ 5×4 ⊂ 6×7: **3** boxes.\n\nWith two dimensions, fix one by sorting. After sorting by width, a chain must use increasing widths and\nincreasing heights, so it's an increasing subsequence of the heights. The catch is equal widths: 6×4 and 6×7\nwould look like an increasing pair. Sorting equal widths by height **descending** makes them a decreasing run,\nso an increasing subsequence can never take two of them."
+  },
+  {
+   "panels": [
+    {
+     "type": "row",
+     "cells": [
+      "5×4",
+      "6×4",
+      "6×7",
+      "2×3",
+      "5×6"
+     ],
+     "label": "boxes"
+    },
+    {
+     "type": "row",
+     "cells": [
+      "2×3",
+      "5×6",
+      "5×4",
+      "6×7",
+      "6×4"
+     ],
+     "label": "sorted (w ↑, h ↓)"
+    }
+   ]
+  }
+ ],
+ "approaches": [
+  {
+   "title": "Sort by width, quadratic chain DP",
+   "kind": "brute",
+   "time": "O(n²)",
+   "space": "O(n)",
+   "idea": [
+    {
+     "md": "Sort by width. `chain[i]` = the longest nesting ending with box `i` = 1 + the best `chain[j]` over earlier boxes strictly smaller in both dimensions."
+    }
+   ],
+   "build": [
+    "Sort by width.",
+    "For each `i`, scan all `j < i`.",
+    "Answer = max of `chain`."
+   ],
+   "code": {
+    "python": "class Solution:\n    def maxNested(self, boxes: List[List[int]]) -> int:\n        a = sorted(boxes)\n        chain = [1] * len(a)\n        for i in range(len(a)):\n            for j in range(i):\n                if a[j][0] < a[i][0] and a[j][1] < a[i][1]:\n                    chain[i] = max(chain[i], chain[j] + 1)\n        return max(chain)\n",
+    "java": "class Solution {\n    public int maxNested(int[][] boxes) {\n        int[][] a = boxes.clone();\n        Arrays.sort(a, (x, y) -> x[0] != y[0] ? x[0] - y[0] : x[1] - y[1]);\n        int n = a.length, best = 0;\n        int[] chain = new int[n];\n        for (int i = 0; i < n; i++) {\n            chain[i] = 1;\n            for (int j = 0; j < i; j++)\n                if (a[j][0] < a[i][0] && a[j][1] < a[i][1]) chain[i] = Math.max(chain[i], chain[j] + 1);\n            best = Math.max(best, chain[i]);\n        }\n        return best;\n    }\n}\n",
+    "cpp": "class Solution {\npublic:\n    int maxNested(vector<vector<int>>& boxes) {\n        vector<vector<int>> a = boxes;\n        sort(a.begin(), a.end());\n        int n = a.size(), best = 0;\n        vector<int> chain(n, 1);\n        for (int i = 0; i < n; i++) {\n            for (int j = 0; j < i; j++)\n                if (a[j][0] < a[i][0] && a[j][1] < a[i][1]) chain[i] = max(chain[i], chain[j] + 1);\n            best = max(best, chain[i]);\n        }\n        return best;\n    }\n};\n",
+    "c": "static int by_size(const void* x, const void* y) {\n    const int *a = *(int* const*) x, *b = *(int* const*) y;\n    return a[0] != b[0] ? a[0] - b[0] : a[1] - b[1];\n}\n\nint maxNested(int** boxes, int boxesSize, int* boxesColSize) {\n    int** a = malloc(boxesSize * sizeof(int*));\n    memcpy(a, boxes, boxesSize * sizeof(int*));\n    qsort(a, boxesSize, sizeof(int*), by_size);\n    int* chain = malloc(boxesSize * sizeof(int));\n    int best = 0;\n    for (int i = 0; i < boxesSize; i++) {\n        chain[i] = 1;\n        for (int j = 0; j < i; j++)\n            if (a[j][0] < a[i][0] && a[j][1] < a[i][1] && chain[j] + 1 > chain[i]) chain[i] = chain[j] + 1;\n        if (chain[i] > best) best = chain[i];\n    }\n    free(a); free(chain);\n    return best;\n}\n"
+   },
+   "lines": [
+    {
+     "text": "By width (then height): any box that fits inside box `i` comes before it.",
+     "at": {
+      "python": [
+       [
+        3,
+        3
+       ]
+      ],
+      "java": [
+       [
+        3,
+        4
+       ]
+      ],
+      "cpp": [
+       [
+        4,
+        5
+       ]
+      ],
+      "c": [
+       [
+        1,
+        4
+       ],
+       [
+        7,
+        9
+       ]
+      ]
+     },
+     "notes": {
+      "c": "Sort an array of row pointers; the rows themselves don't move."
+     }
+    },
+    {
+     "text": "`chain[i]`: longest nesting whose outermost box is `i`; every box alone is a chain of 1.",
+     "at": {
+      "python": [
+       [
+        4,
+        6
+       ]
+      ],
+      "java": [
+       [
+        5,
+        9
+       ]
+      ],
+      "cpp": [
+       [
+        6,
+        9
+       ]
+      ],
+      "c": [
+       [
+        10,
+        14
+       ]
+      ]
+     }
+    },
+    {
+     "text": "An earlier box strictly smaller in both dimensions can sit inside `i`.",
+     "at": {
+      "python": [
+       [
+        7,
+        8
+       ]
+      ],
+      "java": [
+       [
+        10,
+        10
+       ]
+      ],
+      "cpp": [
+       [
+        10,
+        10
+       ]
+      ],
+      "c": [
+       [
+        15,
+        15
+       ]
+      ]
+     }
+    },
+    {
+     "text": "The best chain over all outermost boxes.",
+     "at": {
+      "python": [
+       [
+        9,
+        9
+       ]
+      ],
+      "java": [
+       [
+        11,
+        11
+       ],
+       [
+        13,
+        13
+       ]
+      ],
+      "cpp": [
+       [
+        11,
+        11
+       ],
+       [
+        13,
+        13
+       ]
+      ],
+      "c": [
+       [
+        16,
+        16
+       ],
+       [
+        18,
+        19
+       ]
+      ]
+     }
+    }
+   ],
+   "complexity": [
+    {
+     "md": "**Time O(n²):** up to 5 × 10⁹ pairs for 10⁵ boxes. **Space O(n).**"
+    }
+   ],
+   "walk": {
+    "steps": [
+     {
+      "text": "Box 2×3: the best chain it can end is 1 long.",
+      "panels": [
+       {
+        "type": "row",
+        "cells": [
+         "2×3",
+         "5×4",
+         "5×6",
+         "6×4",
+         "6×7"
+        ],
+        "states": {
+         "0": "active"
+        }
+       },
+       {
+        "type": "row",
+        "cells": [
+         1,
+         "·",
+         "·",
+         "·",
+         "·"
+        ],
+        "label": "chain"
+       }
+      ]
+     },
+     {
+      "text": "Box 5×4: the best chain it can end is 2 long.",
+      "panels": [
+       {
+        "type": "row",
+        "cells": [
+         "2×3",
+         "5×4",
+         "5×6",
+         "6×4",
+         "6×7"
+        ],
+        "states": {
+         "1": "active",
+         "0": "found"
+        }
+       },
+       {
+        "type": "row",
+        "cells": [
+         1,
+         2,
+         "·",
+         "·",
+         "·"
+        ],
+        "label": "chain"
+       }
+      ]
+     },
+     {
+      "text": "Box 5×6: the best chain it can end is 2 long.",
+      "panels": [
+       {
+        "type": "row",
+        "cells": [
+         "2×3",
+         "5×4",
+         "5×6",
+         "6×4",
+         "6×7"
+        ],
+        "states": {
+         "2": "active",
+         "0": "found"
+        }
+       },
+       {
+        "type": "row",
+        "cells": [
+         1,
+         2,
+         2,
+         "·",
+         "·"
+        ],
+        "label": "chain"
+       }
+      ]
+     },
+     {
+      "text": "Box 6×4: the best chain it can end is 2 long.",
+      "panels": [
+       {
+        "type": "row",
+        "cells": [
+         "2×3",
+         "5×4",
+         "5×6",
+         "6×4",
+         "6×7"
+        ],
+        "states": {
+         "3": "active",
+         "0": "found"
+        }
+       },
+       {
+        "type": "row",
+        "cells": [
+         1,
+         2,
+         2,
+         2,
+         "·"
+        ],
+        "label": "chain"
+       }
+      ]
+     },
+     {
+      "text": "Box 6×7: the best chain it can end is 3 long.",
+      "panels": [
+       {
+        "type": "row",
+        "cells": [
+         "2×3",
+         "5×4",
+         "5×6",
+         "6×4",
+         "6×7"
+        ],
+        "states": {
+         "4": "active",
+         "0": "found",
+         "1": "found",
+         "2": "found"
+        }
+       },
+       {
+        "type": "row",
+        "cells": [
+         1,
+         2,
+         2,
+         2,
+         3
+        ],
+        "label": "chain"
+       }
+      ]
+     },
+     {
+      "text": "Longest chain: 3.",
+      "panels": [],
+      "result": "3"
+     }
+    ],
+    "title": "Sort by width, then for each box find the longest chain ending with it by checking every smaller box before it."
+   },
+   "limits": [
+    {
+     "md": "The inner scan looks at every earlier box. Once equal widths are ordered tallest first, the problem becomes a plain longest increasing subsequence of heights, which binary search solves in O(n log n)."
+    }
+   ],
+   "slow": true
+  },
+  {
+   "title": "Sort, then longest increasing heights",
+   "kind": "best",
+   "time": "O(n log n)",
+   "space": "O(n)",
+   "idea": [
+    {
+     "md": "Sort by `(width ascending, height descending)`. Keep `tails[L]` = the smallest possible height that ends a chain of length `L + 1`. For each height `h`, find the first tail `≥ h` (binary search): replace it with `h`, or append `h` if there's none. The answer is the number of tails."
+    }
+   ],
+   "build": [
+    "Sort with the tie rule.",
+    "For each height, lower-bound search in `tails`.",
+    "Replace or append.",
+    "Return `len(tails)`."
+   ],
+   "code": {
+    "python": "import bisect\n\nclass Solution:\n    def maxNested(self, boxes: List[List[int]]) -> int:\n        tails = []\n        for w, h in sorted(boxes, key=lambda b: (b[0], -b[1])):\n            i = bisect.bisect_left(tails, h)\n            if i == len(tails):\n                tails.append(h)\n            else:\n                tails[i] = h\n        return len(tails)\n",
+    "java": "class Solution {\n    public int maxNested(int[][] boxes) {\n        int[][] a = boxes.clone();\n        Arrays.sort(a, (x, y) -> x[0] != y[0] ? x[0] - y[0] : y[1] - x[1]);\n        int[] tails = new int[a.length];\n        int len = 0;\n        for (int[] b : a) {\n            int lo = 0, hi = len;\n            while (lo < hi) { int mid = (lo + hi) >>> 1; if (tails[mid] < b[1]) lo = mid + 1; else hi = mid; }\n            tails[lo] = b[1];\n            if (lo == len) len++;\n        }\n        return len;\n    }\n}\n",
+    "cpp": "class Solution {\npublic:\n    int maxNested(vector<vector<int>>& boxes) {\n        vector<vector<int>> a = boxes;\n        sort(a.begin(), a.end(), [](auto& x, auto& y) { return x[0] != y[0] ? x[0] < y[0] : x[1] > y[1]; });\n        vector<int> tails;\n        for (auto& b : a) {\n            auto it = lower_bound(tails.begin(), tails.end(), b[1]);\n            if (it == tails.end()) tails.push_back(b[1]);\n            else *it = b[1];\n        }\n        return tails.size();\n    }\n};\n",
+    "c": "static int by_rule(const void* x, const void* y) {\n    const int *a = *(int* const*) x, *b = *(int* const*) y;\n    return a[0] != b[0] ? a[0] - b[0] : b[1] - a[1];\n}\n\nint maxNested(int** boxes, int boxesSize, int* boxesColSize) {\n    int** a = malloc(boxesSize * sizeof(int*));\n    memcpy(a, boxes, boxesSize * sizeof(int*));\n    qsort(a, boxesSize, sizeof(int*), by_rule);\n    int* tails = malloc(boxesSize * sizeof(int));\n    int len = 0;\n    for (int i = 0; i < boxesSize; i++) {\n        int h = a[i][1], lo = 0, hi = len;\n        while (lo < hi) { int mid = (lo + hi) / 2; if (tails[mid] < h) lo = mid + 1; else hi = mid; }\n        tails[lo] = h;\n        if (lo == len) len++;\n    }\n    free(a); free(tails);\n    return len;\n}\n"
+   },
+   "lines": [
+    {
+     "text": "Width ascending; equal widths tallest first, so at most one box per width can be in an increasing run of heights.",
+     "at": {
+      "python": [
+       [
+        6,
+        6
+       ]
+      ],
+      "java": [
+       [
+        3,
+        4
+       ],
+       [
+        7,
+        7
+       ]
+      ],
+      "cpp": [
+       [
+        4,
+        5
+       ],
+       [
+        7,
+        7
+       ]
+      ],
+      "c": [
+       [
+        1,
+        4
+       ],
+       [
+        7,
+        9
+       ],
+       [
+        12,
+        12
+       ]
+      ]
+     }
+    },
+    {
+     "text": "`tails[L]` is the lowest height that can end a chain of length `L + 1`; it's always increasing.",
+     "at": {
+      "python": [
+       [
+        5,
+        5
+       ]
+      ],
+      "java": [
+       [
+        5,
+        6
+       ]
+      ],
+      "cpp": [
+       [
+        6,
+        6
+       ]
+      ],
+      "c": [
+       [
+        10,
+        11
+       ]
+      ]
+     }
+    },
+    {
+     "text": "The first tail that is `≥ h`. Using `≥` (not `>`) keeps the chain strictly increasing: an equal height can't extend a chain.",
+     "at": {
+      "python": [
+       [
+        7,
+        7
+       ]
+      ],
+      "java": [
+       [
+        8,
+        9
+       ]
+      ],
+      "cpp": [
+       [
+        8,
+        8
+       ]
+      ],
+      "c": [
+       [
+        13,
+        14
+       ]
+      ]
+     }
+    },
+    {
+     "text": "Replace that tail with the smaller `h` (more room for later boxes), or append if `h` beats every tail.",
+     "at": {
+      "python": [
+       [
+        8,
+        11
+       ]
+      ],
+      "java": [
+       [
+        10,
+        11
+       ]
+      ],
+      "cpp": [
+       [
+        9,
+        10
+       ]
+      ],
+      "c": [
+       [
+        15,
+        16
+       ]
+      ]
+     }
+    },
+    {
+     "text": "The number of tails is the longest chain.",
+     "at": {
+      "python": [
+       [
+        12,
+        12
+       ]
+      ],
+      "java": [
+       [
+        13,
+        13
+       ]
+      ],
+      "cpp": [
+       [
+        12,
+        12
+       ]
+      ],
+      "c": [
+       [
+        18,
+        19
+       ]
+      ]
+     }
+    }
+   ],
+   "complexity": [
+    {
+     "md": "**Time O(n log n)**: the sort plus a binary search per box. **Space O(n)** for the tails."
+    }
+   ],
+   "walk": {
+    "steps": [
+     {
+      "text": "Sorted: ['2×3', '5×6', '5×4', '6×7', '6×4']. Equal widths go tallest first so two of them can't both join a chain.",
+      "panels": [
+       {
+        "type": "row",
+        "cells": [
+         "2×3",
+         "5×6",
+         "5×4",
+         "6×7",
+         "6×4"
+        ]
+       }
+      ]
+     },
+     {
+      "text": "Height 3 (box 2×3) extends the longest chain.",
+      "panels": [
+       {
+        "type": "row",
+        "cells": [
+         3
+        ],
+        "label": "tails (smallest last height per chain length)"
+       }
+      ]
+     },
+     {
+      "text": "Height 6 (box 5×6) extends the longest chain.",
+      "panels": [
+       {
+        "type": "row",
+        "cells": [
+         3,
+         6
+        ],
+        "label": "tails (smallest last height per chain length)"
+       }
+      ]
+     },
+     {
+      "text": "Height 4 (box 5×4) replaces 6 (a chain of length 2 can now end lower).",
+      "panels": [
+       {
+        "type": "row",
+        "cells": [
+         3,
+         4
+        ],
+        "label": "tails (smallest last height per chain length)"
+       }
+      ]
+     },
+     {
+      "text": "Height 7 (box 6×7) extends the longest chain.",
+      "panels": [
+       {
+        "type": "row",
+        "cells": [
+         3,
+         4,
+         7
+        ],
+        "label": "tails (smallest last height per chain length)"
+       }
+      ]
+     },
+     {
+      "text": "Height 4 (box 6×4) replaces 4 (a chain of length 2 can now end lower).",
+      "panels": [
+       {
+        "type": "row",
+        "cells": [
+         3,
+         4,
+         7
+        ],
+        "label": "tails (smallest last height per chain length)"
+       }
+      ]
+     },
+     {
+      "text": "3 chain lengths: the answer is 3.",
+      "panels": [],
+      "result": "3"
+     }
+    ],
+    "title": "Sort by width ascending, and equal widths by height descending. Now we only need the longest strictly increasing run of heights, found with 'patience' tails."
+   }
+  }
+ ],
+ "takeaways": [
+  {
+   "md": "- **2-D nesting = sort one dimension, longest increasing subsequence on the other.**\n- The tie rule (equal first key → second key descending) is what makes \"strictly smaller in both\" work.\n- Patience tails give LIS in O(n log n); `bisect_left` gives strict increase, `bisect_right` non-strict."
+  }
+ ]
+}
