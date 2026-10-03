@@ -4,41 +4,71 @@
  "question": [
   {
    "md": "Rearrange so values `< pivot` come first, then `= pivot`, then `> pivot`, **keeping the original order inside\neach group**.\n\n- **Stability is required**, so in-place swapping (the flag partition) won't do: swaps reorder elements.\n- **Up to 10⁵ values.**"
+  },
+  {
+   "md": "**Edge cases to keep in mind**\n\n- The pivot may not appear at all (empty middle group).\n- All values on one side: unchanged order.\n- Order **inside** each group must match the input (a stable partition)."
   }
  ],
  "think": [
   {
-   "md": "`[9, 12, 5, 10, 3, 10, 14]` with pivot 10 → `[9, 5, 3, 10, 10, 12, 14]`. 9, 5, 3 stay in that order; so do 12, 14.\n\nThe in-place three-pointer partition would scramble the order inside groups. Instead, since every group's\nfinal position is known once we count the groups' sizes, each value can go straight to its spot."
+   "md": "**Why the in-place Dutch flag doesn't fit.** Swapping balls around scrambles the order inside the groups. Here\neach group must keep its original order, so we need a *stable* partition.\n\n**Count first, then place.** Once we know how many values are less than the pivot (`L`) and equal to it (`E`),\nevery group's final block is fixed: less → `[0, L)`, equal → `[L, L + E)`, greater → `[L + E, n)`. Keep a write\nposition per group and place each value at its group's next slot while reading left to right. Reading in order\nkeeps each group in order."
   },
   {
-   "panels": [
-    {
-     "type": "row",
-     "cells": [
-      9,
-      12,
-      5,
-      10,
-      3,
-      10,
-      14
+   "md": "**Pivot 10:** 3 less, 2 equal, so the blocks start at 0, 3 and 5."
+  },
+  {
+   "table": {
+    "head": [
+     "value",
+     "group",
+     "slot",
+     "output so far"
+    ],
+    "rows": [
+     [
+      "9",
+      "less",
+      "0",
+      "9 · · · · · ·"
      ],
-     "label": "values"
-    },
-    {
-     "type": "row",
-     "cells": [
-      9,
-      5,
-      3,
-      10,
-      10,
-      12,
-      14
+     [
+      "12",
+      "greater",
+      "5",
+      "9 · · · · 12 ·"
      ],
-     "label": "split"
-    }
-   ]
+     [
+      "5",
+      "less",
+      "1",
+      "9 5 · · · 12 ·"
+     ],
+     [
+      "10",
+      "equal",
+      "3",
+      "9 5 · 10 · 12 ·"
+     ],
+     [
+      "3",
+      "less",
+      "2",
+      "9 5 3 10 · 12 ·"
+     ],
+     [
+      "10",
+      "equal",
+      "4",
+      "9 5 3 10 10 12 ·"
+     ],
+     [
+      "14",
+      "greater",
+      "6",
+      "9 5 3 10 10 12 14"
+     ]
+    ]
+   }
   }
  ],
  "approaches": [
@@ -49,12 +79,12 @@
    "space": "O(n)",
    "idea": [
     {
-     "md": "Sort the values by a key: 0 for less, 1 for equal, 2 for greater. A stable sort keeps the original order among equal keys."
+     "md": "Sort by group number (0 for less, 1 for equal, 2 for greater) with a **stable** sort, which keeps equal keys in their original order."
     }
    ],
    "build": [
-    "Key function.",
-    "Stable sort."
+    "Group key for each value.",
+    "Stable sort by the key."
    ],
    "code": {
     "python": "class Solution:\n    def splitAround(self, values: List[int], pivot: int) -> List[int]:\n        group = lambda x: 0 if x < pivot else (1 if x == pivot else 2)\n        return sorted(values, key=group)\n",
@@ -64,7 +94,7 @@
    },
    "lines": [
     {
-     "text": "Each value's group.",
+     "text": "0, 1 or 2 depending on the value's relation to the pivot.",
      "at": {
       "python": [
        [
@@ -96,7 +126,7 @@
      }
     },
     {
-     "text": "A stable sort by group keeps each group in original order.",
+     "text": "A stable sort by that key keeps the original order within each group.",
      "at": {
       "python": [
        [
@@ -189,7 +219,7 @@
    },
    "limits": [
     {
-     "md": "Sorting is overkill with only three groups: their sizes fix every value's destination, so one counting pass plus one placing pass suffices."
+     "md": "Sorting three group labels doesn't need O(n log n): counting the groups gives every value's final position directly. (C's `qsort` isn't stable, so the C version breaks ties by each value's original position.)"
     }
    ]
   },
@@ -200,13 +230,13 @@
    "space": "O(n)",
    "idea": [
     {
-     "md": "Count `less` and `equal`. Write pointers start at `0`, `less` and `less + equal`. Walk the values, writing each at its group's pointer and advancing it."
+     "md": "Count values less than and equal to the pivot. Set write positions `a = 0`, `b = L`, `c = L + E`. Read the\nvalues in order and place each one at its group's write position, advancing it.\n\n**Why the order is kept.** Within a group, values are written to increasing slots in the order they're\nread, which is their original order."
     }
    ],
    "build": [
-    "Count less and equal.",
-    "Three write pointers.",
-    "Place in one pass."
+    "Count the less and equal groups.",
+    "Three write positions.",
+    "Place every value in one pass."
    ],
    "code": {
     "python": "class Solution:\n    def splitAround(self, values: List[int], pivot: int) -> List[int]:\n        less = sum(1 for x in values if x < pivot)\n        equal = sum(1 for x in values if x == pivot)\n        out = [0] * len(values)\n        a, b, c = 0, less, less + equal\n        for x in values:\n            if x < pivot:\n                out[a] = x; a += 1\n            elif x == pivot:\n                out[b] = x; b += 1\n            else:\n                out[c] = x; c += 1\n        return out\n",
@@ -216,7 +246,7 @@
    },
    "lines": [
     {
-     "text": "Sizes of the first two groups.",
+     "text": "Sizes of the less and equal groups (the greater group is the rest).",
      "at": {
       "python": [
        [
@@ -245,7 +275,7 @@
      }
     },
     {
-     "text": "Each group's first slot in the output.",
+     "text": "Where each group's block begins in the output.",
      "at": {
       "python": [
        [
@@ -274,7 +304,7 @@
      }
     },
     {
-     "text": "In input order, each value goes to its group's next slot, so order within a group is kept.",
+     "text": "Each value goes to the next free slot of its group's block.",
      "at": {
       "python": [
        [
@@ -303,7 +333,7 @@
      }
     },
     {
-     "text": "The split list.",
+     "text": "The partitioned list, stable within each group.",
      "at": {
       "python": [
        [
@@ -523,7 +553,7 @@
  ],
  "takeaways": [
   {
-   "md": "- **Stable three-way split:** count group sizes, then place with one write pointer per group.\n- The in-place flag partition is O(1) space but **not stable**.\n- Counting group sizes to find destinations is the core of counting sort."
+   "md": "- **Stable partition:** count group sizes, then place with one write pointer per group (counting sort's idea).\n- In-place swap partitions are fast but not stable.\n- **Pitfall:** using an unstable sort for the brute force."
   }
  ]
 }

@@ -4,43 +4,58 @@
  "question": [
   {
    "md": "Sort balls coloured `1..k` in **O(n log k)** without an extra array of size `k` (so no counting sort).\n\n- **k can be as large as n**, in which case this is just O(n log n) sorting.\n- **Up to 10⁵ balls.**"
+  },
+  {
+   "md": "**Edge cases to keep in mind**\n\n- `k = 1`: already sorted.\n- Colours missing from the input: their halves are simply empty.\n- The goal is O(n log k) time with no count array of size `k`."
   }
  ],
  "think": [
   {
-   "md": "`[3, 1, 4, 2, 4, 1, 3, 2]` with k = 4 → `[1, 1, 2, 2, 3, 3, 4, 4]`.\n\nThe three-colour trick partitions around fixed values. Generalise it: split the colour range in half. All\ncolours `1..2` must end up left of colours `3..4`, so one two-pointer pass separates them. Each half is then the\nsame problem with half as many colours. After log k rounds, each range holds a single colour: sorted."
+   "md": "**Partition by colour range, recursively.** In the sorted result, colours `lo..mid` all come before colours\n`mid+1..hi`. One two-pointer pass can separate a segment into those two groups (like quicksort's partition, with\nthe colour value `mid` as a fixed pivot). Then each half is the same problem with half the colour range.\n\n**Why O(n log k).** The colour range halves at every level, so there are about `log₂ k` levels. On each level the\nsegments don't overlap, so all partition passes together touch each ball once: O(n) per level."
   },
   {
-   "panels": [
-    {
-     "type": "row",
-     "cells": [
-      3,
-      1,
-      4,
-      2,
-      4,
-      1,
-      3,
-      2
+   "md": "**Trace on `[3, 1, 4, 2, 4, 1, 3, 2]` with k = 4:**"
+  },
+  {
+   "table": {
+    "head": [
+     "segment",
+     "colours",
+     "split at",
+     "before",
+     "after",
+     "next"
+    ],
+    "rows": [
+     [
+      "0..7",
+      "1..4",
+      "2",
+      "[3, 1, 4, 2, 4, 1, 3, 2]",
+      "[2, 1, 1, 2, 4, 4, 3, 3]",
+      "0..3 gets 1..2, 4..7 gets 3..4"
      ],
-     "label": "balls"
-    },
-    {
-     "type": "row",
-     "cells": [
-      1,
-      1,
-      2,
-      2,
-      3,
-      3,
-      4,
-      4
+     [
+      "4..7",
+      "3..4",
+      "3",
+      "[4, 4, 3, 3]",
+      "[3, 3, 4, 4]",
+      "4..5 gets 3..3, 6..7 gets 4..4"
      ],
-     "label": "sorted"
-    }
-   ]
+     [
+      "0..3",
+      "1..2",
+      "1",
+      "[2, 1, 1, 2]",
+      "[1, 1, 2, 2]",
+      "0..1 gets 1..1, 2..3 gets 2..2"
+     ]
+    ]
+   }
+  },
+  {
+   "md": "Result **`[1, 1, 2, 2, 3, 3, 4, 4]`**."
   }
  ],
  "approaches": [
@@ -51,11 +66,11 @@
    "space": "O(n)",
    "idea": [
     {
-     "md": "Sort with the built-in sort."
+     "md": "Use a comparison sort. O(n log n), which is more than needed when `k` is small."
     }
    ],
    "build": [
-    "Copy and sort."
+    "Sort."
    ],
    "code": {
     "python": "class Solution:\n    def sortKColours(self, balls: List[int], k: int) -> List[int]:\n        return sorted(balls)\n",
@@ -65,7 +80,7 @@
    },
    "lines": [
     {
-     "text": "A general sort.",
+     "text": "A general-purpose comparison sort.",
      "at": {
       "python": [
        [
@@ -105,7 +120,7 @@
    ],
    "limits": [
     {
-     "md": "Doesn't use the small number of colours: with k much smaller than n, splitting the colour range does only log k passes."
+     "md": "It ignores that there are only `k` distinct values. Splitting the colour range gives O(n log k) without a count array."
     }
    ]
   },
@@ -116,13 +131,13 @@
    "space": "O(log k)",
    "idea": [
     {
-     "md": "`sort(left, right, lo, hi)`: if the range has under 2 balls or one colour, stop. `mid = (lo + hi) / 2`. Two pointers: `i` skips colours `≤ mid` from the left, `j` skips colours `> mid` from the right; swap when both stop. Recurse on `[left, j]` with colours `lo..mid` and `[i, right]` with `mid+1..hi`."
+     "md": "Keep a stack of tasks `(left, right, lo, hi)`: \"segment `[left, right]` holds only colours `lo..hi`\". For a\ntask, set `mid = (lo + hi) / 2` and partition: `i` moves right over colours `≤ mid`, `j` moves left over\ncolours `> mid`, and out-of-place pairs are swapped. Then push `[left, j]` with `lo..mid` and `[i, right]`\nwith `mid+1..hi`. A segment with one colour or one ball needs nothing.\n\nUsing an explicit stack instead of recursion avoids deep call stacks."
     }
    ],
    "build": [
-    "Copy.",
-    "Recursive (or stack-based) range partition.",
-    "Two-pointer split around the colour midpoint."
+    "Task stack starting with the whole array and colours `1..k`.",
+    "Partition each task around the middle colour.",
+    "Push the two halves with halved colour ranges."
    ],
    "code": {
     "python": "class Solution:\n    def sortKColours(self, balls: List[int], k: int) -> List[int]:\n        a = balls[:]\n        stack = [(0, len(a) - 1, 1, k)]\n        while stack:\n            left, right, lo, hi = stack.pop()\n            if left >= right or lo >= hi:\n                continue\n            mid = (lo + hi) // 2\n            i, j = left, right\n            while i <= j:\n                while i <= j and a[i] <= mid:\n                    i += 1\n                while i <= j and a[j] > mid:\n                    j -= 1\n                if i < j:\n                    a[i], a[j] = a[j], a[i]\n            stack.append((left, j, lo, mid))\n            stack.append((i, right, mid + 1, hi))\n        return a\n",
@@ -132,7 +147,7 @@
    },
    "lines": [
     {
-     "text": "A copy; start with all positions and all colours `1..k`.",
+     "text": "A working copy and the first task: the whole array, colours `1..k`.",
      "at": {
       "python": [
        [
@@ -164,7 +179,7 @@
      }
     },
     {
-     "text": "A range with fewer than two balls, or only one colour, is already sorted.",
+     "text": "Process tasks until none remain; skip segments that are trivially sorted.",
      "at": {
       "python": [
        [
@@ -193,7 +208,7 @@
      }
     },
     {
-     "text": "Split the colours at `mid`. `i` skips balls that belong left, `j` skips balls that belong right; when both stop, the two balls are on the wrong sides, so swap. Afterwards `[left, j]` holds colours `≤ mid` and `[i, right]` the rest.",
+     "text": "Two pointers move inward: `i` past colours that belong left (`≤ mid`), `j` past colours that belong right; a pair on the wrong sides is swapped. When they cross, `[left, j]` holds the low colours and `[i, right]` the high ones.",
      "at": {
       "python": [
        [
@@ -222,7 +237,7 @@
      }
     },
     {
-     "text": "Each side has half the colours: the recursion depth is log k.",
+     "text": "Each half becomes a new task with half the colour range.",
      "at": {
       "python": [
        [
@@ -251,7 +266,7 @@
      }
     },
     {
-     "text": "Sorted.",
+     "text": "The sorted balls.",
      "at": {
       "python": [
        [
@@ -282,7 +297,7 @@
    ],
    "complexity": [
     {
-     "md": "**Time O(n log k):** every level of colour-halving touches each ball once. **Space O(log k)** for the recursion (or the stack)."
+     "md": "**Time O(n log k).** **Space O(log k)** for the task stack (each level adds a constant number of tasks)."
     }
    ],
    "walk": {
@@ -375,7 +390,7 @@
  ],
  "takeaways": [
   {
-   "md": "- **Partition by value range** (binary search on the colours) generalises the three-colour flag to k colours.\n- O(n log k) beats O(n log n) when k ≪ n, without a counting array.\n- With O(k) extra space allowed, counting sort would be O(n + k)."
+   "md": "- **Sorting few distinct values:** partition by value range (O(n log k)), or counting sort (O(n + k) with extra space).\n- Partitioning around a fixed value instead of a random element guarantees balanced recursion in the value range.\n- **Pitfall:** recursing on segments that hold a single colour."
   }
  ]
 }

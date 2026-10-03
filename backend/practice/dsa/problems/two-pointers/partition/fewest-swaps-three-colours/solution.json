@@ -4,41 +4,47 @@
  "question": [
   {
    "md": "Any two balls may be swapped. Find the fewest swaps to arrange the row as 0s, then 1s, then 2s.\n\n- **Swaps aren't limited to neighbours**, unlike counting inversions.\n- **Up to 10⁵ balls.**"
+  },
+  {
+   "md": "**Edge cases to keep in mind**\n\n- Already arranged: 0 swaps.\n- Any two balls may be swapped, not only neighbours.\n- Balls already in the right zone never need to move."
   }
  ],
  "think": [
   {
-   "md": "`[2, 0, 1, 0, 2, 1, 0]` must become `[0, 0, 0, 1, 1, 2, 2]`, which takes **3** swaps.\n\nOnly misplaced balls matter. Label each by what it is and what its slot needs: a \"1 in a 0-slot\" and a \"0 in a\n1-slot\" swap with each other and both become correct: the best possible, two fixes per swap. After using all\nsuch pairs, the leftovers can't pair up, so they chase each other in cycles of three (a 0 in a 1-slot, a 1 in\na 2-slot, a 2 in a 0-slot), and any 3-cycle needs 2 swaps for 3 balls."
+   "md": "**Where every ball must go.** The final row is `3` zeros, `2` ones, then the twos, so each slot has a\nrequired colour. Compare `[2, 0, 1, 0, 2, 1, 0]` with `[0, 0, 0, 1, 1, 2, 2]` and count balls by **(colour it is, colour its slot needs)**:"
   },
   {
-   "panels": [
-    {
-     "type": "row",
-     "cells": [
-      2,
-      0,
-      1,
-      0,
-      2,
-      1,
-      0
+   "table": {
+    "head": [
+     "ball \\ slot needs",
+     "0",
+     "1",
+     "2"
+    ],
+    "rows": [
+     [
+      "is 0",
+      "(1 in place)",
+      "1",
+      "1"
      ],
-     "label": "now"
-    },
-    {
-     "type": "row",
-     "cells": [
-      0,
-      0,
-      0,
-      1,
-      1,
-      2,
-      2
+     [
+      "is 1",
+      "1",
+      "(0 in place)",
+      "1"
      ],
-     "label": "target"
-    }
-   ]
+     [
+      "is 2",
+      "1",
+      "1",
+      "(0 in place)"
+     ]
+    ]
+   }
+  },
+  {
+   "md": "**Best case: a swap that fixes two balls.** A \"0 in a 1-slot\" and a \"1 in a 0-slot\" swap with each other and both\nbecome correct. No swap can fix more than two balls, so use as many of these mutual pairs as possible:\n1 pair(s) of 0↔1, 1 pair(s) of 0↔2, 1 pair(s) of 1↔2.\n\n**What's left forms 3-cycles.** After the pairs are used up, the remaining misplacements can only be of the form\n\"0 needs 1's slot, 1 needs 2's slot, 2 needs 0's slot\" (or the reverse direction): 0 ball(s), so 0\ncycle(s). A 3-cycle can't be fixed in one swap (that would need a mutual pair), but two swaps always do it. So each\ncosts 2.\n\nTotal: 3 + 2 · 0 = **3**."
   }
  ],
  "approaches": [
@@ -49,13 +55,14 @@
    "space": "O(1)",
    "idea": [
     {
-     "md": "Count the sorted target with three counters (no full sort needed: the first `n0` slots need 0, the next `n1` need 1). Tally `c[have][need]` for misplaced balls. Swaps = Σ min(c[a][b], c[b][a]) over pairs, plus 2 × (remaining misplaced) / 3."
+     "md": "Build the 3 × 3 table of (actual colour, needed colour) counts for misplaced balls. Add the mutual pairs\n`min(c[x][y], c[y][x])` for each pair of colours, remove them, and add 2 for every 3 remaining misplaced\nballs.\n\n**Why it's optimal.** Each swap fixes at most two balls, and only a mutual pair fixes two, so using all\nmutual pairs first can't hurt. Every remaining ball sits in a 3-cycle that needs at least 2 swaps for 3\nballs, and 2 always suffice."
     }
    ],
    "build": [
-    "Count colours to know each slot's target.",
-    "Tally `c[have][need]`.",
-    "Pair swaps, then 3-cycles."
+    "Find each slot's required colour from the counts.",
+    "Tally misplacements by (actual, needed).",
+    "Use all mutual pairs.",
+    "Add 2 per remaining 3-cycle."
    ],
    "code": {
     "python": "class Solution:\n    def minSwapsThreeColours(self, balls: List[int]) -> int:\n        n0, n1 = balls.count(0), balls.count(1)\n        c = [[0] * 3 for _ in range(3)]\n        for i, b in enumerate(balls):\n            need = 0 if i < n0 else (1 if i < n0 + n1 else 2)\n            c[b][need] += 1\n        moves = 0\n        for a in range(3):\n            for b in range(a + 1, 3):\n                m = min(c[a][b], c[b][a])\n                moves += m\n                c[a][b] -= m\n                c[b][a] -= m\n        left = c[0][1] + c[0][2] + c[1][0] + c[1][2] + c[2][0] + c[2][1]\n        return moves + 2 * left // 3\n",
@@ -65,7 +72,7 @@
    },
    "lines": [
     {
-     "text": "How many 0s and 1s there are: the sorted row has 0s in `[0, n0)`, 1s in `[n0, n0+n1)`, 2s after.",
+     "text": "Count the zeros and ones: slots `[0, n0)` need 0, `[n0, n0 + n1)` need 1, the rest need 2.",
      "at": {
       "python": [
        [
@@ -94,7 +101,7 @@
      }
     },
     {
-     "text": "`c[have][need]` counts balls of colour `have` sitting in a slot that needs `need` (the diagonal is correct balls).",
+     "text": "For each ball, record (its colour, the colour its slot needs). Diagonal entries are balls already in place.",
      "at": {
       "python": [
        [
@@ -123,7 +130,7 @@
      }
     },
     {
-     "text": "An `a` in a `b`-slot and a `b` in an `a`-slot swap with each other: one swap, two balls fixed.",
+     "text": "Two balls that need each other's slots: one swap fixes both. Use as many as possible for each pair of colours.",
      "at": {
       "python": [
        [
@@ -152,7 +159,7 @@
      }
     },
     {
-     "text": "What's left forms 3-cycles in equal numbers, so `left` is a multiple of 3; each cycle of 3 balls takes 2 swaps.",
+     "text": "Remaining misplaced balls form 3-cycles of three balls; each costs exactly 2 swaps.",
      "at": {
       "python": [
        [
@@ -183,7 +190,7 @@
    ],
    "complexity": [
     {
-     "md": "**Time O(n).** **Space O(1).**"
+     "md": "**Time O(n).** **Space O(1):** a 3 × 3 table."
     }
    ],
    "walk": {
@@ -267,7 +274,7 @@
  ],
  "takeaways": [
   {
-   "md": "- **Minimum arbitrary swaps to sort = n − (number of cycles)** in the misplacement graph; with few values, count\n  2-cycles and 3-cycles directly.\n- Pair up mutual misplacements first: each swap fixes two items.\n- Neighbour-only swaps are a different problem (count inversions instead)."
+   "md": "- **Minimum swaps to a target arrangement:** count misplacements by (is, needs); fix 2-cycles with one swap, `k`-cycles with `k − 1`.\n- For three colours only 2-cycles and 3-cycles occur.\n- **Pitfall:** counting misplaced balls and dividing by 2, which ignores the 3-cycles."
   }
  ]
 }
