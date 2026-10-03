@@ -4,33 +4,50 @@
  "question": [
   {
    "md": "Count unordered pairs of equal-length substrings, at different start positions, that are anagrams of each other.\n\n- **Equal substrings** at different positions count as twins too.\n- **n ≤ 500**: about 125,000 substrings; comparing all pairs directly would be far too slow."
+  },
+  {
+   "md": "**Edge cases to keep in mind**\n\n- Twins must have the **same length** (rearrangements always do) and different starting positions.\n- Equal substrings at different positions are twins too.\n- Length `n` has only one substring, so it can't form a pair.\n- The count can reach about `n³/6 ≈ 2 × 10⁷` for `n = 500`; it fits in 32 bits."
   }
  ],
  "think": [
   {
-   "md": "`\"abba\"`: length 1 has the pairs (a, a) and (b, b); length 2 has `ab` and `ba`; length 3 has `abb` and `bba`.\nTotal **4**.\n\nAnagram pairs = equal signatures. For a fixed length, sliding the window changes just two counters, so every\nwindow's signature costs O(1) to update (plus 26 to record). Then count equal signatures with a hash map."
+   "md": "**Signatures.** When a question only cares about *which letters and how many*, not their order, give every string a\n**signature** that ignores order: its letters sorted (`\"dormitory\" → \"dimoorrty\"`) or its 26 letter counts. Two strings\nare rearrangements of each other exactly when their signatures are equal. Counts are cheaper to build (O(n) instead of\nO(n log n)) and to update when one letter changes."
+  },
+  {
+   "md": "**Group by signature, then count pairs.** For each length `L`, compute the signature of every window of length\n`L`. Windows with the same signature are all twins of each other; a group of `k` windows contributes\n`k · (k − 1) / 2` pairs. For `\"abba\"`:"
   },
   {
    "table": {
     "head": [
      "length",
-     "twin pairs"
+     "windows",
+     "signature groups",
+     "pairs"
     ],
     "rows": [
      [
       "1",
+      "a, b, b, a",
+      "a×2, b×2",
       "2"
      ],
      [
       "2",
+      "ab, bb, ba",
+      "ab×2, bb×1",
       "1"
      ],
      [
       "3",
+      "abb, bba",
+      "abb×2",
       "1"
      ]
     ]
    }
+  },
+  {
+   "md": "Total **4**.\n\n**Updating a signature in O(1).** Within one length, sliding the window right changes two letters: one count goes\nup, one goes down. So the 26-count signature of the next window costs O(1) to update (plus O(26) to use it as a\ndictionary key), instead of sorting each window again."
   }
  ],
  "approaches": [
@@ -41,12 +58,13 @@
    "space": "O(n)",
    "idea": [
     {
-     "md": "For each length, compare every pair of windows by their sorted letters."
+     "md": "For each length, sort every window's letters to get its signature, then compare every pair of windows and\ncount equal signatures."
     }
    ],
    "build": [
-    "For each length L, list the windows' sorted forms.",
-    "Count equal pairs directly."
+    "Loop over lengths.",
+    "Sorted signature per window.",
+    "Compare all pairs of windows."
    ],
    "code": {
     "python": "class Solution:\n    def anagramTwins(self, s: str) -> int:\n        n, total = len(s), 0\n        for L in range(1, n):\n            sigs = [\"\".join(sorted(s[i:i + L])) for i in range(n - L + 1)]\n            for i in range(len(sigs)):\n                for j in range(i + 1, len(sigs)):\n                    if sigs[i] == sigs[j]:\n                        total += 1\n        return total\n",
@@ -56,7 +74,7 @@
    },
    "lines": [
     {
-     "text": "The running total.",
+     "text": "The running total of pairs.",
      "at": {
       "python": [
        [
@@ -85,7 +103,7 @@
      }
     },
     {
-     "text": "Twins must have the same length.",
+     "text": "Twins have equal lengths, so each length is handled separately. Length `n` is skipped: one window can't pair.",
      "at": {
       "python": [
        [
@@ -114,7 +132,7 @@
      }
     },
     {
-     "text": "A signature for every window: its sorted letters.",
+     "text": "The sorted letters of each window: equal for rearrangements, different otherwise.",
      "at": {
       "python": [
        [
@@ -146,7 +164,7 @@
      }
     },
     {
-     "text": "Every pair of windows with equal signatures is a twin pair.",
+     "text": "Compare every pair of windows of this length and count matching signatures.",
      "at": {
       "python": [
        [
@@ -175,7 +193,7 @@
      }
     },
     {
-     "text": "Total.",
+     "text": "Pairs over all lengths.",
      "at": {
       "python": [
        [
@@ -206,7 +224,7 @@
    ],
    "complexity": [
     {
-     "md": "**Time O(n³)** pair comparisons (each costing up to O(L) or 26). **Space O(n)** signatures per length."
+     "md": "**Time O(n³)** pair comparisons (plus sorting), around 2 × 10⁷ signature comparisons for `n = 500`, each costing up to O(n). **Space O(n²)** for the signatures of one length."
     }
    ],
    "walk": {
@@ -284,7 +302,7 @@
    },
    "limits": [
     {
-     "md": "Comparing all pairs is cubic. Grouping equal signatures with a hash map (or sorting them) counts pairs per group in one go: k(k − 1)/2."
+     "md": "Comparing every pair is wasteful: grouping equal signatures and counting `k(k − 1)/2` per group needs one pass. Sorting each window is also unnecessary when counts can slide."
     }
    ],
    "slow": true
@@ -296,13 +314,14 @@
    "space": "O(n · 26)",
    "idea": [
     {
-     "md": "For each length L: counts of the first window; then slide, adding the new letter and removing the old. Record each window's 26-count tuple in a hash map. Add `k(k − 1)/2` for every group of size k."
+     "md": "For each length `L`: build the 26 counts of the first window, then slide, adding the entering letter and\nremoving the leaving one. Count how many windows have each signature in a dictionary keyed by the count\ntuple. Add `k(k − 1)/2` for every group.\n\n**Why grouping counts every pair once.** Each unordered pair of twins sits in exactly one group (their\ncommon signature), and a group of `k` has `k(k − 1)/2` unordered pairs."
     }
    ],
    "build": [
-    "For each length, initial counts.",
-    "Slide and record signatures.",
-    "Sum pairs per group."
+    "Loop over lengths `1 … n − 1`.",
+    "Counts of the first window.",
+    "Slide and record each window's count tuple.",
+    "Add `k(k − 1)/2` per group."
    ],
    "code": {
     "python": "from collections import Counter\n\nclass Solution:\n    def anagramTwins(self, s: str) -> int:\n        n, total = len(s), 0\n        codes = [ord(c) - 97 for c in s]\n        for L in range(1, n):\n            cnt = [0] * 26\n            for c in codes[:L]:\n                cnt[c] += 1\n            seen = Counter([tuple(cnt)])\n            for i in range(L, n):\n                cnt[codes[i]] += 1\n                cnt[codes[i - L]] -= 1\n                seen[tuple(cnt)] += 1\n            total += sum(k * (k - 1) // 2 for k in seen.values())\n        return total\n",
@@ -341,7 +360,7 @@
      }
     },
     {
-     "text": "Twins have the same length, so handle each length separately.",
+     "text": "Each window length on its own.",
      "at": {
       "python": [
        [
@@ -370,7 +389,7 @@
      }
     },
     {
-     "text": "Counts of the first window, recorded as a signature.",
+     "text": "Letter counts of the first window of this length.",
      "at": {
       "python": [
        [
@@ -399,7 +418,7 @@
      }
     },
     {
-     "text": "Moving the window one step changes two counters; record the new signature.",
+     "text": "Move right: one letter's count rises, another's falls. Record the new signature's group size. C keeps the signatures in an array and sorts them to find groups.",
      "at": {
       "python": [
        [
@@ -428,7 +447,7 @@
      }
     },
     {
-     "text": "k windows sharing a signature give k(k − 1)/2 pairs.",
+     "text": "A group of `k` equal signatures holds `k(k − 1)/2` twin pairs.",
      "at": {
       "python": [
        [
@@ -464,7 +483,7 @@
      }
     },
     {
-     "text": "Total over all lengths.",
+     "text": "Pairs over all lengths.",
      "at": {
       "python": [
        [
@@ -495,7 +514,7 @@
    ],
    "complexity": [
     {
-     "md": "**Time O(n² · 26)** (C: O(n² log n · 26) with sorting). **Space O(n · 26)** per length."
+     "md": "**Time O(n² · 26):** about `n²/2` windows over all lengths, each turned into a 26-entry key. **Space O(n · 26)** for one length's groups."
     }
    ],
    "walk": {
@@ -584,7 +603,7 @@
  ],
  "takeaways": [
   {
-   "md": "- **Anagram grouping = group by letter-count signature.**\n- Fixed-length windows update their signature in O(1) per slide.\n- k items in a group form k(k − 1)/2 pairs."
+   "md": "- **Count pairs of \"equivalent\" items:** group by a signature, add `k(k − 1)/2` per group.\n- Sliding counts give each window's signature cheaply.\n- **Pitfall:** comparing all pairs instead of grouping."
   }
  ]
 }

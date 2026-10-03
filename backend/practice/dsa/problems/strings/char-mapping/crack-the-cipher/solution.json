@@ -4,41 +4,63 @@
  "question": [
   {
    "md": "The cipher is a one-to-one letter substitution; spaces stay. From one sample sentence in both forms, decode a new\nmessage: known letters are translated, unknown ones become `?`.\n\n- **The 25-letter rule:** knowing 25 pairs pins down the 26th, since each plain letter is used exactly once.\n- **Up to 10⁵ characters** in each string."
+  },
+  {
+   "md": "**Edge cases to keep in mind**\n\n- A coded letter that never appears in the sample decodes to `?`.\n- With exactly 25 coded letters learned, the 26th is forced: it must stand for the only unused plain letter.\n- Spaces stay spaces; they aren't letters of the cipher."
   }
  ],
  "think": [
   {
-   "md": "Sample `\"the cab\"` ↔ `\"xli gef\"`, message `\"fex lev\"` → `\"bat ha?\"`.\n\nEvery coded letter in the sample tells us its plain letter, and that never changes. So one pass builds the full\ndecoding table, and the message is translated with lookups. The deduction rule only applies when 25 coded\nletters are known: the 26th coded letter has to be the remaining plain letter."
+   "md": "**What the sample tells us.** Each aligned pair `(plain[i], coded[i])` reveals that `coded[i]` stands for\n`plain[i]`, and since the cipher is fixed, that holds everywhere. So one pass over the sample builds a\n**decoding table** from coded letters to plain letters.\n\nFrom `\"the cab\"` ↔ `\"xli gef\"`: x→t, l→h, i→e, g→c, e→a, f→b.\n\n**Decoding `\"fex lev\"`:**"
   },
   {
-   "panels": [
-    {
-     "type": "row",
-     "cells": [
-      "x",
-      "l",
-      "i",
-      " ",
-      "g",
-      "e",
-      "f"
+   "table": {
+    "head": [
+     "coded",
+     "plain",
+     "why"
+    ],
+    "rows": [
+     [
+      "f",
+      "b",
+      "learned from the sample"
      ],
-     "label": "coded"
-    },
-    {
-     "type": "row",
-     "cells": [
-      "t",
-      "h",
+     [
       "e",
-      " ",
-      "c",
       "a",
-      "b"
+      "learned from the sample"
      ],
-     "label": "plain"
-    }
-   ]
+     [
+      "x",
+      "t",
+      "learned from the sample"
+     ],
+     [
+      " ",
+      " ",
+      "space"
+     ],
+     [
+      "l",
+      "h",
+      "learned from the sample"
+     ],
+     [
+      "e",
+      "a",
+      "learned from the sample"
+     ],
+     [
+      "v",
+      "?",
+      "never seen"
+     ]
+    ]
+   }
+  },
+  {
+   "md": "Result **`bat ha?`**.\n\n**The 25-letter rule.** The cipher is one-to-one on 26 letters. If 25 coded letters are known, they use 25\ndifferent plain letters, so the remaining coded letter must map to the remaining plain letter. With 24 or fewer\nknown, at least two pairings remain possible, so nothing more can be deduced."
   }
  ],
  "approaches": [
@@ -49,13 +71,13 @@
    "space": "O(1)",
    "idea": [
     {
-     "md": "For each message letter, find it in `coded` and output the `plain` letter at that position. Handle the 25-letter rule with an extra count of distinct coded letters."
+     "md": "For each letter of the message, search the coded sample for it; if found, output the plain letter at the\nsame position. Handle the 25-letter case by finding the missing coded and plain letters up front."
     }
    ],
    "build": [
-    "Count the distinct coded letters (for the deduction rule).",
-    "For each message letter, search `coded`.",
-    "Output the plain letter, or the deduced one, or `?`."
+    "Prepare the forced pair if 25 letters are known.",
+    "For each message letter, search the sample.",
+    "Emit the plain letter, `?`, or a space."
    ],
    "code": {
     "python": "class Solution:\n    def crackCipher(self, plain: str, coded: str, message: str) -> str:\n        letters = \"abcdefghijklmnopqrstuvwxyz\"\n        known = set(coded) - {\" \"}\n        spare_c = spare_p = None\n        if len(known) == 25:\n            spare_c = next(x for x in letters if x not in known)\n            spare_p = next(x for x in letters if x not in set(plain))\n        out = []\n        for c in message:\n            at = coded.find(c)\n            if c == \" \":\n                out.append(\" \")\n            elif at >= 0:\n                out.append(plain[at])\n            else:\n                out.append(spare_p if c == spare_c else \"?\")\n        return \"\".join(out)\n",
@@ -65,7 +87,7 @@
    },
    "lines": [
     {
-     "text": "Which coded and plain letters appear in the sample; with exactly 25 coded letters known, the unseen coded letter maps to the unseen plain letter.",
+     "text": "If the sample reveals exactly 25 coded letters, pair the missing coded letter with the unused plain letter.",
      "at": {
       "python": [
        [
@@ -106,7 +128,7 @@
      }
     },
     {
-     "text": "Build the output letter by letter.",
+     "text": "Decode the message one character at a time.",
      "at": {
       "python": [
        [
@@ -135,7 +157,7 @@
      }
     },
     {
-     "text": "Search the whole coded sentence for this letter: O(n) each time.",
+     "text": "Look for this letter in the coded sample; the plain sample at the same position is its meaning.",
      "at": {
       "python": [
        [
@@ -164,7 +186,7 @@
      }
     },
     {
-     "text": "Space stays a space; a found letter gives its plain partner; otherwise the deduced letter or `?`.",
+     "text": "A space stays a space; a found letter is decoded; an unknown letter becomes `?` unless it's the forced 26th.",
      "at": {
       "python": [
        [
@@ -224,7 +246,7 @@
    ],
    "complexity": [
     {
-     "md": "**Time O(m · n):** a search of the sample per message letter, up to 10¹⁰. **Space O(1)** besides the output."
+     "md": "**Time O(|message| · |sample|):** up to 10¹⁰ steps. **Space O(1)** besides the output."
     }
    ],
    "walk": {
@@ -455,7 +477,7 @@
    },
    "limits": [
     {
-     "md": "The same letter is searched for again and again. A 26-entry table built in one pass answers each lookup in O(1)."
+     "md": "The same search is repeated for every message letter. A table built once answers each lookup in O(1)."
     }
    ],
    "slow": true
@@ -467,13 +489,13 @@
    "space": "O(1)",
    "idea": [
     {
-     "md": "`back[c] = p` for every non-space pair in the sample. If 25 entries are filled, set the empty one to the unused plain letter. Translate the message through `back`."
+     "md": "Build `back[coded] = plain` from the aligned sample. If it has exactly 25 entries, add the forced pair.\nMap spaces to spaces. Then translate the message with one table lookup per character, using `?` for missing\nletters."
     }
    ],
    "build": [
-    "Fill the 26-entry table from the sample.",
+    "Fill the table from the sample.",
     "Apply the 25-letter rule.",
-    "Translate."
+    "Translate the message."
    ],
    "code": {
     "python": "class Solution:\n    def crackCipher(self, plain: str, coded: str, message: str) -> str:\n        back = {}\n        for p, c in zip(plain, coded):\n            if c != \" \":\n                back[c] = p\n        if len(back) == 25:\n            letters = \"abcdefghijklmnopqrstuvwxyz\"\n            missing = next(x for x in letters if x not in back)\n            used = set(back.values())\n            back[missing] = next(x for x in letters if x not in used)\n        back[\" \"] = \" \"\n        return \"\".join(back.get(c, \"?\") for c in message)\n",
@@ -483,7 +505,7 @@
    },
    "lines": [
     {
-     "text": "One pass over the sample: each coded letter's plain partner, and which plain letters are taken.",
+     "text": "Each aligned pair of letters is one entry of the decoding table; spaces are skipped.",
      "at": {
       "python": [
        [
@@ -512,7 +534,7 @@
      }
     },
     {
-     "text": "With 25 coded letters known, the one unknown coded letter must map to the one unused plain letter.",
+     "text": "With 25 entries, the missing coded letter must stand for the one plain letter not yet used.",
      "at": {
       "python": [
        [
@@ -541,7 +563,7 @@
      }
     },
     {
-     "text": "Translate: spaces stay, known letters convert, unknown ones become `?`.",
+     "text": "Translate every character with the table; missing letters become `?`, spaces stay.",
      "at": {
       "python": [
        [
@@ -572,7 +594,7 @@
    ],
    "complexity": [
     {
-     "md": "**Time O(n + m).** **Space O(1):** two 26-entry tables."
+     "md": "**Time O(|sample| + |message|).** **Space O(1):** at most 27 table entries."
     }
    ],
    "walk": {
@@ -647,7 +669,7 @@
  ],
  "takeaways": [
   {
-   "md": "- **One-to-one substitutions = a lookup table** built in one pass.\n- Bijection logic lets you deduce the last pair when all but one are known.\n- Prefer a 26-slot array over a hash map for lowercase letters."
+   "md": "- **Fixed substitutions → build the mapping once, then translate.**\n- **One-to-one maps on a finite alphabet:** knowing all but one pair forces the last.\n- **Pitfall:** applying the 25-letter rule with fewer known letters, where it doesn't follow."
   }
  ]
 }

@@ -4,35 +4,43 @@
  "question": [
   {
    "md": "One step repaints **every** tile of colour `x` with colour `y`. Can `s` be turned into `t` with `m` colours\navailable?\n\n- **Repaints are all-or-nothing:** two tiles with the same colour can never be separated.\n- **Swapping two colours** needs a third, temporary colour."
+  },
+  {
+   "md": "**Edge cases to keep in mind**\n\n- `s = t`: always possible with zero steps.\n- Two tiles with the same colour in `s` but different colours in `t`: impossible, they're always repainted together.\n- Every one of the `m` colours used in `t`, with `s ≠ t`: impossible (no free colour to work with)."
   }
  ],
  "think": [
   {
-   "md": "`s = \"abca\"`, `t = \"bbcb\"`, m = 3: **true**.\n\nFirst requirement: same colour in `s` ⇒ same colour in `t`, because tiles of one colour are always repainted\ntogether. That's a function from `s`-colours to `t`-colours.\n\nIs a consistent function always achievable? Merging colours (a → b when b → b) is easy. The trouble is cycles,\nlike a → b and b → a: repainting a first destroys the a/b distinction. A free colour fixes it: a → spare, b → a,\nspare → b. A colour is free exactly when `t` doesn't use all `m` colours. If `t` uses all `m` colours, the\nfunction is a permutation of all colours, and any real change is impossible without a free colour."
+   "md": "**First requirement: one target per colour.** A step repaints *every* tile of a colour, so tiles that share a\ncolour in `s` always share a colour afterwards. So each colour of `s` must go to a single colour of `t`: the pairs\n`(s[i], t[i])` must define a function. For `s = \"abca\"`, `t = \"bbcb\"`: a→b, b→b, c→c,\nconsistent.\n\n**Second requirement: a free colour, unless nothing changes.** If `t` uses all `m` colours, then (since it's the\nimage of the function) so does `s`, and every step merges two colour classes, permanently reducing the number of\ncolours present. But `t` needs all `m`, so no step may happen at all, meaning `s` must already equal `t`.\n\n**Why a free colour is enough.** Think of the function as arrows `x → f(x)`. Repaint along chains from the far\nend first, so a colour is never overwritten while some tile still needs it. A cycle (like `a → b → a`) needs one\ntemporary colour; a colour missing from `t` can be freed and used for that. For example, `s = \"ab\"`, `t = \"ba\"`,\n`m = 3`:"
   },
   {
-   "panels": [
-    {
-     "type": "row",
-     "cells": [
-      "a",
-      "b",
-      "c",
-      "a"
+   "table": {
+    "head": [
+     "sign",
+     "step"
+    ],
+    "rows": [
+     [
+      "ab",
+      "start"
      ],
-     "label": "s"
-    },
-    {
-     "type": "row",
-     "cells": [
-      "b",
-      "b",
-      "c",
-      "b"
+     [
+      "cb",
+      "a → c (c is free: not in the target)"
      ],
-     "label": "t"
-    }
-   ]
+     [
+      "ca",
+      "b → a (a is now free)"
+     ],
+     [
+      "ba",
+      "c → b"
+     ]
+    ]
+   }
+  },
+  {
+   "md": "With `m = 2` there's no spare colour and this swap is impossible."
   }
  ],
  "approaches": [
@@ -43,13 +51,13 @@
    "space": "O(1)",
    "idea": [
     {
-     "md": "If `s == t`, true. Otherwise build `paint[x] = y` for each tile; any conflict means false. Finally require that `t` uses fewer than `m` distinct colours."
+     "md": "Return true if `s = t`. Otherwise check that the colour mapping is consistent, and that `t` uses fewer than\n`m` colours.\n\nSearching over repaint sequences directly would explode; the two conditions capture exactly what's\npossible (see the reasoning above)."
     }
    ],
    "build": [
-    "Equal strings need nothing.",
-    "Check the colour mapping is a function.",
-    "Check for a spare colour."
+    "Equal signs: true.",
+    "Build the mapping from `s`-colour to `t`-colour; a conflict means false.",
+    "Require a colour unused by `t`."
    ],
    "code": {
     "python": "class Solution:\n    def canRepaint(self, s: str, t: str, m: int) -> bool:\n        if s == t:\n            return True\n        paint = {}\n        for x, y in zip(s, t):\n            if paint.setdefault(x, y) != y:\n                return False\n        return len(set(t)) < m\n",
@@ -59,7 +67,7 @@
    },
    "lines": [
     {
-     "text": "Nothing to do.",
+     "text": "Nothing to change: zero steps.",
      "at": {
       "python": [
        [
@@ -88,7 +96,7 @@
      }
     },
     {
-     "text": "Every tile of colour `x` must end with the same colour: a second, different target for `x` makes it impossible.",
+     "text": "Each colour of `s` must always go to the same colour of `t`; a second, different target makes it impossible.",
      "at": {
       "python": [
        [
@@ -117,7 +125,7 @@
      }
     },
     {
-     "text": "Some change is needed, and changes involving cycles need a temporary colour: one must be unused by `t`.",
+     "text": "With `s ≠ t`, at least one colour must be free (unused in `t`) to break cycles; if `t` uses all `m` colours, the number of colours can only shrink.",
      "at": {
       "python": [
        [
@@ -148,7 +156,7 @@
    ],
    "complexity": [
     {
-     "md": "**Time O(n).** **Space O(1).**"
+     "md": "**Time O(n).** **Space O(m):** at most 26 entries."
     }
    ],
    "walk": {
@@ -318,7 +326,7 @@
  ],
  "takeaways": [
   {
-   "md": "- **Global replacements** (all copies at once) require a consistent many-to-one map.\n- Swapping two labels needs a free third label; check whether one exists.\n- Handle \"already equal\" first: it needs zero operations even without a free label."
+   "md": "- **\"Recolour all of x\" operations** → the mapping must be a function; check it with one map.\n- **Cycles in a mapping need a temporary slot** (like swapping two variables).\n- **Pitfall:** forgetting the `s = t` case, which needs no free colour."
   }
  ]
 }

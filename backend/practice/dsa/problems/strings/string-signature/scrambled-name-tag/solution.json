@@ -4,46 +4,56 @@
  "question": [
   {
    "md": "Ignoring spaces and case, does `b` use exactly the same letters as `a`, the same number of times?\n\n- **Spaces don't count**, and lengths with spaces may differ.\n- **Up to 10⁵ characters each.**"
+  },
+  {
+   "md": "**Edge cases to keep in mind**\n\n- Different numbers of spaces don't matter; spaces are ignored entirely.\n- `A` and `a` are the same letter.\n- Same letters in different amounts (`\"aab\"` vs `\"abb\"`) are **not** scrambles."
   }
  ],
  "think": [
   {
-   "md": "`\"Dormitory\"` and `\"dirty room\"` both reduce to the letters d, i, m, o, o, r, r, t, y: **true**.\n\nOrder doesn't matter, only how many of each letter. That's a signature: sorted letters, or 26 counts. Counts\nare cheaper."
+   "md": "**Signatures.** When a question only cares about *which letters and how many*, not their order, give every string a\n**signature** that ignores order: its letters sorted (`\"dormitory\" → \"dimoorrty\"`) or its 26 letter counts. Two strings\nare rearrangements of each other exactly when their signatures are equal. Counts are cheaper to build (O(n) instead of\nO(n log n)) and to update when one letter changes."
   },
   {
-   "panels": [
-    {
-     "type": "row",
-     "cells": [
-      "D",
-      "o",
-      "r",
-      "m",
-      "i",
-      "t",
-      "o",
-      "r",
-      "y"
+   "md": "**Normalise first.** Drop spaces and lowercase everything; then compare signatures. For `\"Dormitory\"` and `\"dirty room\"`:"
+  },
+  {
+   "table": {
+    "head": [
+     "letter",
+     "d",
+     "i",
+     "m",
+     "o",
+     "r",
+     "t",
+     "y"
+    ],
+    "rows": [
+     [
+      "count in a",
+      "1",
+      "1",
+      "1",
+      "2",
+      "2",
+      "1",
+      "1"
      ],
-     "label": "a"
-    },
-    {
-     "type": "row",
-     "cells": [
-      "d",
-      "i",
-      "r",
-      "t",
-      "y",
-      " ",
-      "r",
-      "o",
-      "o",
-      "m"
-     ],
-     "label": "b"
-    }
-   ]
+     [
+      "count in b",
+      "1",
+      "1",
+      "1",
+      "2",
+      "2",
+      "1",
+      "1"
+     ]
+    ]
+   }
+  },
+  {
+   "md": "Every count matches, so the answer is **true**.\n\n**One array instead of two.** Add 1 for each letter of `a` and subtract 1 for each letter of `b`. The phrases are\nscrambles exactly when every counter ends at 0."
   }
  ],
  "approaches": [
@@ -54,12 +64,12 @@
    "space": "O(n)",
    "idea": [
     {
-     "md": "Lowercase, drop spaces, sort both, compare."
+     "md": "Normalise both phrases (no spaces, lowercase), sort the letters, and compare the sorted lists. Equal sorted letters means equal multisets of letters."
     }
    ],
    "build": [
-    "Normalise each phrase.",
-    "Sort.",
+    "Filter out spaces and lowercase.",
+    "Sort both.",
     "Compare."
    ],
    "code": {
@@ -70,7 +80,7 @@
    },
    "lines": [
     {
-     "text": "Lowercase letters without spaces, sorted: a canonical form.",
+     "text": "Keep letters only, lowercased, and sort them. The sorted list is the phrase's signature; Java, C++ and C build it in a buffer.",
      "at": {
       "python": [
        [
@@ -103,7 +113,7 @@
      }
     },
     {
-     "text": "Scrambles have the same canonical form.",
+     "text": "Equal signatures mean the same letters with the same counts.",
      "at": {
       "python": [
        [
@@ -134,7 +144,7 @@
    ],
    "complexity": [
     {
-     "md": "**Time O(n log n).** **Space O(n).**"
+     "md": "**Time O(n log n)** for the sorts. **Space O(n)** for the normalised copies."
     }
    ],
    "walk": {
@@ -204,7 +214,7 @@
    },
    "limits": [
     {
-     "md": "Sorting does more than needed. Only the letter counts matter, and 26 counters give them in linear time."
+     "md": "Sorting does more than needed: only the counts of 26 letters matter, which one pass can collect."
     }
    ]
   },
@@ -215,13 +225,13 @@
    "space": "O(1)",
    "idea": [
     {
-     "md": "`cnt[letter] += 1` over `a`, `−= 1` over `b` (skipping spaces, folding case). True if all counts are 0."
+     "md": "One array of 26 counters. Each letter of `a` adds 1, each letter of `b` subtracts 1 (spaces skipped, case\nfolded). Return whether all counters are 0.\n\n**Why it's right.** Counter `x` ends at `(count of x in a) − (count of x in b)`, which is 0 for every `x`\nexactly when the letter counts agree."
     }
    ],
    "build": [
-    "Count up over a.",
-    "Count down over b.",
-    "Check all zero."
+    "26 zeros.",
+    "Add for `a`, subtract for `b`.",
+    "Check that all are 0."
    ],
    "code": {
     "python": "class Solution:\n    def isScramble(self, a: str, b: str) -> bool:\n        cnt = [0] * 26\n        for c in a:\n            if c != \" \":\n                cnt[ord(c.lower()) - 97] += 1\n        for c in b:\n            if c != \" \":\n                cnt[ord(c.lower()) - 97] -= 1\n        return not any(cnt)\n",
@@ -231,7 +241,7 @@
    },
    "lines": [
     {
-     "text": "Letters of `a` add, letters of `b` subtract; spaces skipped, case folded.",
+     "text": "Up for every letter of `a`, down for every letter of `b`, ignoring spaces and case.",
      "at": {
       "python": [
        [
@@ -260,7 +270,7 @@
      }
     },
     {
-     "text": "Every letter balanced: same multiset.",
+     "text": "Any non-zero counter means some letter appears a different number of times.",
      "at": {
       "python": [
        [
@@ -291,7 +301,7 @@
    ],
    "complexity": [
     {
-     "md": "**Time O(n + m).** **Space O(1):** 26 counters."
+     "md": "**Time O(n + m).** **Space O(1).**"
     }
    ],
    "walk": {
@@ -340,7 +350,7 @@
  ],
  "takeaways": [
   {
-   "md": "- **Anagram test = equal letter counts.** One counter array: add for one string, subtract for the other.\n- Normalise first (case, spaces) so the signature captures exactly what \"same\" means.\n- Sorting works too, at O(n log n)."
+   "md": "- **Rearrangement checks → compare signatures** (sorted letters or counts).\n- **One signed counter array** handles both strings.\n- **Pitfall:** comparing before normalising (spaces, case)."
   }
  ]
 }

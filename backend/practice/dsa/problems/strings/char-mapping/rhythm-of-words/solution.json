@@ -4,35 +4,40 @@
  "question": [
   {
    "md": "Does `sentence` follow `pattern`: one word per letter, same letter ↔ same word, different letters ↔ different\nwords?\n\n- **Both directions matter:** `\"abba\"` vs `\"sun sun sun sun\"` fails because a and b map to the same word.\n- **Word count must equal pattern length.**"
+  },
+  {
+   "md": "**Edge cases to keep in mind**\n\n- Different numbers of letters and words: false.\n- Two letters mapped to the same word: false (the map must be one-to-one both ways).\n- A single letter and a single word: true."
   }
  ],
  "think": [
   {
-   "md": "Pattern `\"abca\"`, sentence `\"sun moon star sun\"`: a ↔ sun, b ↔ moon, c ↔ star, and the last `a` is `sun` again.\n**true**.\n\nOne map from letters to words catches \"same letter, different words\". It doesn't catch \"different letters, same\nword\"; that needs the reverse map too. Together they check a bijection."
+   "md": "**One-to-one means two checks.** \"Same letter → same word\" is a function from letters to words. \"Different\nletters → different words\" means no two letters share a word, which is a function from words back to letters.\nChecking only one direction misses half the failures.\n\n**Example** `\"abca\"` with `\"sun moon star sun\"`: a↔sun, b↔moon, c↔star, a↔sun: every letter keeps its\nword and every word keeps its letter, so **true**.\n\n**How it can fail:**"
   },
   {
-   "panels": [
-    {
-     "type": "row",
-     "cells": [
-      "a",
-      "b",
-      "c",
-      "a"
+   "table": {
+    "head": [
+     "pattern",
+     "sentence",
+     "problem"
+    ],
+    "rows": [
+     [
+      "abba",
+      "sun sun sun sun",
+      "a and b both → sun (two letters, one word)"
      ],
-     "label": "pattern"
-    },
-    {
-     "type": "row",
-     "cells": [
-      "sun",
-      "moon",
-      "star",
-      "sun"
+     [
+      "aaaa",
+      "sun moon sun moon",
+      "a → sun and moon (one letter, two words)"
      ],
-     "label": "words"
-    }
-   ]
+     [
+      "ab",
+      "sun moon star",
+      "different numbers of letters and words"
+     ]
+    ]
+   }
   }
  ],
  "approaches": [
@@ -43,12 +48,13 @@
    "space": "O(n)",
    "idea": [
     {
-     "md": "For all `i < j`: `pattern[i] == pattern[j]` must hold exactly when `words[i] == words[j]`."
+     "md": "Split the sentence. For every pair of positions `i < j`, the letters are equal exactly when the words are\nequal. If any pair breaks that, the sentence doesn't follow the pattern.\n\nIt checks both directions at once, which makes it a neat correctness reference."
     }
    ],
    "build": [
-    "Split; compare counts.",
-    "Check every pair of positions."
+    "Split and compare lengths.",
+    "Check every pair of positions.",
+    "True if no pair disagrees."
    ],
    "code": {
     "python": "class Solution:\n    def followsRhythm(self, pattern: str, sentence: str) -> bool:\n        words = sentence.split(\" \")\n        if len(words) != len(pattern):\n            return False\n        for i in range(len(words)):\n            for j in range(i + 1, len(words)):\n                if (pattern[i] == pattern[j]) != (words[i] == words[j]):\n                    return False\n        return True\n",
@@ -58,7 +64,7 @@
    },
    "lines": [
     {
-     "text": "One word per pattern letter, or it fails immediately.",
+     "text": "Words separated by single spaces; the counts must match the pattern length.",
      "at": {
       "python": [
        [
@@ -90,7 +96,7 @@
      }
     },
     {
-     "text": "Equal letters must mean equal words and vice versa.",
+     "text": "For every pair of positions, \"same letter\" must agree with \"same word\".",
      "at": {
       "python": [
        [
@@ -119,7 +125,7 @@
      }
     },
     {
-     "text": "Every pair agreed.",
+     "text": "No disagreement found.",
      "at": {
       "python": [
        [
@@ -150,7 +156,7 @@
    ],
    "complexity": [
     {
-     "md": "**Time O(n² · L)** for n words of length L. **Space O(n).**"
+     "md": "**Time O(n² · w)** for `n` words of length up to `w` (word comparisons). **Space O(n)** for the words."
     }
    ],
    "walk": {
@@ -363,7 +369,7 @@
    },
    "limits": [
     {
-     "md": "Compares every pair (45,000 pairs for 300 words). Two maps check each position once."
+     "md": "Quadratic in the number of words. Two maps check each position once."
     }
    ]
   },
@@ -374,13 +380,13 @@
    "space": "O(n · L)",
    "idea": [
     {
-     "md": "Walk letters and words together. `to_word[letter]` and `to_letter[word]` must each be unset or equal to the current partner."
+     "md": "Walk letters and words together with two maps: letter → word and word → letter. At each position, the\nstored partner (if any) must equal the current one in **both** maps.\n\n**Why both maps.** The first catches a letter that changes words; the second catches two letters sharing a\nword. Together they guarantee a one-to-one correspondence."
     }
    ],
    "build": [
-    "Split; compare counts.",
-    "Check and record both directions.",
-    "True if no conflict."
+    "Split and compare lengths.",
+    "Two empty maps.",
+    "For each position, check or store both directions."
    ],
    "code": {
     "python": "class Solution:\n    def followsRhythm(self, pattern: str, sentence: str) -> bool:\n        words = sentence.split(\" \")\n        if len(words) != len(pattern):\n            return False\n        to_word, to_letter = {}, {}\n        for p, w in zip(pattern, words):\n            if to_word.setdefault(p, w) != w or to_letter.setdefault(w, p) != p:\n                return False\n        return True\n",
@@ -390,7 +396,7 @@
    },
    "lines": [
     {
-     "text": "One word per letter, or it fails.",
+     "text": "Words, and the length check.",
      "at": {
       "python": [
        [
@@ -454,7 +460,7 @@
      }
     },
     {
-     "text": "Each pair must match what each map already says (or set it).",
+     "text": "A letter seen before must come with the same word.",
      "at": {
       "python": [
        [
@@ -486,7 +492,7 @@
      }
     },
     {
-     "text": "Different letters ⇒ different words: compare the first words of every pair of used letters (at most 26 × 25 / 2 comparisons).",
+     "text": "A word seen before must come with the same letter; this is what stops two letters sharing a word. Python does both checks with `setdefault` in one line.",
      "at": {
       "c": [
        [
@@ -497,7 +503,7 @@
      }
     },
     {
-     "text": "A one-to-one match.",
+     "text": "Every position was consistent both ways.",
      "at": {
       "python": [
        [
@@ -528,7 +534,7 @@
    ],
    "complexity": [
     {
-     "md": "**Time O(n · L)** (C adds O(26² · L)). **Space O(n · L)** for the maps."
+     "md": "**Time O(n · w)** (hashing the words). **Space O(n · w)** for the maps."
     }
    ],
    "walk": {
@@ -698,7 +704,7 @@
  ],
  "takeaways": [
   {
-   "md": "- **Bijection check = two maps** (or one map plus a \"used\" set for the other side).\n- A single map misses \"two keys, same value\".\n- Compare lengths first."
+   "md": "- **One-to-one correspondence = two maps** (or one map plus a set of used targets).\n- **Pitfall:** checking only letter → word.\n- Same pattern as isomorphic strings."
   }
  ]
 }
