@@ -1,0 +1,895 @@
+{
+ "version": 1,
+ "summary": "Every cell must be updated from the **old** board, so naively writing new values would corrupt the\nneighbour counts of cells not yet visited. Either read from a copy (O(mn) extra space), or store the new\nstate in a spare bit of each cell, leaving the old state readable until a final pass shifts it out\n(O(1) extra space).",
+ "question": [
+  {
+   "md": "Apply one generation of the rules to a grid of 0s (empty) and 1s (alive). Each cell looks at its up to 8\nneighbours (including diagonals):\n\n- **Alive** with 2 or 3 living neighbours: stays alive. Fewer than 2 or more than 3: dies.\n- **Empty** with exactly 3 living neighbours: becomes alive.\n\n- **All cells change at the same moment**, based on the old board. This is the whole difficulty.\n- **Edges and corners** simply have fewer neighbours (5 or 3); nothing wraps around.\n- **Size:** up to 200 × 200, so the work is tiny; the interesting constraint is \"without a second grid\"."
+  }
+ ],
+ "think": [
+  {
+   "md": "Take this 4 × 4 board. Cell (2, 1) is alive with 3 living neighbours, so it survives; cell (1, 0) is empty\nwith 3 living neighbours, so it's born."
+  },
+  {
+   "panels": [
+    {
+     "type": "grid",
+     "cells": [
+      [
+       0,
+       1,
+       0,
+       0
+      ],
+      [
+       0,
+       0,
+       1,
+       0
+      ],
+      [
+       1,
+       1,
+       1,
+       0
+      ],
+      [
+       0,
+       0,
+       0,
+       0
+      ]
+     ],
+     "label": "now"
+    },
+    {
+     "type": "grid",
+     "cells": [
+      [
+       0,
+       0,
+       0,
+       0
+      ],
+      [
+       1,
+       0,
+       1,
+       0
+      ],
+      [
+       0,
+       1,
+       1,
+       0
+      ],
+      [
+       0,
+       1,
+       0,
+       0
+      ]
+     ],
+     "label": "one generation later"
+    }
+   ]
+  },
+  {
+   "md": "Now try updating **in place**, row by row. When you reach cell (1, 0) you'll count its neighbours, but\nrow 0 has already been rewritten: (0, 1) just died, so you'd count 2 instead of 3 and wrongly leave\n(1, 0) empty. Each cell's new value must come from neighbours' **old** values.\n\nTwo ways to keep the old values available:\n\n1. Read from a **copy** of the board.\n2. Keep both values **in the same cell**. Cells are 0 or 1, so only bit 0 is used. Put the next state in\n   bit 1: old = `value & 1`, new = `value >> 1`. Counting with `& 1` always sees the old state, whether\n   or not a neighbour has been updated yet."
+  }
+ ],
+ "approaches": [
+  {
+   "title": "Count from a copy of the board",
+   "kind": "better",
+   "time": "O(m · n)",
+   "space": "O(m · n)",
+   "idea": [
+    {
+     "md": "Copy the board. For every cell, count living neighbours **in the copy** and write the new state into the board (or a new grid). The copy never changes, so every count sees the old generation."
+    }
+   ],
+   "build": [
+    "Copy the board.",
+    "For each cell, sum the copy's values in the 3 × 3 block around it (clipped to the edges), minus the cell itself.",
+    "Apply the rules and write the result.",
+    "Return the result."
+   ],
+   "code": {
+    "python": "class Solution:\n    def nextGeneration(self, board: List[List[int]]) -> List[List[int]]:\n        old = [row[:] for row in board]\n        m, n = len(old), len(old[0])\n        for r in range(m):\n            for c in range(n):\n                live = 0\n                for rr in range(max(0, r - 1), min(m, r + 2)):\n                    for cc in range(max(0, c - 1), min(n, c + 2)):\n                        live += old[rr][cc]\n                live -= old[r][c]\n                board[r][c] = 1 if live == 3 or (live == 2 and old[r][c]) else 0\n        return board\n",
+    "java": "class Solution {\n    public int[][] nextGeneration(int[][] board) {\n        int m = board.length, n = board[0].length;\n        int[][] old = new int[m][];\n        for (int r = 0; r < m; r++) old[r] = board[r].clone();\n        for (int r = 0; r < m; r++) {\n            for (int c = 0; c < n; c++) {\n                int live = 0;\n                for (int rr = Math.max(0, r - 1); rr <= Math.min(m - 1, r + 1); rr++)\n                    for (int cc = Math.max(0, c - 1); cc <= Math.min(n - 1, c + 1); cc++)\n                        live += old[rr][cc];\n                live -= old[r][c];\n                board[r][c] = (live == 3 || (live == 2 && old[r][c] == 1)) ? 1 : 0;\n            }\n        }\n        return board;\n    }\n}\n",
+    "cpp": "class Solution {\npublic:\n    vector<vector<int>> nextGeneration(vector<vector<int>>& board) {\n        int m = board.size(), n = board[0].size();\n        vector<vector<int>> old = board;\n        for (int r = 0; r < m; r++) {\n            for (int c = 0; c < n; c++) {\n                int live = 0;\n                for (int rr = max(0, r - 1); rr <= min(m - 1, r + 1); rr++)\n                    for (int cc = max(0, c - 1); cc <= min(n - 1, c + 1); cc++)\n                        live += old[rr][cc];\n                live -= old[r][c];\n                board[r][c] = (live == 3 || (live == 2 && old[r][c] == 1)) ? 1 : 0;\n            }\n        }\n        return board;\n    }\n};\n",
+    "c": "int** nextGeneration(int** board, int boardSize, int* boardColSize, int* returnSize, int** returnColumnSizes) {\n    int m = boardSize, n = boardColSize[0];\n    int** out = malloc(m * sizeof(int*));\n    for (int r = 0; r < m; r++) out[r] = malloc(n * sizeof(int));\n    for (int r = 0; r < m; r++) {\n        for (int c = 0; c < n; c++) {\n            int live = 0;\n            for (int rr = r > 0 ? r - 1 : 0; rr <= (r + 1 < m ? r + 1 : m - 1); rr++)\n                for (int cc = c > 0 ? c - 1 : 0; cc <= (c + 1 < n ? c + 1 : n - 1); cc++)\n                    live += board[rr][cc];\n            live -= board[r][c];\n            out[r][c] = (live == 3 || (live == 2 && board[r][c] == 1)) ? 1 : 0;\n        }\n    }\n    *returnSize = m;\n    *returnColumnSizes = malloc(m * sizeof(int));\n    for (int r = 0; r < m; r++) (*returnColumnSizes)[r] = n;\n    return out;\n}\n"
+   },
+   "lines": [
+    {
+     "text": "A frozen snapshot of the current generation. All reading happens here.",
+     "at": {
+      "python": [
+       [
+        3,
+        3
+       ]
+      ],
+      "java": [
+       [
+        4,
+        5
+       ]
+      ],
+      "cpp": [
+       [
+        5,
+        5
+       ]
+      ],
+      "c": [
+       [
+        3,
+        4
+       ]
+      ]
+     },
+     "notes": {
+      "c": "Here the input stays untouched and serves as the snapshot; the next generation is written into a fresh grid."
+     }
+    },
+    {
+     "text": "Every cell gets its new state.",
+     "at": {
+      "python": [
+       [
+        5,
+        6
+       ]
+      ],
+      "java": [
+       [
+        6,
+        7
+       ]
+      ],
+      "cpp": [
+       [
+        6,
+        7
+       ]
+      ],
+      "c": [
+       [
+        5,
+        6
+       ]
+      ]
+     }
+    },
+    {
+     "text": "Sum the 3 × 3 block around the cell, clipped at the borders (`max(0, …)` / `min(…, last)`), then subtract the cell itself: what's left is its living neighbours.",
+     "at": {
+      "python": [
+       [
+        7,
+        11
+       ]
+      ],
+      "java": [
+       [
+        8,
+        12
+       ]
+      ],
+      "cpp": [
+       [
+        8,
+        12
+       ]
+      ],
+      "c": [
+       [
+        7,
+        11
+       ]
+      ]
+     }
+    },
+    {
+     "text": "Alive next if it has exactly 3 neighbours, or 2 and is alive now. Every other case is empty.",
+     "at": {
+      "python": [
+       [
+        12,
+        12
+       ]
+      ],
+      "java": [
+       [
+        13,
+        13
+       ]
+      ],
+      "cpp": [
+       [
+        13,
+        13
+       ]
+      ],
+      "c": [
+       [
+        12,
+        12
+       ]
+      ]
+     }
+    },
+    {
+     "text": "The next generation.",
+     "at": {
+      "python": [
+       [
+        13,
+        13
+       ]
+      ],
+      "java": [
+       [
+        16,
+        16
+       ]
+      ],
+      "cpp": [
+       [
+        16,
+        16
+       ]
+      ],
+      "c": [
+       [
+        15,
+        18
+       ]
+      ]
+     },
+     "notes": {
+      "c": "Report the row count and every row's length; the caller frees the new grid."
+     }
+    }
+   ],
+   "complexity": [
+    {
+     "md": "**Time O(m · n):** at most 9 reads per cell. **Space O(m · n)** for the copy."
+    }
+   ],
+   "walk": {
+    "steps": [
+     {
+      "text": "Copy the board. Every count below reads the copy, so updates never disturb later counts.",
+      "panels": [
+       {
+        "type": "grid",
+        "cells": [
+         [
+          0,
+          1,
+          0,
+          0
+         ],
+         [
+          0,
+          0,
+          1,
+          0
+         ],
+         [
+          1,
+          1,
+          1,
+          0
+         ],
+         [
+          0,
+          0,
+          0,
+          0
+         ]
+        ],
+        "label": "copy (generation 0)"
+       }
+      ]
+     },
+     {
+      "text": "Cell (0, 1): alive with 1 → dies.",
+      "panels": [
+       {
+        "type": "grid",
+        "cells": [
+         [
+          0,
+          1,
+          0,
+          0
+         ],
+         [
+          0,
+          0,
+          1,
+          0
+         ],
+         [
+          1,
+          1,
+          1,
+          0
+         ],
+         [
+          0,
+          0,
+          0,
+          0
+         ]
+        ],
+        "states": {
+         "1,2": "mark",
+         "0,1": "active"
+        },
+        "label": "copy (generation 0)"
+       }
+      ]
+     },
+     {
+      "text": "Cell (1, 0): empty with 3 → born.",
+      "panels": [
+       {
+        "type": "grid",
+        "cells": [
+         [
+          0,
+          1,
+          0,
+          0
+         ],
+         [
+          0,
+          0,
+          1,
+          0
+         ],
+         [
+          1,
+          1,
+          1,
+          0
+         ],
+         [
+          0,
+          0,
+          0,
+          0
+         ]
+        ],
+        "states": {
+         "0,1": "mark",
+         "2,0": "mark",
+         "2,1": "mark",
+         "1,0": "active"
+        },
+        "label": "copy (generation 0)"
+       }
+      ]
+     },
+     {
+      "text": "Cell (1, 2): alive with 3 → stays.",
+      "panels": [
+       {
+        "type": "grid",
+        "cells": [
+         [
+          0,
+          1,
+          0,
+          0
+         ],
+         [
+          0,
+          0,
+          1,
+          0
+         ],
+         [
+          1,
+          1,
+          1,
+          0
+         ],
+         [
+          0,
+          0,
+          0,
+          0
+         ]
+        ],
+        "states": {
+         "0,1": "mark",
+         "2,1": "mark",
+         "2,2": "mark",
+         "1,2": "active"
+        },
+        "label": "copy (generation 0)"
+       }
+      ]
+     },
+     {
+      "text": "Cell (2, 1): alive with 3 → stays.",
+      "panels": [
+       {
+        "type": "grid",
+        "cells": [
+         [
+          0,
+          1,
+          0,
+          0
+         ],
+         [
+          0,
+          0,
+          1,
+          0
+         ],
+         [
+          1,
+          1,
+          1,
+          0
+         ],
+         [
+          0,
+          0,
+          0,
+          0
+         ]
+        ],
+        "states": {
+         "1,2": "mark",
+         "2,0": "mark",
+         "2,2": "mark",
+         "2,1": "active"
+        },
+        "label": "copy (generation 0)"
+       }
+      ]
+     },
+     {
+      "text": "Cell (3, 1): empty with 3 → born.",
+      "panels": [
+       {
+        "type": "grid",
+        "cells": [
+         [
+          0,
+          1,
+          0,
+          0
+         ],
+         [
+          0,
+          0,
+          1,
+          0
+         ],
+         [
+          1,
+          1,
+          1,
+          0
+         ],
+         [
+          0,
+          0,
+          0,
+          0
+         ]
+        ],
+        "states": {
+         "2,0": "mark",
+         "2,1": "mark",
+         "2,2": "mark",
+         "3,1": "active"
+        },
+        "label": "copy (generation 0)"
+       }
+      ]
+     },
+     {
+      "text": "Cell (2, 2): alive with 2 → stays.",
+      "panels": [
+       {
+        "type": "grid",
+        "cells": [
+         [
+          0,
+          1,
+          0,
+          0
+         ],
+         [
+          0,
+          0,
+          1,
+          0
+         ],
+         [
+          1,
+          1,
+          1,
+          0
+         ],
+         [
+          0,
+          0,
+          0,
+          0
+         ]
+        ],
+        "states": {
+         "1,2": "mark",
+         "2,1": "mark",
+         "2,2": "active"
+        },
+        "label": "copy (generation 0)"
+       }
+      ]
+     },
+     {
+      "text": "All cells done the same way.",
+      "panels": [
+       {
+        "type": "grid",
+        "cells": [
+         [
+          0,
+          0,
+          0,
+          0
+         ],
+         [
+          1,
+          0,
+          1,
+          0
+         ],
+         [
+          0,
+          1,
+          1,
+          0
+         ],
+         [
+          0,
+          1,
+          0,
+          0
+         ]
+        ],
+        "states": {
+         "0,1": "new",
+         "1,0": "new",
+         "2,0": "new",
+         "3,1": "new"
+        },
+        "label": "generation 1 (changed cells shaded)"
+       }
+      ],
+      "result": "[[0, 0, 0, 0], [1, 0, 1, 0], [0, 1, 1, 0], [0, 1, 0, 0]]"
+     }
+    ],
+    "title": "Read neighbours from an untouched copy; write the next generation into the board."
+   },
+   "limits": [
+    {
+     "md": "The copy doubles the memory. Each cell only uses one of its 32 bits, so the next state can be stored alongside the current one instead."
+    }
+   ]
+  },
+  {
+   "title": "Two states in one cell (bit tricks)",
+   "kind": "best",
+   "time": "O(m · n)",
+   "space": "O(1)",
+   "idea": [
+    {
+     "md": "Use bit 0 for the current state and bit 1 for the next state.\n\n- **Pass 1:** for each cell, count neighbours using `value & 1` (the current state, whether or not\n  that neighbour has been processed). If the cell lives in the next generation, set bit 1\n  (`value |= 2`). Bit 0 is never touched, so later counts stay correct.\n- **Pass 2:** shift every cell right by one (`value >>= 1`), so bit 1 becomes the new value."
+    }
+   ],
+   "build": [
+    "For each cell, count neighbours with `board[rr][cc] & 1`.",
+    "If `live == 3`, or `live == 2` and the cell is alive (`& 1`), do `board[r][c] |= 2`.",
+    "Afterwards, `board[r][c] >>= 1` for every cell.",
+    "Return the board."
+   ],
+   "code": {
+    "python": "class Solution:\n    def nextGeneration(self, board: List[List[int]]) -> List[List[int]]:\n        m, n = len(board), len(board[0])\n        for r in range(m):\n            for c in range(n):\n                live = 0\n                for rr in range(max(0, r - 1), min(m, r + 2)):\n                    for cc in range(max(0, c - 1), min(n, c + 2)):\n                        live += board[rr][cc] & 1\n                live -= board[r][c] & 1\n                if live == 3 or (live == 2 and board[r][c] & 1):\n                    board[r][c] |= 2\n        for row in board:\n            for c in range(n):\n                row[c] >>= 1\n        return board\n",
+    "java": "class Solution {\n    public int[][] nextGeneration(int[][] board) {\n        int m = board.length, n = board[0].length;\n        for (int r = 0; r < m; r++) {\n            for (int c = 0; c < n; c++) {\n                int live = 0;\n                for (int rr = Math.max(0, r - 1); rr <= Math.min(m - 1, r + 1); rr++)\n                    for (int cc = Math.max(0, c - 1); cc <= Math.min(n - 1, c + 1); cc++)\n                        live += board[rr][cc] & 1;\n                live -= board[r][c] & 1;\n                if (live == 3 || (live == 2 && (board[r][c] & 1) == 1)) board[r][c] |= 2;\n            }\n        }\n        for (int[] row : board)\n            for (int c = 0; c < n; c++) row[c] >>= 1;\n        return board;\n    }\n}\n",
+    "cpp": "class Solution {\npublic:\n    vector<vector<int>> nextGeneration(vector<vector<int>>& board) {\n        int m = board.size(), n = board[0].size();\n        for (int r = 0; r < m; r++) {\n            for (int c = 0; c < n; c++) {\n                int live = 0;\n                for (int rr = max(0, r - 1); rr <= min(m - 1, r + 1); rr++)\n                    for (int cc = max(0, c - 1); cc <= min(n - 1, c + 1); cc++)\n                        live += board[rr][cc] & 1;\n                live -= board[r][c] & 1;\n                if (live == 3 || (live == 2 && (board[r][c] & 1))) board[r][c] |= 2;\n            }\n        }\n        for (auto& row : board)\n            for (int& x : row) x >>= 1;\n        return board;\n    }\n};\n",
+    "c": "int** nextGeneration(int** board, int boardSize, int* boardColSize, int* returnSize, int** returnColumnSizes) {\n    int m = boardSize, n = boardColSize[0];\n    for (int r = 0; r < m; r++) {\n        for (int c = 0; c < n; c++) {\n            int live = 0;\n            for (int rr = r > 0 ? r - 1 : 0; rr <= (r + 1 < m ? r + 1 : m - 1); rr++)\n                for (int cc = c > 0 ? c - 1 : 0; cc <= (c + 1 < n ? c + 1 : n - 1); cc++)\n                    live += board[rr][cc] & 1;\n            live -= board[r][c] & 1;\n            if (live == 3 || (live == 2 && (board[r][c] & 1))) board[r][c] |= 2;\n        }\n    }\n    for (int r = 0; r < m; r++)\n        for (int c = 0; c < n; c++) board[r][c] >>= 1;\n    *returnSize = m;\n    *returnColumnSizes = malloc(m * sizeof(int));\n    for (int r = 0; r < m; r++) (*returnColumnSizes)[r] = n;\n    return board;\n}\n"
+   },
+   "lines": [
+    {
+     "text": "Visit every cell once in the first pass.",
+     "at": {
+      "python": [
+       [
+        4,
+        5
+       ]
+      ],
+      "java": [
+       [
+        4,
+        5
+       ]
+      ],
+      "cpp": [
+       [
+        5,
+        6
+       ]
+      ],
+      "c": [
+       [
+        3,
+        4
+       ]
+      ]
+     }
+    },
+    {
+     "text": "`& 1` keeps only bit 0, the **current** generation, so a neighbour that already has its next state stored in bit 1 still counts correctly.",
+     "at": {
+      "python": [
+       [
+        6,
+        10
+       ]
+      ],
+      "java": [
+       [
+        6,
+        10
+       ]
+      ],
+      "cpp": [
+       [
+        7,
+        11
+       ]
+      ],
+      "c": [
+       [
+        5,
+        9
+       ]
+      ]
+     }
+    },
+    {
+     "text": "If the cell lives next generation, set bit 1 (`|= 2`). Bit 0 is untouched, so other cells still read this cell's old state.",
+     "at": {
+      "python": [
+       [
+        11,
+        12
+       ]
+      ],
+      "java": [
+       [
+        11,
+        11
+       ]
+      ],
+      "cpp": [
+       [
+        12,
+        12
+       ]
+      ],
+      "c": [
+       [
+        10,
+        10
+       ]
+      ]
+     }
+    },
+    {
+     "text": "Second pass: drop bit 0 and move bit 1 down. Every cell now holds just the new state.",
+     "at": {
+      "python": [
+       [
+        13,
+        15
+       ]
+      ],
+      "java": [
+       [
+        14,
+        15
+       ]
+      ],
+      "cpp": [
+       [
+        15,
+        16
+       ]
+      ],
+      "c": [
+       [
+        13,
+        14
+       ]
+      ]
+     }
+    },
+    {
+     "text": "The board, updated in place.",
+     "at": {
+      "python": [
+       [
+        16,
+        16
+       ]
+      ],
+      "java": [
+       [
+        16,
+        16
+       ]
+      ],
+      "cpp": [
+       [
+        17,
+        17
+       ]
+      ],
+      "c": [
+       [
+        15,
+        18
+       ]
+      ]
+     },
+     "notes": {
+      "c": "The grid is the input itself; only the column-size array is new."
+     }
+    }
+   ],
+   "complexity": [
+    {
+     "md": "**Time O(m · n):** two passes, at most 9 reads per cell. **Space O(1)** extra."
+    }
+   ],
+   "walk": {
+    "steps": [
+     {
+      "text": "Each cell is 0 or 1 now: bit 0 is 'alive this generation'. Bit 1 is free to hold next generation.",
+      "panels": [
+       {
+        "type": "grid",
+        "cells": [
+         [
+          0,
+          1,
+          0,
+          0
+         ],
+         [
+          0,
+          0,
+          1,
+          0
+         ],
+         [
+          1,
+          1,
+          1,
+          0
+         ],
+         [
+          0,
+          0,
+          0,
+          0
+         ]
+        ],
+        "label": "cell values"
+       }
+      ]
+     },
+     {
+      "text": "First pass: count neighbours with `value & 1` (the old state, even in cells already updated) and set bit 1 (add 2) where the cell lives next. 3 = alive now and next; 2 = born; 1 = dies; 0 = stays empty.",
+      "panels": [
+       {
+        "type": "grid",
+        "cells": [
+         [
+          0,
+          1,
+          0,
+          0
+         ],
+         [
+          2,
+          0,
+          3,
+          0
+         ],
+         [
+          1,
+          3,
+          3,
+          0
+         ],
+         [
+          0,
+          2,
+          0,
+          0
+         ]
+        ],
+        "states": {
+         "1,0": "new",
+         "1,2": "new",
+         "2,1": "new",
+         "2,2": "new",
+         "3,1": "new"
+        },
+        "label": "old in bit 0, new in bit 1"
+       }
+      ]
+     },
+     {
+      "text": "Second pass: shift every cell right by one bit, keeping only the new state.",
+      "panels": [
+       {
+        "type": "grid",
+        "cells": [
+         [
+          0,
+          0,
+          0,
+          0
+         ],
+         [
+          1,
+          0,
+          1,
+          0
+         ],
+         [
+          0,
+          1,
+          1,
+          0
+         ],
+         [
+          0,
+          1,
+          0,
+          0
+         ]
+        ],
+        "label": "generation 1"
+       }
+      ],
+      "result": "[[0, 0, 0, 0], [1, 0, 1, 0], [0, 1, 1, 0], [0, 1, 0, 0]]"
+     }
+    ],
+    "title": "Keep the old state in bit 0 and write the new state into bit 1 of the same cell. Shift right at the end."
+   }
+  }
+ ],
+ "takeaways": [
+  {
+   "md": "- \"Update everything simultaneously\" means **read old, write new**. If you write in place, make sure\n  unprocessed cells can still see old values.\n- Small values leave spare bits: store the next state in a higher bit, then shift.\n- Clip neighbour ranges with `max(0, r − 1)` / `min(m − 1, r + 1)` instead of special-casing borders."
+  }
+ ]
+}
