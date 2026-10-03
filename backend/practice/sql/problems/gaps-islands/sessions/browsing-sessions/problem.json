@@ -1,0 +1,30 @@
+{
+  "id": "browsing-sessions",
+  "title": "Browsing Sessions",
+  "topic": "gaps-islands",
+  "pattern": "sessions",
+  "difficulty": "hard",
+  "statement": "Each row of `events` is a page view at minute precision. A user's views belong to the same **session** until there's\na gap of **more than 30 minutes**; the next view then starts a new session. (A gap of exactly 30 minutes stays in the\nsame session.)\n\nReturn `user_id` and `sessions` (how many sessions they had), in any order.",
+  "notes": "`strftime('%s', at)` is the time in whole seconds, so differences are exact. (Differences of `julianday()` values are fractions of a day and can be a hair off.)",
+  "tables": [
+    {
+      "name": "events",
+      "columns": [
+        [
+          "user_id",
+          "INTEGER"
+        ],
+        [
+          "at",
+          "TEXT"
+        ]
+      ]
+    }
+  ],
+  "ordered": false,
+  "reference": "WITH gaps AS (\n  SELECT user_id,\n         (strftime('%s', at) - strftime('%s', LAG(at) OVER (PARTITION BY user_id ORDER BY at))) / 60 AS gap\n  FROM events\n)\nSELECT user_id, SUM(CASE WHEN gap IS NULL OR gap > 30 THEN 1 ELSE 0 END) AS sessions\nFROM gaps\nGROUP BY user_id",
+  "wrong": [
+    "WITH gaps AS (SELECT user_id, (strftime('%s', at) - strftime('%s', LAG(at) OVER (PARTITION BY user_id ORDER BY at))) / 60 AS gap FROM events) SELECT user_id, SUM(CASE WHEN gap IS NULL OR gap >= 30 THEN 1 ELSE 0 END) AS sessions FROM gaps GROUP BY user_id",
+    "WITH gaps AS (SELECT user_id, (strftime('%s', at) - strftime('%s', LAG(at) OVER (ORDER BY at))) / 60 AS gap FROM events) SELECT user_id, SUM(CASE WHEN gap IS NULL OR gap > 30 THEN 1 ELSE 0 END) AS sessions FROM gaps GROUP BY user_id"
+  ]
+}
