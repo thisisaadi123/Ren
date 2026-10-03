@@ -1,0 +1,756 @@
+{
+ "version": 1,
+ "summary": "For each prefix length `j` of the route, keep `start[j]`: the latest position from which `t[0..j)` can be found\nin order ending at the current position. When `s[i] == t[j−1]`, `start[j]` takes `start[j−1]` (update `j` from\nhigh to low so it uses the old value). Whenever `start[m]` is set, `s[start[m]..i]` is the shortest window\nending at `i`. O(n · m).",
+ "question": [
+  {
+   "md": "Return the shortest substring of `s` that contains `t` as a subsequence (leftmost on ties), or `\"\"`.\n\n- **s up to 2 × 10⁴**, **t up to 100** letters."
+  }
+ ],
+ "think": [
+  {
+   "md": "`s = \"cabxbcaxbyc\"`, `t = \"abc\"` → **`abxbc`**.\n\nThe rule here is order-sensitive, so counts don't help, and windows don't shrink cleanly. But for a fixed end\n`i`, we want the latest possible start, and that can be built up letter by letter: the latest start of a\nwindow ending at `i` containing `t[0..j)` is the latest start for `t[0..j−1)` ending before `i`, once `s[i]` is\n`t[j−1]`. Keeping that for every `j` is a small table of `m + 1` numbers updated per character."
+  },
+  {
+   "panels": [
+    {
+     "type": "row",
+     "cells": [
+      "c",
+      "a",
+      "b",
+      "x",
+      "b",
+      "c",
+      "a",
+      "x",
+      "b",
+      "y",
+      "c"
+     ],
+     "label": "s"
+    },
+    {
+     "type": "row",
+     "cells": [
+      "a",
+      "b",
+      "c"
+     ],
+     "label": "t"
+    }
+   ]
+  }
+ ],
+ "approaches": [
+  {
+   "title": "Greedy match from every start",
+   "kind": "brute",
+   "time": "O(n²)",
+   "space": "O(1)",
+   "idea": [
+    {
+     "md": "For each `i` with `s[i] == t[0]`, match `t` greedily to the right; if it completes at `k`, the window `s[i..k]` is the shortest from `i`. Keep the shortest (first on ties)."
+    }
+   ],
+   "build": [
+    "Starts at `t[0]`.",
+    "Greedy subsequence match.",
+    "Keep the shortest."
+   ],
+   "code": {
+    "python": "class Solution:\n    def trailWindow(self, s: str, t: str) -> str:\n        n, m = len(s), len(t)\n        best_len, best_start = n + 1, 0\n        for i in range(n):\n            if s[i] != t[0]:\n                continue\n            j, k = 0, i\n            while k < n:\n                if s[k] == t[j]:\n                    j += 1\n                    if j == m:\n                        break\n                k += 1\n            if j == m and k - i + 1 < best_len:\n                best_len, best_start = k - i + 1, i\n        return s[best_start:best_start + best_len] if best_len <= n else \"\"\n",
+    "java": "class Solution {\n    public String trailWindow(String s, String t) {\n        int n = s.length(), m = t.length(), bestLen = n + 1, bestStart = 0;\n        for (int i = 0; i < n; i++) {\n            if (s.charAt(i) != t.charAt(0)) continue;\n            int j = 0, k = i;\n            for (; k < n; k++) if (s.charAt(k) == t.charAt(j) && ++j == m) break;\n            if (j == m && k - i + 1 < bestLen) { bestLen = k - i + 1; bestStart = i; }\n        }\n        return bestLen <= n ? s.substring(bestStart, bestStart + bestLen) : \"\";\n    }\n}\n",
+    "cpp": "class Solution {\npublic:\n    string trailWindow(string& s, string& t) {\n        int n = s.size(), m = t.size(), bestLen = n + 1, bestStart = 0;\n        for (int i = 0; i < n; i++) {\n            if (s[i] != t[0]) continue;\n            int j = 0, k = i;\n            for (; k < n; k++) if (s[k] == t[j] && ++j == m) break;\n            if (j == m && k - i + 1 < bestLen) { bestLen = k - i + 1; bestStart = i; }\n        }\n        return bestLen <= n ? s.substr(bestStart, bestLen) : \"\";\n    }\n};\n",
+    "c": "char* trailWindow(char* s, char* t) {\n    int n = strlen(s), m = strlen(t), bestLen = n + 1, bestStart = 0;\n    for (int i = 0; i < n; i++) {\n        if (s[i] != t[0]) continue;\n        int j = 0, k = i;\n        for (; k < n; k++) if (s[k] == t[j] && ++j == m) break;\n        if (j == m && k - i + 1 < bestLen) { bestLen = k - i + 1; bestStart = i; }\n    }\n    if (bestLen > n) bestLen = 0;\n    char* out = malloc(bestLen + 1);\n    memcpy(out, s + bestStart, bestLen);\n    out[bestLen] = '\\0';\n    return out;\n}\n"
+   },
+   "lines": [
+    {
+     "text": "`n + 1` means nothing found.",
+     "at": {
+      "python": [
+       [
+        3,
+        4
+       ]
+      ],
+      "java": [
+       [
+        3,
+        3
+       ]
+      ],
+      "cpp": [
+       [
+        4,
+        4
+       ]
+      ],
+      "c": [
+       [
+        2,
+        2
+       ]
+      ]
+     }
+    },
+    {
+     "text": "A shortest window starts with `t[0]`.",
+     "at": {
+      "python": [
+       [
+        5,
+        7
+       ]
+      ],
+      "java": [
+       [
+        4,
+        5
+       ]
+      ],
+      "cpp": [
+       [
+        5,
+        6
+       ]
+      ],
+      "c": [
+       [
+        3,
+        4
+       ]
+      ]
+     }
+    },
+    {
+     "text": "Greedy matching finishes `t` as early as possible, which gives the shortest window from this start.",
+     "at": {
+      "python": [
+       [
+        8,
+        14
+       ]
+      ],
+      "java": [
+       [
+        6,
+        7
+       ]
+      ],
+      "cpp": [
+       [
+        7,
+        8
+       ]
+      ],
+      "c": [
+       [
+        5,
+        6
+       ]
+      ]
+     }
+    },
+    {
+     "text": "Strictly shorter only, so the leftmost wins ties.",
+     "at": {
+      "python": [
+       [
+        15,
+        16
+       ]
+      ],
+      "java": [
+       [
+        8,
+        8
+       ]
+      ],
+      "cpp": [
+       [
+        9,
+        9
+       ]
+      ],
+      "c": [
+       [
+        7,
+        7
+       ]
+      ]
+     }
+    },
+    {
+     "text": "The window, or empty.",
+     "at": {
+      "python": [
+       [
+        17,
+        17
+       ]
+      ],
+      "java": [
+       [
+        10,
+        10
+       ]
+      ],
+      "cpp": [
+       [
+        11,
+        11
+       ]
+      ],
+      "c": [
+       [
+        9,
+        13
+       ]
+      ]
+     }
+    }
+   ],
+   "complexity": [
+    {
+     "md": "**Time O(n²)** in the worst case (4 × 10⁸ at the limit). **Space O(1).**"
+    }
+   ],
+   "walk": {
+    "steps": [
+     {
+      "text": "From 1: the route finishes at 5, window 'abxbc'.",
+      "panels": [
+       {
+        "type": "row",
+        "cells": [
+         "c",
+         "a",
+         "b",
+         "x",
+         "b",
+         "c",
+         "a",
+         "x",
+         "b",
+         "y",
+         "c"
+        ],
+        "states": {
+         "1": "found",
+         "2": "found",
+         "3": "found",
+         "4": "found",
+         "5": "found"
+        }
+       },
+       {
+        "type": "vars",
+        "items": {
+         "best": "abxbc"
+        }
+       }
+      ]
+     },
+     {
+      "text": "From 6: the route finishes at 10, window 'axbyc'.",
+      "panels": [
+       {
+        "type": "row",
+        "cells": [
+         "c",
+         "a",
+         "b",
+         "x",
+         "b",
+         "c",
+         "a",
+         "x",
+         "b",
+         "y",
+         "c"
+        ],
+        "states": {
+         "6": "found",
+         "7": "found",
+         "8": "found",
+         "9": "found",
+         "10": "found"
+        }
+       },
+       {
+        "type": "vars",
+        "items": {
+         "best": "abxbc"
+        }
+       }
+      ]
+     },
+     {
+      "text": "Shortest: 'abxbc'.",
+      "panels": [],
+      "result": "abxbc"
+     }
+    ],
+    "title": "From every position holding 'a', follow the route greedily to the right; the first place it finishes gives the shortest window from that start."
+   },
+   "limits": [
+    {
+     "md": "Every start re-scans the rest of `s`. The latest-start table shares that work across all starts."
+    }
+   ],
+   "slow": true
+  },
+  {
+   "title": "Latest start for each route prefix",
+   "kind": "best",
+   "time": "O(n · m)",
+   "space": "O(m)",
+   "idea": [
+    {
+     "md": "`start[0..m]`, all −1. For each `i`, for `j = m..1`: if `s[i] == t[j−1]`, `start[j] = i` when `j == 1`, else `start[j−1]`. If `start[m] ≥ 0`, the window `start[m]..i` is a candidate."
+    }
+   ],
+   "build": [
+    "Table of latest starts.",
+    "Update from high `j` to low.",
+    "Candidate whenever the whole route is matched."
+   ],
+   "code": {
+    "python": "class Solution:\n    def trailWindow(self, s: str, t: str) -> str:\n        m = len(t)\n        start = [-1] * (m + 1)\n        spots = {}\n        for j in range(m, 0, -1):\n            spots.setdefault(t[j - 1], []).append(j)\n        best_len, best_start = len(s) + 1, 0\n        for i, c in enumerate(s):\n            for j in spots.get(c, ()):\n                start[j] = i if j == 1 else start[j - 1]\n            if start[m] >= 0 and i - start[m] + 1 < best_len:\n                best_len, best_start = i - start[m] + 1, start[m]\n        return s[best_start:best_start + best_len] if best_len <= len(s) else \"\"\n",
+    "java": "class Solution {\n    public String trailWindow(String s, String t) {\n        int n = s.length(), m = t.length(), bestLen = n + 1, bestStart = 0;\n        int[] start = new int[m + 1];\n        Arrays.fill(start, -1);\n        for (int i = 0; i < n; i++) {\n            char c = s.charAt(i);\n            for (int j = m; j >= 1; j--)\n                if (t.charAt(j - 1) == c) start[j] = j == 1 ? i : start[j - 1];\n            if (start[m] >= 0 && i - start[m] + 1 < bestLen) { bestLen = i - start[m] + 1; bestStart = start[m]; }\n        }\n        return bestLen <= n ? s.substring(bestStart, bestStart + bestLen) : \"\";\n    }\n}\n",
+    "cpp": "class Solution {\npublic:\n    string trailWindow(string& s, string& t) {\n        int n = s.size(), m = t.size(), bestLen = n + 1, bestStart = 0;\n        vector<int> start(m + 1, -1);\n        for (int i = 0; i < n; i++) {\n            for (int j = m; j >= 1; j--)\n                if (t[j - 1] == s[i]) start[j] = j == 1 ? i : start[j - 1];\n            if (start[m] >= 0 && i - start[m] + 1 < bestLen) { bestLen = i - start[m] + 1; bestStart = start[m]; }\n        }\n        return bestLen <= n ? s.substr(bestStart, bestLen) : \"\";\n    }\n};\n",
+    "c": "char* trailWindow(char* s, char* t) {\n    int n = strlen(s), m = strlen(t), bestLen = n + 1, bestStart = 0;\n    int* start = malloc((m + 1) * sizeof(int));\n    for (int j = 0; j <= m; j++) start[j] = -1;\n    for (int i = 0; i < n; i++) {\n        for (int j = m; j >= 1; j--)\n            if (t[j - 1] == s[i]) start[j] = j == 1 ? i : start[j - 1];\n        if (start[m] >= 0 && i - start[m] + 1 < bestLen) { bestLen = i - start[m] + 1; bestStart = start[m]; }\n    }\n    free(start);\n    if (bestLen > n) bestLen = 0;\n    char* out = malloc(bestLen + 1);\n    memcpy(out, s + bestStart, bestLen);\n    out[bestLen] = '\\0';\n    return out;\n}\n"
+   },
+   "lines": [
+    {
+     "text": "`start[j] = −1` until `t[0..j)` has been seen in order.",
+     "at": {
+      "python": [
+       [
+        3,
+        8
+       ]
+      ],
+      "java": [
+       [
+        3,
+        5
+       ]
+      ],
+      "cpp": [
+       [
+        4,
+        5
+       ]
+      ],
+      "c": [
+       [
+        2,
+        4
+       ]
+      ]
+     },
+     "notes": {
+      "python": "`spots[c]` lists the positions `j` with `t[j−1] == c`, high to low, so each character only touches the entries it can change."
+     }
+    },
+    {
+     "text": "Each position of `s` as the window's right end.",
+     "at": {
+      "python": [
+       [
+        9,
+        9
+       ]
+      ],
+      "java": [
+       [
+        6,
+        7
+       ]
+      ],
+      "cpp": [
+       [
+        6,
+        6
+       ]
+      ],
+      "c": [
+       [
+        5,
+        5
+       ]
+      ]
+     }
+    },
+    {
+     "text": "If `s[i]` is `t[j−1]`, the route prefix of length `j` can end here, starting where the prefix of length `j − 1` started. Going from high `j` to low ensures `start[j−1]` still describes positions before `i` (important when `t` repeats a letter).",
+     "at": {
+      "python": [
+       [
+        10,
+        11
+       ]
+      ],
+      "java": [
+       [
+        8,
+        9
+       ]
+      ],
+      "cpp": [
+       [
+        7,
+        8
+       ]
+      ],
+      "c": [
+       [
+        6,
+        7
+       ]
+      ]
+     }
+    },
+    {
+     "text": "`start[m]` is the latest start of a full route ending at `i`: the shortest window ending here. Strictly shorter only, so the leftmost wins ties.",
+     "at": {
+      "python": [
+       [
+        12,
+        13
+       ]
+      ],
+      "java": [
+       [
+        10,
+        10
+       ]
+      ],
+      "cpp": [
+       [
+        9,
+        9
+       ]
+      ],
+      "c": [
+       [
+        8,
+        8
+       ]
+      ]
+     }
+    },
+    {
+     "text": "The window, or empty.",
+     "at": {
+      "python": [
+       [
+        14,
+        14
+       ]
+      ],
+      "java": [
+       [
+        12,
+        12
+       ]
+      ],
+      "cpp": [
+       [
+        11,
+        11
+       ]
+      ],
+      "c": [
+       [
+        10,
+        15
+       ]
+      ]
+     }
+    }
+   ],
+   "complexity": [
+    {
+     "md": "**Time O(n · m)** (2 × 10⁶). **Space O(m).**"
+    }
+   ],
+   "walk": {
+    "steps": [
+     {
+      "text": "'c' at 0: start = [-1, -1, -1].",
+      "panels": [
+       {
+        "type": "row",
+        "cells": [
+         "c",
+         "a",
+         "b",
+         "x",
+         "b",
+         "c",
+         "a",
+         "x",
+         "b",
+         "y",
+         "c"
+        ],
+        "states": {
+         "0": "active"
+        }
+       },
+       {
+        "type": "vars",
+        "items": {
+         "best": "—"
+        }
+       }
+      ]
+     },
+     {
+      "text": "'a' at 1: start = [1, -1, -1].",
+      "panels": [
+       {
+        "type": "row",
+        "cells": [
+         "c",
+         "a",
+         "b",
+         "x",
+         "b",
+         "c",
+         "a",
+         "x",
+         "b",
+         "y",
+         "c"
+        ],
+        "states": {
+         "1": "active"
+        }
+       },
+       {
+        "type": "vars",
+        "items": {
+         "best": "—"
+        }
+       }
+      ]
+     },
+     {
+      "text": "'b' at 2: start = [1, 1, -1].",
+      "panels": [
+       {
+        "type": "row",
+        "cells": [
+         "c",
+         "a",
+         "b",
+         "x",
+         "b",
+         "c",
+         "a",
+         "x",
+         "b",
+         "y",
+         "c"
+        ],
+        "states": {
+         "2": "active"
+        }
+       },
+       {
+        "type": "vars",
+        "items": {
+         "best": "—"
+        }
+       }
+      ]
+     },
+     {
+      "text": "'b' at 4: start = [1, 1, -1].",
+      "panels": [
+       {
+        "type": "row",
+        "cells": [
+         "c",
+         "a",
+         "b",
+         "x",
+         "b",
+         "c",
+         "a",
+         "x",
+         "b",
+         "y",
+         "c"
+        ],
+        "states": {
+         "4": "active"
+        }
+       },
+       {
+        "type": "vars",
+        "items": {
+         "best": "—"
+        }
+       }
+      ]
+     },
+     {
+      "text": "'c' at 5: start = [1, 1, 1]. Full route from 1: 'abxbc'.",
+      "panels": [
+       {
+        "type": "row",
+        "cells": [
+         "c",
+         "a",
+         "b",
+         "x",
+         "b",
+         "c",
+         "a",
+         "x",
+         "b",
+         "y",
+         "c"
+        ],
+        "states": {
+         "1": "found",
+         "2": "found",
+         "3": "found",
+         "4": "found",
+         "5": "found"
+        }
+       },
+       {
+        "type": "vars",
+        "items": {
+         "best": "abxbc"
+        }
+       }
+      ]
+     },
+     {
+      "text": "'a' at 6: start = [6, 1, 1]. Full route from 1: 'abxbca'.",
+      "panels": [
+       {
+        "type": "row",
+        "cells": [
+         "c",
+         "a",
+         "b",
+         "x",
+         "b",
+         "c",
+         "a",
+         "x",
+         "b",
+         "y",
+         "c"
+        ],
+        "states": {
+         "1": "found",
+         "2": "found",
+         "3": "found",
+         "4": "found",
+         "5": "found",
+         "6": "found"
+        }
+       },
+       {
+        "type": "vars",
+        "items": {
+         "best": "abxbc"
+        }
+       }
+      ]
+     },
+     {
+      "text": "'b' at 8: start = [6, 6, 1]. Full route from 1: 'abxbcaxb'.",
+      "panels": [
+       {
+        "type": "row",
+        "cells": [
+         "c",
+         "a",
+         "b",
+         "x",
+         "b",
+         "c",
+         "a",
+         "x",
+         "b",
+         "y",
+         "c"
+        ],
+        "states": {
+         "1": "found",
+         "2": "found",
+         "3": "found",
+         "4": "found",
+         "5": "found",
+         "6": "found",
+         "7": "found",
+         "8": "found"
+        }
+       },
+       {
+        "type": "vars",
+        "items": {
+         "best": "abxbc"
+        }
+       }
+      ]
+     },
+     {
+      "text": "'c' at 10: start = [6, 6, 6]. Full route from 6: 'axbyc'.",
+      "panels": [
+       {
+        "type": "row",
+        "cells": [
+         "c",
+         "a",
+         "b",
+         "x",
+         "b",
+         "c",
+         "a",
+         "x",
+         "b",
+         "y",
+         "c"
+        ],
+        "states": {
+         "6": "found",
+         "7": "found",
+         "8": "found",
+         "9": "found",
+         "10": "found"
+        }
+       },
+       {
+        "type": "vars",
+        "items": {
+         "best": "abxbc"
+        }
+       }
+      ]
+     },
+     {
+      "text": "Shortest: 'abxbc'.",
+      "panels": [],
+      "result": "abxbc"
+     }
+    ],
+    "title": "start[j] = latest index where a window ending here can begin and still contain t[0..j) in order. Process s left to right; when s[i] = t[j−1], start[j] inherits start[j−1] (or i itself for j = 1)."
+   }
+  }
+ ],
+ "takeaways": [
+  {
+   "md": "- **Order matters → track progress through the pattern**, not counts.\n- \"Latest start\" per prefix turns many overlapping searches into one pass.\n- Update dependent entries in reverse order so each uses the previous step's values."
+  }
+ ]
+}

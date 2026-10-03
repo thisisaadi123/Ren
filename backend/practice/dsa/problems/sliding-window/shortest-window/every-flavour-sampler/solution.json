@@ -1,0 +1,1103 @@
+{
+ "version": 1,
+ "summary": "Count the distinct flavours `d` first. Then slide a window with a count per flavour and the number present;\nwhenever all `d` are present, record the length and shrink from the left until one goes missing. Flavours are\nlarge numbers, so use a hash map (or compress them to small ids). O(n).",
+ "question": [
+  {
+   "md": "Return the length of the shortest stretch of consecutive jars that includes every flavour appearing on the\nshelf.\n\n- **n up to 10⁵**, flavours up to 10⁹."
+  }
+ ],
+ "think": [
+  {
+   "md": "`jars = [7, 3, 7, 7, 9, 3, 3, 9, 7, 1, 3]` has 4 flavours; the shortest stretch with all of them has length **4**.\n\nAdding jars never removes a flavour, so \"contains everything\" stays true when the window grows: for each right\nend there's a latest left edge that still works, and it only moves right. That's the shrinking-window\npattern, with a counter of how many flavours are currently present."
+  },
+  {
+   "panels": [
+    {
+     "type": "row",
+     "cells": [
+      7,
+      3,
+      7,
+      7,
+      9,
+      3,
+      3,
+      9,
+      7,
+      1,
+      3
+     ],
+     "label": "jars"
+    }
+   ]
+  }
+ ],
+ "approaches": [
+  {
+   "title": "Extend from every start",
+   "kind": "brute",
+   "time": "O(n²)",
+   "space": "O(n)",
+   "idea": [
+    {
+     "md": "For each start, add jars to a set until it has all `d` flavours."
+    }
+   ],
+   "build": [
+    "Count flavours.",
+    "Extend from each start.",
+    "Keep the shortest."
+   ],
+   "code": {
+    "python": "class Solution:\n    def shortestSampler(self, jars: List[int]) -> int:\n        n, d = len(jars), len(set(jars))\n        best = n\n        for i in range(n):\n            seen = set()\n            for j in range(i, min(n, i + best)):\n                seen.add(jars[j])\n                if len(seen) == d:\n                    best = j - i + 1\n                    break\n        return best\n",
+    "java": "class Solution {\n    public int shortestSampler(int[] jars) {\n        int n = jars.length, d = (int) Arrays.stream(jars).distinct().count(), best = n;\n        for (int i = 0; i < n; i++) {\n            Set<Integer> seen = new HashSet<>();\n            for (int j = i; j < Math.min(n, i + best); j++) {\n                seen.add(jars[j]);\n                if (seen.size() == d) { best = j - i + 1; break; }\n            }\n        }\n        return best;\n    }\n}\n",
+    "cpp": "class Solution {\npublic:\n    int shortestSampler(vector<int>& jars) {\n        int n = jars.size(), d = unordered_set<int>(jars.begin(), jars.end()).size(), best = n;\n        for (int i = 0; i < n; i++) {\n            unordered_set<int> seen;\n            for (int j = i; j < min(n, i + best); j++) {\n                seen.insert(jars[j]);\n                if ((int) seen.size() == d) { best = j - i + 1; break; }\n            }\n        }\n        return best;\n    }\n};\n",
+    "c": "static int cmp_int(const void* a, const void* b) {\n    int x = *(const int*) a, y = *(const int*) b;\n    return (x > y) - (x < y);\n}\n\nstatic int* compress(const int* v, int n, int* distinct) {\n    int* sorted = malloc(n * sizeof(int));\n    memcpy(sorted, v, n * sizeof(int));\n    qsort(sorted, n, sizeof(int), cmp_int);\n    int d = 0;\n    for (int i = 0; i < n; i++) if (i == 0 || sorted[i] != sorted[i - 1]) sorted[d++] = sorted[i];\n    int* id = malloc(n * sizeof(int));\n    for (int i = 0; i < n; i++) id[i] = (int) ((int*) bsearch(&v[i], sorted, d, sizeof(int), cmp_int) - sorted);\n    free(sorted);\n    *distinct = d;\n    return id;\n}\n\nint shortestSampler(int* jars, int jarsSize) {\n    int n = jarsSize, d;\n    int* id = compress(jars, n, &d);\n    int* mark = calloc(d, sizeof(int));\n    int best = n;\n    for (int i = 0; i < n; i++) {\n        int have = 0;\n        for (int j = i; j < n && j < i + best; j++) {\n            if (mark[id[j]] != i + 1) { mark[id[j]] = i + 1; have++; }\n            if (have == d) { best = j - i + 1; break; }\n        }\n    }\n    free(id); free(mark);\n    return best;\n}\n"
+   },
+   "lines": [
+    {
+     "text": "`d` distinct flavours; the whole shelf always works.",
+     "at": {
+      "python": [
+       [
+        3,
+        4
+       ]
+      ],
+      "java": [
+       [
+        3,
+        3
+       ]
+      ],
+      "cpp": [
+       [
+        4,
+        4
+       ]
+      ],
+      "c": [
+       [
+        20,
+        23
+       ]
+      ]
+     },
+     "notes": {
+      "c": "Compress the flavours to ids `0..d−1`."
+     }
+    },
+    {
+     "text": "Each start.",
+     "at": {
+      "python": [
+       [
+        5,
+        5
+       ]
+      ],
+      "java": [
+       [
+        4,
+        4
+       ]
+      ],
+      "cpp": [
+       [
+        5,
+        5
+       ]
+      ],
+      "c": [
+       [
+        24,
+        24
+       ]
+      ]
+     }
+    },
+    {
+     "text": "Extend until every flavour is seen; only stretches shorter than the best are worth trying.",
+     "at": {
+      "python": [
+       [
+        6,
+        11
+       ]
+      ],
+      "java": [
+       [
+        5,
+        8
+       ]
+      ],
+      "cpp": [
+       [
+        6,
+        9
+       ]
+      ],
+      "c": [
+       [
+        25,
+        28
+       ]
+      ]
+     },
+     "notes": {
+      "c": "`mark[f] = i + 1` means 'seen from start `i`', which avoids clearing an array per start."
+     }
+    },
+    {
+     "text": "Sort a copy, remove duplicates, and find each flavour's position by binary search.",
+     "at": {
+      "c": [
+       [
+        1,
+        4
+       ],
+       [
+        6,
+        17
+       ]
+      ]
+     }
+    },
+    {
+     "text": "Shortest stretch.",
+     "at": {
+      "python": [
+       [
+        12,
+        12
+       ]
+      ],
+      "java": [
+       [
+        11,
+        11
+       ]
+      ],
+      "cpp": [
+       [
+        12,
+        12
+       ]
+      ],
+      "c": [
+       [
+        31,
+        32
+       ]
+      ]
+     }
+    }
+   ],
+   "complexity": [
+    {
+     "md": "**Time O(n²)** in the worst case. **Space O(n).**"
+    }
+   ],
+   "walk": {
+    "steps": [
+     {
+      "text": "From 0: first valid at 9, length 10.",
+      "panels": [
+       {
+        "type": "row",
+        "cells": [
+         7,
+         3,
+         7,
+         7,
+         9,
+         3,
+         3,
+         9,
+         7,
+         1,
+         3
+        ],
+        "states": {
+         "0": "found",
+         "1": "found",
+         "2": "found",
+         "3": "found",
+         "4": "found",
+         "5": "found",
+         "6": "found",
+         "7": "found",
+         "8": "found",
+         "9": "found"
+        }
+       },
+       {
+        "type": "vars",
+        "items": {
+         "best": 10
+        }
+       }
+      ]
+     },
+     {
+      "text": "From 1: first valid at 9, length 9.",
+      "panels": [
+       {
+        "type": "row",
+        "cells": [
+         7,
+         3,
+         7,
+         7,
+         9,
+         3,
+         3,
+         9,
+         7,
+         1,
+         3
+        ],
+        "states": {
+         "1": "found",
+         "2": "found",
+         "3": "found",
+         "4": "found",
+         "5": "found",
+         "6": "found",
+         "7": "found",
+         "8": "found",
+         "9": "found"
+        }
+       },
+       {
+        "type": "vars",
+        "items": {
+         "best": 9
+        }
+       }
+      ]
+     },
+     {
+      "text": "From 2: first valid at 9, length 8.",
+      "panels": [
+       {
+        "type": "row",
+        "cells": [
+         7,
+         3,
+         7,
+         7,
+         9,
+         3,
+         3,
+         9,
+         7,
+         1,
+         3
+        ],
+        "states": {
+         "2": "found",
+         "3": "found",
+         "4": "found",
+         "5": "found",
+         "6": "found",
+         "7": "found",
+         "8": "found",
+         "9": "found"
+        }
+       },
+       {
+        "type": "vars",
+        "items": {
+         "best": 8
+        }
+       }
+      ]
+     },
+     {
+      "text": "From 3: first valid at 9, length 7.",
+      "panels": [
+       {
+        "type": "row",
+        "cells": [
+         7,
+         3,
+         7,
+         7,
+         9,
+         3,
+         3,
+         9,
+         7,
+         1,
+         3
+        ],
+        "states": {
+         "3": "found",
+         "4": "found",
+         "5": "found",
+         "6": "found",
+         "7": "found",
+         "8": "found",
+         "9": "found"
+        }
+       },
+       {
+        "type": "vars",
+        "items": {
+         "best": 7
+        }
+       }
+      ]
+     },
+     {
+      "text": "From 4: first valid at 9, length 6.",
+      "panels": [
+       {
+        "type": "row",
+        "cells": [
+         7,
+         3,
+         7,
+         7,
+         9,
+         3,
+         3,
+         9,
+         7,
+         1,
+         3
+        ],
+        "states": {
+         "4": "found",
+         "5": "found",
+         "6": "found",
+         "7": "found",
+         "8": "found",
+         "9": "found"
+        }
+       },
+       {
+        "type": "vars",
+        "items": {
+         "best": 6
+        }
+       }
+      ]
+     },
+     {
+      "text": "From 5: first valid at 9, length 5.",
+      "panels": [
+       {
+        "type": "row",
+        "cells": [
+         7,
+         3,
+         7,
+         7,
+         9,
+         3,
+         3,
+         9,
+         7,
+         1,
+         3
+        ],
+        "states": {
+         "5": "found",
+         "6": "found",
+         "7": "found",
+         "8": "found",
+         "9": "found"
+        }
+       },
+       {
+        "type": "vars",
+        "items": {
+         "best": 5
+        }
+       }
+      ]
+     },
+     {
+      "text": "From 6: first valid at 9, length 4.",
+      "panels": [
+       {
+        "type": "row",
+        "cells": [
+         7,
+         3,
+         7,
+         7,
+         9,
+         3,
+         3,
+         9,
+         7,
+         1,
+         3
+        ],
+        "states": {
+         "6": "found",
+         "7": "found",
+         "8": "found",
+         "9": "found"
+        }
+       },
+       {
+        "type": "vars",
+        "items": {
+         "best": 4
+        }
+       }
+      ]
+     },
+     {
+      "text": "From 7: first valid at 10, length 4.",
+      "panels": [
+       {
+        "type": "row",
+        "cells": [
+         7,
+         3,
+         7,
+         7,
+         9,
+         3,
+         3,
+         9,
+         7,
+         1,
+         3
+        ],
+        "states": {
+         "7": "found",
+         "8": "found",
+         "9": "found",
+         "10": "found"
+        }
+       },
+       {
+        "type": "vars",
+        "items": {
+         "best": 4
+        }
+       }
+      ]
+     },
+     {
+      "text": "From 8: never valid.",
+      "panels": [
+       {
+        "type": "row",
+        "cells": [
+         7,
+         3,
+         7,
+         7,
+         9,
+         3,
+         3,
+         9,
+         7,
+         1,
+         3
+        ],
+        "states": {
+         "8": "dim",
+         "9": "dim",
+         "10": "dim"
+        }
+       },
+       {
+        "type": "vars",
+        "items": {
+         "best": 4
+        }
+       }
+      ]
+     },
+     {
+      "text": "Shortest: 4.",
+      "panels": [],
+      "result": "4"
+     }
+    ],
+    "title": "There are 4 flavours. From each jar, extend until all of them are in the stretch."
+   },
+   "limits": [
+    {
+     "md": "Each start rebuilds the seen set from scratch."
+    }
+   ],
+   "slow": true
+  },
+  {
+   "title": "Shrinking window with flavour counts",
+   "kind": "best",
+   "time": "O(n)",
+   "space": "O(n)",
+   "idea": [
+    {
+     "md": "`count[f]` for the window, `have` = flavours with a positive count. Add `jars[r]`; while `have == d`, record and remove `jars[left]`."
+    }
+   ],
+   "build": [
+    "Number of flavours.",
+    "Counts and `have`.",
+    "Record and shrink while complete."
+   ],
+   "code": {
+    "python": "class Solution:\n    def shortestSampler(self, jars: List[int]) -> int:\n        d = len(set(jars))\n        count, have, left, best = {}, 0, 0, len(jars)\n        for i, f in enumerate(jars):\n            count[f] = count.get(f, 0) + 1\n            if count[f] == 1:\n                have += 1\n            while have == d:\n                best = min(best, i - left + 1)\n                g = jars[left]\n                count[g] -= 1\n                if count[g] == 0:\n                    have -= 1\n                left += 1\n        return best\n",
+    "java": "class Solution {\n    public int shortestSampler(int[] jars) {\n        int n = jars.length, d = (int) Arrays.stream(jars).distinct().count();\n        Map<Integer, Integer> count = new HashMap<>();\n        int have = 0, left = 0, best = n;\n        for (int i = 0; i < n; i++) {\n            if (count.merge(jars[i], 1, Integer::sum) == 1) have++;\n            while (have == d) {\n                best = Math.min(best, i - left + 1);\n                if (count.merge(jars[left++], -1, Integer::sum) == 0) have--;\n            }\n        }\n        return best;\n    }\n}\n",
+    "cpp": "class Solution {\npublic:\n    int shortestSampler(vector<int>& jars) {\n        int n = jars.size(), d = unordered_set<int>(jars.begin(), jars.end()).size();\n        unordered_map<int, int> count;\n        int have = 0, left = 0, best = n;\n        for (int i = 0; i < n; i++) {\n            if (++count[jars[i]] == 1) have++;\n            while (have == d) {\n                best = min(best, i - left + 1);\n                if (--count[jars[left++]] == 0) have--;\n            }\n        }\n        return best;\n    }\n};\n",
+    "c": "static int cmp_int(const void* a, const void* b) {\n    int x = *(const int*) a, y = *(const int*) b;\n    return (x > y) - (x < y);\n}\n\nstatic int* compress(const int* v, int n, int* distinct) {\n    int* sorted = malloc(n * sizeof(int));\n    memcpy(sorted, v, n * sizeof(int));\n    qsort(sorted, n, sizeof(int), cmp_int);\n    int d = 0;\n    for (int i = 0; i < n; i++) if (i == 0 || sorted[i] != sorted[i - 1]) sorted[d++] = sorted[i];\n    int* id = malloc(n * sizeof(int));\n    for (int i = 0; i < n; i++) id[i] = (int) ((int*) bsearch(&v[i], sorted, d, sizeof(int), cmp_int) - sorted);\n    free(sorted);\n    *distinct = d;\n    return id;\n}\n\nint shortestSampler(int* jars, int jarsSize) {\n    int n = jarsSize, d;\n    int* id = compress(jars, n, &d);\n    int* count = calloc(d, sizeof(int));\n    int have = 0, left = 0, best = n;\n    for (int i = 0; i < n; i++) {\n        if (count[id[i]]++ == 0) have++;\n        while (have == d) {\n            if (i - left + 1 < best) best = i - left + 1;\n            if (--count[id[left++]] == 0) have--;\n        }\n    }\n    free(id); free(count);\n    return best;\n}\n"
+   },
+   "lines": [
+    {
+     "text": "Distinct flavours `d`, empty window.",
+     "at": {
+      "python": [
+       [
+        3,
+        4
+       ]
+      ],
+      "java": [
+       [
+        3,
+        5
+       ]
+      ],
+      "cpp": [
+       [
+        4,
+        6
+       ]
+      ],
+      "c": [
+       [
+        20,
+        23
+       ]
+      ]
+     },
+     "notes": {
+      "c": "Compress flavours to ids so the counts can be a plain array."
+     }
+    },
+    {
+     "text": "Sort a copy, remove duplicates, and find each flavour's position by binary search.",
+     "at": {
+      "c": [
+       [
+        1,
+        4
+       ],
+       [
+        6,
+        17
+       ]
+      ]
+     }
+    },
+    {
+     "text": "Add jar `i`; a flavour going from 0 to 1 is newly present.",
+     "at": {
+      "python": [
+       [
+        5,
+        8
+       ]
+      ],
+      "java": [
+       [
+        6,
+        7
+       ]
+      ],
+      "cpp": [
+       [
+        7,
+        8
+       ]
+      ],
+      "c": [
+       [
+        24,
+        25
+       ]
+      ]
+     }
+    },
+    {
+     "text": "Complete window: record it, then drop the leftmost jar; if that was its flavour's last copy, the window is incomplete again.",
+     "at": {
+      "python": [
+       [
+        9,
+        15
+       ]
+      ],
+      "java": [
+       [
+        8,
+        10
+       ]
+      ],
+      "cpp": [
+       [
+        9,
+        11
+       ]
+      ],
+      "c": [
+       [
+        26,
+        28
+       ]
+      ]
+     }
+    },
+    {
+     "text": "Shortest complete stretch.",
+     "at": {
+      "python": [
+       [
+        16,
+        16
+       ]
+      ],
+      "java": [
+       [
+        13,
+        13
+       ]
+      ],
+      "cpp": [
+       [
+        14,
+        14
+       ]
+      ],
+      "c": [
+       [
+        31,
+        32
+       ]
+      ]
+     }
+    }
+   ],
+   "complexity": [
+    {
+     "md": "**Time O(n)** expected (O(n log n) for C's compression). **Space O(n).**"
+    }
+   ],
+   "walk": {
+    "steps": [
+     {
+      "text": "Add 7 (index 0). Not valid yet.",
+      "panels": [
+       {
+        "type": "row",
+        "cells": [
+         7,
+         3,
+         7,
+         7,
+         9,
+         3,
+         3,
+         9,
+         7,
+         1,
+         3
+        ],
+        "states": {
+         "0": "active"
+        }
+       },
+       {
+        "type": "vars",
+        "items": {
+         "best": "—",
+         "flavours inside": 1
+        }
+       }
+      ]
+     },
+     {
+      "text": "Add 3 (index 1). Not valid yet.",
+      "panels": [
+       {
+        "type": "row",
+        "cells": [
+         7,
+         3,
+         7,
+         7,
+         9,
+         3,
+         3,
+         9,
+         7,
+         1,
+         3
+        ],
+        "states": {
+         "0": "active",
+         "1": "active"
+        }
+       },
+       {
+        "type": "vars",
+        "items": {
+         "best": "—",
+         "flavours inside": 2
+        }
+       }
+      ]
+     },
+     {
+      "text": "Add 7 (index 2). Not valid yet.",
+      "panels": [
+       {
+        "type": "row",
+        "cells": [
+         7,
+         3,
+         7,
+         7,
+         9,
+         3,
+         3,
+         9,
+         7,
+         1,
+         3
+        ],
+        "states": {
+         "0": "active",
+         "1": "active",
+         "2": "active"
+        }
+       },
+       {
+        "type": "vars",
+        "items": {
+         "best": "—",
+         "flavours inside": 2
+        }
+       }
+      ]
+     },
+     {
+      "text": "Add 7 (index 3). Not valid yet.",
+      "panels": [
+       {
+        "type": "row",
+        "cells": [
+         7,
+         3,
+         7,
+         7,
+         9,
+         3,
+         3,
+         9,
+         7,
+         1,
+         3
+        ],
+        "states": {
+         "0": "active",
+         "1": "active",
+         "2": "active",
+         "3": "active"
+        }
+       },
+       {
+        "type": "vars",
+        "items": {
+         "best": "—",
+         "flavours inside": 2
+        }
+       }
+      ]
+     },
+     {
+      "text": "Add 9 (index 4). Not valid yet.",
+      "panels": [
+       {
+        "type": "row",
+        "cells": [
+         7,
+         3,
+         7,
+         7,
+         9,
+         3,
+         3,
+         9,
+         7,
+         1,
+         3
+        ],
+        "states": {
+         "0": "active",
+         "1": "active",
+         "2": "active",
+         "3": "active",
+         "4": "active"
+        }
+       },
+       {
+        "type": "vars",
+        "items": {
+         "best": "—",
+         "flavours inside": 3
+        }
+       }
+      ]
+     },
+     {
+      "text": "Add 3 (index 5). Not valid yet.",
+      "panels": [
+       {
+        "type": "row",
+        "cells": [
+         7,
+         3,
+         7,
+         7,
+         9,
+         3,
+         3,
+         9,
+         7,
+         1,
+         3
+        ],
+        "states": {
+         "0": "active",
+         "1": "active",
+         "2": "active",
+         "3": "active",
+         "4": "active",
+         "5": "active"
+        }
+       },
+       {
+        "type": "vars",
+        "items": {
+         "best": "—",
+         "flavours inside": 3
+        }
+       }
+      ]
+     },
+     {
+      "text": "Add 3 (index 6). Not valid yet.",
+      "panels": [
+       {
+        "type": "row",
+        "cells": [
+         7,
+         3,
+         7,
+         7,
+         9,
+         3,
+         3,
+         9,
+         7,
+         1,
+         3
+        ],
+        "states": {
+         "0": "active",
+         "1": "active",
+         "2": "active",
+         "3": "active",
+         "4": "active",
+         "5": "active",
+         "6": "active"
+        }
+       },
+       {
+        "type": "vars",
+        "items": {
+         "best": "—",
+         "flavours inside": 3
+        }
+       }
+      ]
+     },
+     {
+      "text": "Add 9 (index 7). Not valid yet.",
+      "panels": [
+       {
+        "type": "row",
+        "cells": [
+         7,
+         3,
+         7,
+         7,
+         9,
+         3,
+         3,
+         9,
+         7,
+         1,
+         3
+        ],
+        "states": {
+         "0": "active",
+         "1": "active",
+         "2": "active",
+         "3": "active",
+         "4": "active",
+         "5": "active",
+         "6": "active",
+         "7": "active"
+        }
+       },
+       {
+        "type": "vars",
+        "items": {
+         "best": "—",
+         "flavours inside": 3
+        }
+       }
+      ]
+     },
+     {
+      "text": "Add 7 (index 8). Not valid yet.",
+      "panels": [
+       {
+        "type": "row",
+        "cells": [
+         7,
+         3,
+         7,
+         7,
+         9,
+         3,
+         3,
+         9,
+         7,
+         1,
+         3
+        ],
+        "states": {
+         "0": "active",
+         "1": "active",
+         "2": "active",
+         "3": "active",
+         "4": "active",
+         "5": "active",
+         "6": "active",
+         "7": "active",
+         "8": "active"
+        }
+       },
+       {
+        "type": "vars",
+        "items": {
+         "best": "—",
+         "flavours inside": 3
+        }
+       }
+      ]
+     },
+     {
+      "text": "Add 1 (index 9). Valid: shrink while it stays valid (shortest ending here: 6..9, length 4).",
+      "panels": [
+       {
+        "type": "row",
+        "cells": [
+         7,
+         3,
+         7,
+         7,
+         9,
+         3,
+         3,
+         9,
+         7,
+         1,
+         3
+        ],
+        "states": {
+         "6": "found",
+         "7": "found",
+         "8": "found",
+         "9": "found",
+         "0": "dim",
+         "1": "dim",
+         "2": "dim",
+         "3": "dim",
+         "4": "dim",
+         "5": "dim"
+        }
+       },
+       {
+        "type": "vars",
+        "items": {
+         "best": 4,
+         "flavours inside": 3
+        }
+       }
+      ]
+     },
+     {
+      "text": "Add 3 (index 10). Valid: shrink while it stays valid (shortest ending here: 7..10, length 4).",
+      "panels": [
+       {
+        "type": "row",
+        "cells": [
+         7,
+         3,
+         7,
+         7,
+         9,
+         3,
+         3,
+         9,
+         7,
+         1,
+         3
+        ],
+        "states": {
+         "7": "found",
+         "8": "found",
+         "9": "found",
+         "10": "found"
+        }
+       },
+       {
+        "type": "vars",
+        "items": {
+         "best": 4,
+         "flavours inside": 3
+        }
+       }
+      ]
+     },
+     {
+      "text": "Shortest: 4.",
+      "panels": [],
+      "result": "4"
+     }
+    ],
+    "title": "Grow the window with flavour counts. Once it holds every flavour, record it and drop jars from the left until a flavour is missing."
+   }
+  }
+ ],
+ "takeaways": [
+  {
+   "md": "- **Shortest window containing all kinds:** counts + a \"kinds present\" counter.\n- Large keys: hash map, or compress to `0..d−1` once.\n- Record inside the shrink loop: each recorded window is minimal for its right end."
+  }
+ ]
+}
