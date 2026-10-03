@@ -1,0 +1,791 @@
+{
+ "version": 1,
+ "summary": "A mountain is two sorted runs: increasing up to the top, decreasing after it. Find the top once with a slope\nbinary search, then answer each target with a binary search on the rising side and, only if it's not there,\non the falling side. Searching the rising side first guarantees the **smallest** index. O((q + 1) log n)\ntime, O(1) extra space.",
+ "question": [
+  {
+   "md": "`elevations` rises strictly to one top, then falls strictly. For each target, return the **smallest** index\nholding it, or −1.\n\n- **A value can appear twice**, once on each slope (e.g. 6 and 3 in the example). The smallest index is the\n  one on the rising slope.\n- **Up to 10⁵ targets** on 10⁵ points: scanning per target is 10¹⁰ steps.\n- **Answer in the order of `targets`.**"
+  }
+ ],
+ "think": [
+  {
+   "md": "Take `[1, 3, 6, 9, 12, 10, 6, 4, 3, 0]` with targets `[6, 3, 11, 0]`. The top is 12 at index 4. Left of it the values increase;\nright of it they decrease."
+  },
+  {
+   "panels": [
+    {
+     "type": "row",
+     "cells": [
+      1,
+      3,
+      6,
+      9,
+      12,
+      10,
+      6,
+      4,
+      3,
+      0
+     ],
+     "states": {
+      "4": "answer",
+      "0": "found",
+      "1": "found",
+      "2": "found",
+      "3": "found",
+      "5": "mark",
+      "6": "mark",
+      "7": "mark",
+      "8": "mark",
+      "9": "mark"
+     },
+     "slots": true
+    }
+   ],
+   "caption": "Rising slope (light), top, falling slope (marked): two sorted halves."
+  },
+  {
+   "md": "Each slope is sorted, one ascending and one descending, so each can be binary-searched. The order of the two\nsearches matters: every index on the rising slope is smaller than every index on the falling slope, so look\nthere first and only fall back to the falling slope if the target isn't on the rising one.\n\nA hash map from value to first index also answers every lookup in O(1), at the cost of reading the whole\nmountain and storing it."
+  }
+ ],
+ "approaches": [
+  {
+   "title": "Scan for every target",
+   "kind": "brute",
+   "time": "O(n · q)",
+   "space": "O(1)",
+   "idea": [
+    {
+     "md": "For each target, return the first index whose elevation equals it."
+    }
+   ],
+   "build": [
+    "For each target, scan from index 0; record the first match or −1."
+   ],
+   "code": {
+    "python": "class Solution:\n    def findAltitudes(self, elevations: List[int], targets: List[int]) -> List[int]:\n        out = []\n        for t in targets:\n            idx = -1\n            for i, v in enumerate(elevations):\n                if v == t:\n                    idx = i\n                    break\n            out.append(idx)\n        return out\n",
+    "java": "class Solution {\n    public int[] findAltitudes(int[] elevations, int[] targets) {\n        int[] out = new int[targets.length];\n        for (int q = 0; q < targets.length; q++) {\n            out[q] = -1;\n            for (int i = 0; i < elevations.length; i++) if (elevations[i] == targets[q]) { out[q] = i; break; }\n        }\n        return out;\n    }\n}\n",
+    "cpp": "class Solution {\npublic:\n    vector<int> findAltitudes(vector<int>& elevations, vector<int>& targets) {\n        vector<int> out;\n        for (int t : targets) {\n            auto it = find(elevations.begin(), elevations.end(), t);\n            out.push_back(it == elevations.end() ? -1 : (int) (it - elevations.begin()));\n        }\n        return out;\n    }\n};\n",
+    "c": "int* findAltitudes(int* elevations, int elevationsSize, int* targets, int targetsSize, int* returnSize) {\n    int* out = malloc(targetsSize * sizeof(int));\n    for (int q = 0; q < targetsSize; q++) {\n        out[q] = -1;\n        for (int i = 0; i < elevationsSize; i++) if (elevations[i] == targets[q]) { out[q] = i; break; }\n    }\n    *returnSize = targetsSize;\n    return out;\n}\n"
+   },
+   "lines": [
+    {
+     "text": "One lookup per target.",
+     "at": {
+      "python": [
+       [
+        4,
+        4
+       ]
+      ],
+      "java": [
+       [
+        4,
+        4
+       ]
+      ],
+      "cpp": [
+       [
+        5,
+        5
+       ]
+      ],
+      "c": [
+       [
+        3,
+        3
+       ]
+      ]
+     }
+    },
+    {
+     "text": "First match from the left, so the smallest index; −1 if none.",
+     "at": {
+      "python": [
+       [
+        5,
+        10
+       ]
+      ],
+      "java": [
+       [
+        5,
+        6
+       ]
+      ],
+      "cpp": [
+       [
+        6,
+        7
+       ]
+      ],
+      "c": [
+       [
+        4,
+        5
+       ]
+      ]
+     }
+    },
+    {
+     "text": "Answers in target order.",
+     "at": {
+      "python": [
+       [
+        11,
+        11
+       ]
+      ],
+      "java": [
+       [
+        8,
+        8
+       ]
+      ],
+      "cpp": [
+       [
+        9,
+        9
+       ]
+      ],
+      "c": [
+       [
+        7,
+        8
+       ]
+      ]
+     }
+    }
+   ],
+   "complexity": [
+    {
+     "md": "**Time O(n · q).** **Space O(1)** besides the output."
+    }
+   ],
+   "walk": {
+    "steps": [
+     {
+      "text": "Target 6: first found at index 2.",
+      "panels": [
+       {
+        "type": "row",
+        "cells": [
+         1,
+         3,
+         6,
+         9,
+         12,
+         10,
+         6,
+         4,
+         3,
+         0
+        ],
+        "states": {
+         "2": "answer"
+        },
+        "slots": true
+       }
+      ]
+     },
+     {
+      "text": "Target 3: first found at index 1.",
+      "panels": [
+       {
+        "type": "row",
+        "cells": [
+         1,
+         3,
+         6,
+         9,
+         12,
+         10,
+         6,
+         4,
+         3,
+         0
+        ],
+        "states": {
+         "1": "answer"
+        },
+        "slots": true
+       }
+      ]
+     },
+     {
+      "text": "Target 11: not found after checking all 10 points.",
+      "panels": [
+       {
+        "type": "row",
+        "cells": [
+         1,
+         3,
+         6,
+         9,
+         12,
+         10,
+         6,
+         4,
+         3,
+         0
+        ],
+        "states": {
+         "0": "dim",
+         "1": "dim",
+         "2": "dim",
+         "3": "dim",
+         "4": "dim",
+         "5": "dim",
+         "6": "dim",
+         "7": "dim",
+         "8": "dim",
+         "9": "dim"
+        },
+        "slots": true
+       }
+      ]
+     },
+     {
+      "text": "Target 0: first found at index 9.",
+      "panels": [
+       {
+        "type": "row",
+        "cells": [
+         1,
+         3,
+         6,
+         9,
+         12,
+         10,
+         6,
+         4,
+         3,
+         0
+        ],
+        "states": {
+         "9": "answer"
+        },
+        "slots": true
+       }
+      ],
+      "result": "[2, 1, -1, 9]"
+     }
+    ],
+    "title": "For each target, scan the mountain from the left."
+   },
+   "limits": [
+    {
+     "md": "Every lookup re-reads the whole mountain."
+    }
+   ],
+   "slow": true
+  },
+  {
+   "title": "Hash map of first indices",
+   "kind": "better",
+   "time": "O(n + q)",
+   "space": "O(n)",
+   "idea": [
+    {
+     "md": "One pass from the left stores each elevation's first index (later duplicates don't overwrite). Each target is then a map lookup."
+    }
+   ],
+   "build": [
+    "For each index, store `first[e[i]] = i` if absent.",
+    "Answer each target with `first.get(t, −1)`."
+   ],
+   "code": {
+    "python": "class Solution:\n    def findAltitudes(self, elevations: List[int], targets: List[int]) -> List[int]:\n        first = {}\n        for i, v in enumerate(elevations):\n            first.setdefault(v, i)\n        return [first.get(t, -1) for t in targets]\n",
+    "java": "class Solution {\n    public int[] findAltitudes(int[] elevations, int[] targets) {\n        Map<Integer, Integer> first = new HashMap<>();\n        for (int i = 0; i < elevations.length; i++) first.putIfAbsent(elevations[i], i);\n        int[] out = new int[targets.length];\n        for (int q = 0; q < targets.length; q++) out[q] = first.getOrDefault(targets[q], -1);\n        return out;\n    }\n}\n",
+    "cpp": "class Solution {\npublic:\n    vector<int> findAltitudes(vector<int>& elevations, vector<int>& targets) {\n        unordered_map<int, int> first;\n        for (int i = 0; i < (int) elevations.size(); i++) first.emplace(elevations[i], i);\n        vector<int> out;\n        for (int t : targets) {\n            auto it = first.find(t);\n            out.push_back(it == first.end() ? -1 : it->second);\n        }\n        return out;\n    }\n};\n",
+    "c": "typedef struct { int key; int idx; bool used; } Slot;\n\nstatic Slot* slotFor(Slot* t, unsigned mask, int key) {\n    unsigned long long h = (unsigned long long) (long long) key * 0x9E3779B97F4A7C15ULL;\n    unsigned s = (unsigned) (h >> 32) & mask;\n    while (t[s].used && t[s].key != key) s = (s + 1) & mask;\n    return &t[s];\n}\n\nint* findAltitudes(int* elevations, int elevationsSize, int* targets, int targetsSize, int* returnSize) {\n    unsigned cap = 1;\n    while (cap < 2u * elevationsSize) cap <<= 1;\n    Slot* first = calloc(cap, sizeof(Slot));\n    for (int i = 0; i < elevationsSize; i++) {\n        Slot* s = slotFor(first, cap - 1, elevations[i]);\n        if (!s->used) *s = (Slot) {elevations[i], i, true};\n    }\n    int* out = malloc(targetsSize * sizeof(int));\n    for (int q = 0; q < targetsSize; q++) {\n        Slot* s = slotFor(first, cap - 1, targets[q]);\n        out[q] = s->used ? s->idx : -1;\n    }\n    free(first);\n    *returnSize = targetsSize;\n    return out;\n}\n"
+   },
+   "lines": [
+    {
+     "text": "C has no hash map: `slotFor` probes from a value's hashed slot to its entry or the empty slot where it would go.",
+     "at": {
+      "c": [
+       [
+        1,
+        1
+       ],
+       [
+        3,
+        8
+       ]
+      ]
+     }
+    },
+    {
+     "text": "Left to right, keep only the first index of each value, so a value on both slopes maps to its rising-slope index.",
+     "at": {
+      "python": [
+       [
+        3,
+        5
+       ]
+      ],
+      "java": [
+       [
+        3,
+        4
+       ]
+      ],
+      "cpp": [
+       [
+        4,
+        5
+       ]
+      ],
+      "c": [
+       [
+        11,
+        17
+       ]
+      ]
+     },
+     "notes": {
+      "java": "`putIfAbsent` never overwrites an earlier index.",
+      "cpp": "`emplace` doesn't overwrite an existing key."
+     }
+    },
+    {
+     "text": "Each target is one lookup; missing values give −1.",
+     "at": {
+      "python": [
+       [
+        6,
+        6
+       ]
+      ],
+      "java": [
+       [
+        5,
+        7
+       ]
+      ],
+      "cpp": [
+       [
+        6,
+        9
+       ],
+       [
+        11,
+        11
+       ]
+      ],
+      "c": [
+       [
+        18,
+        25
+       ]
+      ]
+     }
+    }
+   ],
+   "complexity": [
+    {
+     "md": "**Time O(n + q).** **Space O(n)** for the map."
+    }
+   ],
+   "walk": {
+    "steps": [
+     {
+      "text": "Map elevation → first index (the left slope wins for values on both slopes).",
+      "panels": [
+       {
+        "type": "row",
+        "cells": [
+         1,
+         3,
+         6,
+         9,
+         12,
+         10,
+         6,
+         4,
+         3,
+         0
+        ],
+        "slots": true
+       },
+       {
+        "type": "row",
+        "cells": [
+         "1→0",
+         "3→1",
+         "6→2",
+         "9→3",
+         "12→4",
+         "10→5",
+         "4→7",
+         "0→9"
+        ],
+        "label": "first index"
+       }
+      ]
+     },
+     {
+      "text": "Lookups: 6→2, 3→1, 11→-1, 0→9.",
+      "panels": [
+       {
+        "type": "row",
+        "cells": [
+         "1→0",
+         "3→1",
+         "6→2",
+         "9→3",
+         "12→4",
+         "10→5",
+         "4→7",
+         "0→9"
+        ],
+        "states": {
+         "2": "answer",
+         "1": "answer",
+         "7": "answer"
+        },
+        "label": "first index"
+       }
+      ],
+      "result": "[2, 1, -1, 9]"
+     }
+    ],
+    "title": "One pass records each elevation's first index in a hash map; then every lookup is O(1)."
+   },
+   "limits": [
+    {
+     "md": "It reads and stores the entire mountain even though the mountain shape already allows searching it in place. With the slopes binary-searched, each lookup touches only O(log n) points and no extra memory is needed."
+    }
+   ]
+  },
+  {
+   "title": "Find the top, then search each slope",
+   "kind": "best",
+   "time": "O((q + 1) log n)",
+   "space": "O(1)",
+   "idea": [
+    {
+     "md": "Binary-search the top. For each target: lower-bound search on the rising slope `[0, top]`; if not found, search the falling slope `[top, n)` for the first index whose value is ≤ target and check it equals the target."
+    }
+   ],
+   "build": [
+    "Find `top` with the slope test.",
+    "Rising slope: first index in `[0, top]` with value ≥ t; equal → answer.",
+    "Falling slope: first index in `[top, n)` with value ≤ t; equal → answer; else −1."
+   ],
+   "code": {
+    "python": "class Solution:\n    def findAltitudes(self, elevations: List[int], targets: List[int]) -> List[int]:\n        e, n = elevations, len(elevations)\n        lo, hi = 0, n - 1\n        while lo < hi:\n            mid = (lo + hi) // 2\n            if e[mid] < e[mid + 1]:\n                lo = mid + 1\n            else:\n                hi = mid\n        top = lo\n        out = []\n        for t in targets:\n            lo, hi = 0, top + 1\n            while lo < hi:\n                mid = (lo + hi) // 2\n                if e[mid] < t:\n                    lo = mid + 1\n                else:\n                    hi = mid\n            if lo <= top and e[lo] == t:\n                out.append(lo)\n                continue\n            lo, hi = top, n\n            while lo < hi:\n                mid = (lo + hi) // 2\n                if e[mid] > t:\n                    lo = mid + 1\n                else:\n                    hi = mid\n            out.append(lo if lo < n and e[lo] == t else -1)\n        return out\n",
+    "java": "class Solution {\n    public int[] findAltitudes(int[] e, int[] targets) {\n        int n = e.length, lo = 0, hi = n - 1;\n        while (lo < hi) {\n            int mid = lo + (hi - lo) / 2;\n            if (e[mid] < e[mid + 1]) lo = mid + 1; else hi = mid;\n        }\n        int top = lo;\n        int[] out = new int[targets.length];\n        for (int q = 0; q < targets.length; q++) {\n            int t = targets[q];\n            lo = 0; hi = top + 1;\n            while (lo < hi) {\n                int mid = lo + (hi - lo) / 2;\n                if (e[mid] < t) lo = mid + 1; else hi = mid;\n            }\n            if (lo <= top && e[lo] == t) { out[q] = lo; continue; }\n            lo = top; hi = n;\n            while (lo < hi) {\n                int mid = lo + (hi - lo) / 2;\n                if (e[mid] > t) lo = mid + 1; else hi = mid;\n            }\n            out[q] = (lo < n && e[lo] == t) ? lo : -1;\n        }\n        return out;\n    }\n}\n",
+    "cpp": "class Solution {\npublic:\n    vector<int> findAltitudes(vector<int>& e, vector<int>& targets) {\n        int n = e.size(), lo = 0, hi = n - 1;\n        while (lo < hi) {\n            int mid = lo + (hi - lo) / 2;\n            if (e[mid] < e[mid + 1]) lo = mid + 1; else hi = mid;\n        }\n        int top = lo;\n        vector<int> out;\n        for (int t : targets) {\n            int i = lower_bound(e.begin(), e.begin() + top + 1, t) - e.begin();\n            if (i <= top && e[i] == t) { out.push_back(i); continue; }\n            int j = lower_bound(e.begin() + top, e.end(), t, greater<int>()) - e.begin();\n            out.push_back(j < n && e[j] == t ? j : -1);\n        }\n        return out;\n    }\n};\n",
+    "c": "int* findAltitudes(int* e, int n, int* targets, int targetsSize, int* returnSize) {\n    int lo = 0, hi = n - 1;\n    while (lo < hi) {\n        int mid = lo + (hi - lo) / 2;\n        if (e[mid] < e[mid + 1]) lo = mid + 1; else hi = mid;\n    }\n    int top = lo;\n    int* out = malloc(targetsSize * sizeof(int));\n    for (int q = 0; q < targetsSize; q++) {\n        int t = targets[q];\n        lo = 0; hi = top + 1;\n        while (lo < hi) {\n            int mid = lo + (hi - lo) / 2;\n            if (e[mid] < t) lo = mid + 1; else hi = mid;\n        }\n        if (lo <= top && e[lo] == t) { out[q] = lo; continue; }\n        lo = top; hi = n;\n        while (lo < hi) {\n            int mid = lo + (hi - lo) / 2;\n            if (e[mid] > t) lo = mid + 1; else hi = mid;\n        }\n        out[q] = (lo < n && e[lo] == t) ? lo : -1;\n    }\n    *returnSize = targetsSize;\n    return out;\n}\n"
+   },
+   "lines": [
+    {
+     "text": "Slope binary search for the top, done once.",
+     "at": {
+      "python": [
+       [
+        4,
+        11
+       ]
+      ],
+      "java": [
+       [
+        3,
+        8
+       ]
+      ],
+      "cpp": [
+       [
+        4,
+        9
+       ]
+      ],
+      "c": [
+       [
+        2,
+        7
+       ]
+      ]
+     }
+    },
+    {
+     "text": "Each target separately.",
+     "at": {
+      "python": [
+       [
+        13,
+        13
+       ]
+      ],
+      "java": [
+       [
+        10,
+        11
+       ]
+      ],
+      "cpp": [
+       [
+        11,
+        11
+       ]
+      ],
+      "c": [
+       [
+        9,
+        10
+       ]
+      ]
+     }
+    },
+    {
+     "text": "Lower bound on the ascending part `[0, top]`. A hit here is automatically the smallest index, because every rising index comes before every falling one.",
+     "at": {
+      "python": [
+       [
+        14,
+        23
+       ]
+      ],
+      "java": [
+       [
+        12,
+        17
+       ]
+      ],
+      "cpp": [
+       [
+        12,
+        13
+       ]
+      ],
+      "c": [
+       [
+        11,
+        16
+       ]
+      ]
+     },
+     "notes": {
+      "cpp": "`std::lower_bound` on the rising part."
+     }
+    },
+    {
+     "text": "On the descending part `[top, n)`, the condition flips: skip values **greater** than the target and stop at the first value ≤ target; it must equal the target to count.",
+     "at": {
+      "python": [
+       [
+        24,
+        31
+       ]
+      ],
+      "java": [
+       [
+        18,
+        23
+       ]
+      ],
+      "cpp": [
+       [
+        14,
+        15
+       ]
+      ],
+      "c": [
+       [
+        17,
+        22
+       ]
+      ]
+     },
+     "notes": {
+      "cpp": "`lower_bound` with `greater<int>()` searches a descending range."
+     }
+    },
+    {
+     "text": "Answers in target order.",
+     "at": {
+      "python": [
+       [
+        32,
+        32
+       ]
+      ],
+      "java": [
+       [
+        25,
+        25
+       ]
+      ],
+      "cpp": [
+       [
+        17,
+        17
+       ]
+      ],
+      "c": [
+       [
+        24,
+        25
+       ]
+      ]
+     }
+    }
+   ],
+   "complexity": [
+    {
+     "md": "**Time O(log n + q log n).** **Space O(1)** besides the output."
+    }
+   ],
+   "walk": {
+    "steps": [
+     {
+      "text": "Binary search for the top (as in Mountain Top): index 4. Left of it the slope rises; right of it, it falls.",
+      "panels": [
+       {
+        "type": "row",
+        "cells": [
+         1,
+         3,
+         6,
+         9,
+         12,
+         10,
+         6,
+         4,
+         3,
+         0
+        ],
+        "states": {
+         "4": "answer",
+         "0": "found",
+         "1": "found",
+         "2": "found",
+         "3": "found",
+         "5": "mark",
+         "6": "mark",
+         "7": "mark",
+         "8": "mark",
+         "9": "mark"
+        },
+        "slots": true
+       }
+      ]
+     },
+     {
+      "text": "Target 6: rising slope [0, 4] → found at 2 (the smallest index, since the rising slope comes first).",
+      "panels": [
+       {
+        "type": "row",
+        "cells": [
+         1,
+         3,
+         6,
+         9,
+         12,
+         10,
+         6,
+         4,
+         3,
+         0
+        ],
+        "states": {
+         "2": "answer"
+        },
+        "slots": true
+       }
+      ]
+     },
+     {
+      "text": "Target 3: rising slope [0, 4] → found at 1 (the smallest index, since the rising slope comes first).",
+      "panels": [
+       {
+        "type": "row",
+        "cells": [
+         1,
+         3,
+         6,
+         9,
+         12,
+         10,
+         6,
+         4,
+         3,
+         0
+        ],
+        "states": {
+         "1": "answer"
+        },
+        "slots": true
+       }
+      ]
+     },
+     {
+      "text": "Target 11: not on the rising slope; falling slope [4, 9] (search reversed) → not there either: −1.",
+      "panels": [
+       {
+        "type": "row",
+        "cells": [
+         1,
+         3,
+         6,
+         9,
+         12,
+         10,
+         6,
+         4,
+         3,
+         0
+        ],
+        "states": {
+         "0": "dim",
+         "1": "dim",
+         "2": "dim",
+         "3": "dim",
+         "4": "dim",
+         "5": "dim",
+         "6": "dim",
+         "7": "dim",
+         "8": "dim",
+         "9": "dim"
+        },
+        "slots": true
+       }
+      ]
+     },
+     {
+      "text": "Target 0: not on the rising slope; falling slope [4, 9] (search reversed) → found at 9.",
+      "panels": [
+       {
+        "type": "row",
+        "cells": [
+         1,
+         3,
+         6,
+         9,
+         12,
+         10,
+         6,
+         4,
+         3,
+         0
+        ],
+        "states": {
+         "9": "answer"
+        },
+        "slots": true
+       }
+      ],
+      "result": "[2, 1, -1, 9]"
+     }
+    ],
+    "title": "Find the top once. Then each target is a binary search on the rising slope, and if that fails, on the falling slope."
+   }
+  }
+ ],
+ "takeaways": [
+  {
+   "md": "- A mountain (bitonic) array = **two sorted halves**: find the peak once, then binary-search each side.\n- On a descending range, flip the comparison (or use a `greater` comparator).\n- \"Smallest index\" with duplicates across halves: search the left half first."
+  }
+ ]
+}
