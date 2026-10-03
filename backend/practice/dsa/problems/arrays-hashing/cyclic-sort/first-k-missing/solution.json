@@ -4,41 +4,54 @@
  "question": [
   {
    "md": "List the `k` smallest positive integers (1, 2, 3, …) that don't appear in `nums`, in increasing\norder.\n\n- **Only positive answers.** 0 and negative numbers in `nums` never block anything, because\n  they aren't candidates.\n- **Repeats block a value once.** Two 3s still only remove 3.\n- **Answers can go past the largest number in the list.** For `nums = [2, 3, 4]` and k = 3 the\n  answer is `[1, 5, 6]`: after 1, the next free values are above 4.\n- **Huge values in `nums` (up to 10⁹)** are irrelevant unless they fall among the first few\n  free numbers, which they can't, as we'll see.\n- **Size:** n and k each up to 10⁵."
+  },
+  {
+   "md": "**Edge cases to keep in mind**\n\n- Repeats, zeros and negatives don't help cover anything.\n- If `nums` is empty of positives, the answer is `1 … k`.\n- Huge values beyond `n + k` are irrelevant."
   }
  ],
  "think": [
   {
-   "md": "Take `nums = [4, 3, 2, 7, 8, 2, 3, 1]` and `k = 3`. Counting up by hand: 1 ✓ taken, 2 ✓, 3 ✓,\n4 ✓, **5** free, **6** free, 7 ✓, 8 ✓, **9** free. Answer `[5, 6, 9]`.\n\nThe doing-it-by-hand method is already the algorithm: count up from 1 and skip what's taken. The\nonly question is how quickly you can ask \"is x taken?\", and how far up you might have to go.\n\n**How far?** Look at the values `1 … n + k`. There are n + k of them, and the list has only n\nnumbers, so at most n of those values are taken. That leaves at least k free values inside\n`1 … n + k`. So the counting never needs to pass `n + k`, and any number in `nums` bigger than\nthat can be ignored."
+   "md": "**Every value has a home.** When the values are `1 … n` (or should be), value `v` belongs at index `v − 1`. That turns\nthe array into a map from positions to positions: position `i` \"points to\" the home of the value it holds. Following\nthose pointers reveals the structure: duplicates, missing values, and **cycles** of values that must move among\nthemselves."
   },
   {
-   "panels": [
-    {
-     "type": "row",
-     "cells": [
-      1,
-      2,
-      3,
-      4,
-      null,
-      null,
-      7,
-      8,
-      null,
-      null,
-      null
-     ],
-     "states": {
-      "4": "answer",
-      "5": "answer",
-      "8": "answer"
-     },
-     "label": "values 1 … n + k = 11 (blank = free)"
-    }
-   ],
-   "caption": "With 8 numbers and k = 3, everything happens inside 1 … 11, and the first three blanks are the answer."
+   "md": "**How far do we need to look?** Among `1 … n + k` there are `n + k` numbers, and `nums` can cover at most `n` of\nthem, so at least `k` are missing. The first `k` missing numbers therefore all lie in `1 … n + k`. Values outside\nthat range can be ignored, and a flag array of size `n + k` suffices.\n\nFor `[4, 3, 2, 7, 8, 2, 3, 1]`, `k = 3`, the range is `1 … 11`:"
   },
   {
-   "md": "That bound is what lets a plain array replace a hash set: index `v` of an array of size `n + k`\nanswers \"is v taken?\"."
+   "table": {
+    "head": [
+     "number",
+     "1",
+     "2",
+     "3",
+     "4",
+     "5",
+     "6",
+     "7",
+     "8",
+     "9",
+     "10",
+     "11"
+    ],
+    "rows": [
+     [
+      "present?",
+      "✓",
+      "✓",
+      "✓",
+      "✓",
+      "·",
+      "·",
+      "✓",
+      "✓",
+      "·",
+      "·",
+      "·"
+     ]
+    ]
+   }
+  },
+  {
+   "md": "The first 3 gaps: **[5, 6, 9]**."
   }
  ],
  "approaches": [
@@ -49,13 +62,13 @@
    "space": "O(1)",
    "idea": [
     {
-     "md": "Try candidates 1, 2, 3, … in order. For each one, scan `nums`. If it's not there, it's\nmissing: add it to the answer. Stop once you have k.\n\nAt most n + k candidates are tried (by the bound above), and each scan costs n."
+     "md": "Count up from 1, checking each number with a linear search; collect the first `k` not found."
     }
    ],
    "build": [
-    "Start with an empty answer and `x = 1`.",
-    "While the answer has fewer than k numbers: scan `nums` for `x`; if absent, append `x`.",
-    "Increase `x` and repeat."
+    "`x = 1`.",
+    "Search the list for `x`; collect it if absent.",
+    "Stop after `k`."
    ],
    "code": {
     "python": "class Solution:\n    def firstMissing(self, nums: List[int], k: int) -> List[int]:\n        out, x = [], 1\n        while len(out) < k:\n            if x not in nums:\n                out.append(x)\n            x += 1\n        return out\n",
@@ -219,7 +232,7 @@
    ],
    "complexity": [
     {
-     "md": "**Time O((n + k) · n):** up to n + k candidates, each scanning n numbers (≈ 2 × 10¹⁰ at the limits). **Space O(1)** beyond the answer."
+     "md": "**Time O((n + k) · n)** in the worst case. **Space O(1)** besides the answer."
     }
    ],
    "walk": {
@@ -547,7 +560,7 @@
    },
    "limits": [
     {
-     "md": "Every membership question costs a full scan. Store the numbers somewhere with O(1) lookups and the scans disappear."
+     "md": "Every candidate rescans the list. A set or flag array answers membership in O(1)."
     }
    ],
    "slow": true
@@ -559,12 +572,12 @@
    "space": "O(n)",
    "idea": [
     {
-     "md": "Put every number in a hash set once. Then count up from 1 exactly as before, but each\n\"is x taken?\" is now an O(1) lookup."
+     "md": "Put the numbers in a hash set, then count up from 1, collecting numbers not in the set until `k` are found."
     }
    ],
    "build": [
-    "Build a hash set of `nums`.",
-    "Count `x` up from 1, appending each `x` not in the set, until there are k answers."
+    "Hash set.",
+    "Count up and collect missing numbers."
    ],
    "code": {
     "python": "class Solution:\n    def firstMissing(self, nums: List[int], k: int) -> List[int]:\n        have = set(nums)\n        out, x = [], 1\n        while len(out) < k:\n            if x not in have:\n                out.append(x)\n            x += 1\n        return out\n",
@@ -720,7 +733,7 @@
    ],
    "complexity": [
     {
-     "md": "**Time O(n + k)** on average: n inserts and at most n + k lookups. **Space O(n)** for the set."
+     "md": "**Time O(n + k)** expected. **Space O(n).**"
     }
    ],
    "walk": {
@@ -1004,7 +1017,7 @@
    },
    "limits": [
     {
-     "md": "Fast enough, but the set stores numbers that can never matter (negatives, zeros, anything\nabove n + k), and hash lookups are O(1) only on average. Knowing that every answer is at\nmost n + k lets us use plain array indices instead."
+     "md": "A hash set works but stores large irrelevant values too. Only `1 … n + k` matters, which a plain flag array covers."
     }
    ]
   },
@@ -1015,13 +1028,13 @@
    "space": "O(n + k)",
    "idea": [
     {
-     "md": "Every answer is at most `n + k` (n numbers can block at most n of the values\n`1 … n + k`). So make a boolean array `present` of size `n + k + 1`, flag each number of\n`nums` that falls in `1 … n + k`, and ignore the rest. Then walk `1, 2, …` and collect the\nfirst k unflagged values."
+     "md": "Flags for `1 … n + k`: mark every value in that range, then scan upwards collecting unmarked numbers until\n`k` are found.\n\n**Why the scan never runs past `n + k`.** At least `k` numbers in the range are unmarked (argument above)."
     }
    ],
    "build": [
-    "Let `limit = n + k` and make `present` with `limit + 1` falses.",
-    "For each `v` in `nums` with `1 ≤ v ≤ limit`, set `present[v] = true`.",
-    "Walk `x` from 1 upward, appending every `x` with `present[x]` false, until k are found. It can't run past `limit`."
+    "`limit = n + k`, flags of that size.",
+    "Mark values in range.",
+    "Collect the first `k` unmarked numbers."
    ],
    "code": {
     "python": "class Solution:\n    def firstMissing(self, nums: List[int], k: int) -> List[int]:\n        limit = len(nums) + k\n        present = [False] * (limit + 1)\n        for v in nums:\n            if 1 <= v <= limit:\n                present[v] = True\n        out = []\n        x = 1\n        while len(out) < k:\n            if not present[x]:\n                out.append(x)\n            x += 1\n        return out\n",
@@ -1155,7 +1168,7 @@
    ],
    "complexity": [
     {
-     "md": "**Time O(n + k):** one pass to flag, at most n + k steps to read. No hashing, so it's\nO(1) per step in the worst case, not just on average.\n\n**Space O(n + k)** for the flags (2 × 10⁵ booleans at most)."
+     "md": "**Time O(n + k).** **Space O(n + k).**"
     }
    ],
    "walk": {
@@ -1483,7 +1496,7 @@
  ],
  "takeaways": [
   {
-   "md": "- **Bound the answer first.** \"n items can block at most n values\" tells you every answer lies in\n  `1 … n + k`, and a small known range means an array can replace a hash set.\n- Values outside the useful range are noise: skip them before indexing.\n- For the classic k = 1 version, the same bound is `1 … n + 1`, and if you're allowed to\n  rearrange the input you can even do it in O(1) extra space by parking each value `v` at index\n  `v − 1` (cyclic sort). See **First Missing Ticket**."
+   "md": "- **First k missing positives:** the answers lie in `1 … n + k`; flags over that range.\n- Bound the search range by counting how many values can be covered.\n- **Pitfall:** sizing the flag array by the largest value (up to 10⁹)."
   }
  ]
 }

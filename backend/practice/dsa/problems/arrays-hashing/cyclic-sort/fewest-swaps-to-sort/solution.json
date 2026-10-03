@@ -4,41 +4,50 @@
  "question": [
   {
    "md": "The list holds the bibs 1 to n in some order. A swap exchanges any two positions (they don't have\nto be next to each other). Find the **smallest** number of swaps that sorts the list.\n\n- **Any two positions can be swapped**, which is different from sorting by swapping neighbours\n  (that would count inversions instead).\n- **Every bib appears exactly once**, so bib `b` has exactly one correct home: position `b − 1`\n  (0-indexed). This is what makes the problem easy to reason about.\n- **You count swaps, you don't perform them.** You may simulate them, but only the number is\n  returned.\n- **Size:** up to 10⁵ bibs, so anything quadratic is too slow."
+  },
+  {
+   "md": "**Edge cases to keep in mind**\n\n- Already sorted: 0 swaps (every bib is its own cycle of length 1).\n- Reversed order: pairs swap with each other, `n // 2` swaps.\n- Any two runners may swap, not just neighbours."
   }
  ],
  "think": [
   {
-   "md": "Take `order = [2, 3, 1, 5, 4, 7, 6]`.\n\nLook at position 0: it holds bib 2, which belongs at position 1. Position 1 holds bib 3, which\nbelongs at position 2. Position 2 holds bib 1, which belongs back at position 0. These three\npositions form a **closed loop**: their bibs only need to move among themselves."
+   "md": "**Every value has a home.** When the values are `1 … n` (or should be), value `v` belongs at index `v − 1`. That turns\nthe array into a map from positions to positions: position `i` \"points to\" the home of the value it holds. Following\nthose pointers reveals the structure: duplicates, missing values, and **cycles** of values that must move among\nthemselves."
   },
   {
-   "panels": [
-    {
-     "type": "row",
-     "cells": [
-      2,
-      3,
-      1,
-      5,
-      4,
-      7,
-      6
+   "md": "**Cycles.** From position `i`, the bib there belongs at `order[i] − 1`; from there, that position's bib belongs\nsomewhere else, and so on until we return to `i`. The positions on one such loop only exchange bibs among\nthemselves. For `[2, 3, 1, 5, 4, 7, 6]`:"
+  },
+  {
+   "table": {
+    "head": [
+     "cycle (positions)",
+     "bibs on it",
+     "length",
+     "swaps needed"
+    ],
+    "rows": [
+     [
+      "0 → 1 → 2 → 0",
+      "[2, 3, 1]",
+      "3",
+      "2"
      ],
-     "states": {
-      "0": "answer",
-      "1": "answer",
-      "2": "answer",
-      "3": "found",
-      "4": "found",
-      "5": "mark",
-      "6": "mark"
-     },
-     "slots": true
-    }
-   ],
-   "caption": "Same shade = same cycle: positions 0 → 1 → 2 → 0, then 3 ↔ 4, then 5 ↔ 6."
+     [
+      "3 → 4 → 3",
+      "[5, 4]",
+      "2",
+      "1"
+     ],
+     [
+      "5 → 6 → 5",
+      "[7, 6]",
+      "2",
+      "1"
+     ]
+    ]
+   }
   },
   {
-   "md": "Now count swaps per loop. A loop of 2 (bibs 5 and 4 swapped) takes **1** swap. For the loop of\n3, one swap can put one bib home (swap bib 1 into position 0), which leaves a loop of 2, one more\nswap: **2** in total. In general, each swap can send at most one more bib home *within* a loop,\nand the last swap sends two home at once, so a loop of length L takes **L − 1** swaps.\n\nCan you do better by swapping across two loops? No: that merges them into one bigger loop, which\nonly adds work. So the minimum is the sum of (L − 1) over the loops:\n\n`(3 − 1) + (2 − 1) + (2 − 1) = 4` = n − (number of loops) = 7 − 3.\n\nA bib already in place is a loop of length 1 and costs 0, which fits the same formula."
+   "md": "Total **4** = n − (number of cycles) = 7 − 3.\n\n**Why a cycle of length `L` needs exactly `L − 1` swaps.** Each swap that puts one bib home splits its cycle,\nand the last swap puts two bibs home at once, so `L − 1` swaps suffice. And no swap can do better: swapping two\npositions changes the number of cycles by exactly one (it either splits one cycle or merges two), while the\nsorted order has `n` cycles. Going from `c` cycles to `n` therefore needs at least `n − c` swaps."
   }
  ],
  "approaches": [
@@ -49,14 +58,14 @@
    "space": "O(n)",
    "idea": [
     {
-     "md": "Work on a copy. For each position `i` from left to right: if it doesn't hold `i + 1`,\nsearch the rest of the list for bib `i + 1` and swap it in. Count the swaps.\n\nEach swap puts bib `i + 1` home for good, and it never swaps when position `i` is already\nright. In cycle terms, every swap splits one bib off its cycle (a cycle of L becomes a cycle\nof L − 1 plus a fixed point), so it uses exactly L − 1 swaps per cycle: the minimum."
+     "md": "For each position from the left, if it doesn't hold its own bib, find that bib further right and swap it in. Each swap fixes at least one position, and only necessary swaps happen."
     }
    ],
    "build": [
-    "Copy the list (so the input isn't changed).",
-    "For `i` from 0 to n − 1: if `a[i] == i + 1`, continue.",
-    "Otherwise find `j > i` with `a[j] == i + 1` by scanning, swap `a[i]` and `a[j]`, and count the swap.",
-    "Return the count."
+    "Copy the order.",
+    "For each position, check its bib.",
+    "Search for the right bib and swap it in.",
+    "Count swaps."
    ],
    "code": {
     "python": "class Solution:\n    def minSwaps(self, order: List[int]) -> int:\n        a = order[:]\n        swaps = 0\n        for i in range(len(a)):\n            if a[i] != i + 1:\n                j = a.index(i + 1, i + 1)\n                a[i], a[j] = a[j], a[i]\n                swaps += 1\n        return swaps\n",
@@ -248,7 +257,7 @@
    ],
    "complexity": [
     {
-     "md": "**Time O(n²):** each search can scan most of the list. A reversed list of 10⁵ bibs means\nbillions of steps.\n\n**Space O(n)** for the copy."
+     "md": "**Time O(n²)** because of the searches. **Space O(n)** for the copy."
     }
    ],
    "walk": {
@@ -682,7 +691,7 @@
    },
    "limits": [
     {
-     "md": "The swaps are already minimal; only the **searching** is slow. Two fixes exist: keep a\n\"where is each bib?\" array so each search is O(1), or skip the swapping altogether and just\ncount cycles, which is what the best approach does."
+     "md": "The swap count is already optimal; only the searching is slow. Counting cycles gives the same number without performing any swaps."
     }
    ],
    "slow": true
@@ -694,13 +703,12 @@
    "space": "O(n)",
    "idea": [
     {
-     "md": "Position `i` holds bib `order[i]`, which belongs at position `order[i] − 1`. Starting from\nany position and repeatedly jumping to \"where my bib belongs\" always comes back to the\nstart, tracing one cycle. Mark the positions you visit so each cycle is traced once.\n\nA cycle of length L needs L − 1 swaps (and can't do with fewer: each swap inside a cycle\nraises the number of cycles by at most one, and the sorted list has n cycles of length 1).\nAdding up, the answer is `n − cycles`."
+     "md": "Walk each cycle once with a `seen` array, counting cycles. The answer is `n − cycles`.\n\n**Why every position is visited once.** A cycle is walked from its first unseen position, marking every\nposition on it; later starts skip seen positions."
     }
    ],
    "build": [
-    "Make a `seen` array of n falses and set `cycles = 0`.",
-    "For each position `i` not yet seen: it starts a new cycle, so add 1 to `cycles`.",
-    "Trace the cycle: `j = i`; while `j` isn't seen, mark it and jump to `j = order[j] − 1`.",
+    "`seen` array.",
+    "For each unseen position, walk its cycle and count it.",
     "Return `n − cycles`."
    ],
    "code": {
@@ -861,7 +869,7 @@
    ],
    "complexity": [
     {
-     "md": "**Time O(n):** every position is marked exactly once, and each mark costs O(1). The inner\nloop doesn't make it quadratic, because it only ever visits unmarked positions.\n\n**Space O(n)** for the marks. If you're allowed to modify the input, you can mark a visited\nposition by negating `order[j]` instead (and read `abs(order[j])`), for O(1) extra space."
+     "md": "**Time O(n).** **Space O(n)** for `seen`."
     }
    ],
    "walk": {
@@ -1018,7 +1026,7 @@
  ],
  "takeaways": [
   {
-   "md": "- In a permutation, **\"where does this element belong?\"** links every position to exactly one\n  other, which splits the positions into disjoint cycles.\n- Minimum arbitrary swaps to sort a permutation = **n − number of cycles**.\n- Tracing cycles with a visited marker is O(n) even though it looks like a nested loop: each\n  element is visited once in total.\n- If swaps were restricted to neighbours, the answer would instead be the number of inversions,\n  a different problem."
+   "md": "- **Minimum swaps to sort a permutation = n − number of cycles.**\n- Follow `i → order[i] − 1` to find cycles.\n- **Pitfall:** counting misplaced elements (that's the number of moves, not swaps)."
   }
  ]
 }

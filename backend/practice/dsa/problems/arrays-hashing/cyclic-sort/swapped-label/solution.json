@@ -4,42 +4,66 @@
  "question": [
   {
    "md": "The shelf should carry the labels 1 to n once each. One label got printed twice, replacing\nanother label. Return `[the duplicate, the missing one]`.\n\n- **Exactly one duplicate and one missing value**, and they're different numbers.\n- **All labels are between 1 and n**, so every label is a valid index once you subtract 1. That\n  property is what the cyclic-sort approach relies on.\n- **Order of the answer matters:** duplicate first.\n- **Size:** n up to 10⁵. Sums go up to ~10¹⁰ and sums of squares up to ~3 × 10¹⁴, so the\n  arithmetic approach needs 64-bit integers."
+  },
+  {
+   "md": "**Edge cases to keep in mind**\n\n- The duplicate may be smaller or larger than the missing number.\n- `n = 2`: one number twice, the other missing.\n- Sums of squares reach about `n³/3 ≈ 3.3 × 10¹⁴`: use 64 bits."
   }
  ],
  "think": [
   {
-   "md": "Take `labels = [3, 1, 2, 5, 3]` (n = 5). By hand you'd tick off each number from 1 to 5: 1 ✓,\n2 ✓, 3 ✓✓ (twice!), 4 ✗ (never), 5 ✓. So the answer is `[3, 4]`.\n\nThe ticking-off is a **count per value**. Every approach below is some way of getting those\ncounts, or enough information to deduce the two odd ones out:\n\n- A count array indexed by label (simple, O(n) space).\n- Using the shelf itself as the count array: if label `v` goes to index `v − 1`, the duplicate\n  finds its spot taken, and the missing number's spot is left holding the duplicate.\n- Arithmetic: compared with 1 … n, the sum is off by `duplicate − missing`. One equation isn't\n  enough for two unknowns, so add a second one from the sum of squares."
+   "md": "**Every value has a home.** When the values are `1 … n` (or should be), value `v` belongs at index `v − 1`. That turns\nthe array into a map from positions to positions: position `i` \"points to\" the home of the value it holds. Following\nthose pointers reveals the structure: duplicates, missing values, and **cycles** of values that must move among\nthemselves."
   },
   {
-   "panels": [
-    {
-     "type": "row",
-     "cells": [
-      3,
-      1,
-      2,
-      5,
-      3
+   "md": "**Two unknowns, two equations.** Call the duplicate `d` and the missing number `m`. Compared with `1 … n`:\n\n- the sum is off by `d − m`: `sum(labels) − n(n+1)/2 = d − m`;\n- the sum of squares is off by `d² − m²`: `Σ labels² − n(n+1)(2n+1)/6 = d² − m² = (d − m)(d + m)`.\n\nDividing the second by the first gives `d + m`; together with `d − m` that pins down both. For `[3, 1, 2, 5, 3]`:"
+  },
+  {
+   "table": {
+    "head": [
+     "quantity",
+     "value"
+    ],
+    "rows": [
+     [
+      "sum of labels",
+      "14"
      ],
-     "slots": true
-    },
-    {
-     "type": "row",
-     "cells": [
-      1,
-      2,
-      3,
-      null,
-      5
+     [
+      "1 + … + n",
+      "15"
      ],
-     "states": {
-      "2": "mark",
-      "3": "answer"
-     },
-     "label": "where each label belongs"
-    }
-   ],
-   "caption": "Placing each label at index label − 1: two labels want index 2, and index 3 stays empty."
+     [
+      "d − m",
+      "-1"
+     ],
+     [
+      "sum of squares",
+      "48"
+     ],
+     [
+      "1² + … + n²",
+      "55"
+     ],
+     [
+      "d² − m²",
+      "-7"
+     ],
+     [
+      "d + m = (d² − m²) / (d − m)",
+      "7"
+     ],
+     [
+      "d = ((d − m) + (d + m)) / 2",
+      "3"
+     ],
+     [
+      "m = (d + m) − d",
+      "4"
+     ]
+    ]
+   }
+  },
+  {
+   "md": "Answer **[3, 4]**."
   }
  ],
  "approaches": [
@@ -50,13 +74,12 @@
    "space": "O(1)",
    "idea": [
     {
-     "md": "For each value from 1 to n, scan the shelf and count its copies: 2 copies is the duplicate, 0 is the missing one."
+     "md": "For each number `1 … n`, count its occurrences by scanning; count 2 is the duplicate, count 0 the missing one."
     }
    ],
    "build": [
-    "For `x` from 1 to n, count how many labels equal `x` with a scan.",
-    "Count 2: remember `x` as the duplicate. Count 0: remember it as missing.",
-    "Return `[duplicate, missing]`."
+    "Count each number by scanning.",
+    "Identify the duplicate and the missing number."
    ],
    "code": {
     "python": "class Solution:\n    def findMislabel(self, labels: List[int]) -> List[int]:\n        dup = missing = -1\n        for x in range(1, len(labels) + 1):\n            c = labels.count(x)\n            if c == 2:\n                dup = x\n            elif c == 0:\n                missing = x\n        return [dup, missing]\n",
@@ -187,7 +210,7 @@
    ],
    "complexity": [
     {
-     "md": "**Time O(n²):** n scans of n labels. **Space O(1).**"
+     "md": "**Time O(n²).** **Space O(1).**"
     }
    ],
    "walk": {
@@ -342,7 +365,7 @@
    },
    "limits": [
     {
-     "md": "n separate scans to build what is really one table of counts. Build the table in one pass instead."
+     "md": "Each count rescans the list."
     }
    ],
    "slow": true
@@ -354,13 +377,12 @@
    "space": "O(n)",
    "idea": [
     {
-     "md": "One pass fills `count[v]` for every label (labels are 1 … n, so they index an array directly). Then the value with count 2 is the duplicate and the value with count 0 is missing."
+     "md": "Count occurrences in an array of size `n + 1`; read off the value with count 2 and the one with count 0."
     }
    ],
    "build": [
-    "Make `count` of size n + 1, all zeros.",
-    "For each label `v`, add 1 to `count[v]`.",
-    "Scan `v` from 1 to n: `count[v] == 2` → duplicate, `count[v] == 0` → missing."
+    "Count array.",
+    "Find counts 2 and 0."
    ],
    "code": {
     "python": "class Solution:\n    def findMislabel(self, labels: List[int]) -> List[int]:\n        n = len(labels)\n        count = [0] * (n + 1)\n        for v in labels:\n            count[v] += 1\n        dup = missing = -1\n        for v in range(1, n + 1):\n            if count[v] == 2:\n                dup = v\n            elif count[v] == 0:\n                missing = v\n        return [dup, missing]\n",
@@ -465,7 +487,7 @@
    ],
    "complexity": [
     {
-     "md": "**Time O(n):** two passes. **Space O(n)** for the counts."
+     "md": "**Time O(n).** **Space O(n).**"
     }
    ],
    "walk": {
@@ -661,7 +683,7 @@
    },
    "limits": [
     {
-     "md": "Correct and fast, but it allocates a second array as big as the input. Two approaches get the answer in O(1) extra space."
+     "md": "O(n) extra memory; the array itself or arithmetic can replace it."
     }
    ]
   },
@@ -672,14 +694,12 @@
    "space": "O(1)",
    "idea": [
     {
-     "md": "Use the shelf itself as the table. Label `v` belongs at index `v − 1`. Walk with `i`:\n\n- If `labels[i]` isn't at its home and its home doesn't already hold the same value, swap\n  it home. (Stay at `i`: a new label just arrived there.)\n- Otherwise move on: either it's home, or its home already has that value, which means\n  it's the duplicate's extra copy.\n\nEvery swap sends one label home for good, so there are fewer than n swaps. At the end,\nevery index holds its own label except one: index `m − 1`, where `m` is the missing label,\nand it holds the duplicate."
+     "md": "Cyclic sort: swap each label into its home slot (`v − 1`) until it's either home or blocked by an equal\nlabel already there. Afterwards, the one slot `p` not holding `p + 1` holds the duplicate, and `p + 1` is the\nmissing number."
     }
    ],
    "build": [
-    "Set `i = 0`. While `i < n`: let `j = labels[i] − 1` (its home).",
-    "If `labels[i] != labels[j]`, swap them and don't advance `i`.",
-    "Else advance `i`. (Comparing values, not indices, is what stops an endless swap of two equal labels.)",
-    "Scan for the index `p` with `labels[p] != p + 1`: return `[labels[p], p + 1]`."
+    "Swap labels home until blocked.",
+    "Find the slot without its own label."
    ],
    "code": {
     "python": "class Solution:\n    def findMislabel(self, labels: List[int]) -> List[int]:\n        a = labels\n        i = 0\n        while i < len(a):\n            j = a[i] - 1\n            if a[i] != a[j]:\n                a[i], a[j] = a[j], a[i]\n            else:\n                i += 1\n        for p, v in enumerate(a):\n            if v != p + 1:\n                return [v, p + 1]\n        return [-1, -1]\n",
@@ -866,7 +886,7 @@
    ],
    "complexity": [
     {
-     "md": "**Time O(n):** every swap puts one label home permanently, so there are at most n − 1\nswaps, and `i` advances n times.\n\n**Space O(1)** extra, but it **rearranges the input**."
+     "md": "**Time O(n):** each swap sends a label home for good. **Space O(1)** (it reorders the input)."
     }
    ],
    "walk": {
@@ -1091,7 +1111,7 @@
    },
    "limits": [
     {
-     "md": "It changes the caller's array, and the loop has a classic trap: comparing indices\n(`i != j`) instead of values (`a[i] != a[j]`) swaps the two equal copies forever. The\narithmetic approach needs neither swaps nor mutation."
+     "md": "Modifies the input. Arithmetic gets both numbers without touching it."
     }
    ]
   },
@@ -1102,14 +1122,13 @@
    "space": "O(1)",
    "idea": [
     {
-     "md": "Call the duplicate `d` and the missing number `m`. Compared with the perfect shelf\n`1 … n`, the actual labels have an extra `d` and lack an `m`, so:\n\n- `sum(labels) − (1 + 2 + … + n) = d − m`\n- `sum(labels²) − (1² + 2² + … + n²) = d² − m² = (d − m)(d + m)`\n\nDivide the second by the first to get `d + m`. Then `d = ((d − m) + (d + m)) / 2` and\n`m = (d + m) − d`. Since `d ≠ m`, the first difference is never zero, so the division is\nsafe.\n\nThe formulas `1 + … + n = n(n + 1)/2` and `1² + … + n² = n(n + 1)(2n + 1)/6` avoid a second\nloop."
+     "md": "Compute `d − m` from the sum and `d² − m²` from the sum of squares, divide to get `d + m`, and solve.\n\n**Why the division is exact.** `d ≠ m`, so `d − m ≠ 0`, and `d² − m²` is a multiple of it."
     }
    ],
    "build": [
-    "In one pass, add up the labels and their squares (64-bit).",
-    "`diff = sum − n(n + 1)/2`, which equals d − m.",
-    "`sqDiff = squares − n(n + 1)(2n + 1)/6`, which equals d² − m².",
-    "`both = sqDiff / diff` (= d + m). Then `d = (diff + both) / 2` and `m = both − d`."
+    "Sum and sum of squares (64-bit).",
+    "Subtract the expected values.",
+    "Solve the two equations."
    ],
    "code": {
     "python": "class Solution:\n    def findMislabel(self, labels: List[int]) -> List[int]:\n        n = len(labels)\n        total = sum(labels)\n        squares = sum(v * v for v in labels)\n        diff = total - n * (n + 1) // 2\n        sq_diff = squares - n * (n + 1) * (2 * n + 1) // 6\n        both = sq_diff // diff\n        dup = (diff + both) // 2\n        return [dup, both - dup]\n",
@@ -1274,7 +1293,7 @@
    ],
    "complexity": [
     {
-     "md": "**Time O(n):** one pass.\n\n**Space O(1):** a few numbers, and the input is left untouched."
+     "md": "**Time O(n).** **Space O(1).**"
     }
    ],
    "walk": {
@@ -1375,7 +1394,7 @@
  ],
  "takeaways": [
   {
-   "md": "- When values are exactly `1 … n` (with a defect or two), **value − 1 is an index**. That lets an\n  array, or the input itself, act as the count table.\n- In-place cyclic sort: swap a value home until its home already holds an equal value. Compare\n  **values**, not indices, to avoid infinite swaps with duplicates.\n- Two unknowns need two independent equations: sum gives `d − m`, sum of squares gives\n  `d² − m²`. Mind 64-bit overflow on the squares."
+   "md": "- **One duplicate + one missing:** two equations (sum and sum of squares), or cyclic sort, or XOR tricks.\n- Each equation compares the input with the ideal `1 … n`.\n- **Pitfall:** 32-bit overflow in the sum of squares."
   }
  ]
 }
