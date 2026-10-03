@@ -4,37 +4,56 @@
  "question": [
   {
    "md": "For every person, count the people **behind** them who are **strictly shorter**.\n\n- **Heights repeat** and can be negative (−10⁴ to 10⁴).\n- **Up to 10⁵ people**, so O(n²) is too slow."
+  },
+  {
+   "md": "**Edge cases to keep in mind**\n\n- Strictly shorter: equal heights don't count.\n- The last person always gets 0.\n- Heights can be negative (down to −10⁴), so a Fenwick tree needs an offset."
   }
  ],
  "think": [
   {
-   "md": "Heights `[5, 2, 6, 1, 3]` give counts `[3, 1, 2, 0, 0]`: the 5 has 2, 1 and 3 behind it, all shorter.\n\nThis is inversion counting, but **per element**. Two ways to get it fast:\n\n- Merge sort the positions by height and credit each left-half person with the right-half people placed before\n  them.\n- Or walk from the back keeping a running tally of heights seen; each person asks \"how many heights in the tally\n  are smaller than mine?\" A Fenwick tree over the small height range answers that in O(log R)."
+   "md": "**Counting pairs with merge sort.** Questions like \"how many pairs `i < j` have `a[i] > a[j]`\" split nicely:\n\n- pairs with both positions in the **left half** and pairs in the **right half** are counted recursively;\n- pairs that **cross** (`i` in the left half, `j` in the right half) only care about the *values*, not their order\n  inside each half, so both halves may be sorted first, and with sorted halves the crossing pairs are counted with a\n  linear sweep.\n\nEach level of the recursion does O(n) counting plus O(n) merging, over `log n` levels: **O(n log n)** instead of O(n²)."
   },
   {
-   "panels": [
-    {
-     "type": "row",
-     "cells": [
-      5,
-      2,
-      6,
-      1,
-      3
+   "md": "**Inversions per person.** Here each person needs their **own** count. For `[5, 2, 6, 1, 3]`:"
+  },
+  {
+   "table": {
+    "head": [
+     "person",
+     "height",
+     "shorter people behind"
+    ],
+    "rows": [
+     [
+      "0",
+      "5",
+      "3"
      ],
-     "label": "heights"
-    },
-    {
-     "type": "row",
-     "cells": [
-      3,
-      1,
-      2,
-      0,
-      0
+     [
+      "1",
+      "2",
+      "1"
      ],
-     "label": "shorter behind"
-    }
-   ]
+     [
+      "2",
+      "6",
+      "2"
+     ],
+     [
+      "3",
+      "1",
+      "0"
+     ],
+     [
+      "4",
+      "3",
+      "0"
+     ]
+    ]
+   }
+  },
+  {
+   "md": "**Two fast ways.**\n\n- **Merge sort on positions:** sort the positions by height. When a person from the left half is placed, every\n  right-half person already placed is shorter and stands behind them: credit the left person with that number.\n- **Fenwick tree from the back:** walk from the back of the queue, keeping counts of the heights seen so far\n  (everyone behind). For each person, query how many seen heights are smaller, then add their height. A Fenwick\n  tree answers \"how many values below h\" and adds a value in O(log R)."
   }
  ],
  "approaches": [
@@ -45,12 +64,12 @@
    "space": "O(n)",
    "idea": [
     {
-     "md": "For each `i`, count `j > i` with `heights[j] < heights[i]`."
+     "md": "For each person, scan everyone behind and count the shorter ones."
     }
    ],
    "build": [
-    "Double loop.",
-    "Store each count."
+    "For each person, scan behind.",
+    "Count shorter heights."
    ],
    "code": {
     "python": "class Solution:\n    def countShorterBehind(self, heights: List[int]) -> List[int]:\n        n = len(heights)\n        out = [0] * n\n        for i in range(n):\n            for j in range(i + 1, n):\n                if heights[j] < heights[i]:\n                    out[i] += 1\n        return out\n",
@@ -149,7 +168,7 @@
    ],
    "complexity": [
     {
-     "md": "**Time O(n²).** **Space O(1)** beyond the output."
+     "md": "**Time O(n²).** **Space O(1)** besides the output."
     }
    ],
    "walk": {
@@ -315,7 +334,7 @@
    },
    "limits": [
     {
-     "md": "5 × 10⁹ comparisons for 10⁵ people. The counts are per-element inversions, which merge sort or a tally of heights can produce in O(n log n)."
+     "md": "Each scan restarts. Merge sort or a Fenwick tree shares the work."
     }
    ],
    "slow": true
@@ -327,13 +346,13 @@
    "space": "O(n)",
    "idea": [
     {
-     "md": "Merge sort an array of positions, ordered by height. During a merge, when a person from the left half is placed, every right-half person placed before them is shorter and stands behind them: add `j − mid` to that person's count."
+     "md": "Merge sort an array of positions by height. During each merge, when the next left-half person is placed,\nthe right-half people already placed (`j − mid` of them) are shorter and behind: add that to their count."
     }
    ],
    "build": [
-    "`idx = [0..n−1]`.",
-    "Merge sort `idx` by `heights[idx]`, taking from the right only when strictly shorter.",
-    "When taking from the left, add `j − mid` to `out[idx[i]]`."
+    "Positions array.",
+    "Merge by height, crediting left people with `j − mid`.",
+    "Copy back."
    ],
    "code": {
     "python": "class Solution:\n    def countShorterBehind(self, heights: List[int]) -> List[int]:\n        n = len(heights)\n        out, idx, buf = [0] * n, list(range(n)), [0] * n\n        def sort(lo, hi):\n            if hi - lo <= 1:\n                return\n            mid = (lo + hi) // 2\n            sort(lo, mid)\n            sort(mid, hi)\n            i, j, k = lo, mid, lo\n            while i < mid:\n                if j < hi and heights[idx[j]] < heights[idx[i]]:\n                    buf[k] = idx[j]; j += 1\n                else:\n                    out[idx[i]] += j - mid\n                    buf[k] = idx[i]; i += 1\n                k += 1\n            buf[k:k + hi - j] = idx[j:hi]\n            idx[lo:hi] = buf[lo:hi]\n        sort(0, n)\n        return out\n",
@@ -666,7 +685,7 @@
    },
    "limits": [
     {
-     "md": "Correct, but juggling an index array through the merge is fiddly. With heights in a small range, a tally of seen heights (a Fenwick tree) answers each person's question directly, in a simple loop."
+     "md": "More bookkeeping (sorting positions). With a small height range, a Fenwick tree is simpler."
     }
    ]
   },
@@ -677,13 +696,12 @@
    "space": "O(R)",
    "idea": [
     {
-     "md": "Shift heights to 1..R (R = 20001). Walk from the last person to the first: `out[i] = prefix(h[i] − 1)` counts seen heights strictly below, then `add(h[i], 1)`."
+     "md": "Walk from the back. For each person, query the Fenwick tree for how many heights below theirs have been\nadded (everyone behind), record it, then add their height. Heights are shifted by 10001 so they're positive\nindices."
     }
    ],
    "build": [
-    "Fenwick array of size R + 1.",
-    "From the back: query the prefix just below the height, then add the height.",
-    "Return the counts."
+    "Fenwick tree over the shifted height range.",
+    "From the back: query, record, add."
    ],
    "code": {
     "python": "class Solution:\n    def countShorterBehind(self, heights: List[int]) -> List[int]:\n        R = 20001\n        tree = [0] * (R + 1)\n        out = [0] * len(heights)\n        for i in range(len(heights) - 1, -1, -1):\n            h = heights[i] + 10001\n            k, c = h - 1, 0\n            while k > 0:\n                c += tree[k]\n                k -= k & -k\n            out[i] = c\n            while h <= R:\n                tree[h] += 1\n                h += h & -h\n        return out\n",
@@ -840,7 +858,7 @@
    ],
    "complexity": [
     {
-     "md": "**Time O(n log R)** with R = 20,001. **Space O(R).**"
+     "md": "**Time O(n log R)** with `R` = 20001 possible heights. **Space O(R).**"
     }
    ],
    "walk": {
@@ -1047,7 +1065,7 @@
  ],
  "takeaways": [
   {
-   "md": "- **Per-element inversion counts:** merge sort on indices, or a Fenwick tree over values scanned from one end.\n- A Fenwick tree gives prefix counts and point updates in O(log R); shift values so they start at 1.\n- With large values, compress them to ranks first; the Fenwick approach still works."
+   "md": "- **Per-element inversion counts:** merge sort on positions, or a Fenwick tree scanning from the back.\n- Shift negative values to positive indices for the Fenwick tree.\n- **Pitfall:** querying \"≤ h\" instead of \"< h\" (counts equal heights)."
   }
  ]
 }

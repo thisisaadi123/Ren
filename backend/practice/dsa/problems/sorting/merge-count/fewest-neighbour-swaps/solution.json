@@ -4,39 +4,39 @@
  "question": [
   {
    "md": "Sort students by height using only swaps of **neighbours**. Equal heights can be in either order. Return the\nminimum number of swaps.\n\n- **Up to 10⁵ students:** up to ~5 × 10⁹ swaps, which needs a 64-bit result."
+  },
+  {
+   "md": "**Edge cases to keep in mind**\n\n- Equal heights may stay in either order, so equal pairs never need a swap.\n- Already sorted: 0.\n- The count reaches about `n²/2 = 5 × 10⁹`: use 64 bits."
   }
  ],
  "think": [
   {
-   "md": "Heights `[3, 1, 2, 5, 4, 2]` need **6** swaps.\n\nWhy is that the number of out-of-order pairs (`i < j`, `h[i] > h[j]`)? Swapping two neighbours only changes\nthe relative order of those two: if they were out of order, the count of out-of-order pairs drops by exactly\none. The sorted line has zero such pairs, so we need at least that many swaps, and bubble sort achieves exactly\nthat. So the answer is just the inversion count; no swapping required."
+   "md": "**Counting pairs with merge sort.** Questions like \"how many pairs `i < j` have `a[i] > a[j]`\" split nicely:\n\n- pairs with both positions in the **left half** and pairs in the **right half** are counted recursively;\n- pairs that **cross** (`i` in the left half, `j` in the right half) only care about the *values*, not their order\n  inside each half, so both halves may be sorted first, and with sorted halves the crossing pairs are counted with a\n  linear sweep.\n\nEach level of the recursion does O(n) counting plus O(n) merging, over `log n` levels: **O(n log n)** instead of O(n²)."
   },
   {
-   "panels": [
-    {
-     "type": "row",
-     "cells": [
-      3,
-      1,
-      2,
-      5,
-      4,
-      2
+   "md": "**Why neighbour swaps = out-of-order pairs.** Swapping two neighbours changes the relative order of exactly\nthose two students and no one else. If they were out of order, the number of out-of-order pairs drops by exactly\none; otherwise it rises by one. The sorted line has zero out-of-order pairs, so at least that many swaps are\nneeded, and bubble sort shows that many suffice (it only ever swaps out-of-order neighbours).\n\nFor `[3, 1, 2, 5, 4, 2]` there are 6 out-of-order pairs, so **6** swaps."
+  },
+  {
+   "table": {
+    "head": [
+     "runs before merging",
+     "crossing pairs found"
+    ],
+    "rows": [
+     [
+      "3 | 1 | 2 | 5 | 4 | 2",
+      "[3]+[1]: 1; [2]+[5]: 0; [4]+[2]: 1"
      ],
-     "label": "heights"
-    },
-    {
-     "type": "row",
-     "cells": [
-      1,
-      2,
-      2,
-      3,
-      4,
-      5
+     [
+      "1 3 | 2 5 | 2 4",
+      "[1, 3]+[2, 5]: 1"
      ],
-     "label": "sorted"
-    }
-   ]
+     [
+      "1 2 3 5 | 2 4",
+      "[1, 2, 3, 5]+[2, 4]: 3"
+     ]
+    ]
+   }
   }
  ],
  "approaches": [
@@ -47,12 +47,12 @@
    "space": "O(n)",
    "idea": [
     {
-     "md": "Run bubble sort on a copy, counting every swap of an out-of-order neighbour pair."
+     "md": "Bubble sort, counting every swap. Each swap fixes exactly one out-of-order pair, so the count is the answer."
     }
    ],
    "build": [
-    "Repeated passes, swapping neighbours with `a[i] > a[i+1]`.",
-    "Count swaps."
+    "Bubble passes.",
+    "Swap out-of-order neighbours and count."
    ],
    "code": {
     "python": "class Solution:\n    def minAdjacentSwaps(self, heights: List[int]) -> int:\n        a, swaps = heights[:], 0\n        for end in range(len(a) - 1, 0, -1):\n            for i in range(end):\n                if a[i] > a[i + 1]:\n                    a[i], a[i + 1] = a[i + 1], a[i]\n                    swaps += 1\n        return swaps\n",
@@ -180,7 +180,7 @@
    ],
    "complexity": [
     {
-     "md": "**Time O(n²).** **Space O(n).**"
+     "md": "**Time O(n²).** **Space O(n)** for the copy."
     }
    ],
    "walk": {
@@ -367,7 +367,7 @@
    },
    "limits": [
     {
-     "md": "Performs every swap, up to ~5 × 10⁹. Since the answer is just the inversion count, merge sort can count them without swapping."
+     "md": "Performs every swap one by one; counting inversions with merge sort gives the same number in O(n log n)."
     }
    ],
    "slow": true
@@ -379,13 +379,13 @@
    "space": "O(n)",
    "idea": [
     {
-     "md": "Merge sort a copy; whenever the right half's front is strictly smaller, add the number of values left in the left half. Sum in 64 bits."
+     "md": "Count inversions with merge sort (add `mid − i` whenever a right value is taken). That count is the minimum number of neighbour swaps."
     }
    ],
    "build": [
-    "Merge sort with a buffer.",
-    "Add `mid − i` when the right side wins.",
-    "Return the total."
+    "Merge sort returning a count.",
+    "Add `mid − i` on right picks.",
+    "Return the total (64-bit)."
    ],
    "code": {
     "python": "class Solution:\n    def minAdjacentSwaps(self, heights: List[int]) -> int:\n        a, buf = heights[:], [0] * len(heights)\n        def sort(lo, hi):\n            if hi - lo <= 1:\n                return 0\n            mid = (lo + hi) // 2\n            count = sort(lo, mid) + sort(mid, hi)\n            i, j, k = lo, mid, lo\n            while i < mid and j < hi:\n                if a[i] <= a[j]:\n                    buf[k] = a[i]; i += 1\n                else:\n                    buf[k] = a[j]; j += 1\n                    count += mid - i\n                k += 1\n            buf[k:k + mid - i] = a[i:mid]\n            k += mid - i\n            buf[k:k + hi - j] = a[j:hi]\n            a[lo:hi] = buf[lo:hi]\n            return count\n        return sort(0, len(a))\n",
@@ -728,7 +728,7 @@
  ],
  "takeaways": [
   {
-   "md": "- **Fewest adjacent swaps to sort = number of inversions.** Each adjacent swap fixes exactly one.\n- Count inversions with merge sort instead of simulating swaps.\n- Check the result's size: n = 10⁵ allows ~5 × 10⁹ inversions, beyond 32 bits."
+   "md": "- **Minimum adjacent swaps to sort = number of inversions.**\n- Each adjacent swap changes the inversion count by exactly one.\n- **Pitfall:** counting equal heights as inversions."
   }
  ]
 }

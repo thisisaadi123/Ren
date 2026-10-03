@@ -4,26 +4,39 @@
  "question": [
   {
    "md": "Count pairs `i < j` with `ranks[i] > ranks[j]`.\n\n- **Equal ranks** are not out of order.\n- Up to 1000 ranks here, but the method should scale."
+  },
+  {
+   "md": "**Edge cases to keep in mind**\n\n- Equal ranks are **not** out of order (strictly larger is required).\n- Sorted input: 0 pairs; reverse-sorted: `n(n − 1)/2`.\n- Only positions matter for \"earlier/later\"; values decide \"out of order\"."
   }
  ],
  "think": [
   {
-   "md": "`[4, 1, 3, 9, 2]` has 5 such pairs: (4, 1), (4, 3), (4, 2), (3, 2), (9, 2).\n\nChecking all pairs is O(n²). The faster idea: split the list in two. Pairs inside each half are counted\nrecursively; pairs with one value in each half are easy once both halves are sorted. During the merge, if the\nright half's front is smaller than the left half's front, it's smaller than **everything still left** in the\nleft half, and all of those came earlier."
+   "md": "**Counting pairs with merge sort.** Questions like \"how many pairs `i < j` have `a[i] > a[j]`\" split nicely:\n\n- pairs with both positions in the **left half** and pairs in the **right half** are counted recursively;\n- pairs that **cross** (`i` in the left half, `j` in the right half) only care about the *values*, not their order\n  inside each half, so both halves may be sorted first, and with sorted halves the crossing pairs are counted with a\n  linear sweep.\n\nEach level of the recursion does O(n) counting plus O(n) merging, over `log n` levels: **O(n log n)** instead of O(n²)."
   },
   {
-   "panels": [
-    {
-     "type": "row",
-     "cells": [
-      4,
-      1,
-      3,
-      9,
-      2
+   "md": "**The crossing count during a merge.** Merge the sorted halves by taking the smaller front each time. When a\nvalue from the **right** half is taken while `mid − i` values remain in the left half, all of those remaining\nleft values are larger and came earlier: that's `mid − i` out-of-order pairs at once. Taking left values first on\nties keeps equal values from counting.\n\nFor `[4, 1, 3, 9, 2]` the out-of-order pairs are [(4, 1), (4, 3), (4, 2), (3, 2), (9, 2)] (5). The table merges neighbouring runs bottom-up and\nshows the crossing pairs found at each merge. The recursive version splits slightly differently, but every pair\nis still counted exactly once, so the total is the same:"
+  },
+  {
+   "table": {
+    "head": [
+     "runs before merging",
+     "crossing pairs found"
+    ],
+    "rows": [
+     [
+      "4 | 1 | 3 | 9 | 2",
+      "[4]+[1]: 1; [3]+[9]: 0"
      ],
-     "label": "ranks"
-    }
-   ]
+     [
+      "1 4 | 3 9 | 2",
+      "[1, 4]+[3, 9]: 1"
+     ],
+     [
+      "1 3 4 9 | 2",
+      "[1, 3, 4, 9]+[2]: 3"
+     ]
+    ]
+   }
   }
  ],
  "approaches": [
@@ -34,12 +47,12 @@
    "space": "O(1)",
    "idea": [
     {
-     "md": "Two nested loops over `i < j`, counting `ranks[i] > ranks[j]`."
+     "md": "Check every pair `i < j` and count those with `ranks[i] > ranks[j]`."
     }
    ],
    "build": [
-    "Double loop.",
-    "Count."
+    "Two nested loops.",
+    "Count out-of-order pairs."
    ],
    "code": {
     "python": "class Solution:\n    def countOutOfOrder(self, ranks: List[int]) -> int:\n        n, count = len(ranks), 0\n        for i in range(n):\n            for j in range(i + 1, n):\n                if ranks[i] > ranks[j]:\n                    count += 1\n        return count\n",
@@ -138,7 +151,7 @@
    ],
    "complexity": [
     {
-     "md": "**Time O(n²):** fine for 1000 ranks (500,000 pairs), but 10⁵ would mean 5 × 10⁹. **Space O(1).**"
+     "md": "**Time O(n²)**: fine for `n ≤ 1000` (5 × 10⁵ pairs), too slow for large inputs. **Space O(1).**"
     }
    ],
    "walk": {
@@ -248,7 +261,7 @@
    },
    "limits": [
     {
-     "md": "Quadratic: it doesn't scale. Merge sort counts the cross pairs between two sorted halves in linear time."
+     "md": "Quadratic. Merge sort counts all crossing pairs of a merge in linear time."
     }
    ]
   },
@@ -259,13 +272,13 @@
    "space": "O(n)",
    "idea": [
     {
-     "md": "Merge sort a copy. While merging `[lo, mid)` and `[mid, hi)`, whenever the right front is strictly smaller than the left front, take it and add `mid − i` (the values left in the left half)."
+     "md": "Merge sort that returns the count: `count = left count + right count + crossing count`. During the merge,\neach time a right value is taken, add `mid − i` (the left values still waiting, all larger)."
     }
    ],
    "build": [
-    "Recursive merge sort with a buffer.",
-    "In the merge, add `mid − i` when taking from the right.",
-    "Sum all counts."
+    "Recursive sort returning a count.",
+    "During the merge, add `mid − i` for each right value taken.",
+    "Copy back."
    ],
    "code": {
     "python": "class Solution:\n    def countOutOfOrder(self, ranks: List[int]) -> int:\n        a, buf = ranks[:], [0] * len(ranks)\n        def sort(lo, hi):\n            if hi - lo <= 1:\n                return 0\n            mid = (lo + hi) // 2\n            count = sort(lo, mid) + sort(mid, hi)\n            i, j, k = lo, mid, lo\n            while i < mid and j < hi:\n                if a[i] <= a[j]:\n                    buf[k] = a[i]; i += 1\n                else:\n                    buf[k] = a[j]; j += 1\n                    count += mid - i\n                k += 1\n            buf[k:k + mid - i] = a[i:mid]\n            k += mid - i\n            buf[k:k + hi - j] = a[j:hi]\n            a[lo:hi] = buf[lo:hi]\n            return count\n        return sort(0, len(a))\n",
@@ -455,7 +468,7 @@
    ],
    "complexity": [
     {
-     "md": "**Time O(n log n).** **Space O(n)** for the copy and buffer."
+     "md": "**Time O(n log n).** **Space O(n)** for the buffer."
     }
    ],
    "walk": {
@@ -576,7 +589,7 @@
  ],
  "takeaways": [
   {
-   "md": "- **Inversion counting = merge sort + one line**: add `mid − i` when the right side wins.\n- Pairs split into: inside left, inside right, across. Sorting makes the \"across\" count easy.\n- Use `<=` in the merge so equal values aren't counted."
+   "md": "- **Inversion count:** merge sort, adding `mid − i` when a right element is taken.\n- Take left elements first on ties, so equal values aren't counted.\n- **Pitfall:** 32-bit counts for large inputs (up to about `n²/2`)."
   }
  ]
 }
