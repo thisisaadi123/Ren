@@ -506,7 +506,7 @@ def balance_the_quartet():
     w1.step(f"Shortest piece: {want}.", result=want)
 
     w2 = Steps("Count voices outside the window. Grow the window (removing singers from 'outside'); while every outside count is ≤ n/4, record the window and shrink it from the left.")
-    shrink_walk(w2, list(s), n, outside_ok, lambda l, r: {"outside": {c: (s[:l] + s[r + 1:]).count(c) for c in "SATB"}})
+    shrink_walk(w2, list(s), n, outside_ok, lambda l, r: {"outside": " · ".join(f"{c} {(s[:l] + s[r + 1:]).count(c)}" for c in "SATB")})
     w2.step(f"Shortest piece: {want}.", result=want)
 
     sol(
