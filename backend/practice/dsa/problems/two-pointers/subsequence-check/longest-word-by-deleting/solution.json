@@ -4,32 +4,71 @@
  "question": [
   {
    "md": "Return the longest dictionary word that is a subsequence of `text`; ties go to the alphabetically first; if none,\n`\"\"`.\n\n- **Up to 1000 words of length ≤ 1000** and text of length ≤ 1000.\n- Deleting letters = keeping some letters in order = subsequence."
+  },
+  {
+   "md": "**Edge cases to keep in mind**\n\n- No word can be made: return the empty string.\n- Ties in length: the alphabetically smaller word wins.\n- A word longer than the text can never be made."
   }
  ],
  "think": [
   {
-   "md": "Text `\"brazenpanda\"`. Hidden words: ['band', 'bread', 'brand']. The longest are five letters; alphabetically, **\"brand\"** comes first.\n\nThe test for each word is the two-pointer subsequence check. The only question is the order of checks: either\nsort candidates by the preference and stop at the first success, or scan once and skip words that can't win."
+   "md": "**Greedy matching is always safe.** To check whether `word` is hidden in `text`, read `text` left to right and match\nthe next needed letter of `word` the first time it appears. Why never wait for a later copy? Suppose some valid\nmatching uses a later copy of that letter. Swap in the earlier copy: the letters before it are unchanged, and\neverything after it now has *more* text available, not less. So if any matching exists, the greedy one succeeds too."
   },
   {
-   "panels": [
-    {
-     "type": "row",
-     "cells": [
-      "b",
-      "r",
-      "a",
-      "z",
-      "e",
-      "n",
-      "p",
-      "a",
-      "n",
-      "d",
-      "a"
+   "md": "**Two parts.** \"Can I make this word by deleting letters?\" is the subsequence check. \"Which one to return?\" is a\npreference order: longer first, then alphabetical. The two approaches differ only in how they avoid unnecessary\nchecks."
+  },
+  {
+   "md": "**Single pass over the dictionary for `\"brazenpanda\"`:**"
+  },
+  {
+   "table": {
+    "head": [
+     "word",
+     "decision",
+     "hidden?",
+     "best so far"
+    ],
+    "rows": [
+     [
+      "band",
+      "could win: check it",
+      "yes",
+      "band"
      ],
-     "label": "text"
-    }
-   ]
+     [
+      "zebra",
+      "could win: check it",
+      "no",
+      "band"
+     ],
+     [
+      "bread",
+      "could win: check it",
+      "yes",
+      "bread"
+     ],
+     [
+      "brand",
+      "could win: check it",
+      "yes",
+      "brand"
+     ],
+     [
+      "apple",
+      "could win: check it",
+      "no",
+      "brand"
+     ],
+     [
+      "zap",
+      "can't beat the current best: skip the check",
+      "—",
+      "brand"
+     ]
+    ]
+   }
+  },
+  {
+   "md": "Answer **`\"brand\"`**."
   }
  ],
  "approaches": [
@@ -40,13 +79,13 @@
    "space": "O(D)",
    "idea": [
     {
-     "md": "Sort the words by (−length, word). Return the first one that is a subsequence of the text."
+     "md": "Sort the dictionary by (length descending, then alphabetically) and return the first word that's hidden in\nthe text. Every word before the answer in that order is checked, and the answer itself; the rest is never\nlooked at."
     }
    ],
    "build": [
-    "Sort with the preference key.",
-    "Check each in order.",
-    "Return the first success, or \"\"."
+    "Subsequence helper.",
+    "Sort by preference.",
+    "Return the first hidden word."
    ],
    "code": {
     "python": "class Solution:\n    def longestByDeleting(self, text: str, dictionary: List[str]) -> str:\n        def hidden(w):\n            i = 0\n            for c in text:\n                if i < len(w) and c == w[i]:\n                    i += 1\n            return i == len(w)\n        for w in sorted(dictionary, key=lambda w: (-len(w), w)):\n            if hidden(w):\n                return w\n        return \"\"\n",
@@ -56,7 +95,7 @@
    },
    "lines": [
     {
-     "text": "Greedy two-pointer subsequence test.",
+     "text": "Greedy subsequence check of one word against the text.",
      "at": {
       "python": [
        [
@@ -85,7 +124,7 @@
      }
     },
     {
-     "text": "Longest first; equal lengths alphabetically.",
+     "text": "Longest first; among equal lengths, alphabetical.",
      "at": {
       "python": [
        [
@@ -150,7 +189,7 @@
      }
     },
     {
-     "text": "None hidden: the empty string.",
+     "text": "No word can be made.",
      "at": {
       "python": [
        [
@@ -184,7 +223,7 @@
    ],
    "complexity": [
     {
-     "md": "**Time O(D log D · L)** for sorting with string comparisons, plus **O(D · T)** checks in the worst case. **Space O(D)** for the order."
+     "md": "**Time O(D log D · w + D · T)** for D words of length up to w: sorting compares strings, and each check reads the text. **Space O(D)** for the sorted copy."
     }
    ],
    "walk": {
@@ -253,7 +292,7 @@
    },
    "limits": [
     {
-     "md": "The sort costs extra string comparisons, and words are reordered just to stop early. A single pass that skips words unable to beat the current best gets the same early cut-offs without sorting."
+     "md": "The sort costs extra and needs a copy of the dictionary. A single pass that keeps the best word checks only words that could beat it."
     }
    ]
   },
@@ -264,13 +303,13 @@
    "space": "O(1)",
    "idea": [
     {
-     "md": "Keep `best = \"\"`. For each word, if it's longer than `best` or the same length and alphabetically smaller, run the subsequence check; on success it becomes `best`."
+     "md": "Keep the best word so far. For each dictionary word, first ask whether it would **win** (longer, or equal\nlength and alphabetically smaller); only then run the subsequence check, and replace the best if it's\nhidden.\n\n**Why it's correct.** The final best is hidden, and every other hidden word was either checked and lost,\nor skipped because it couldn't beat a hidden word."
     }
    ],
    "build": [
-    "`best` starts empty.",
-    "Skip words that can't win.",
-    "Check the rest."
+    "Subsequence helper.",
+    "Best = empty.",
+    "For each word: skip if it can't win; otherwise check and update."
    ],
    "code": {
     "python": "class Solution:\n    def longestByDeleting(self, text: str, dictionary: List[str]) -> str:\n        def hidden(w):\n            i = 0\n            for c in text:\n                if i < len(w) and c == w[i]:\n                    i += 1\n            return i == len(w)\n        best = \"\"\n        for w in dictionary:\n            wins = len(w) > len(best) or (len(w) == len(best) and w < best)\n            if wins and hidden(w):\n                best = w\n        return best\n",
@@ -280,7 +319,7 @@
    },
    "lines": [
     {
-     "text": "Greedy two-pointer subsequence test.",
+     "text": "Greedy subsequence check of one word against the text.",
      "at": {
       "python": [
        [
@@ -309,7 +348,7 @@
      }
     },
     {
-     "text": "No word found yet.",
+     "text": "The best word so far (empty means none).",
      "at": {
       "python": [
        [
@@ -338,7 +377,7 @@
      }
     },
     {
-     "text": "Each dictionary word once.",
+     "text": "Every dictionary word, in any order.",
      "at": {
       "python": [
        [
@@ -367,7 +406,7 @@
      }
     },
     {
-     "text": "Only a word that would beat the current best needs the (costly) check.",
+     "text": "Check only words that would beat the current best; then replace it if the word is hidden.",
      "at": {
       "python": [
        [
@@ -396,7 +435,7 @@
      }
     },
     {
-     "text": "The best word, or \"\".",
+     "text": "The longest (then alphabetically first) word that can be made.",
      "at": {
       "python": [
        [
@@ -430,7 +469,7 @@
    ],
    "complexity": [
     {
-     "md": "**Time O(D · T)** in the worst case (every word checked), often less. **Space O(1).**"
+     "md": "**Time O(D · T)** in the worst case, usually much less because losing words aren't checked. **Space O(1)** besides the input."
     }
    ],
    "walk": {
@@ -597,7 +636,7 @@
  ],
  "takeaways": [
   {
-   "md": "- **\"Formed by deleting letters\" = subsequence**, checked with two pointers.\n- Prune: only test candidates that could improve the answer.\n- Spell out the tie-break (length, then alphabetical) and apply it consistently."
+   "md": "- **Subsequence check + a preference order:** prune candidates that can't win before checking them.\n- Express the preference as a comparison (`(−length, word)`).\n- **Pitfall:** returning the first hidden word in input order instead of the preferred one."
   }
  ]
 }

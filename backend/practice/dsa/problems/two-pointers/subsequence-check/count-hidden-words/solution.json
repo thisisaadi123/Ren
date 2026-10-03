@@ -4,33 +4,74 @@
  "question": [
   {
    "md": "Count how many of `words` are subsequences of `text` (duplicates count each time).\n\n- **Text up to 5 × 10⁴**, up to 5000 words of length ≤ 50.\n- Checking each word separately reads the whole text 5000 times: 2.5 × 10⁸ steps."
+  },
+  {
+   "md": "**Edge cases to keep in mind**\n\n- Repeated words count every time they appear in the list.\n- Words with letters missing from the text are never hidden.\n- Total work matters: up to 5000 words × 5 × 10⁴ text characters if each word rescans the text."
   }
  ],
  "think": [
   {
-   "md": "Text `\"trainstation\"`, words `['tin', 'rain', 'sat', 'ran', 'tin', 'zoo']`: ['tin', 'rain', 'sat', 'ran', 'tin'] are hidden, so **5**.\n\nThe per-word check is fine, but repeating it rereads the text for every word. Flip it: read the text once, and\nlet all words advance in parallel. A word only cares about one letter at a time (its next needed letter), so\ngroup words by that letter."
+   "md": "**Greedy matching is always safe.** To check whether `word` is hidden in `text`, read `text` left to right and match\nthe next needed letter of `word` the first time it appears. Why never wait for a later copy? Suppose some valid\nmatching uses a later copy of that letter. Swap in the earlier copy: the letters before it are unchanged, and\neverything after it now has *more* text available, not less. So if any matching exists, the greedy one succeeds too."
   },
   {
-   "panels": [
-    {
-     "type": "row",
-     "cells": [
-      "t",
-      "r",
-      "a",
-      "i",
-      "n",
-      "s",
-      "t",
-      "a",
-      "t",
-      "i",
-      "o",
-      "n"
+   "md": "**The cost of checking words one by one.** Each check reads the whole text: `words × text` steps, up to\n2.5 × 10⁸.\n\n**Two faster ideas.**\n\n1. **Jump instead of scanning.** Store, for each letter, the sorted positions where it occurs in the text. To match\n   the next letter of a word after position `at`, binary-search that letter's list for the first position\n   `> at`. Each word costs `O(len · log |text|)`.\n2. **Read the text once for all words.** Each word is waiting for one specific next letter. Keep 26 buckets of\n   words, grouped by the letter they're waiting for. When the text shows letter `c`, every word in bucket `c`\n   advances one letter and moves to the bucket of its next letter (or is finished)."
+  },
+  {
+   "md": "**Buckets on text `\"trainstation\"`** with words ['tin', 'rain', 'sat', 'ran', 'tin', 'zoo'] (only characters that move someone are shown):"
+  },
+  {
+   "table": {
+    "head": [
+     "text char",
+     "what happens",
+     "finished so far"
+    ],
+    "rows": [
+     [
+      "'t'",
+      "tin→waits for i; tin→waits for i",
+      "0"
      ],
-     "label": "text"
-    }
-   ]
+     [
+      "'r'",
+      "rain→waits for a; ran→waits for a",
+      "0"
+     ],
+     [
+      "'a'",
+      "rain→waits for i; ran→waits for n",
+      "0"
+     ],
+     [
+      "'i'",
+      "tin→waits for n; tin→waits for n; rain→waits for n",
+      "0"
+     ],
+     [
+      "'n'",
+      "ran done; tin done; tin done; rain done",
+      "4"
+     ],
+     [
+      "'s'",
+      "sat→waits for a",
+      "4"
+     ],
+     [
+      "'a'",
+      "sat→waits for t",
+      "4"
+     ],
+     [
+      "'t'",
+      "sat done",
+      "5"
+     ]
+    ]
+   }
+  },
+  {
+   "md": "Hidden words: **5**."
   }
  ],
  "approaches": [
@@ -41,12 +82,12 @@
    "space": "O(1)",
    "idea": [
     {
-     "md": "For each word, run the two-pointer subsequence check over the whole text."
+     "md": "Run the greedy subsequence check for every word, each one reading the whole text."
     }
    ],
    "build": [
-    "Subsequence check helper.",
-    "Count words that pass."
+    "For each word, greedy check over the text.",
+    "Count the hidden ones."
    ],
    "code": {
     "python": "class Solution:\n    def countHidden(self, text: str, words: List[str]) -> int:\n        count = 0\n        for w in words:\n            i = 0\n            for c in text:\n                if i < len(w) and c == w[i]:\n                    i += 1\n            if i == len(w):\n                count += 1\n        return count\n",
@@ -56,7 +97,7 @@
    },
    "lines": [
     {
-     "text": "Hidden words found.",
+     "text": "The number of hidden words.",
      "at": {
       "python": [
        [
@@ -85,7 +126,7 @@
      }
     },
     {
-     "text": "Each word, counted if fully matched.",
+     "text": "Check each word separately (repeats included).",
      "at": {
       "python": [
        [
@@ -130,7 +171,7 @@
      }
     },
     {
-     "text": "The greedy subsequence test over the text.",
+     "text": "Greedy subsequence check: advance in the word whenever the text shows its next letter.",
      "at": {
       "python": [
        [
@@ -159,7 +200,7 @@
      }
     },
     {
-     "text": "Total.",
+     "text": "How many words were hidden.",
      "at": {
       "python": [
        [
@@ -190,7 +231,7 @@
    ],
    "complexity": [
     {
-     "md": "**Time O(W · T):** the text is read once per word, up to 2.5 × 10⁸ steps. **Space O(1).**"
+     "md": "**Time O(W · T)**, where W is the number of words and T the text length: up to 2.5 × 10⁸. **Space O(1).**"
     }
    ],
    "walk": {
@@ -379,7 +420,7 @@
    },
    "limits": [
     {
-     "md": "Rereads the whole text for every word. Precomputing where each letter occurs lets a word jump straight to its next letter."
+     "md": "Each word re-reads the whole text, even the long stretches with none of its letters."
     }
    ],
    "slow": true
@@ -391,13 +432,13 @@
    "space": "O(T)",
    "idea": [
     {
-     "md": "List the positions of each letter in the text. For a word, keep the last matched position `at`; each next letter jumps to its first position after `at` (binary search). Missing → not hidden."
+     "md": "Precompute, for every letter, the sorted list of its positions in the text. For each word, keep `at` = the\ntext position of the last matched letter (start at −1). For the next letter, binary-search its position\nlist for the first position `> at`; if there is none, the word isn't hidden.\n\nThis is the greedy matching, but jumping straight to the next useful position."
     }
    ],
    "build": [
-    "Positions per letter.",
-    "For each word, chain `upper_bound` lookups.",
-    "Count successes."
+    "Position lists per letter.",
+    "For each word, jump letter by letter with binary search.",
+    "Count the words that finish."
    ],
    "code": {
     "python": "import bisect\n\nclass Solution:\n    def countHidden(self, text: str, words: List[str]) -> int:\n        pos = {}\n        for i, c in enumerate(text):\n            pos.setdefault(c, []).append(i)\n        count = 0\n        for w in words:\n            at, ok = -1, True\n            for c in w:\n                lst = pos.get(c, [])\n                k = bisect.bisect_right(lst, at)\n                if k == len(lst):\n                    ok = False\n                    break\n                at = lst[k]\n            count += ok\n        return count\n",
@@ -407,7 +448,7 @@
    },
    "lines": [
     {
-     "text": "Every letter's positions in the text, increasing.",
+     "text": "For each letter, the increasing list of positions where it occurs in the text.",
      "at": {
       "python": [
        [
@@ -439,7 +480,7 @@
      }
     },
     {
-     "text": "Hidden words found.",
+     "text": "The count of hidden words.",
      "at": {
       "python": [
        [
@@ -468,7 +509,7 @@
      }
     },
     {
-     "text": "Each word.",
+     "text": "Each word, matched from text position −1.",
      "at": {
       "python": [
        [
@@ -513,7 +554,7 @@
      }
     },
     {
-     "text": "The next needed letter's first position after the last match; if there's none, the word isn't hidden.",
+     "text": "The next letter's first occurrence after the last match, by binary search. None means the word can't be completed.",
      "at": {
       "python": [
        [
@@ -542,7 +583,7 @@
      }
     },
     {
-     "text": "Total.",
+     "text": "How many words were hidden.",
      "at": {
       "python": [
        [
@@ -573,7 +614,7 @@
    ],
    "complexity": [
     {
-     "md": "**Time O(T + L log T)** with L the total length of all words. **Space O(T)** for the positions."
+     "md": "**Time O(T + L · log T)**, where L is the total length of all words. **Space O(T)** for the position lists."
     }
    ],
    "walk": {
@@ -692,7 +733,7 @@
    },
    "limits": [
     {
-     "md": "Each letter still costs a binary search. Reading the text once while all words wait for their next letter costs O(1) per letter."
+     "md": "Every letter of every word pays a binary search. Reading the text once with buckets makes each letter advance in O(1)."
     }
    ]
   },
@@ -703,13 +744,13 @@
    "space": "O(W)",
    "idea": [
     {
-     "md": "26 buckets of (word, position) pairs, one per needed letter. Start each word in its first letter's bucket. For each text letter `c`, take out bucket `c`; each word advances one letter and either finishes (count it) or joins the bucket of its next letter."
+     "md": "26 buckets; bucket `c` holds `(word, i)` pairs for words whose next needed letter is `c` (`word[i] = c`).\nPut every word in the bucket of its first letter. Read the text once: for character `c`, take out bucket\n`c`, advance each word in it, and put each into the bucket of its new next letter, or count it as finished.\n\n**Why emptying the bucket first matters.** A word whose next letter is also `c` (like `\"ee\"`) must not use\nthe same text character twice; taking the bucket out before re-inserting means it waits for the *next*\n`c`."
     }
    ],
    "build": [
-    "Buckets keyed by the next needed letter.",
-    "Detach the current letter's bucket before processing it.",
-    "Advance, count or re-bucket."
+    "Buckets by first letter.",
+    "For each text character, advance everyone waiting for it.",
+    "Count finished words."
    ],
    "code": {
     "python": "class Solution:\n    def countHidden(self, text: str, words: List[str]) -> int:\n        waiting = [[] for _ in range(26)]\n        for w in words:\n            waiting[ord(w[0]) - 97].append((w, 0))\n        done = 0\n        for c in text:\n            k = ord(c) - 97\n            bucket, waiting[k] = waiting[k], []\n            for w, i in bucket:\n                i += 1\n                if i == len(w):\n                    done += 1\n                else:\n                    waiting[ord(w[i]) - 97].append((w, i))\n        return done\n",
@@ -719,7 +760,7 @@
    },
    "lines": [
     {
-     "text": "Each word waits for its first letter.",
+     "text": "Every word starts waiting for its first letter.",
      "at": {
       "python": [
        [
@@ -752,7 +793,7 @@
      }
     },
     {
-     "text": "Detach the bucket for this letter first, so words that need the same letter again wait for its **next** occurrence.",
+     "text": "Read the text once. Take out the bucket for this character, so words re-inserted into it wait for a later copy.",
      "at": {
       "python": [
        [
@@ -781,7 +822,7 @@
      }
     },
     {
-     "text": "Each waiting word matches this letter: it either finishes (count it) or joins the bucket of its next needed letter.",
+     "text": "Each waiting word matches this character: it either finishes or moves to the bucket of its next letter.",
      "at": {
       "python": [
        [
@@ -810,7 +851,7 @@
      }
     },
     {
-     "text": "Words that finished.",
+     "text": "How many words finished.",
      "at": {
       "python": [
        [
@@ -841,7 +882,7 @@
    ],
    "complexity": [
     {
-     "md": "**Time O(T + L):** each text letter is read once and each word letter is matched once. **Space O(W)** for the buckets."
+     "md": "**Time O(T + L):** each text character is read once and each word letter is advanced once. **Space O(W)** for the bucket entries."
     }
    ],
    "walk": {
@@ -1106,7 +1147,7 @@
  ],
  "takeaways": [
   {
-   "md": "- **Many subsequence queries against one text:** advance all words in parallel, bucketed by their next letter.\n- Alternative: per-letter position lists with binary search (also good for online queries).\n- Detach a bucket before processing it, so a word can't match the same text letter twice."
+   "md": "- **Many subsequence checks against one text:** either index the text (positions + binary search) or process all words in one pass with waiting buckets.\n- Grouping items by \"what they wait for next\" turns many scans into one.\n- **Pitfall:** letting a word use the same text character twice."
   }
  ]
 }
