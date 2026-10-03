@@ -4,28 +4,101 @@
  "question": [
   {
    "md": "Count the contiguous stretches of `pens` with exactly `k` different values.\n\n- **n up to 10⁵**: up to 5 × 10⁹ stretches, so the count needs 64 bits.\n- Values are in `1..n`."
+  },
+  {
+   "md": "**Edge cases to keep in mind**\n\n- `k` larger than the number of breeds on the farm: the answer is 0.\n- `k = 1`: count the stretches made of a single breed.\n- Up to ~5 × 10⁹ stretches: the count needs 64 bits."
   }
  ],
  "think": [
   {
-   "md": "`pens = [1, 2, 1, 3, 2, 2, 3]`, `k = 2` → **9** stretches.\n\nFor a fixed right end, as the start moves left the number of breeds only grows. The starts with exactly `k`\nbreeds form a contiguous range, but tracking both of its ends is fiddly. \"At most `k`\" is a single range\nending at `r`, which the usual window gives directly. And stretches with exactly `k` breeds are those with at\nmost `k` minus those with at most `k − 1`."
+   "md": "**Why \"exactly k\" resists a plain window.** Take a stretch with exactly `k` breeds and shrink it: it may drop to\n`k − 1` breeds. Grow it: it may rise to `k + 1`. Neither direction is safe, so there's no single left edge to\nmaintain.\n\n**\"At most k\" is well-behaved.** Shrinking never adds breeds, so a stretch with at most `k` breeds stays valid\nwhen shrunk."
   },
   {
-   "panels": [
-    {
-     "type": "row",
-     "cells": [
-      1,
-      2,
-      1,
-      3,
-      2,
-      2,
-      3
+   "md": "**Counting windows, not measuring them.** For a rule that survives shrinking, the valid windows ending at a fixed `R`\nare exactly those starting at `L, L + 1, …, R`, where `L` is the earliest valid start. That's `R − L + 1` windows,\nand we can add them all in one step. Running the usual two pointers and adding `R − L + 1` for every `R` counts\n**every** valid window exactly once (each window is counted at its own right end)."
+  },
+  {
+   "md": "**The subtraction trick.** Fix a right end `R`. Moving the start leftwards, the breed count only grows. So:\n\n- starts with **at most `k`** breeds form a range `[L_k, R]`;\n- starts with **at most `k − 1`** breeds form a smaller range `[L_(k−1), R]`, with `L_(k−1) ≥ L_k`;\n- starts with **exactly `k`** breeds are the difference: `[L_k, L_(k−1) − 1]`.\n\nSumming over all `R`: `exactly(k) = atMost(k) − atMost(k − 1)`. Here it is for `pens = [1, 2, 1, 3, 2, 2, 3]`, `k = 2`:"
+  },
+  {
+   "table": {
+    "head": [
+     "R",
+     "pen",
+     "L for ≤2",
+     "L for ≤1",
+     "≤2 count",
+     "≤1 count",
+     "exactly 2"
+    ],
+    "rows": [
+     [
+      "0",
+      "1",
+      "0",
+      "0",
+      "1",
+      "1",
+      "0"
      ],
-     "label": "pens"
-    }
-   ]
+     [
+      "1",
+      "2",
+      "0",
+      "1",
+      "2",
+      "1",
+      "1"
+     ],
+     [
+      "2",
+      "1",
+      "0",
+      "2",
+      "3",
+      "1",
+      "2"
+     ],
+     [
+      "3",
+      "3",
+      "2",
+      "3",
+      "2",
+      "1",
+      "1"
+     ],
+     [
+      "4",
+      "2",
+      "3",
+      "4",
+      "2",
+      "1",
+      "1"
+     ],
+     [
+      "5",
+      "2",
+      "3",
+      "4",
+      "3",
+      "2",
+      "1"
+     ],
+     [
+      "6",
+      "3",
+      "3",
+      "6",
+      "4",
+      "1",
+      "3"
+     ]
+    ]
+   }
+  },
+  {
+   "md": "Totals: atMost(2) = 17, atMost(1) = 8, difference\n**9**."
   }
  ],
  "approaches": [
@@ -36,7 +109,7 @@
    "space": "O(n)",
    "idea": [
     {
-     "md": "For each start, extend while the distinct count is at most `k`, counting the ends where it is exactly `k`."
+     "md": "For every start, extend to the right while keeping a set of breeds seen. Count the ends where the set has\nexactly `k` breeds, and stop as soon as it has more than `k` (it can only grow from there).\n\nThe `mark[v] = i + 1` trick in Java, C++ and C avoids clearing an array for each start: a value counts as\nseen only if it was marked during the current start."
     }
    ],
    "build": [
@@ -204,7 +277,7 @@
    ],
    "complexity": [
     {
-     "md": "**Time O(n²)** in the worst case. **Space O(n).**"
+     "md": "**Time O(n²)** in the worst case (e.g. few breeds and large `k`). **Space O(n).**"
     }
    ],
    "walk": {
@@ -371,13 +444,15 @@
    "space": "O(n)",
    "idea": [
     {
-     "md": "`atMost(t)`: window with counts and a distinct counter; shrink while distinct > `t`; add `r − left + 1` per end. Answer `atMost(k) − atMost(k − 1)`."
+     "md": "Write one function `atMost(t)`: a sliding window with a count per breed and `distinct`. For each `R`, add\n`pens[R]`; while `distinct > t`, remove `pens[L]` and advance; add `R − L + 1` to the total. The answer\nis `atMost(k) − atMost(k − 1)`.\n\n**Invariant inside `atMost`.** After the while loop, `[L, R]` has at most `t` breeds and `L` is the\nearliest such start, so exactly `R − L + 1` valid stretches end at `R`.\n\n`atMost(0)` correctly returns 0: the window is emptied for every `R`, adding 0 each time."
     }
    ],
    "build": [
-    "Counting window for 'at most t'.",
-    "Run it twice.",
-    "Subtract."
+    "`atMost(t)`: counts array (values ≤ n), `distinct = 0`, `L = 0`, `total = 0`.",
+    "Add `pens[R]`; a 0 → 1 count raises `distinct`.",
+    "While `distinct > t`: remove `pens[L]` (1 → 0 lowers `distinct`), `L += 1`.",
+    "`total += R − L + 1`; after the loop return `total`.",
+    "Answer: `atMost(k) − atMost(k − 1)`."
    ],
    "code": {
     "python": "class Solution:\n    def countBreedStretches(self, pens: List[int], k: int) -> int:\n        def at_most(limit):\n            count = [0] * (len(pens) + 1)\n            left = distinct = total = 0\n            for i, v in enumerate(pens):\n                count[v] += 1\n                if count[v] == 1:\n                    distinct += 1\n                while distinct > limit:\n                    count[pens[left]] -= 1\n                    if count[pens[left]] == 0:\n                        distinct -= 1\n                    left += 1\n                total += i - left + 1\n            return total\n        return at_most(k) - at_most(k - 1)\n",
@@ -558,7 +633,7 @@
    ],
    "complexity": [
     {
-     "md": "**Time O(n):** two passes, each moving both pointers at most `n` times. **Space O(n).**"
+     "md": "**Time O(n):** two passes, each with at most `2n` pointer moves. **Space O(n)** for the counts."
     }
    ],
    "walk": {
@@ -798,7 +873,7 @@
  ],
  "takeaways": [
   {
-   "md": "- **Exactly k = atMost(k) − atMost(k − 1)** whenever \"at most\" is window-friendly.\n- A counting window adds `r − left + 1` per right end: all valid starts at once.\n- Use 64-bit counts: there are about n²/2 windows."
+   "md": "- **Exactly k = atMost(k) − atMost(k − 1)** when \"at most\" is window-friendly.\n- **Counting windows:** add `R − L + 1` per right end.\n- **Pitfalls:** 32-bit totals; forgetting that `atMost(0)` must be 0."
   }
  ]
 }

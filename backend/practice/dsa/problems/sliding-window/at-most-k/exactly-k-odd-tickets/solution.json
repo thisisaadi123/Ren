@@ -4,45 +4,103 @@
  "question": [
   {
    "md": "Count contiguous stretches of `tickets` containing exactly `k` odd numbers.\n\n- **n up to 10⁵**; the count needs 64 bits."
+  },
+  {
+   "md": "**Edge cases to keep in mind**\n\n- Fewer than `k` odd tickets in total: 0.\n- Even tickets around a valid stretch can be added or left out freely, which multiplies the count.\n- The count can reach ~5 × 10⁹: use 64 bits."
   }
  ],
  "think": [
   {
-   "md": "`tickets = [2, 5, 4, 7, 3, 6, 8, 1, 2]`, `k = 2` → **10**.\n\nReplace each ticket by 1 if odd, else 0: `[0, 1, 0, 1, 1, 0, 0, 1, 0]`. Now we count stretches summing to exactly `k`. Even tickets\naround a valid stretch can be included or not, which is why the count isn't simply the number of ways to pick\n`k` consecutive odds. Both techniques below handle that automatically."
+   "md": "**Only parity matters.** Replace each ticket by 1 if odd, 0 if even: `[0, 1, 0, 1, 1, 0, 0, 1, 0]`. We're counting stretches whose sum\nis exactly `k = 2`.\n\n**Method 1: prefix counts.** Let `p` be the number of odd tickets among the first `i + 1` tickets. A stretch from\n`a` to `i` has `p(i) − p(a − 1)` odd tickets. It has exactly `k` when the earlier prefix had `p − k`. So for\neach position, add **how many earlier prefixes had `p − k` odd tickets** (the empty prefix, with 0, counts\nonce):"
   },
   {
-   "panels": [
-    {
-     "type": "row",
-     "cells": [
-      2,
-      5,
-      4,
-      7,
-      3,
-      6,
-      8,
-      1,
-      2
+   "table": {
+    "head": [
+     "i",
+     "ticket",
+     "p",
+     "looking for",
+     "matches",
+     "total"
+    ],
+    "rows": [
+     [
+      "0",
+      "2",
+      "0",
+      "-2",
+      "0",
+      "0"
      ],
-     "label": "tickets"
-    },
-    {
-     "type": "row",
-     "cells": [
-      0,
-      1,
-      0,
-      1,
-      1,
-      0,
-      0,
-      1,
-      0
+     [
+      "1",
+      "5",
+      "1",
+      "-1",
+      "0",
+      "0"
      ],
-     "label": "odd?"
-    }
-   ]
+     [
+      "2",
+      "4",
+      "1",
+      "-1",
+      "0",
+      "0"
+     ],
+     [
+      "3",
+      "7",
+      "2",
+      "0",
+      "2",
+      "2"
+     ],
+     [
+      "4",
+      "3",
+      "3",
+      "1",
+      "2",
+      "4"
+     ],
+     [
+      "5",
+      "6",
+      "3",
+      "1",
+      "2",
+      "6"
+     ],
+     [
+      "6",
+      "8",
+      "3",
+      "1",
+      "2",
+      "8"
+     ],
+     [
+      "7",
+      "1",
+      "4",
+      "2",
+      "1",
+      "9"
+     ],
+     [
+      "8",
+      "2",
+      "4",
+      "2",
+      "1",
+      "10"
+     ]
+    ]
+   }
+  },
+  {
+   "md": "Total **10**.\n\n**Method 2: at-most windows.** \"At most `k` odd tickets\" survives shrinking, so `atMost(k) − atMost(k − 1)` works\nexactly as for distinct values, with an O(1)-memory window instead of a table."
   }
  ],
  "approaches": [
@@ -53,7 +111,7 @@
    "space": "O(1)",
    "idea": [
     {
-     "md": "For each start, extend while the odd count is at most `k`, counting ends where it equals `k`."
+     "md": "From every start, extend while the odd count is at most `k`, counting the ends where it equals `k`. Stops early once past `k`, but still quadratic when odd tickets are rare."
     }
    ],
    "build": [
@@ -216,7 +274,7 @@
    ],
    "complexity": [
     {
-     "md": "**Time O(n²)** when odd numbers are rare. **Space O(1).**"
+     "md": "**Time O(n²).** **Space O(1).**"
     }
    ],
    "walk": {
@@ -434,13 +492,14 @@
    "space": "O(n)",
    "idea": [
     {
-     "md": "`p` = odd tickets so far; `seen[c]` = how many prefixes had `c` odds (starting with `seen[0] = 1`). At each ticket add `seen[p − k]`, then record `p`."
+     "md": "Keep `seen[c]` = how many prefixes so far contain exactly `c` odd tickets, with `seen[0] = 1` for the\nempty prefix. For each ticket: update `p`, add `seen[p − k]` (if `p ≥ k`), then record `seen[p] += 1`.\n\n**Why it's right.** Each stretch ending at `i` corresponds to one earlier prefix; the stretch has exactly\n`k` odds precisely when that prefix has `p − k`. Counting those prefixes counts those stretches.\n\nSince `p` never exceeds `n`, an array replaces a hash map."
     }
    ],
    "build": [
-    "Frequency of prefix odd counts.",
-    "Look up `p − k`.",
-    "Record `p`."
+    "`seen` array of size `n + 1`, `seen[0] = 1`; `p = 0`, `total = 0`.",
+    "For each ticket: `p += ticket & 1`.",
+    "If `p ≥ k`: `total += seen[p − k]`.",
+    "`seen[p] += 1` (after the lookup, so a prefix never pairs with itself)."
    ],
    "code": {
     "python": "class Solution:\n    def countOddStretches(self, tickets: List[int], k: int) -> int:\n        seen = [0] * (len(tickets) + 1)\n        seen[0] = 1\n        p = total = 0\n        for v in tickets:\n            p += v & 1\n            if p >= k:\n                total += seen[p - k]\n            seen[p] += 1\n        return total\n",
@@ -597,7 +656,7 @@
    ],
    "complexity": [
     {
-     "md": "**Time O(n).** **Space O(n)** for the prefix-count table."
+     "md": "**Time O(n).** **Space O(n)** for `seen`."
     }
    ],
    "walk": {
@@ -873,7 +932,7 @@
    },
    "limits": [
     {
-     "md": "Needs an O(n) table. The two-window method uses O(1) memory."
+     "md": "It needs an O(n) table. The at-most windows give the same count with O(1) memory."
     }
    ]
   },
@@ -884,13 +943,14 @@
    "space": "O(1)",
    "idea": [
     {
-     "md": "`atMost(t)`: window holding at most `t` odd tickets, adding `r − left + 1` per end. Answer `atMost(k) − atMost(k − 1)`."
+     "md": "`atMost(t)`: window holding at most `t` odd tickets; for each `R`, add `tickets[R] & 1`, shrink while over\n`t`, then add `R − L + 1`. Return `atMost(k) − atMost(k − 1)`.\n\nThe per-`R` difference `L_(k−1) − L_k` is exactly the number of starts giving `k` odd tickets: the\nwindow for `k − 1` must drop one more odd ticket (and the evens before it) than the window for `k`."
     }
    ],
    "build": [
-    "Counting window.",
-    "Two passes.",
-    "Subtract."
+    "`atMost(t)` with `L`, `odd`, `total`.",
+    "Add `tickets[R] & 1`; while `odd > t`, remove `tickets[L] & 1` and `L += 1`.",
+    "`total += R − L + 1`.",
+    "Answer: `atMost(k) − atMost(k − 1)`."
    ],
    "code": {
     "python": "class Solution:\n    def countOddStretches(self, tickets: List[int], k: int) -> int:\n        def at_most(limit):\n            left = odd = total = 0\n            for i, v in enumerate(tickets):\n                odd += v & 1\n                while odd > limit:\n                    odd -= tickets[left] & 1\n                    left += 1\n                total += i - left + 1\n            return total\n        return at_most(k) - at_most(k - 1)\n",
@@ -1411,7 +1471,7 @@
  ],
  "takeaways": [
   {
-   "md": "- **Count subarrays with sum exactly k (non-negative values):** prefix-count map, or atMost difference.\n- Reduce to 0/1 values when only a property (odd, vowel, …) matters.\n- atMost counting adds `r − left + 1` per end."
+   "md": "- **Subarrays with sum exactly k** (non-negative values): prefix-count table, or atMost difference.\n- Prefix sums with a lookup of `p − k` work even with negative values; at-most windows don't.\n- Reduce to 0/1 when only a property matters."
   }
  ]
 }

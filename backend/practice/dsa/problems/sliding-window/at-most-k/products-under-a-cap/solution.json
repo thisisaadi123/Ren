@@ -4,28 +4,101 @@
  "question": [
   {
    "md": "Count the contiguous runs of `factors` whose product is strictly less than `cap`.\n\n- **n up to 10⁵**, factors 1..1000, cap up to 10⁶."
+  },
+  {
+   "md": "**Edge cases to keep in mind**\n\n- `cap ≤ 1`: every product is at least 1, so nothing qualifies.\n- Runs of 1s don't change the product, so windows can get very long.\n- A single factor `≥ cap` empties the window."
   }
  ],
  "think": [
   {
-   "md": "`factors = [3, 2, 5, 1, 4, 6, 1]`, `cap = 25` → **18**.\n\nProducts of positive integers grow (or stay the same, with 1s) as a run is extended, so the runs ending at `r`\nthat are under the cap are exactly those starting at or after some `left`. The window keeps the product below\n`cap` (at most 10⁶), so multiplying in one more factor stays below 10⁹: no overflow, and division by the\nleaving factor is exact."
+   "md": "**Why a window works.** Every factor is at least 1, so extending a run never lowers its product. A run under\nthe cap stays under it when shrunk, and the earliest valid start only moves right."
   },
   {
-   "panels": [
-    {
-     "type": "row",
-     "cells": [
-      3,
-      2,
-      5,
-      1,
-      4,
-      6,
-      1
+   "md": "**Counting windows, not measuring them.** For a rule that survives shrinking, the valid windows ending at a fixed `R`\nare exactly those starting at `L, L + 1, …, R`, where `L` is the earliest valid start. That's `R − L + 1` windows,\nand we can add them all in one step. Running the usual two pointers and adding `R − L + 1` for every `R` counts\n**every** valid window exactly once (each window is counted at its own right end)."
+  },
+  {
+   "md": "**Trace with `cap = 25`:**"
+  },
+  {
+   "table": {
+    "head": [
+     "R",
+     "factor",
+     "L",
+     "window",
+     "product",
+     "runs ending here",
+     "total"
+    ],
+    "rows": [
+     [
+      "0",
+      "3",
+      "0",
+      "3",
+      "3",
+      "1",
+      "1"
      ],
-     "label": "factors"
-    }
-   ]
+     [
+      "1",
+      "2",
+      "0",
+      "3 2",
+      "6",
+      "2",
+      "3"
+     ],
+     [
+      "2",
+      "5",
+      "1",
+      "2 5",
+      "10",
+      "2",
+      "5"
+     ],
+     [
+      "3",
+      "1",
+      "1",
+      "2 5 1",
+      "10",
+      "3",
+      "8"
+     ],
+     [
+      "4",
+      "4",
+      "2",
+      "5 1 4",
+      "20",
+      "3",
+      "11"
+     ],
+     [
+      "5",
+      "6",
+      "3",
+      "1 4 6",
+      "24",
+      "3",
+      "14"
+     ],
+     [
+      "6",
+      "1",
+      "3",
+      "1 4 6 1",
+      "24",
+      "4",
+      "18"
+     ]
+    ]
+   }
+  },
+  {
+   "md": "Total **18**.\n\n**Keeping the product small.** The window always keeps its product below `cap ≤ 10⁶`. Multiplying in one more\nfactor (≤ 1000) gives less than 10⁹, which fits even in 32 bits; dividing it back out is exact because it was\nmultiplied in. So the running product never overflows, unlike the product of the whole array.\n\n**Why `cap ≤ 1` is special.** With `cap = 1`, even an empty-looking window can't satisfy `product < 1`, so the\nshrink loop would push `L` past `R`. Returning 0 up front avoids that."
   }
  ],
  "approaches": [
@@ -36,7 +109,7 @@
    "space": "O(1)",
    "idea": [
     {
-     "md": "For each start, multiply while the product stays under the cap, counting each run."
+     "md": "For each start, multiply factors while the product stays below the cap, counting each run. With many 1s every start extends far: quadratic."
     }
    ],
    "build": [
@@ -170,7 +243,7 @@
    ],
    "complexity": [
     {
-     "md": "**Time O(n²)** when many factors are 1. **Space O(1).**"
+     "md": "**Time O(n²)** in the worst case. **Space O(1).**"
     }
    ],
    "walk": {
@@ -390,13 +463,14 @@
    "space": "O(1)",
    "idea": [
     {
-     "md": "If `cap ≤ 1`, return 0. Otherwise multiply in `factors[r]`; while `product ≥ cap`, divide by `factors[left]` and advance. Add `r − left + 1`."
+     "md": "Multiply in `factors[R]`. While `product ≥ cap`, divide by `factors[L]` and advance `L`. Then add\n`R − L + 1`.\n\n**Invariant.** After the loop, `product` is the product of `[L, R]`, it's below the cap, and `L` is the\nearliest start with that property. So exactly `R − L + 1` runs ending at `R` qualify."
     }
    ],
    "build": [
-    "Small caps admit nothing.",
-    "Multiply in, divide out.",
-    "Count runs per end."
+    "If `cap ≤ 1`, return 0.",
+    "`product = 1`, `L = 0`, `total = 0`.",
+    "For each `R`: `product *= factors[R]`; while `product ≥ cap`, `product /= factors[L]`, `L += 1`.",
+    "`total += R − L + 1`."
    ],
    "code": {
     "python": "class Solution:\n    def countUnderCap(self, factors: List[int], cap: int) -> int:\n        if cap <= 1:\n            return 0\n        product, left, total = 1, 0, 0\n        for i, f in enumerate(factors):\n            product *= f\n            while product >= cap:\n                product //= factors[left]\n                left += 1\n            total += i - left + 1\n        return total\n",
@@ -830,7 +904,7 @@
  ],
  "takeaways": [
   {
-   "md": "- **Products of factors ≥ 1** behave like sums of non-negatives: windows work.\n- Handle `cap ≤ 1` first, or the window would try to shrink past empty.\n- Counting windows add `r − left + 1` per end."
+   "md": "- **Products of factors ≥ 1 behave like sums of non-negatives:** counting windows apply.\n- Guard the degenerate cap first.\n- Keep the running value bounded by the window rule to avoid overflow."
   }
  ]
 }

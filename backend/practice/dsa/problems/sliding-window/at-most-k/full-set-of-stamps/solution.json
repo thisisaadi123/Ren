@@ -4,30 +4,113 @@
  "question": [
   {
    "md": "Count the substrings of `s` (letters `a`, `b`, `c` only) that contain at least one of each letter.\n\n- **n up to 10⁵**; the count needs 64 bits."
+  },
+  {
+   "md": "**Edge cases to keep in mind**\n\n- A letter missing from the whole album: 0.\n- Each end contributes 0 until all three letters have appeared.\n- Up to ~5 × 10⁹ substrings: 64-bit count."
   }
  ],
  "think": [
   {
-   "md": "`\"abcabbcab\"` → **26**.\n\n\"Contains all three\" survives extending, so for a fixed end the good starts are a prefix range `0..x`. The\nboundary `x` is the latest start that still includes one of each letter, which is the smallest of the three\nletters' last positions. This is the counting-window idea with the left edge computed directly."
+   "md": "**Fix the end, count the starts.** For a substring ending at `i`, moving its start further left only adds stamps,\nso \"contains a, b and c\" stays true. The good starts are therefore `0, 1, …, x` for some `x`.\n\n**What is `x`?** The start must be at or before the last `a`, the last `b` and the last `c` seen up to `i`;\notherwise that letter is missing. So `x = min(last a, last b, last c)`, giving `x + 1` full sets ending at `i`\n(and 0 while some letter hasn't appeared, since its last position is −1)."
   },
   {
-   "panels": [
-    {
-     "type": "row",
-     "cells": [
+   "table": {
+    "head": [
+     "i",
+     "stamp",
+     "last a",
+     "last b",
+     "last c",
+     "full sets ending here",
+     "total"
+    ],
+    "rows": [
+     [
+      "0",
       "a",
-      "b",
-      "c",
-      "a",
-      "b",
-      "b",
-      "c",
-      "a",
-      "b"
+      "0",
+      "-1",
+      "-1",
+      "0",
+      "0"
      ],
-     "label": "s"
-    }
-   ]
+     [
+      "1",
+      "b",
+      "0",
+      "1",
+      "-1",
+      "0",
+      "0"
+     ],
+     [
+      "2",
+      "c",
+      "0",
+      "1",
+      "2",
+      "1",
+      "1"
+     ],
+     [
+      "3",
+      "a",
+      "3",
+      "1",
+      "2",
+      "2",
+      "3"
+     ],
+     [
+      "4",
+      "b",
+      "3",
+      "4",
+      "2",
+      "3",
+      "6"
+     ],
+     [
+      "5",
+      "b",
+      "3",
+      "5",
+      "2",
+      "3",
+      "9"
+     ],
+     [
+      "6",
+      "c",
+      "3",
+      "5",
+      "6",
+      "4",
+      "13"
+     ],
+     [
+      "7",
+      "a",
+      "7",
+      "5",
+      "6",
+      "6",
+      "19"
+     ],
+     [
+      "8",
+      "b",
+      "7",
+      "8",
+      "6",
+      "7",
+      "26"
+     ]
+    ]
+   }
+  },
+  {
+   "md": "Total **26**.\n\nThis is a counting window in disguise: `min(last) + 1` plays the role of the left edge, computed directly instead\nof moved step by step. You could also count \"at least one of each\" as all substrings minus those missing a\nletter, but the direct count is simpler."
   }
  ],
  "approaches": [
@@ -38,7 +121,7 @@
    "space": "O(1)",
    "idea": [
     {
-     "md": "For each start, extend until all three letters have appeared at `r`; then the `n − r` runs ending at `r` or later are full."
+     "md": "For each start, extend until all three letters have appeared, at position `j`. Every substring from that\nstart ending at `j` or later is full, so add `n − j` and move to the next start."
     }
    ],
    "build": [
@@ -206,7 +289,7 @@
    ],
    "complexity": [
     {
-     "md": "**Time O(n²)** when a letter is missing for long stretches. **Space O(1).**"
+     "md": "**Time O(n²)** when one letter is missing over long stretches. **Space O(1).**"
     }
    ],
    "walk": {
@@ -521,13 +604,13 @@
    "space": "O(1)",
    "idea": [
     {
-     "md": "`last[a|b|c]` start at −1. For each `i`: update `last[s[i]] = i`; add `min(last) + 1`."
+     "md": "Track the last index of each letter (initially −1). At each `i`, update the current letter's last index\nand add `min(last) + 1`.\n\n**Why it's exact.** Substrings ending at `i` with start `≤ min(last)` contain all three letters; any start\nafter `min(last)` misses the letter whose last occurrence is `min(last)`."
     }
    ],
    "build": [
-    "Last positions.",
-    "Count per end.",
-    "Sum."
+    "`last = [−1, −1, −1]`, `total = 0`.",
+    "For each `i`: `last[s[i]] = i`.",
+    "`total += min(last) + 1`."
    ],
    "code": {
     "python": "class Solution:\n    def countFullSets(self, s: str) -> int:\n        last = {\"a\": -1, \"b\": -1, \"c\": -1}\n        total = 0\n        for i, c in enumerate(s):\n            last[c] = i\n            total += min(last.values()) + 1\n        return total\n",
@@ -950,7 +1033,7 @@
  ],
  "takeaways": [
   {
-   "md": "- **Count windows with \"at least one of each\":** for each end, the valid starts are `0..min(last positions)`.\n- Counting per right end is the core of every window-counting problem.\n- Equivalent to a window whose left edge is computed instead of moved."
+   "md": "- **\"At least one of each\" counts:** for every end, valid starts are `0..min(last positions)`.\n- Counting per right end is the backbone of window counting.\n- **Pitfall:** adding `min(last)` instead of `min(last) + 1`."
   }
  ]
 }
