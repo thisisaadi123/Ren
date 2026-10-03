@@ -1,0 +1,875 @@
+{
+ "version": 1,
+ "summary": "Because each row starts after the previous row ends, reading the grid row by row gives **one sorted list** of\nm · n numbers. Binary-search that virtual list, translating an index k into row `k / n`, column `k % n`.\nO(log(m · n)), with no copying.",
+ "question": [
+  {
+   "md": "Each row is sorted, and each row's first number is bigger than the previous row's last. Return true if\n`target` appears. Required: O(log(m · n)).\n\n- **The \"rows continue each other\" rule** is what makes the whole grid one sorted sequence.\n- **Required time O(log(m·n))**, so a row-by-row or staircase scan isn't enough.\n- **Size:** up to 300 × 300."
+  }
+ ],
+ "think": [
+  {
+   "md": "Take this grid and target 18. Read it row by row: `[2, 4, 7, 9, 12, 15, 18, 20, 23, 26, 31, 35]`. That's sorted from start to end, because\nevery row picks up where the previous one stopped."
+  },
+  {
+   "panels": [
+    {
+     "type": "grid",
+     "cells": [
+      [
+       2,
+       4,
+       7,
+       9
+      ],
+      [
+       12,
+       15,
+       18,
+       20
+      ],
+      [
+       23,
+       26,
+       31,
+       35
+      ]
+     ]
+    },
+    {
+     "type": "row",
+     "cells": [
+      2,
+      4,
+      7,
+      9,
+      12,
+      15,
+      18,
+      20,
+      23,
+      26,
+      31,
+      35
+     ],
+     "slots": true
+    }
+   ],
+   "caption": "Row by row, the grid is one sorted list."
+  },
+  {
+   "md": "So binary search applies directly to positions 0 … m·n − 1. We never need to build that list: position k is\nrow `k // n`, column `k % n` (n = 4 columns). For example, position 6 is row 1, column 2, which holds 18."
+  }
+ ],
+ "approaches": [
+  {
+   "title": "Check every seat",
+   "kind": "brute",
+   "time": "O(m · n)",
+   "space": "O(1)",
+   "idea": [
+    {
+     "md": "Compare every cell with the target."
+    }
+   ],
+   "build": [
+    "Loop over all cells; return true on a match.",
+    "Return false."
+   ],
+   "code": {
+    "python": "class Solution:\n    def hasSeat(self, rows: List[List[int]], target: int) -> bool:\n        return any(v == target for row in rows for v in row)\n",
+    "java": "class Solution {\n    public boolean hasSeat(int[][] rows, int target) {\n        for (int[] row : rows) for (int v : row) if (v == target) return true;\n        return false;\n    }\n}\n",
+    "cpp": "class Solution {\npublic:\n    bool hasSeat(vector<vector<int>>& rows, int target) {\n        for (auto& row : rows) for (int v : row) if (v == target) return true;\n        return false;\n    }\n};\n",
+    "c": "bool hasSeat(int** rows, int rowsSize, int* rowsColSize, int target) {\n    for (int r = 0; r < rowsSize; r++)\n        for (int c = 0; c < rowsColSize[r]; c++) if (rows[r][c] == target) return true;\n    return false;\n}\n"
+   },
+   "lines": [
+    {
+     "text": "Every seat.",
+     "at": {
+      "python": [
+       [
+        3,
+        3
+       ]
+      ],
+      "java": [
+       [
+        3,
+        3
+       ]
+      ],
+      "cpp": [
+       [
+        4,
+        4
+       ]
+      ],
+      "c": [
+       [
+        2,
+        3
+       ]
+      ]
+     }
+    },
+    {
+     "text": "Not found.",
+     "at": {
+      "java": [
+       [
+        4,
+        4
+       ]
+      ],
+      "cpp": [
+       [
+        5,
+        5
+       ]
+      ],
+      "c": [
+       [
+        4,
+        4
+       ]
+      ]
+     }
+    }
+   ],
+   "complexity": [
+    {
+     "md": "**Time O(m · n).** **Space O(1).**"
+    }
+   ],
+   "walk": {
+    "steps": [
+     {
+      "text": "Scan row by row, left to right.",
+      "panels": [
+       {
+        "type": "grid",
+        "cells": [
+         [
+          2,
+          4,
+          7,
+          9
+         ],
+         [
+          12,
+          15,
+          18,
+          20
+         ],
+         [
+          23,
+          26,
+          31,
+          35
+         ]
+        ]
+       }
+      ]
+     },
+     {
+      "text": "After 7 checks: found at (1, 2).",
+      "panels": [
+       {
+        "type": "grid",
+        "cells": [
+         [
+          2,
+          4,
+          7,
+          9
+         ],
+         [
+          12,
+          15,
+          18,
+          20
+         ],
+         [
+          23,
+          26,
+          31,
+          35
+         ]
+        ],
+        "states": {
+         "0,0": "dim",
+         "0,1": "dim",
+         "0,2": "dim",
+         "0,3": "dim",
+         "1,0": "dim",
+         "1,1": "dim",
+         "1,2": "answer"
+        }
+       }
+      ],
+      "result": "true"
+     }
+    ],
+    "title": "Check every seat."
+   },
+   "limits": [
+    {
+     "md": "Uses no ordering at all."
+    }
+   ]
+  },
+  {
+   "title": "Staircase from the top-right",
+   "kind": "better",
+   "time": "O(m + n)",
+   "space": "O(1)",
+   "idea": [
+    {
+     "md": "The grid also satisfies the weaker \"rows and columns sorted\" property, so the staircase walk works: bigger → move left, smaller → move down."
+    }
+   ],
+   "build": [
+    "Start at (0, n − 1).",
+    "Bigger → `c −= 1`; smaller → `r += 1`; equal → true.",
+    "Leaving the grid → false."
+   ],
+   "code": {
+    "python": "class Solution:\n    def hasSeat(self, rows: List[List[int]], target: int) -> bool:\n        r, c = 0, len(rows[0]) - 1\n        while r < len(rows) and c >= 0:\n            if rows[r][c] == target:\n                return True\n            if rows[r][c] > target:\n                c -= 1\n            else:\n                r += 1\n        return False\n",
+    "java": "class Solution {\n    public boolean hasSeat(int[][] rows, int target) {\n        int r = 0, c = rows[0].length - 1;\n        while (r < rows.length && c >= 0) {\n            if (rows[r][c] == target) return true;\n            if (rows[r][c] > target) c--; else r++;\n        }\n        return false;\n    }\n}\n",
+    "cpp": "class Solution {\npublic:\n    bool hasSeat(vector<vector<int>>& rows, int target) {\n        int r = 0, c = (int) rows[0].size() - 1;\n        while (r < (int) rows.size() && c >= 0) {\n            if (rows[r][c] == target) return true;\n            if (rows[r][c] > target) c--; else r++;\n        }\n        return false;\n    }\n};\n",
+    "c": "bool hasSeat(int** rows, int rowsSize, int* rowsColSize, int target) {\n    int r = 0, c = rowsColSize[0] - 1;\n    while (r < rowsSize && c >= 0) {\n        if (rows[r][c] == target) return true;\n        if (rows[r][c] > target) c--; else r++;\n    }\n    return false;\n}\n"
+   },
+   "lines": [
+    {
+     "text": "Top-right corner.",
+     "at": {
+      "python": [
+       [
+        3,
+        3
+       ]
+      ],
+      "java": [
+       [
+        3,
+        3
+       ]
+      ],
+      "cpp": [
+       [
+        4,
+        4
+       ]
+      ],
+      "c": [
+       [
+        2,
+        2
+       ]
+      ]
+     }
+    },
+    {
+     "text": "Each comparison rules out a column (too big) or a row (too small).",
+     "at": {
+      "python": [
+       [
+        4,
+        10
+       ]
+      ],
+      "java": [
+       [
+        4,
+        6
+       ]
+      ],
+      "cpp": [
+       [
+        5,
+        7
+       ]
+      ],
+      "c": [
+       [
+        3,
+        5
+       ]
+      ]
+     }
+    },
+    {
+     "text": "Fell off the grid: not present.",
+     "at": {
+      "python": [
+       [
+        11,
+        11
+       ]
+      ],
+      "java": [
+       [
+        8,
+        8
+       ]
+      ],
+      "cpp": [
+       [
+        9,
+        9
+       ]
+      ],
+      "c": [
+       [
+        7,
+        7
+       ]
+      ]
+     }
+    }
+   ],
+   "complexity": [
+    {
+     "md": "**Time O(m + n).** **Space O(1).**"
+    }
+   ],
+   "walk": {
+    "steps": [
+     {
+      "text": "(0, 3) = 9 < 18: everything left of it in row 0 is even smaller, so drop the row.",
+      "panels": [
+       {
+        "type": "grid",
+        "cells": [
+         [
+          2,
+          4,
+          7,
+          9
+         ],
+         [
+          12,
+          15,
+          18,
+          20
+         ],
+         [
+          23,
+          26,
+          31,
+          35
+         ]
+        ],
+        "states": {
+         "0,3": "active"
+        }
+       }
+      ]
+     },
+     {
+      "text": "(1, 3) = 20 > 18: everything below it in column 3 is even bigger, so drop the column.",
+      "panels": [
+       {
+        "type": "grid",
+        "cells": [
+         [
+          2,
+          4,
+          7,
+          9
+         ],
+         [
+          12,
+          15,
+          18,
+          20
+         ],
+         [
+          23,
+          26,
+          31,
+          35
+         ]
+        ],
+        "states": {
+         "0,0": "dim",
+         "0,1": "dim",
+         "0,2": "dim",
+         "0,3": "dim",
+         "1,3": "active"
+        }
+       }
+      ]
+     },
+     {
+      "text": "(1, 2) = 18: found.",
+      "panels": [
+       {
+        "type": "grid",
+        "cells": [
+         [
+          2,
+          4,
+          7,
+          9
+         ],
+         [
+          12,
+          15,
+          18,
+          20
+         ],
+         [
+          23,
+          26,
+          31,
+          35
+         ]
+        ],
+        "states": {
+         "0,0": "dim",
+         "0,1": "dim",
+         "0,2": "dim",
+         "0,3": "dim",
+         "1,3": "dim",
+         "2,3": "dim",
+         "1,2": "answer"
+        }
+       }
+      ],
+      "result": "true"
+     }
+    ],
+    "title": "Staircase from the top-right: bigger → move left, smaller → move down."
+   },
+   "limits": [
+    {
+     "md": "Doesn't use the stronger \"rows continue each other\" property, and O(m + n) misses the required O(log(m·n))."
+    }
+   ]
+  },
+  {
+   "title": "Binary search on the flattened index",
+   "kind": "best",
+   "time": "O(log(m · n))",
+   "space": "O(1)",
+   "idea": [
+    {
+     "md": "Binary-search positions `[0, m·n − 1]`; the value at position k is `rows[k / n][k % n]`."
+    }
+   ],
+   "build": [
+    "`lo = 0`, `hi = m·n − 1`.",
+    "Read `mid`'s value through `mid / n` and `mid % n`.",
+    "Classic binary search."
+   ],
+   "code": {
+    "python": "class Solution:\n    def hasSeat(self, rows: List[List[int]], target: int) -> bool:\n        m, n = len(rows), len(rows[0])\n        lo, hi = 0, m * n - 1\n        while lo <= hi:\n            mid = (lo + hi) // 2\n            v = rows[mid // n][mid % n]\n            if v == target:\n                return True\n            if v < target:\n                lo = mid + 1\n            else:\n                hi = mid - 1\n        return False\n",
+    "java": "class Solution {\n    public boolean hasSeat(int[][] rows, int target) {\n        int m = rows.length, n = rows[0].length;\n        int lo = 0, hi = m * n - 1;\n        while (lo <= hi) {\n            int mid = lo + (hi - lo) / 2;\n            int v = rows[mid / n][mid % n];\n            if (v == target) return true;\n            if (v < target) lo = mid + 1; else hi = mid - 1;\n        }\n        return false;\n    }\n}\n",
+    "cpp": "class Solution {\npublic:\n    bool hasSeat(vector<vector<int>>& rows, int target) {\n        int m = rows.size(), n = rows[0].size();\n        int lo = 0, hi = m * n - 1;\n        while (lo <= hi) {\n            int mid = lo + (hi - lo) / 2;\n            int v = rows[mid / n][mid % n];\n            if (v == target) return true;\n            if (v < target) lo = mid + 1; else hi = mid - 1;\n        }\n        return false;\n    }\n};\n",
+    "c": "bool hasSeat(int** rows, int rowsSize, int* rowsColSize, int target) {\n    int m = rowsSize, n = rowsColSize[0];\n    int lo = 0, hi = m * n - 1;\n    while (lo <= hi) {\n        int mid = lo + (hi - lo) / 2;\n        int v = rows[mid / n][mid % n];\n        if (v == target) return true;\n        if (v < target) lo = mid + 1; else hi = mid - 1;\n    }\n    return false;\n}\n"
+   },
+   "lines": [
+    {
+     "text": "m rows of n seats.",
+     "at": {
+      "python": [
+       [
+        3,
+        3
+       ]
+      ],
+      "java": [
+       [
+        3,
+        3
+       ]
+      ],
+      "cpp": [
+       [
+        4,
+        4
+       ]
+      ],
+      "c": [
+       [
+        2,
+        2
+       ]
+      ]
+     }
+    },
+    {
+     "text": "Positions of the virtual sorted list.",
+     "at": {
+      "python": [
+       [
+        4,
+        4
+       ]
+      ],
+      "java": [
+       [
+        4,
+        4
+       ]
+      ],
+      "cpp": [
+       [
+        5,
+        5
+       ]
+      ],
+      "c": [
+       [
+        3,
+        3
+       ]
+      ]
+     }
+    },
+    {
+     "text": "Classic binary search loop.",
+     "at": {
+      "python": [
+       [
+        5,
+        6
+       ]
+      ],
+      "java": [
+       [
+        5,
+        6
+       ]
+      ],
+      "cpp": [
+       [
+        6,
+        7
+       ]
+      ],
+      "c": [
+       [
+        4,
+        5
+       ]
+      ]
+     }
+    },
+    {
+     "text": "Position → (row, column): `k / n` full rows come before it, and it's `k % n` seats into its row.",
+     "at": {
+      "python": [
+       [
+        7,
+        7
+       ]
+      ],
+      "java": [
+       [
+        7,
+        7
+       ]
+      ],
+      "cpp": [
+       [
+        8,
+        8
+       ]
+      ],
+      "c": [
+       [
+        6,
+        6
+       ]
+      ]
+     }
+    },
+    {
+     "text": "Compare and halve.",
+     "at": {
+      "python": [
+       [
+        8,
+        13
+       ]
+      ],
+      "java": [
+       [
+        8,
+        9
+       ]
+      ],
+      "cpp": [
+       [
+        9,
+        10
+       ]
+      ],
+      "c": [
+       [
+        7,
+        8
+       ]
+      ]
+     }
+    },
+    {
+     "text": "Not in the grid.",
+     "at": {
+      "python": [
+       [
+        14,
+        14
+       ]
+      ],
+      "java": [
+       [
+        11,
+        11
+       ]
+      ],
+      "cpp": [
+       [
+        12,
+        12
+       ]
+      ],
+      "c": [
+       [
+        10,
+        10
+       ]
+      ]
+     }
+    }
+   ],
+   "complexity": [
+    {
+     "md": "**Time O(log(m · n)):** about 17 steps for 300 × 300. **Space O(1).**"
+    }
+   ],
+   "walk": {
+    "steps": [
+     {
+      "text": "Flattened: [2, 4, 7, 9, 12, 15, 18, 20, 23, 26, 31, 35].",
+      "panels": [
+       {
+        "type": "row",
+        "cells": [
+         2,
+         4,
+         7,
+         9,
+         12,
+         15,
+         18,
+         20,
+         23,
+         26,
+         31,
+         35
+        ],
+        "slots": true
+       }
+      ]
+     },
+     {
+      "text": "lo=0, hi=11, mid=5 → row 1, column 1: 15 < target → right.",
+      "panels": [
+       {
+        "type": "row",
+        "cells": [
+         2,
+         4,
+         7,
+         9,
+         12,
+         15,
+         18,
+         20,
+         23,
+         26,
+         31,
+         35
+        ],
+        "states": {
+         "5": "active"
+        },
+        "pointers": {
+         "lo": 0,
+         "mid": 5,
+         "hi": 11
+        },
+        "slots": true
+       },
+       {
+        "type": "grid",
+        "cells": [
+         [
+          2,
+          4,
+          7,
+          9
+         ],
+         [
+          12,
+          15,
+          18,
+          20
+         ],
+         [
+          23,
+          26,
+          31,
+          35
+         ]
+        ],
+        "states": {
+         "1,1": "active"
+        }
+       }
+      ]
+     },
+     {
+      "text": "lo=6, hi=11, mid=8 → row 2, column 0: 23 > target → left.",
+      "panels": [
+       {
+        "type": "row",
+        "cells": [
+         2,
+         4,
+         7,
+         9,
+         12,
+         15,
+         18,
+         20,
+         23,
+         26,
+         31,
+         35
+        ],
+        "states": {
+         "0": "dim",
+         "1": "dim",
+         "2": "dim",
+         "3": "dim",
+         "4": "dim",
+         "5": "dim",
+         "8": "active"
+        },
+        "pointers": {
+         "lo": 6,
+         "mid": 8,
+         "hi": 11
+        },
+        "slots": true
+       },
+       {
+        "type": "grid",
+        "cells": [
+         [
+          2,
+          4,
+          7,
+          9
+         ],
+         [
+          12,
+          15,
+          18,
+          20
+         ],
+         [
+          23,
+          26,
+          31,
+          35
+         ]
+        ],
+        "states": {
+         "2,0": "active"
+        }
+       }
+      ]
+     },
+     {
+      "text": "lo=6, hi=7, mid=6 → row 1, column 2: 18 = target.",
+      "panels": [
+       {
+        "type": "row",
+        "cells": [
+         2,
+         4,
+         7,
+         9,
+         12,
+         15,
+         18,
+         20,
+         23,
+         26,
+         31,
+         35
+        ],
+        "states": {
+         "0": "dim",
+         "1": "dim",
+         "2": "dim",
+         "3": "dim",
+         "4": "dim",
+         "5": "dim",
+         "8": "dim",
+         "9": "dim",
+         "10": "dim",
+         "11": "dim",
+         "6": "answer"
+        },
+        "pointers": {
+         "lo": 6,
+         "mid": 6,
+         "hi": 7
+        },
+        "slots": true
+       },
+       {
+        "type": "grid",
+        "cells": [
+         [
+          2,
+          4,
+          7,
+          9
+         ],
+         [
+          12,
+          15,
+          18,
+          20
+         ],
+         [
+          23,
+          26,
+          31,
+          35
+         ]
+        ],
+        "states": {
+         "1,2": "answer"
+        }
+       }
+      ],
+      "result": "true"
+     }
+    ],
+    "title": "Read the grid as one sorted list of m·n seats: index k is row k // n, column k % n. Binary-search k."
+   }
+  }
+ ],
+ "takeaways": [
+  {
+   "md": "- A grid whose rows continue each other is a sorted list in disguise: index k ↔ `(k / n, k % n)`.\n- Translate indices instead of copying data.\n- Compare with **Staircase Search**, where rows only satisfy the weaker property and O(m + n) is the best."
+  }
+ ]
+}
