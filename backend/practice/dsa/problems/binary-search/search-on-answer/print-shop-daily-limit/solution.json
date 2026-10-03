@@ -1,0 +1,562 @@
+{
+ "version": 1,
+ "summary": "For a given daily limit, the fewest days needed is found greedily: keep adding jobs to today until the next one\ndoesn't fit. A higher limit never needs more days, so binary-search the limit between the largest job and the\ntotal page count: O(n log(sum)).",
+ "question": [
+  {
+   "md": "Jobs print in order, whole jobs only. With one fixed daily page limit, the shop prints as many whole jobs as fit\neach day. Return the smallest limit that finishes all jobs within `days` days.\n\n- **Order is fixed and jobs can't split:** each day prints a contiguous block of jobs.\n- **The limit must be at least the largest job**, or that job can never print.\n- **The limit never needs to exceed the total**, which prints everything in one day."
+  }
+ ],
+ "think": [
+  {
+   "md": "Take jobs `[4, 2, 7, 3, 5, 6, 1]` and 3 days. With limit 10 the days go 4+2 | 7+3 | 5 | 6+1: 4 days, too many. With limit\n12: 4+2 | 7+3 | 5+6+1 (3 days), which fits."
+  },
+  {
+   "panels": [
+    {
+     "type": "row",
+     "cells": [
+      4,
+      2,
+      7,
+      3,
+      5,
+      6,
+      1
+     ],
+     "slots": true
+    }
+   ],
+   "caption": "Each day prints a run of consecutive jobs up to the limit."
+  },
+  {
+   "md": "**Checking one limit is easy:** fill each day greedily; when the next job doesn't fit, start a new day. Packing\nas much as possible into each day can only reduce the number of days, so greedy gives the minimum days for that\nlimit.\n\n**Choosing the limit is the search:** days needed never increase as the limit grows. So \"limit L finishes in\ntime\" is false, then true, and binary search finds the first true."
+  }
+ ],
+ "approaches": [
+  {
+   "title": "Try limits upward",
+   "kind": "brute",
+   "time": "O(sum · n)",
+   "space": "O(1)",
+   "idea": [
+    {
+     "md": "Start at the largest job and raise the limit by 1 until the greedy day count fits."
+    }
+   ],
+   "build": [
+    "Write `daysNeeded(limit)` (greedy).",
+    "For L from max(pages) upward, return the first L with `daysNeeded(L) ≤ days`."
+   ],
+   "code": {
+    "python": "class Solution:\n    def minDailyLimit(self, pages: List[int], days: int) -> int:\n        def days_needed(limit):\n            used, load = 1, 0\n            for p in pages:\n                if load + p > limit:\n                    used += 1\n                    load = 0\n                load += p\n            return used\n        limit = max(pages)\n        while days_needed(limit) > days:\n            limit += 1\n        return limit\n",
+    "java": "class Solution {\n    public int minDailyLimit(int[] pages, int days) {\n        int limit = 0;\n        for (int p : pages) limit = Math.max(limit, p);\n        while (daysNeeded(pages, limit) > days) limit++;\n        return limit;\n    }\n\n    private int daysNeeded(int[] pages, int limit) {\n        int used = 1, load = 0;\n        for (int p : pages) {\n            if (load + p > limit) { used++; load = 0; }\n            load += p;\n        }\n        return used;\n    }\n}\n",
+    "cpp": "class Solution {\npublic:\n    int minDailyLimit(vector<int>& pages, int days) {\n        auto daysNeeded = [&](int limit) {\n            int used = 1, load = 0;\n            for (int p : pages) {\n                if (load + p > limit) { used++; load = 0; }\n                load += p;\n            }\n            return used;\n        };\n        int limit = *max_element(pages.begin(), pages.end());\n        while (daysNeeded(limit) > days) limit++;\n        return limit;\n    }\n};\n",
+    "c": "static int daysNeeded(const int* pages, int n, int limit) {\n    int used = 1, load = 0;\n    for (int i = 0; i < n; i++) {\n        if (load + pages[i] > limit) { used++; load = 0; }\n        load += pages[i];\n    }\n    return used;\n}\n\nint minDailyLimit(int* pages, int pagesSize, int days) {\n    int limit = 0;\n    for (int i = 0; i < pagesSize; i++) if (pages[i] > limit) limit = pages[i];\n    while (daysNeeded(pages, pagesSize, limit) > days) limit++;\n    return limit;\n}\n"
+   },
+   "lines": [
+    {
+     "text": "Fewest days for a given limit: keep adding jobs to today; when the next job would overflow, start a new day. (Totals stay ≤ 2.5 × 10⁷, fine for `int`.)",
+     "at": {
+      "python": [
+       [
+        3,
+        10
+       ]
+      ],
+      "java": [
+       [
+        9,
+        16
+       ]
+      ],
+      "cpp": [
+       [
+        4,
+        11
+       ]
+      ],
+      "c": [
+       [
+        1,
+        8
+       ]
+      ]
+     }
+    },
+    {
+     "text": "Start at the largest job (smaller limits can't work) and step up.",
+     "at": {
+      "python": [
+       [
+        11,
+        13
+       ]
+      ],
+      "java": [
+       [
+        3,
+        5
+       ]
+      ],
+      "cpp": [
+       [
+        12,
+        13
+       ]
+      ],
+      "c": [
+       [
+        11,
+        13
+       ]
+      ]
+     }
+    },
+    {
+     "text": "The first limit that fits.",
+     "at": {
+      "python": [
+       [
+        14,
+        14
+       ]
+      ],
+      "java": [
+       [
+        6,
+        6
+       ]
+      ],
+      "cpp": [
+       [
+        14,
+        14
+       ]
+      ],
+      "c": [
+       [
+        14,
+        14
+       ]
+      ]
+     }
+    }
+   ],
+   "complexity": [
+    {
+     "md": "**Time O(sum · n):** up to 2.5 × 10⁷ limits × 5 × 10⁴ jobs. **Space O(1).**"
+    }
+   ],
+   "walk": {
+    "steps": [
+     {
+      "text": "Limit 7: needs 5 days > 3.",
+      "panels": [
+       {
+        "type": "row",
+        "cells": [
+         4,
+         2,
+         7,
+         3,
+         5,
+         6,
+         1
+        ],
+        "slots": true
+       },
+       {
+        "type": "vars",
+        "items": {
+         "limit": 7,
+         "days": 5
+        }
+       }
+      ]
+     },
+     {
+      "text": "Limit 8: needs 4 days > 3.",
+      "panels": [
+       {
+        "type": "row",
+        "cells": [
+         4,
+         2,
+         7,
+         3,
+         5,
+         6,
+         1
+        ],
+        "slots": true
+       },
+       {
+        "type": "vars",
+        "items": {
+         "limit": 8,
+         "days": 4
+        }
+       }
+      ]
+     },
+     {
+      "text": "Limit 9: needs 4 days > 3.",
+      "panels": [
+       {
+        "type": "row",
+        "cells": [
+         4,
+         2,
+         7,
+         3,
+         5,
+         6,
+         1
+        ],
+        "slots": true
+       },
+       {
+        "type": "vars",
+        "items": {
+         "limit": 9,
+         "days": 4
+        }
+       }
+      ]
+     },
+     {
+      "text": "Limit 10: needs 4 days > 3.",
+      "panels": [
+       {
+        "type": "row",
+        "cells": [
+         4,
+         2,
+         7,
+         3,
+         5,
+         6,
+         1
+        ],
+        "slots": true
+       },
+       {
+        "type": "vars",
+        "items": {
+         "limit": 10,
+         "days": 4
+        }
+       }
+      ]
+     },
+     {
+      "text": "Limit 11: needs 4 days > 3.",
+      "panels": [
+       {
+        "type": "row",
+        "cells": [
+         4,
+         2,
+         7,
+         3,
+         5,
+         6,
+         1
+        ],
+        "slots": true
+       },
+       {
+        "type": "vars",
+        "items": {
+         "limit": 11,
+         "days": 4
+        }
+       }
+      ]
+     },
+     {
+      "text": "Limit 12: needs 3 days ≤ 3. Done.",
+      "panels": [
+       {
+        "type": "row",
+        "cells": [
+         4,
+         2,
+         7,
+         3,
+         5,
+         6,
+         1
+        ],
+        "slots": true
+       },
+       {
+        "type": "vars",
+        "items": {
+         "limit": 12,
+         "days": 3
+        }
+       }
+      ],
+      "result": "12"
+     }
+    ],
+    "title": "Try limits from the largest job upward until the jobs fit in the days."
+   },
+   "limits": [
+    {
+     "md": "Steps the limit one page at a time, although days needed only decrease as the limit rises."
+    }
+   ],
+   "slow": true
+  },
+  {
+   "title": "Binary search on the limit",
+   "kind": "best",
+   "time": "O(n log(sum))",
+   "space": "O(1)",
+   "idea": [
+    {
+     "md": "`lo = max(pages)`, `hi = sum(pages)`. If `daysNeeded(mid) ≤ days`, `hi = mid`; else `lo = mid + 1`. Return `lo`."
+    }
+   ],
+   "build": [
+    "Range `[max(pages), sum(pages)]`.",
+    "Greedy day count for mid.",
+    "Lower-bound search for the first limit that fits."
+   ],
+   "code": {
+    "python": "class Solution:\n    def minDailyLimit(self, pages: List[int], days: int) -> int:\n        def days_needed(limit):\n            used, load = 1, 0\n            for p in pages:\n                if load + p > limit:\n                    used += 1\n                    load = 0\n                load += p\n            return used\n        lo, hi = max(pages), sum(pages)\n        while lo < hi:\n            mid = (lo + hi) // 2\n            if days_needed(mid) <= days:\n                hi = mid\n            else:\n                lo = mid + 1\n        return lo\n",
+    "java": "class Solution {\n    public int minDailyLimit(int[] pages, int days) {\n        int lo = 0, hi = 0;\n        for (int p : pages) { lo = Math.max(lo, p); hi += p; }\n        while (lo < hi) {\n            int mid = lo + (hi - lo) / 2;\n            if (daysNeeded(pages, mid) <= days) hi = mid;\n            else lo = mid + 1;\n        }\n        return lo;\n    }\n\n    private int daysNeeded(int[] pages, int limit) {\n        int used = 1, load = 0;\n        for (int p : pages) {\n            if (load + p > limit) { used++; load = 0; }\n            load += p;\n        }\n        return used;\n    }\n}\n",
+    "cpp": "class Solution {\npublic:\n    int minDailyLimit(vector<int>& pages, int days) {\n        auto daysNeeded = [&](int limit) {\n            int used = 1, load = 0;\n            for (int p : pages) {\n                if (load + p > limit) { used++; load = 0; }\n                load += p;\n            }\n            return used;\n        };\n        int lo = *max_element(pages.begin(), pages.end());\n        int hi = accumulate(pages.begin(), pages.end(), 0);\n        while (lo < hi) {\n            int mid = lo + (hi - lo) / 2;\n            if (daysNeeded(mid) <= days) hi = mid;\n            else lo = mid + 1;\n        }\n        return lo;\n    }\n};\n",
+    "c": "static int daysNeeded(const int* pages, int n, int limit) {\n    int used = 1, load = 0;\n    for (int i = 0; i < n; i++) {\n        if (load + pages[i] > limit) { used++; load = 0; }\n        load += pages[i];\n    }\n    return used;\n}\n\nint minDailyLimit(int* pages, int pagesSize, int days) {\n    int lo = 0, hi = 0;\n    for (int i = 0; i < pagesSize; i++) { if (pages[i] > lo) lo = pages[i]; hi += pages[i]; }\n    while (lo < hi) {\n        int mid = lo + (hi - lo) / 2;\n        if (daysNeeded(pages, pagesSize, mid) <= days) hi = mid;\n        else lo = mid + 1;\n    }\n    return lo;\n}\n"
+   },
+   "lines": [
+    {
+     "text": "Greedy packing gives the fewest days for a limit.",
+     "at": {
+      "python": [
+       [
+        3,
+        10
+       ]
+      ],
+      "java": [
+       [
+        13,
+        20
+       ]
+      ],
+      "cpp": [
+       [
+        4,
+        11
+       ]
+      ],
+      "c": [
+       [
+        1,
+        8
+       ]
+      ]
+     }
+    },
+    {
+     "text": "The answer is at least the largest job and at most the sum (everything in one day).",
+     "at": {
+      "python": [
+       [
+        11,
+        11
+       ]
+      ],
+      "java": [
+       [
+        3,
+        4
+       ]
+      ],
+      "cpp": [
+       [
+        12,
+        13
+       ]
+      ],
+      "c": [
+       [
+        11,
+        12
+       ]
+      ]
+     }
+    },
+    {
+     "text": "Halve the limit range.",
+     "at": {
+      "python": [
+       [
+        12,
+        13
+       ]
+      ],
+      "java": [
+       [
+        5,
+        6
+       ]
+      ],
+      "cpp": [
+       [
+        14,
+        15
+       ]
+      ],
+      "c": [
+       [
+        13,
+        14
+       ]
+      ]
+     }
+    },
+    {
+     "text": "Fits within the days → mid or less might work; otherwise more is needed.",
+     "at": {
+      "python": [
+       [
+        14,
+        17
+       ]
+      ],
+      "java": [
+       [
+        7,
+        8
+       ]
+      ],
+      "cpp": [
+       [
+        16,
+        17
+       ]
+      ],
+      "c": [
+       [
+        15,
+        16
+       ]
+      ]
+     }
+    },
+    {
+     "text": "The smallest workable limit.",
+     "at": {
+      "python": [
+       [
+        18,
+        18
+       ]
+      ],
+      "java": [
+       [
+        10,
+        10
+       ]
+      ],
+      "cpp": [
+       [
+        19,
+        19
+       ]
+      ],
+      "c": [
+       [
+        18,
+        18
+       ]
+      ]
+     }
+    }
+   ],
+   "complexity": [
+    {
+     "md": "**Time O(n log(sum)):** about 25 greedy passes. **Space O(1).**"
+    }
+   ],
+   "walk": {
+    "steps": [
+     {
+      "text": "lo=7, hi=28, try 17: days 4+2+7+3 | 5+6+1 (2 days) → works, so the answer is ≤ 17.",
+      "panels": [
+       {
+        "type": "vars",
+        "items": {
+         "lo": 7,
+         "mid": 17,
+         "hi": 28
+        }
+       }
+      ]
+     },
+     {
+      "text": "lo=7, hi=17, try 12: days 4+2 | 7+3 | 5+6+1 (3 days) → works, so the answer is ≤ 12.",
+      "panels": [
+       {
+        "type": "vars",
+        "items": {
+         "lo": 7,
+         "mid": 12,
+         "hi": 17
+        }
+       }
+      ]
+     },
+     {
+      "text": "lo=7, hi=12, try 9: days 4+2 | 7 | 3+5 | 6+1 (4 days) → fails, so the answer is > 9.",
+      "panels": [
+       {
+        "type": "vars",
+        "items": {
+         "lo": 7,
+         "mid": 9,
+         "hi": 12
+        }
+       }
+      ]
+     },
+     {
+      "text": "lo=10, hi=12, try 11: days 4+2 | 7+3 | 5+6 | 1 (4 days) → fails, so the answer is > 11.",
+      "panels": [
+       {
+        "type": "vars",
+        "items": {
+         "lo": 10,
+         "mid": 11,
+         "hi": 12
+        }
+       }
+      ]
+     },
+     {
+      "text": "Smallest limit: 12.",
+      "panels": [
+       {
+        "type": "vars",
+        "items": {
+         "limit": 12
+        }
+       }
+      ],
+      "result": "12"
+     }
+    ],
+    "title": "Binary-search the limit in [largest job, all pages]: a bigger limit never needs more days."
+   }
+  }
+ ],
+ "takeaways": [
+  {
+   "md": "- **Split an array into at most k contiguous parts minimising the largest part sum**: binary-search the largest\n  sum, check with a greedy fill.\n- Range: from the largest single item to the total."
+  }
+ ]
+}

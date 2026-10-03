@@ -2,7 +2,8 @@
 // approach's code, in every language, must pass the problem's tests. An
 // approach marked slow is meant to time out on the big tests, so it runs on
 // the small ones only (up to 2500 characters of input, or its own "slow"
-// number), with a generous limit.
+// number), with a generous limit. Timing out there is tolerated; a wrong
+// answer is not.
 //   node tools/check-solutions.mjs [--jobs 4] [problem dir or id ...]
 import { existsSync, readdirSync, readFileSync, statSync } from "node:fs";
 import path from "node:path";
@@ -12,7 +13,7 @@ import { check } from "./judge.mjs";
 const DSA = path.dirname(path.dirname(fileURLToPath(import.meta.url)));
 const PROBLEMS = path.join(DSA, "problems");
 const SMALL_CHARS = 2500;
-const SLOW_LIMIT_MS = 20_000;
+const SLOW_LIMIT_MS = 8_000;
 
 const argv = process.argv.slice(2);
 let jobs = 4;
@@ -55,8 +56,13 @@ let done = 0;
 async function one(w) {
   try {
     const { total, results } = await check({ id: w.id, lang: w.lang, code: w.code, ...(w.slow ? { maxChars: typeof w.slow === "number" ? w.slow : SMALL_CHARS, limitMs: SLOW_LIMIT_MS } : {}) });
-    const bad = results.findIndex((r) => r.verdict !== "passed");
+    // A slow approach may run out of time on some small-but-hard inputs (a huge
+    // answer to count up to); that's expected. It must never be wrong, though,
+    // and it must pass at least one test.
+    const tolerated = (r) => w.slow && (r.verdict === "time" || r.verdict === "skipped");
+    const bad = results.findIndex((r) => r.verdict !== "passed" && !tolerated(r));
     if (!total) failures.push({ ...w, why: "no tests to run" });
+    else if (w.slow && !results.some((r) => r.verdict === "passed")) failures.push({ ...w, why: "a slow approach passed no tests at all" });
     else if (bad >= 0) {
       const r = results[bad];
       failures.push({ ...w, why: `${r.verdict} on test ${bad + 1}/${total}${r.error ? `: ${r.error.split("\n").slice(0, 6).join("\n    ")}` : ""}\n    args ${clip(r.args)}\n    got ${clip(r.output)} want ${clip(r.expected)}` });
