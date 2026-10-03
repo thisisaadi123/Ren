@@ -4,70 +4,116 @@
  "question": [
   {
    "md": "Replace every pixel by the average (rounded down) of the pixels in the 3 × 3 block centred on it,\ncounting only pixels inside the photo.\n\n- **Different pixels average different counts:** a corner averages 4 pixels, an edge pixel 6, an inner\n  pixel 9. A 1 × 1 photo averages just itself.\n- **All averages use the original values**, never already-softened neighbours.\n- **Rounded down:** integer division.\n- **Values 0 … 255** fit in 8 bits, leaving plenty of spare bits in an `int`."
+  },
+  {
+   "md": "**Edge cases to keep in mind**\n\n- Edge pixels average fewer than 9 values (6 on an edge, 4 in a corner).\n- The average is rounded down.\n- A single pixel stays the same."
   }
  ],
  "think": [
   {
-   "md": "Take a 3 × 3 photo with a bright centre (250). The centre averages all 9 pixels: 650 / 9 → 72. The corner\n(0, 0) averages only its 4-pixel block: 10 + 20 + 40 + 250 = 320, 320 / 4 = 80."
+   "md": "**Simultaneous updates.** Every cell's new value must be computed from the **old** values of its neighbours. Writing\nnew values straight into the grid breaks that: a neighbour processed later would read an already-updated cell. The\neasy fix is a copy of the grid. The in-place fix is to store **both** the old and the new value in the same cell, using\nspare bits:\n\n- old value in the low bits (read with a mask, `x & 1` or `x & 255`);\n- new value in the higher bits (written with `|=` and a shift);\n- one final pass shifts every cell right, keeping only the new value."
   },
   {
-   "panels": [
-    {
-     "type": "grid",
-     "cells": [
-      [
-       10,
-       20,
-       30
-      ],
-      [
-       40,
-       250,
-       60
-      ],
-      [
-       70,
-       80,
-       90
-      ]
-     ],
-     "states": {
-      "0,0": "active",
-      "0,1": "mark",
-      "1,0": "mark",
-      "1,1": "mark"
-     },
-     "label": "original"
-    },
-    {
-     "type": "grid",
-     "cells": [
-      [
-       80,
-       68,
-       90
-      ],
-      [
-       78,
-       72,
-       88
-      ],
-      [
-       110,
-       98,
-       120
-      ]
-     ],
-     "states": {
-      "0,0": "answer"
-     },
-     "label": "softened"
-    }
-   ],
-   "caption": "The corner's block has 4 pixels; the centre's has 9."
+   "md": "**The photo:**"
   },
   {
-   "md": "If you overwrote pixels as you go, the next pixel's block would include a softened value, which is\nwrong. So, as with any \"simultaneous\" grid update, either read from a copy, or keep the original value\nrecoverable inside the cell (`value & 255`) while the new one sits in higher bits (`value >> 8`)."
+   "table": {
+    "head": [
+     "r \\ c",
+     "0",
+     "1",
+     "2"
+    ],
+    "rows": [
+     [
+      "0",
+      "10",
+      "20",
+      "30"
+     ],
+     [
+      "1",
+      "40",
+      "250",
+      "60"
+     ],
+     [
+      "2",
+      "70",
+      "80",
+      "90"
+     ]
+    ]
+   }
+  },
+  {
+   "md": "**Each pixel's block (sum / count):**"
+  },
+  {
+   "table": {
+    "head": [
+     "r \\ c",
+     "0",
+     "1",
+     "2"
+    ],
+    "rows": [
+     [
+      "0",
+      "320 / 4",
+      "410 / 6",
+      "360 / 4"
+     ],
+     [
+      "1",
+      "470 / 6",
+      "650 / 9",
+      "530 / 6"
+     ],
+     [
+      "2",
+      "440 / 4",
+      "590 / 6",
+      "480 / 4"
+     ]
+    ]
+   }
+  },
+  {
+   "md": "**Softened (rounded down):**"
+  },
+  {
+   "table": {
+    "head": [
+     "r \\ c",
+     "0",
+     "1",
+     "2"
+    ],
+    "rows": [
+     [
+      "0",
+      "80",
+      "68",
+      "90"
+     ],
+     [
+      "1",
+      "78",
+      "72",
+      "88"
+     ],
+     [
+      "2",
+      "110",
+      "98",
+      "120"
+     ]
+    ]
+   }
+  },
+  {
+   "md": "**Why 8 bits are enough.** Values are 0 … 255, so they fit in the low 8 bits; the average does too, so it can be\nstored in bits 8 … 15 (`|= avg << 8`) while the old value stays readable as `x & 255`."
   }
  ],
  "approaches": [
@@ -78,14 +124,12 @@
    "space": "O(m · n)",
    "idea": [
     {
-     "md": "Keep the original photo untouched and write each average into a new grid. For every pixel, add up the in-bounds block and divide by how many pixels it had."
+     "md": "Compute every pixel's average from the original image into a new grid."
     }
    ],
    "build": [
-    "Make an output grid.",
-    "For each pixel, sum the original values in rows r−1 … r+1 and columns c−1 … c+1 that are inside the photo, counting them.",
-    "Store `sum // count`.",
-    "Return the output grid."
+    "New grid.",
+    "Average each 3 × 3 block (clipped at the edges)."
    ],
    "code": {
     "python": "class Solution:\n    def soften(self, image: List[List[int]]) -> List[List[int]]:\n        m, n = len(image), len(image[0])\n        out = [[0] * n for _ in range(m)]\n        for r in range(m):\n            for c in range(n):\n                total = count = 0\n                for rr in range(max(0, r - 1), min(m, r + 2)):\n                    for cc in range(max(0, c - 1), min(n, c + 2)):\n                        total += image[rr][cc]\n                        count += 1\n                out[r][c] = total // count\n        return out\n",
@@ -245,7 +289,7 @@
    ],
    "complexity": [
     {
-     "md": "**Time O(m · n):** at most 9 reads per pixel. **Space O(m · n)** for the output grid."
+     "md": "**Time O(m · n)** (at most 9 values each). **Space O(m · n)** for the output."
     }
    ],
    "walk": {
@@ -417,7 +461,7 @@
    },
    "limits": [
     {
-     "md": "A whole second grid, while each pixel uses only 8 of its cell's 32 bits. The new value fits in the spare bits."
+     "md": "Allocates a second grid. The unused high bits of each pixel can hold the new value."
     }
    ]
   },
@@ -428,14 +472,13 @@
    "space": "O(1)",
    "idea": [
     {
-     "md": "A pixel value fits in bits 0 … 7. During one pass, read neighbours as `value & 255` (only the\noriginal bits) and store each average in bits 8 … 15 with `value |= avg << 8`. Reads never see\nthe stored averages. A second pass `value >>= 8` keeps only the new values."
+     "md": "Pass 1: for each pixel, average the old values (`& 255`) of its block and store the result in bits 8 … 15.\nPass 2: shift every pixel right by 8.\n\n**Why the averages use old values.** Writing to bits 8 … 15 never changes bits 0 … 7, and every read masks\nwith 255."
     }
    ],
    "build": [
-    "For each pixel, sum `image[rr][cc] & 255` over its clipped block, and count the pixels.",
-    "`image[r][c] |= (total / count) << 8`.",
-    "Afterwards shift every cell right by 8.",
-    "Return the image."
+    "Average old values (`& 255`).",
+    "Store in the high byte.",
+    "Shift right by 8."
    ],
    "code": {
     "python": "class Solution:\n    def soften(self, image: List[List[int]]) -> List[List[int]]:\n        m, n = len(image), len(image[0])\n        for r in range(m):\n            for c in range(n):\n                total = count = 0\n                for rr in range(max(0, r - 1), min(m, r + 2)):\n                    for cc in range(max(0, c - 1), min(n, c + 2)):\n                        total += image[rr][cc] & 255\n                        count += 1\n                image[r][c] |= (total // count) << 8\n        for row in image:\n            for c in range(n):\n                row[c] >>= 8\n        return image\n",
@@ -595,7 +638,7 @@
    ],
    "complexity": [
     {
-     "md": "**Time O(m · n).** **Space O(1)** extra."
+     "md": "**Time O(m · n).** **Space O(1).**"
     }
    ],
    "walk": {
@@ -660,7 +703,7 @@
  ],
  "takeaways": [
   {
-   "md": "- Simultaneous grid updates: read old, write new. A copy is easiest; packing old and new into one cell\n  saves the memory.\n- `& mask` reads the old bits, `<< k` stores the new value above them, `>> k` finishes the job.\n- At borders, count how many cells you actually averaged; don't divide by 9 blindly."
+   "md": "- **Image filters in place:** pack the new value into unused high bits, then shift.\n- Clip the 3 × 3 block at the borders and divide by the real count.\n- **Pitfall:** reading neighbours without the mask after some cells already hold packed values."
   }
  ]
 }

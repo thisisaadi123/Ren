@@ -4,78 +4,190 @@
  "question": [
   {
    "md": "Apply one generation of the rules to a grid of 0s (empty) and 1s (alive). Each cell looks at its up to 8\nneighbours (including diagonals):\n\n- **Alive** with 2 or 3 living neighbours: stays alive. Fewer than 2 or more than 3: dies.\n- **Empty** with exactly 3 living neighbours: becomes alive.\n\n- **All cells change at the same moment**, based on the old board. This is the whole difficulty.\n- **Edges and corners** simply have fewer neighbours (5 or 3); nothing wraps around.\n- **Size:** up to 200 × 200, so the work is tiny; the interesting constraint is \"without a second grid\"."
+  },
+  {
+   "md": "**Edge cases to keep in mind**\n\n- Border and corner cells have fewer than eight neighbours.\n- A 1 × 1 board: the single cell has no neighbours, so a living cell dies.\n- All updates are simultaneous: births and deaths must not affect each other's counts."
   }
  ],
  "think": [
   {
-   "md": "Take this 4 × 4 board. Cell (2, 1) is alive with 3 living neighbours, so it survives; cell (1, 0) is empty\nwith 3 living neighbours, so it's born."
+   "md": "**Simultaneous updates.** Every cell's new value must be computed from the **old** values of its neighbours. Writing\nnew values straight into the grid breaks that: a neighbour processed later would read an already-updated cell. The\neasy fix is a copy of the grid. The in-place fix is to store **both** the old and the new value in the same cell, using\nspare bits:\n\n- old value in the low bits (read with a mask, `x & 1` or `x & 255`);\n- new value in the higher bits (written with `|=` and a shift);\n- one final pass shifts every cell right, keeping only the new value."
   },
   {
-   "panels": [
-    {
-     "type": "grid",
-     "cells": [
-      [
-       0,
-       1,
-       0,
-       0
-      ],
-      [
-       0,
-       0,
-       1,
-       0
-      ],
-      [
-       1,
-       1,
-       1,
-       0
-      ],
-      [
-       0,
-       0,
-       0,
-       0
-      ]
-     ],
-     "label": "now"
-    },
-    {
-     "type": "grid",
-     "cells": [
-      [
-       0,
-       0,
-       0,
-       0
-      ],
-      [
-       1,
-       0,
-       1,
-       0
-      ],
-      [
-       0,
-       1,
-       1,
-       0
-      ],
-      [
-       0,
-       1,
-       0,
-       0
-      ]
-     ],
-     "label": "one generation later"
-    }
-   ]
+   "md": "**The board:**"
   },
   {
-   "md": "Now try updating **in place**, row by row. When you reach cell (1, 0) you'll count its neighbours, but\nrow 0 has already been rewritten: (0, 1) just died, so you'd count 2 instead of 3 and wrongly leave\n(1, 0) empty. Each cell's new value must come from neighbours' **old** values.\n\nTwo ways to keep the old values available:\n\n1. Read from a **copy** of the board.\n2. Keep both values **in the same cell**. Cells are 0 or 1, so only bit 0 is used. Put the next state in\n   bit 1: old = `value & 1`, new = `value >> 1`. Counting with `& 1` always sees the old state, whether\n   or not a neighbour has been updated yet."
+   "table": {
+    "head": [
+     "r \\ c",
+     "0",
+     "1",
+     "2",
+     "3"
+    ],
+    "rows": [
+     [
+      "0",
+      "0",
+      "1",
+      "0",
+      "0"
+     ],
+     [
+      "1",
+      "0",
+      "0",
+      "1",
+      "0"
+     ],
+     [
+      "2",
+      "1",
+      "1",
+      "1",
+      "0"
+     ],
+     [
+      "3",
+      "0",
+      "0",
+      "0",
+      "0"
+     ]
+    ]
+   }
+  },
+  {
+   "md": "**Living neighbours of each cell (old values):**"
+  },
+  {
+   "table": {
+    "head": [
+     "r \\ c",
+     "0",
+     "1",
+     "2",
+     "3"
+    ],
+    "rows": [
+     [
+      "0",
+      "1",
+      "1",
+      "2",
+      "1"
+     ],
+     [
+      "1",
+      "3",
+      "5",
+      "3",
+      "2"
+     ],
+     [
+      "2",
+      "1",
+      "3",
+      "2",
+      "2"
+     ],
+     [
+      "3",
+      "2",
+      "3",
+      "2",
+      "1"
+     ]
+    ]
+   }
+  },
+  {
+   "md": "**Rules:** alive with 2 or 3 neighbours → stays alive; empty with exactly 3 → born; otherwise empty.\n\n**Two states in one cell.** Bit 0 holds the current state; bit 1 holds the next state. Counting reads `x & 1`, so\nit only ever sees the old state, even for cells already processed. After marking:"
+  },
+  {
+   "table": {
+    "head": [
+     "r \\ c",
+     "0",
+     "1",
+     "2",
+     "3"
+    ],
+    "rows": [
+     [
+      "0",
+      "0",
+      "1",
+      "0",
+      "0"
+     ],
+     [
+      "1",
+      "2",
+      "0",
+      "3",
+      "0"
+     ],
+     [
+      "2",
+      "1",
+      "3",
+      "3",
+      "0"
+     ],
+     [
+      "3",
+      "0",
+      "2",
+      "0",
+      "0"
+     ]
+    ]
+   }
+  },
+  {
+   "md": "Shifting every cell right by one keeps the next state:"
+  },
+  {
+   "table": {
+    "head": [
+     "r \\ c",
+     "0",
+     "1",
+     "2",
+     "3"
+    ],
+    "rows": [
+     [
+      "0",
+      "0",
+      "0",
+      "0",
+      "0"
+     ],
+     [
+      "1",
+      "1",
+      "0",
+      "1",
+      "0"
+     ],
+     [
+      "2",
+      "0",
+      "1",
+      "1",
+      "0"
+     ],
+     [
+      "3",
+      "0",
+      "1",
+      "0",
+      "0"
+     ]
+    ]
+   }
   }
  ],
  "approaches": [
@@ -86,14 +198,13 @@
    "space": "O(m · n)",
    "idea": [
     {
-     "md": "Copy the board. For every cell, count living neighbours **in the copy** and write the new state into the board (or a new grid). The copy never changes, so every count sees the old generation."
+     "md": "Copy the board; count each cell's living neighbours in the copy and write the new state into the board."
     }
    ],
    "build": [
-    "Copy the board.",
-    "For each cell, sum the copy's values in the 3 × 3 block around it (clipped to the edges), minus the cell itself.",
-    "Apply the rules and write the result.",
-    "Return the result."
+    "Copy.",
+    "Count neighbours from the copy.",
+    "Apply the rules."
    ],
    "code": {
     "python": "class Solution:\n    def nextGeneration(self, board: List[List[int]]) -> List[List[int]]:\n        old = [row[:] for row in board]\n        m, n = len(old), len(old[0])\n        for r in range(m):\n            for c in range(n):\n                live = 0\n                for rr in range(max(0, r - 1), min(m, r + 2)):\n                    for cc in range(max(0, c - 1), min(n, c + 2)):\n                        live += old[rr][cc]\n                live -= old[r][c]\n                board[r][c] = 1 if live == 3 or (live == 2 and old[r][c]) else 0\n        return board\n",
@@ -256,7 +367,7 @@
    ],
    "complexity": [
     {
-     "md": "**Time O(m · n):** at most 9 reads per cell. **Space O(m · n)** for the copy."
+     "md": "**Time O(m · n)** (up to 8 neighbours each). **Space O(m · n)** for the copy."
     }
    ],
    "walk": {
@@ -586,7 +697,7 @@
    },
    "limits": [
     {
-     "md": "The copy doubles the memory. Each cell only uses one of its 32 bits, so the next state can be stored alongside the current one instead."
+     "md": "A full copy of the board just to remember old values; each cell has spare bits that can hold the new value instead."
     }
    ]
   },
@@ -597,14 +708,13 @@
    "space": "O(1)",
    "idea": [
     {
-     "md": "Use bit 0 for the current state and bit 1 for the next state.\n\n- **Pass 1:** for each cell, count neighbours using `value & 1` (the current state, whether or not\n  that neighbour has been processed). If the cell lives in the next generation, set bit 1\n  (`value |= 2`). Bit 0 is never touched, so later counts stay correct.\n- **Pass 2:** shift every cell right by one (`value >>= 1`), so bit 1 becomes the new value."
+     "md": "Pass 1: for each cell, count neighbours with `& 1` (old state only) and, if the cell will be alive, set bit\n1 (`|= 2`). Pass 2: shift every cell right by one.\n\n**Why counts stay correct.** Setting bit 1 never changes bit 0, and counting reads only bit 0."
     }
    ],
    "build": [
-    "For each cell, count neighbours with `board[rr][cc] & 1`.",
-    "If `live == 3`, or `live == 2` and the cell is alive (`& 1`), do `board[r][c] |= 2`.",
-    "Afterwards, `board[r][c] >>= 1` for every cell.",
-    "Return the board."
+    "Count with `& 1`.",
+    "Mark future-alive cells with `|= 2`.",
+    "Shift everything right by one."
    ],
    "code": {
     "python": "class Solution:\n    def nextGeneration(self, board: List[List[int]]) -> List[List[int]]:\n        m, n = len(board), len(board[0])\n        for r in range(m):\n            for c in range(n):\n                live = 0\n                for rr in range(max(0, r - 1), min(m, r + 2)):\n                    for cc in range(max(0, c - 1), min(n, c + 2)):\n                        live += board[rr][cc] & 1\n                live -= board[r][c] & 1\n                if live == 3 or (live == 2 and board[r][c] & 1):\n                    board[r][c] |= 2\n        for row in board:\n            for c in range(n):\n                row[c] >>= 1\n        return board\n",
@@ -764,7 +874,7 @@
    ],
    "complexity": [
     {
-     "md": "**Time O(m · n):** two passes, at most 9 reads per cell. **Space O(1)** extra."
+     "md": "**Time O(m · n).** **Space O(1).**"
     }
    ],
    "walk": {
@@ -889,7 +999,7 @@
  ],
  "takeaways": [
   {
-   "md": "- \"Update everything simultaneously\" means **read old, write new**. If you write in place, make sure\n  unprocessed cells can still see old values.\n- Small values leave spare bits: store the next state in a higher bit, then shift.\n- Clip neighbour ranges with `max(0, r − 1)` / `min(m − 1, r + 1)` instead of special-casing borders."
+   "md": "- **Simultaneous in-place updates:** keep old and new states in different bits of the same cell.\n- Always read through a mask that sees only the old state.\n- **Pitfall:** writing the new state directly (later cells read updated neighbours)."
   }
  ]
 }
