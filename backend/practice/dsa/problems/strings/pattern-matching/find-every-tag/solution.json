@@ -4,52 +4,164 @@
  "question": [
   {
    "md": "Return every start index where `tag` occurs in `text`, overlaps included, left to right.\n\n- **Both up to 10⁵ lowercase letters.**\n- Checking every start costs O(n · m) on inputs like `aaaa…a` / `aaa…ab`."
+  },
+  {
+   "md": "**Edge cases to keep in mind**\n\n- Overlapping copies all count: `aaaa` contains `aa` at 0, 1 and 2.\n- The tag may equal the whole text (one match) or never appear (empty list).\n- Worst case for naive matching: `text = aaaa…a`, `tag = aa…ab`, where every start compares almost the whole tag."
   }
  ],
  "think": [
   {
-   "md": "`text = \"abababcabab\"`, `tag = \"abab\"` → **[0, 2, 7]** (overlapping copies count).\n\nWhen a partial match `abab` breaks, the naive method slides by one and re-reads text it has already seen. But\nwe already know those characters: they're the matched part of the tag. If the matched part `abab` ends with\n`ab`, which is also how the tag starts, then the next possible match already has 2 characters matched. The\nprefix function precomputes this \"how much survives\" for every prefix length, so the text pointer never moves\nback."
+   "md": "**Restating it.** Report every start index `i` with `text[i .. i+m) = tag`, in increasing order, overlaps\nincluded.\n\n**What the naive method throws away.** Comparing at each start, a partial match of `j` characters that breaks\nmeans we slide by one and compare again from scratch, re-reading `j − 1` characters we have already seen. But\nthose characters are known: they are `tag[0 .. j)`. So how much of the next attempt already matches depends\nonly on the tag, and can be computed in advance."
   },
   {
-   "panels": [
-    {
-     "type": "row",
-     "cells": [
+   "md": "**Borders and the prefix function.** A *border* of a string is a proper prefix that is also a suffix: `ab` is a border\nof `abab`, and `a` is a border of `aba`. The **prefix function** `pi[i]` is the length of the longest border of the\nfirst `i + 1` characters. It is computed left to right: to extend a border of length `k` by the next character, check\n`t[i] == t[k]`; if not, the next shorter candidate is the border of the border, `pi[k − 1]`, and so on until a match\nor `k = 0`."
+  },
+  {
+   "md": "**Prefix function of `\"abab\"`:**"
+  },
+  {
+   "table": {
+    "head": [
+     "i",
+     "prefix",
+     "pi[i]",
+     "longest border"
+    ],
+    "rows": [
+     [
+      "0",
       "a",
-      "b",
+      "0",
+      "—"
+     ],
+     [
+      "1",
+      "ab",
+      "0",
+      "—"
+     ],
+     [
+      "2",
+      "aba",
+      "1",
+      "a"
+     ],
+     [
+      "3",
+      "abab",
+      "2",
+      "ab"
+     ]
+    ]
+   }
+  },
+  {
+   "md": "**The scan.** Keep `k` = how many tag characters match, ending at the current text position. On a mismatch,\nfall back from `k` to `pi[k − 1]` (the longest border of what matched) and try again; that's the most of the\ntag that can still be matched. After a full match, fall back the same way to catch overlapping copies. Trace on\n`\"abababcabab\"`:"
+  },
+  {
+   "table": {
+    "head": [
+     "i",
+     "char",
+     "k before",
+     "fallbacks",
+     "k after",
+     "event"
+    ],
+    "rows": [
+     [
+      "0",
       "a",
+      "0",
+      "—",
+      "1",
+      ""
+     ],
+     [
+      "1",
       "b",
+      "1",
+      "—",
+      "2",
+      ""
+     ],
+     [
+      "2",
       "a",
+      "2",
+      "—",
+      "3",
+      ""
+     ],
+     [
+      "3",
       "b",
+      "3",
+      "—",
+      "4",
+      "match at 0, keep 2"
+     ],
+     [
+      "4",
+      "a",
+      "2",
+      "—",
+      "3",
+      ""
+     ],
+     [
+      "5",
+      "b",
+      "3",
+      "—",
+      "4",
+      "match at 2, keep 2"
+     ],
+     [
+      "6",
       "c",
+      "2",
+      "0",
+      "0",
+      ""
+     ],
+     [
+      "7",
       "a",
+      "0",
+      "—",
+      "1",
+      ""
+     ],
+     [
+      "8",
       "b",
-      "a",
-      "b"
+      "1",
+      "—",
+      "2",
+      ""
      ],
-     "label": "text"
-    },
-    {
-     "type": "row",
-     "cells": [
+     [
+      "9",
       "a",
+      "2",
+      "—",
+      "3",
+      ""
+     ],
+     [
+      "10",
       "b",
-      "a",
-      "b"
-     ],
-     "label": "tag"
-    },
-    {
-     "type": "row",
-     "cells": [
-      0,
-      0,
-      1,
-      2
-     ],
-     "label": "prefix fn"
-    }
-   ]
+      "3",
+      "—",
+      "4",
+      "match at 7, keep 2"
+     ]
+    ]
+   }
+  },
+  {
+   "md": "Matches at **[0, 2, 7]**."
   }
  ],
  "approaches": [
@@ -60,12 +172,13 @@
    "space": "O(1)",
    "idea": [
     {
-     "md": "For each `i` in `0..n−m`, compare `text[i..i+m)` with `tag`; record `i` on a full match."
+     "md": "Line the tag up at every start `0 … n − m` and compare character by character until a mismatch or a full\nmatch. Record full matches.\n\nCorrect and easy to trust, but every start begins comparing from the tag's first character."
     }
    ],
    "build": [
     "Loop over starts.",
-    "Compare until a mismatch."
+    "Compare until mismatch or `m` matches.",
+    "Record full matches."
    ],
    "code": {
     "python": "class Solution:\n    def findAll(self, text: str, tag: str) -> List[int]:\n        n, m = len(text), len(tag)\n        out = []\n        for i in range(n - m + 1):\n            j = 0\n            while j < m and text[i + j] == tag[j]:\n                j += 1\n            if j == m:\n                out.append(i)\n        return out\n",
@@ -75,7 +188,7 @@
    },
    "lines": [
     {
-     "text": "Lengths and the result list.",
+     "text": "Lengths and the list of match positions.",
      "at": {
       "python": [
        [
@@ -104,7 +217,7 @@
      }
     },
     {
-     "text": "Every place the tag fits.",
+     "text": "Every position where the whole tag still fits.",
      "at": {
       "python": [
        [
@@ -133,7 +246,7 @@
      }
     },
     {
-     "text": "Compare until a mismatch or the whole tag matched.",
+     "text": "Compare until the first mismatch or until all `m` characters have matched.",
      "at": {
       "python": [
        [
@@ -162,7 +275,7 @@
      }
     },
     {
-     "text": "Full match.",
+     "text": "All `m` characters matched: the tag occurs at `i`.",
      "at": {
       "python": [
        [
@@ -191,7 +304,7 @@
      }
     },
     {
-     "text": "Starts in increasing order.",
+     "text": "The starts, already in increasing order.",
      "at": {
       "python": [
        [
@@ -222,7 +335,7 @@
    ],
    "complexity": [
     {
-     "md": "**Time O(n · m)** in the worst case (`aaaa…` vs `aa…ab`): 10¹⁰ steps. **Space O(1)** besides the output."
+     "md": "**Time O(n · m)** worst case: about 10¹⁰ comparisons for `n = 10⁵` with long near-matches. **Space O(1)** besides the output."
     }
    ],
    "walk": {
@@ -453,7 +566,7 @@
    },
    "limits": [
     {
-     "md": "After a partial match breaks, it re-reads text it has already matched. The prefix function tells exactly how much of the match survives."
+     "md": "After a partial match breaks, the next start re-reads text that was already matched. The prefix function tells exactly how much of that match can be kept, so the text pointer never moves back."
     }
    ],
    "slow": true
@@ -465,13 +578,13 @@
    "space": "O(m)",
    "idea": [
     {
-     "md": "`fail[i]` = length of the longest proper prefix of `tag[0..i]` that's also its suffix. Scan the text with `k` = matched length: on a mismatch set `k = fail[k−1]` until it fits or `k = 0`; on a full match record it and set `k = fail[m−1]`."
+     "md": "**Phase 1:** compute the prefix function `fail` of the tag (the same matching process, run on the tag\nagainst itself).\n\n**Phase 2:** scan the text with `k`. For each character: while `k > 0` and it doesn't match `tag[k]`,\nset `k = fail[k − 1]`. If it matches, `k += 1`. If `k == m`, record `i − m + 1` and set `k = fail[m − 1]`.\n\n**Invariant.** After processing text position `i`, `k` is the length of the longest prefix of the tag that\nends exactly at `i`. Every occurrence of the tag ends at some `i` with `k = m`, so none is missed."
     }
    ],
    "build": [
-    "Prefix function of the tag.",
-    "Stream the text with fallbacks.",
-    "Record matches and fall back for overlaps."
+    "Build `fail` for the tag.",
+    "Scan the text keeping `k`; fall back through `fail` on mismatches.",
+    "On a full match, record and fall back to `fail[m − 1]`."
    ],
    "code": {
     "python": "class Solution:\n    def findAll(self, text: str, tag: str) -> List[int]:\n        m = len(tag)\n        fail, k = [0] * m, 0\n        for i in range(1, m):\n            while k and tag[i] != tag[k]:\n                k = fail[k - 1]\n            if tag[i] == tag[k]:\n                k += 1\n            fail[i] = k\n        out, k = [], 0\n        for i, c in enumerate(text):\n            while k and c != tag[k]:\n                k = fail[k - 1]\n            if c == tag[k]:\n                k += 1\n            if k == m:\n                out.append(i - m + 1)\n                k = fail[k - 1]\n        return out\n",
@@ -481,7 +594,7 @@
    },
    "lines": [
     {
-     "text": "The prefix function of the tag: the same matching process, run on the tag against itself.",
+     "text": "The prefix function of the tag: for each prefix, the longest border. It's the scan below applied to the tag itself.",
      "at": {
       "python": [
        [
@@ -510,7 +623,7 @@
      }
     },
     {
-     "text": "`k` is how many tag characters end at the current text position; it grows by at most 1 per character.",
+     "text": "`k` = tag characters matched so far, ending at this text position. A match extends it by one.",
      "at": {
       "python": [
        [
@@ -555,7 +668,7 @@
      }
     },
     {
-     "text": "Mismatch: the longest border of the matched part is the most that can still be extended. Each fallback shrinks `k`, so the total work is O(n).",
+     "text": "On a mismatch, the longest border of the matched part is the largest piece that could still be extended. Keep falling back until the next character fits or nothing is left.",
      "at": {
       "python": [
        [
@@ -584,7 +697,7 @@
      }
     },
     {
-     "text": "A full match starts at `i − m + 1`. Falling back to `fail[m−1]` (not 0) keeps the overlap, so the next copy can share characters.",
+     "text": "A full match starts at `i − m + 1`. Falling back to `fail[m − 1]` instead of 0 keeps the overlap, so a copy sharing characters with this one is still found.",
      "at": {
       "python": [
        [
@@ -644,7 +757,7 @@
    ],
    "complexity": [
     {
-     "md": "**Time O(n + m):** `k` rises at most once per character, so it can't fall more often than that. **Space O(m)** for the table."
+     "md": "**Time O(n + m).** `k` grows by at most 1 per character and each fallback shrinks it, so the total number\nof fallbacks can't exceed the total growth: at most `n` in the scan and `m` in the table. **Space O(m)**\nfor the table."
     }
    ],
    "walk": {
@@ -1090,7 +1203,7 @@
  ],
  "takeaways": [
   {
-   "md": "- **KMP = prefix function + a scan that never moves backwards** in the text.\n- The prefix function (longest border of every prefix) is the reusable tool.\n- After a full match, fall back to the border to catch overlaps."
+   "md": "- **Recognise it:** find all occurrences of a pattern, or anything about prefixes that are also suffixes.\n- **Template:** build `pi` for the pattern; scan with `k`, fall back via `pi[k − 1]`.\n- **Pitfalls:** resetting `k` to 0 after a match (misses overlaps); using `pi[k]` instead of `pi[k − 1]`.\n- **Related:** the Z-function solves the same problems; rolling hashes give a probabilistic alternative."
   }
  ]
 }

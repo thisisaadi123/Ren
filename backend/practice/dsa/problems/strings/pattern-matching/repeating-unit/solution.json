@@ -4,17 +4,67 @@
  "question": [
   {
    "md": "Return the length of the shortest block `u` such that `s` is `u` repeated a whole number of times (`s.length`\nif nothing shorter works).\n\n- **Up to 10⁵ letters.**"
+  },
+  {
+   "md": "**Edge cases to keep in mind**\n\n- One letter, or no repetition at all: the answer is `n`.\n- A string with a period that doesn't divide its length (`abcab`, period 3, length 5) isn't a repetition:\n  the answer is `n`.\n- All letters equal: the answer is 1."
   }
  ],
  "think": [
   {
-   "md": "`\"abcabcabcabc\"` is `abc` four times: **3**. `\"abcab\"` has period 3, but 3 doesn't divide 5, so it's **5**.\n\nA block length must divide `n`, and `s` repeats with block `p` exactly when `s[i] == s[i − p]` for all `i ≥ p`,\nwhich is the same as saying `s` without its first `p` letters equals `s` without its last `p` letters. That is a\nborder of length `n − p`. So the smallest period comes from the longest border."
+   "md": "**When does block length `p` work?** `s` is a block of length `p` repeated exactly when `p` divides `n` and every\ncharacter equals the one `p` places earlier: `s[i] = s[i − p]` for all `i ≥ p`. The second condition says `s`\nhas *period* `p`.\n\n**Trying divisors of `n = 12` in increasing order:**"
   },
   {
-   "panels": [
-    {
-     "type": "row",
-     "cells": [
+   "table": {
+    "head": [
+     "p",
+     "block",
+     "check"
+    ],
+    "rows": [
+     [
+      "1",
+      "a",
+      "fails at 1: b ≠ a"
+     ],
+     [
+      "2",
+      "ab",
+      "fails at 2: c ≠ a"
+     ],
+     [
+      "3",
+      "abc",
+      "works"
+     ]
+    ]
+   }
+  },
+  {
+   "md": "**Borders and the prefix function.** A *border* of a string is a proper prefix that is also a suffix: `ab` is a border\nof `abab`, and `a` is a border of `aba`. The **prefix function** `pi[i]` is the length of the longest border of the\nfirst `i + 1` characters. It is computed left to right: to extend a border of length `k` by the next character, check\n`t[i] == t[k]`; if not, the next shorter candidate is the border of the border, `pi[k − 1]`, and so on until a match\nor `k = 0`."
+  },
+  {
+   "md": "**Period and border are two views of the same thing.** `s[i] = s[i − p]` for all `i ≥ p` means `s` without its\nfirst `p` letters equals `s` without its last `p` letters: a border of length `n − p`. So the **longest** border\ngives the **smallest** period: `p = n − pi[n − 1]`. For `\"abcabcabcabc\"`:"
+  },
+  {
+   "table": {
+    "head": [
+     "i",
+     "0",
+     "1",
+     "2",
+     "3",
+     "4",
+     "5",
+     "6",
+     "7",
+     "8",
+     "9",
+     "10",
+     "11"
+    ],
+    "rows": [
+     [
+      "char",
       "a",
       "b",
       "c",
@@ -28,27 +78,26 @@
       "b",
       "c"
      ],
-     "label": "s"
-    },
-    {
-     "type": "row",
-     "cells": [
-      0,
-      0,
-      0,
-      1,
-      2,
-      3,
-      4,
-      5,
-      6,
-      7,
-      8,
-      9
-     ],
-     "label": "prefix fn"
-    }
-   ]
+     [
+      "pi",
+      "0",
+      "0",
+      "0",
+      "1",
+      "2",
+      "3",
+      "4",
+      "5",
+      "6",
+      "7",
+      "8",
+      "9"
+     ]
+    ]
+   }
+  },
+  {
+   "md": "`pi[n − 1] = 9`, so the smallest period is 12 − 9 = 3, which divides 12: the\nanswer is **3**.\n\n**If the smallest period doesn't divide `n`, the answer is `n`.** Suppose the smallest period `p` doesn't divide\n`n`, but some larger `q < n` divides `n` and is also a period. Then `q ≤ n/2` and `p < q`, so `p + q ≤ n`, and a\nclassic fact about periods (Fine and Wilf) says `gcd(p, q)` is also a period. It's at most `p`, so by minimality\nit equals `p`, which means `p` divides `q` and therefore `n`, a contradiction."
   }
  ],
  "approaches": [
@@ -59,12 +108,13 @@
    "space": "O(1)",
    "idea": [
     {
-     "md": "For each divisor `p` of `n` in increasing order, check `s[i] == s[i − p]` for all `i ≥ p`. The first that passes is the answer."
+     "md": "Only divisors of `n` can be block lengths. Try them from smallest to largest; for each, check that every\ncharacter equals the one a block earlier. The first that passes is the answer, and `n` itself always\npasses."
     }
    ],
    "build": [
-    "Loop over lengths that divide `n`.",
-    "Periodicity check."
+    "Loop `p = 1, 2, …`, skipping non-divisors.",
+    "Check `s[i] = s[i − p]` for all `i ≥ p`.",
+    "Return the first `p` that passes, else `n`."
    ],
    "code": {
     "python": "class Solution:\n    def shortestUnit(self, s: str) -> int:\n        n = len(s)\n        for p in range(1, n + 1):\n            if n % p == 0 and s[p:] == s[:n - p]:\n                return p\n        return n\n",
@@ -74,7 +124,7 @@
    },
    "lines": [
     {
-     "text": "Only divisors of `n` can tile it exactly; smallest first.",
+     "text": "Block lengths must divide `n`; trying them smallest first means the first success is the answer.",
      "at": {
       "python": [
        [
@@ -103,7 +153,7 @@
      }
     },
     {
-     "text": "Every character equals the one a block earlier.",
+     "text": "Every character must equal the one exactly one block earlier. Python compares `s[p:]` with `s[:n−p]`, which is the same test done as a fast slice comparison.",
      "at": {
       "python": [
        [
@@ -135,7 +185,7 @@
      }
     },
     {
-     "text": "Nothing shorter works: the whole string is the block.",
+     "text": "No shorter block works: the whole string is the block.",
      "at": {
       "python": [
        [
@@ -166,7 +216,7 @@
    ],
    "complexity": [
     {
-     "md": "**Time O(n · d(n)):** `d(n)`, the number of divisors, is at most 128 for n ≤ 10⁵. **Space O(1).**"
+     "md": "**Time O(n · d(n))**, where `d(n)` (the number of divisors) is at most 128 for `n ≤ 10⁵`: fast in practice. **Space O(1).**"
     }
    ],
    "walk": {
@@ -260,7 +310,7 @@
    },
    "limits": [
     {
-     "md": "Each divisor is checked from scratch. The prefix function produces the smallest period directly."
+     "md": "Each divisor is checked from scratch. The prefix function produces the smallest period directly in one pass, without trying candidates."
     }
    ]
   },
@@ -271,13 +321,13 @@
    "space": "O(n)",
    "idea": [
     {
-     "md": "Compute the prefix function; `b = fail[n−1]`, `p = n − b`. Return `p` if `n % p == 0`, else `n`."
+     "md": "Compute the prefix function. `p = n − pi[n − 1]` is the smallest period. If `p` divides `n`, `s` is `n / p`\ncopies of `s[0..p)`; otherwise no proper block works and the answer is `n`."
     }
    ],
    "build": [
-    "Prefix function.",
-    "Period from the longest border.",
-    "Divisibility check."
+    "Prefix function of `s`.",
+    "Smallest period from the longest border.",
+    "Check divisibility."
    ],
    "code": {
     "python": "class Solution:\n    def shortestUnit(self, s: str) -> int:\n        n = len(s)\n        fail, k = [0] * n, 0\n        for i in range(1, n):\n            while k and s[i] != s[k]:\n                k = fail[k - 1]\n            if s[i] == s[k]:\n                k += 1\n            fail[i] = k\n        p = n - fail[-1]\n        return p if n % p == 0 else n\n",
@@ -287,7 +337,7 @@
    },
    "lines": [
     {
-     "text": "Prefix function of `s`.",
+     "text": "The prefix function of the whole string; only its last value is needed.",
      "at": {
       "python": [
        [
@@ -316,7 +366,7 @@
      }
     },
     {
-     "text": "The longest border `b` gives the smallest period `n − b`: shifting `s` by `p` lines the border up with itself.",
+     "text": "The longest border has length `pi[n−1]`, so shifting `s` by `n − pi[n−1]` lines it up with itself: that's the smallest period.",
      "at": {
       "python": [
        [
@@ -345,7 +395,7 @@
      }
     },
     {
-     "text": "A period that divides `n` tiles `s` exactly. If the smallest period doesn't divide `n`, no larger period below `n` does either (any such period would combine with it into a smaller one that divides `n`), so the answer is `n`.",
+     "text": "A period that divides `n` tiles the string exactly. Otherwise no proper block works (see the proof above), so the answer is `n`.",
      "at": {
       "python": [
        [
@@ -376,7 +426,7 @@
    ],
    "complexity": [
     {
-     "md": "**Time O(n).** **Space O(n).**"
+     "md": "**Time O(n).** **Space O(n)** for the table."
     }
    ],
    "walk": {
@@ -931,7 +981,7 @@
  ],
  "takeaways": [
   {
-   "md": "- **Border ↔ period:** a border of length `b` means period `n − b`.\n- Smallest period = `n − prefix_function[n−1]`; it tiles `s` only if it divides `n`.\n- The same fact answers \"is s a repetition of a smaller string?\"."
+   "md": "- **Border ↔ period:** a border of length `b` means period `n − b`; smallest period = `n − pi[n − 1]`.\n- A period tiles the string only if it divides the length.\n- **Pitfall:** returning the period without checking divisibility (`abcab` would wrongly give 3).\n- **Related:** \"is `s` a repetition?\" is the same test; so is checking whether `s` occurs inside `s + s` starting\n  before position `n`."
   }
  ]
 }
