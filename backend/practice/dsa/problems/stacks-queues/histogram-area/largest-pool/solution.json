@@ -1,0 +1,1825 @@
+{
+ "version": 1,
+ "summary": "Water above a column rises to the lower of the tallest wall on its left and the tallest on its right. Pools\nare runs of columns that hold water. The tallest wall holds none and splits the problem: to its left the\nlevel is just the running maximum from the left, and to its right the running maximum from the right. Two\nscans add up each pool as they go: O(n) time, O(1) space.",
+ "question": [
+  {
+   "md": "Columns of rock of width 1 are given by height. Rain fills every dip; water spills off both ends. Neighbouring\nwater-holding columns form one pool, and a dry column separates pools. Return the largest pool's volume.\n\n- **A dry column splits pools**, even when water stands on both sides of it (possibly at different levels).\n- **Heights reach 10⁹ and there are up to 10⁵ columns**, so a pool can hold ~10¹⁴: the answer is a `long`.\n- **No water anywhere** (for example, heights only rise) → 0."
+  }
+ ],
+ "think": [
+  {
+   "md": "Walls `[2, 0, 3, 1, 1, 4, 0, 2, 2, 0, 1]`. Columns 1, 3 and 4 hold 2 each, but column 2 (height 3) is dry and splits them: a pool of 2\nand a pool of 4. On the right, column 6 holds 2 and column 9 holds 1. Pools: `[2, 4, 2, 1]`, so the answer is\n**4**, not the total water 9."
+  },
+  {
+   "panels": [
+    {
+     "type": "row",
+     "cells": [
+      2,
+      0,
+      3,
+      1,
+      1,
+      4,
+      0,
+      2,
+      2,
+      0,
+      1
+     ],
+     "label": "walls"
+    },
+    {
+     "type": "row",
+     "cells": [
+      0,
+      2,
+      0,
+      2,
+      2,
+      0,
+      2,
+      0,
+      0,
+      1,
+      0
+     ],
+     "states": {
+      "1": "found",
+      "3": "found",
+      "4": "found",
+      "6": "found",
+      "9": "found"
+     },
+     "label": "water"
+    }
+   ]
+  },
+  {
+   "md": "How high does water stand over a column? It's held by the tallest wall to its left and the tallest to its right,\nand spills over the lower of the two: `level = min(maxLeft, maxRight)`, water = level − height.\n\nNow the observation that removes the extra arrays: take the tallest wall overall (column 5). For any column\nleft of it, the tallest wall on the right is at least as high as anything on the left, so the level is simply\nthe running maximum from the left. Mirror that on the right side. The tallest wall itself is dry, so no pool\ncrosses it, and each side can be scanned on its own."
+  }
+ ],
+ "approaches": [
+  {
+   "title": "Scan both sides for every column",
+   "kind": "brute",
+   "time": "O(n²)",
+   "space": "O(1)",
+   "idea": [
+    {
+     "md": "For each column, find the tallest wall to its left (including itself) and to its right by scanning. Water = min of those − height. Walk the columns in order, adding water into the current pool and resetting at dry columns; keep the biggest pool."
+    }
+   ],
+   "build": [
+    "For each `i`, scan `0..i` for the max and `i..n−1` for the max.",
+    "Water = min − `walls[i]`.",
+    "Pool: add if water > 0, else reset to 0. Track the maximum."
+   ],
+   "code": {
+    "python": "class Solution:\n    def largestPool(self, walls: List[int]) -> int:\n        n = len(walls)\n        best = pool = 0\n        for i in range(n):\n            left = max(walls[:i + 1])\n            right = max(walls[i:])\n            water = min(left, right) - walls[i]\n            pool = pool + water if water > 0 else 0\n            best = max(best, pool)\n        return best\n",
+    "java": "class Solution {\n    public long largestPool(int[] walls) {\n        int n = walls.length;\n        long best = 0, pool = 0;\n        for (int i = 0; i < n; i++) {\n            int left = 0, right = 0;\n            for (int k = 0; k <= i; k++) left = Math.max(left, walls[k]);\n            for (int k = i; k < n; k++) right = Math.max(right, walls[k]);\n            int water = Math.min(left, right) - walls[i];\n            pool = water > 0 ? pool + water : 0;\n            best = Math.max(best, pool);\n        }\n        return best;\n    }\n}\n",
+    "cpp": "class Solution {\npublic:\n    long long largestPool(vector<int>& walls) {\n        int n = walls.size();\n        long long best = 0, pool = 0;\n        for (int i = 0; i < n; i++) {\n            int left = *max_element(walls.begin(), walls.begin() + i + 1);\n            int right = *max_element(walls.begin() + i, walls.end());\n            int water = min(left, right) - walls[i];\n            pool = water > 0 ? pool + water : 0;\n            best = max(best, pool);\n        }\n        return best;\n    }\n};\n",
+    "c": "long long largestPool(int* walls, int wallsSize) {\n    int n = wallsSize;\n    long long best = 0, pool = 0;\n    for (int i = 0; i < n; i++) {\n        int left = 0, right = 0;\n        for (int k = 0; k <= i; k++) if (walls[k] > left) left = walls[k];\n        for (int k = i; k < n; k++) if (walls[k] > right) right = walls[k];\n        int water = (left < right ? left : right) - walls[i];\n        pool = water > 0 ? pool + water : 0;\n        if (pool > best) best = pool;\n    }\n    return best;\n}\n"
+   },
+   "lines": [
+    {
+     "text": "Largest pool and the pool currently being filled (64-bit).",
+     "at": {
+      "python": [
+       [
+        3,
+        4
+       ]
+      ],
+      "java": [
+       [
+        3,
+        4
+       ]
+      ],
+      "cpp": [
+       [
+        4,
+        5
+       ]
+      ],
+      "c": [
+       [
+        2,
+        3
+       ]
+      ]
+     }
+    },
+    {
+     "text": "Columns in order, so neighbouring water adds up into one pool.",
+     "at": {
+      "python": [
+       [
+        5,
+        5
+       ]
+      ],
+      "java": [
+       [
+        5,
+        5
+       ]
+      ],
+      "cpp": [
+       [
+        6,
+        6
+       ]
+      ],
+      "c": [
+       [
+        4,
+        4
+       ]
+      ]
+     }
+    },
+    {
+     "text": "Tallest wall on each side, counting the column itself (so the level is never below the column).",
+     "at": {
+      "python": [
+       [
+        6,
+        7
+       ]
+      ],
+      "java": [
+       [
+        6,
+        8
+       ]
+      ],
+      "cpp": [
+       [
+        7,
+        8
+       ]
+      ],
+      "c": [
+       [
+        5,
+        7
+       ]
+      ]
+     }
+    },
+    {
+     "text": "Water spills over the lower side.",
+     "at": {
+      "python": [
+       [
+        8,
+        8
+       ]
+      ],
+      "java": [
+       [
+        9,
+        9
+       ]
+      ],
+      "cpp": [
+       [
+        9,
+        9
+       ]
+      ],
+      "c": [
+       [
+        8,
+        8
+       ]
+      ]
+     }
+    },
+    {
+     "text": "Water extends the current pool; a dry column ends it.",
+     "at": {
+      "python": [
+       [
+        9,
+        10
+       ]
+      ],
+      "java": [
+       [
+        10,
+        11
+       ]
+      ],
+      "cpp": [
+       [
+        10,
+        11
+       ]
+      ],
+      "c": [
+       [
+        9,
+        10
+       ]
+      ]
+     }
+    },
+    {
+     "text": "The largest pool.",
+     "at": {
+      "python": [
+       [
+        11,
+        11
+       ]
+      ],
+      "java": [
+       [
+        13,
+        13
+       ]
+      ],
+      "cpp": [
+       [
+        13,
+        13
+       ]
+      ],
+      "c": [
+       [
+        12,
+        12
+       ]
+      ]
+     }
+    }
+   ],
+   "complexity": [
+    {
+     "md": "**Time O(n²):** two scans per column. **Space O(1).**"
+    }
+   ],
+   "walk": {
+    "steps": [
+     {
+      "text": "Column 0: tallest left 2, tallest right 4, level 2, water 0. Dry: any pool ends here.",
+      "panels": [
+       {
+        "type": "row",
+        "cells": [
+         2,
+         0,
+         3,
+         1,
+         1,
+         4,
+         0,
+         2,
+         2,
+         0,
+         1
+        ],
+        "states": {
+         "0": "active"
+        },
+        "label": "walls"
+       },
+       {
+        "type": "row",
+        "cells": [
+         0,
+         "·",
+         "·",
+         "·",
+         "·",
+         "·",
+         "·",
+         "·",
+         "·",
+         "·",
+         "·"
+        ],
+        "label": "water"
+       },
+       {
+        "type": "vars",
+        "items": {
+         "best pool": 0
+        }
+       }
+      ]
+     },
+     {
+      "text": "Column 1: tallest left 2, tallest right 4, level 2, water 2. Current pool: 2",
+      "panels": [
+       {
+        "type": "row",
+        "cells": [
+         2,
+         0,
+         3,
+         1,
+         1,
+         4,
+         0,
+         2,
+         2,
+         0,
+         1
+        ],
+        "states": {
+         "1": "active"
+        },
+        "label": "walls"
+       },
+       {
+        "type": "row",
+        "cells": [
+         0,
+         2,
+         "·",
+         "·",
+         "·",
+         "·",
+         "·",
+         "·",
+         "·",
+         "·",
+         "·"
+        ],
+        "label": "water"
+       },
+       {
+        "type": "vars",
+        "items": {
+         "best pool": 2
+        }
+       }
+      ]
+     },
+     {
+      "text": "Column 2: tallest left 3, tallest right 4, level 3, water 0. Dry: any pool ends here.",
+      "panels": [
+       {
+        "type": "row",
+        "cells": [
+         2,
+         0,
+         3,
+         1,
+         1,
+         4,
+         0,
+         2,
+         2,
+         0,
+         1
+        ],
+        "states": {
+         "2": "active"
+        },
+        "label": "walls"
+       },
+       {
+        "type": "row",
+        "cells": [
+         0,
+         2,
+         0,
+         "·",
+         "·",
+         "·",
+         "·",
+         "·",
+         "·",
+         "·",
+         "·"
+        ],
+        "label": "water"
+       },
+       {
+        "type": "vars",
+        "items": {
+         "best pool": 2
+        }
+       }
+      ]
+     },
+     {
+      "text": "Column 3: tallest left 3, tallest right 4, level 3, water 2. Current pool: 2",
+      "panels": [
+       {
+        "type": "row",
+        "cells": [
+         2,
+         0,
+         3,
+         1,
+         1,
+         4,
+         0,
+         2,
+         2,
+         0,
+         1
+        ],
+        "states": {
+         "3": "active"
+        },
+        "label": "walls"
+       },
+       {
+        "type": "row",
+        "cells": [
+         0,
+         2,
+         0,
+         2,
+         "·",
+         "·",
+         "·",
+         "·",
+         "·",
+         "·",
+         "·"
+        ],
+        "label": "water"
+       },
+       {
+        "type": "vars",
+        "items": {
+         "best pool": 2
+        }
+       }
+      ]
+     },
+     {
+      "text": "Column 4: tallest left 3, tallest right 4, level 3, water 2. Current pool: 4",
+      "panels": [
+       {
+        "type": "row",
+        "cells": [
+         2,
+         0,
+         3,
+         1,
+         1,
+         4,
+         0,
+         2,
+         2,
+         0,
+         1
+        ],
+        "states": {
+         "4": "active"
+        },
+        "label": "walls"
+       },
+       {
+        "type": "row",
+        "cells": [
+         0,
+         2,
+         0,
+         2,
+         2,
+         "·",
+         "·",
+         "·",
+         "·",
+         "·",
+         "·"
+        ],
+        "label": "water"
+       },
+       {
+        "type": "vars",
+        "items": {
+         "best pool": 4
+        }
+       }
+      ]
+     },
+     {
+      "text": "Column 5: tallest left 4, tallest right 4, level 4, water 0. Dry: any pool ends here.",
+      "panels": [
+       {
+        "type": "row",
+        "cells": [
+         2,
+         0,
+         3,
+         1,
+         1,
+         4,
+         0,
+         2,
+         2,
+         0,
+         1
+        ],
+        "states": {
+         "5": "active"
+        },
+        "label": "walls"
+       },
+       {
+        "type": "row",
+        "cells": [
+         0,
+         2,
+         0,
+         2,
+         2,
+         0,
+         "·",
+         "·",
+         "·",
+         "·",
+         "·"
+        ],
+        "label": "water"
+       },
+       {
+        "type": "vars",
+        "items": {
+         "best pool": 4
+        }
+       }
+      ]
+     },
+     {
+      "text": "Column 6: tallest left 4, tallest right 2, level 2, water 2. Current pool: 2",
+      "panels": [
+       {
+        "type": "row",
+        "cells": [
+         2,
+         0,
+         3,
+         1,
+         1,
+         4,
+         0,
+         2,
+         2,
+         0,
+         1
+        ],
+        "states": {
+         "6": "active"
+        },
+        "label": "walls"
+       },
+       {
+        "type": "row",
+        "cells": [
+         0,
+         2,
+         0,
+         2,
+         2,
+         0,
+         2,
+         "·",
+         "·",
+         "·",
+         "·"
+        ],
+        "label": "water"
+       },
+       {
+        "type": "vars",
+        "items": {
+         "best pool": 4
+        }
+       }
+      ]
+     },
+     {
+      "text": "Column 7: tallest left 4, tallest right 2, level 2, water 0. Dry: any pool ends here.",
+      "panels": [
+       {
+        "type": "row",
+        "cells": [
+         2,
+         0,
+         3,
+         1,
+         1,
+         4,
+         0,
+         2,
+         2,
+         0,
+         1
+        ],
+        "states": {
+         "7": "active"
+        },
+        "label": "walls"
+       },
+       {
+        "type": "row",
+        "cells": [
+         0,
+         2,
+         0,
+         2,
+         2,
+         0,
+         2,
+         0,
+         "·",
+         "·",
+         "·"
+        ],
+        "label": "water"
+       },
+       {
+        "type": "vars",
+        "items": {
+         "best pool": 4
+        }
+       }
+      ]
+     },
+     {
+      "text": "Column 8: tallest left 4, tallest right 2, level 2, water 0. Dry: any pool ends here.",
+      "panels": [
+       {
+        "type": "row",
+        "cells": [
+         2,
+         0,
+         3,
+         1,
+         1,
+         4,
+         0,
+         2,
+         2,
+         0,
+         1
+        ],
+        "states": {
+         "8": "active"
+        },
+        "label": "walls"
+       },
+       {
+        "type": "row",
+        "cells": [
+         0,
+         2,
+         0,
+         2,
+         2,
+         0,
+         2,
+         0,
+         0,
+         "·",
+         "·"
+        ],
+        "label": "water"
+       },
+       {
+        "type": "vars",
+        "items": {
+         "best pool": 4
+        }
+       }
+      ]
+     },
+     {
+      "text": "Column 9: tallest left 4, tallest right 1, level 1, water 1. Current pool: 1",
+      "panels": [
+       {
+        "type": "row",
+        "cells": [
+         2,
+         0,
+         3,
+         1,
+         1,
+         4,
+         0,
+         2,
+         2,
+         0,
+         1
+        ],
+        "states": {
+         "9": "active"
+        },
+        "label": "walls"
+       },
+       {
+        "type": "row",
+        "cells": [
+         0,
+         2,
+         0,
+         2,
+         2,
+         0,
+         2,
+         0,
+         0,
+         1,
+         "·"
+        ],
+        "label": "water"
+       },
+       {
+        "type": "vars",
+        "items": {
+         "best pool": 4
+        }
+       }
+      ]
+     },
+     {
+      "text": "Column 10: tallest left 4, tallest right 1, level 1, water 0. Dry: any pool ends here.",
+      "panels": [
+       {
+        "type": "row",
+        "cells": [
+         2,
+         0,
+         3,
+         1,
+         1,
+         4,
+         0,
+         2,
+         2,
+         0,
+         1
+        ],
+        "states": {
+         "10": "active"
+        },
+        "label": "walls"
+       },
+       {
+        "type": "row",
+        "cells": [
+         0,
+         2,
+         0,
+         2,
+         2,
+         0,
+         2,
+         0,
+         0,
+         1,
+         0
+        ],
+        "label": "water"
+       },
+       {
+        "type": "vars",
+        "items": {
+         "best pool": 4
+        }
+       }
+      ]
+     },
+     {
+      "text": "Pools [2, 4, 2, 1]; the largest holds 4.",
+      "panels": [],
+      "result": "4"
+     }
+    ],
+    "title": "For each column, scan everything to its left and right for the tallest walls. The water level is the lower of the two."
+   },
+   "limits": [
+    {
+     "md": "Every column rescans the whole array. Both maxima are running maxima, so they can be computed once for all columns."
+    }
+   ],
+   "slow": true
+  },
+  {
+   "title": "Running maxima from both ends",
+   "kind": "better",
+   "time": "O(n)",
+   "space": "O(n)",
+   "idea": [
+    {
+     "md": "Precompute `maxLeft[i]` (tallest in `0..i`) in one pass and `maxRight[i]` (tallest in `i..n−1`) in a backwards pass. Then a third pass computes each column's water and adds up the pools."
+    }
+   ],
+   "build": [
+    "Fill `maxLeft` left to right.",
+    "Fill `maxRight` right to left.",
+    "Pass over the columns: water = min − height; grow or reset the pool; track the best."
+   ],
+   "code": {
+    "python": "class Solution:\n    def largestPool(self, walls: List[int]) -> int:\n        n = len(walls)\n        max_left, max_right = [0] * n, [0] * n\n        for i in range(n):\n            max_left[i] = max(walls[i], max_left[i - 1] if i else 0)\n        for i in range(n - 1, -1, -1):\n            max_right[i] = max(walls[i], max_right[i + 1] if i < n - 1 else 0)\n        best = pool = 0\n        for i in range(n):\n            water = min(max_left[i], max_right[i]) - walls[i]\n            pool = pool + water if water > 0 else 0\n            best = max(best, pool)\n        return best\n",
+    "java": "class Solution {\n    public long largestPool(int[] walls) {\n        int n = walls.length;\n        int[] maxLeft = new int[n], maxRight = new int[n];\n        for (int i = 0; i < n; i++) maxLeft[i] = Math.max(walls[i], i > 0 ? maxLeft[i - 1] : 0);\n        for (int i = n - 1; i >= 0; i--) maxRight[i] = Math.max(walls[i], i < n - 1 ? maxRight[i + 1] : 0);\n        long best = 0, pool = 0;\n        for (int i = 0; i < n; i++) {\n            int water = Math.min(maxLeft[i], maxRight[i]) - walls[i];\n            pool = water > 0 ? pool + water : 0;\n            best = Math.max(best, pool);\n        }\n        return best;\n    }\n}\n",
+    "cpp": "class Solution {\npublic:\n    long long largestPool(vector<int>& walls) {\n        int n = walls.size();\n        vector<int> maxLeft(n), maxRight(n);\n        for (int i = 0; i < n; i++) maxLeft[i] = max(walls[i], i > 0 ? maxLeft[i - 1] : 0);\n        for (int i = n - 1; i >= 0; i--) maxRight[i] = max(walls[i], i < n - 1 ? maxRight[i + 1] : 0);\n        long long best = 0, pool = 0;\n        for (int i = 0; i < n; i++) {\n            int water = min(maxLeft[i], maxRight[i]) - walls[i];\n            pool = water > 0 ? pool + water : 0;\n            best = max(best, pool);\n        }\n        return best;\n    }\n};\n",
+    "c": "long long largestPool(int* walls, int wallsSize) {\n    int n = wallsSize;\n    int* maxLeft = malloc(n * sizeof(int));\n    int* maxRight = malloc(n * sizeof(int));\n    for (int i = 0; i < n; i++) maxLeft[i] = i > 0 && maxLeft[i - 1] > walls[i] ? maxLeft[i - 1] : walls[i];\n    for (int i = n - 1; i >= 0; i--) maxRight[i] = i < n - 1 && maxRight[i + 1] > walls[i] ? maxRight[i + 1] : walls[i];\n    long long best = 0, pool = 0;\n    for (int i = 0; i < n; i++) {\n        int water = (maxLeft[i] < maxRight[i] ? maxLeft[i] : maxRight[i]) - walls[i];\n        pool = water > 0 ? pool + water : 0;\n        if (pool > best) best = pool;\n    }\n    free(maxLeft);\n    free(maxRight);\n    return best;\n}\n"
+   },
+   "lines": [
+    {
+     "text": "Two arrays of running maxima.",
+     "at": {
+      "python": [
+       [
+        3,
+        4
+       ]
+      ],
+      "java": [
+       [
+        3,
+        4
+       ]
+      ],
+      "cpp": [
+       [
+        4,
+        5
+       ]
+      ],
+      "c": [
+       [
+        2,
+        4
+       ]
+      ]
+     }
+    },
+    {
+     "text": "Tallest wall from the left end up to and including `i`.",
+     "at": {
+      "python": [
+       [
+        5,
+        6
+       ]
+      ],
+      "java": [
+       [
+        5,
+        5
+       ]
+      ],
+      "cpp": [
+       [
+        6,
+        6
+       ]
+      ],
+      "c": [
+       [
+        5,
+        5
+       ]
+      ]
+     }
+    },
+    {
+     "text": "Tallest wall from the right end back to and including `i`.",
+     "at": {
+      "python": [
+       [
+        7,
+        8
+       ]
+      ],
+      "java": [
+       [
+        6,
+        6
+       ]
+      ],
+      "cpp": [
+       [
+        7,
+        7
+       ]
+      ],
+      "c": [
+       [
+        6,
+        6
+       ]
+      ]
+     }
+    },
+    {
+     "text": "Columns in order, growing the current pool or resetting it at a dry column.",
+     "at": {
+      "python": [
+       [
+        9,
+        10
+       ],
+       [
+        12,
+        13
+       ]
+      ],
+      "java": [
+       [
+        7,
+        8
+       ],
+       [
+        10,
+        11
+       ]
+      ],
+      "cpp": [
+       [
+        8,
+        9
+       ],
+       [
+        11,
+        12
+       ]
+      ],
+      "c": [
+       [
+        7,
+        8
+       ],
+       [
+        10,
+        11
+       ]
+      ]
+     }
+    },
+    {
+     "text": "Level = the lower of the two maxima.",
+     "at": {
+      "python": [
+       [
+        11,
+        11
+       ]
+      ],
+      "java": [
+       [
+        9,
+        9
+       ]
+      ],
+      "cpp": [
+       [
+        10,
+        10
+       ]
+      ],
+      "c": [
+       [
+        9,
+        9
+       ]
+      ]
+     }
+    },
+    {
+     "text": "The largest pool.",
+     "at": {
+      "python": [
+       [
+        14,
+        14
+       ]
+      ],
+      "java": [
+       [
+        13,
+        13
+       ]
+      ],
+      "cpp": [
+       [
+        14,
+        14
+       ]
+      ],
+      "c": [
+       [
+        13,
+        15
+       ]
+      ]
+     }
+    }
+   ],
+   "complexity": [
+    {
+     "md": "**Time O(n):** three passes. **Space O(n)** for the two arrays."
+    }
+   ],
+   "walk": {
+    "steps": [
+     {
+      "text": "Left-to-right running maximum.",
+      "panels": [
+       {
+        "type": "row",
+        "cells": [
+         2,
+         0,
+         3,
+         1,
+         1,
+         4,
+         0,
+         2,
+         2,
+         0,
+         1
+        ],
+        "label": "walls"
+       },
+       {
+        "type": "row",
+        "cells": [
+         2,
+         2,
+         3,
+         3,
+         3,
+         4,
+         4,
+         4,
+         4,
+         4,
+         4
+        ],
+        "label": "max from left"
+       }
+      ]
+     },
+     {
+      "text": "Right-to-left running maximum.",
+      "panels": [
+       {
+        "type": "row",
+        "cells": [
+         2,
+         0,
+         3,
+         1,
+         1,
+         4,
+         0,
+         2,
+         2,
+         0,
+         1
+        ],
+        "label": "walls"
+       },
+       {
+        "type": "row",
+        "cells": [
+         2,
+         2,
+         3,
+         3,
+         3,
+         4,
+         4,
+         4,
+         4,
+         4,
+         4
+        ],
+        "label": "max from left"
+       },
+       {
+        "type": "row",
+        "cells": [
+         4,
+         4,
+         4,
+         4,
+         4,
+         4,
+         2,
+         2,
+         2,
+         1,
+         1
+        ],
+        "label": "max from right"
+       }
+      ]
+     },
+     {
+      "text": "Water = min of the two − wall.",
+      "panels": [
+       {
+        "type": "row",
+        "cells": [
+         2,
+         0,
+         3,
+         1,
+         1,
+         4,
+         0,
+         2,
+         2,
+         0,
+         1
+        ],
+        "label": "walls"
+       },
+       {
+        "type": "row",
+        "cells": [
+         0,
+         2,
+         0,
+         2,
+         2,
+         0,
+         2,
+         0,
+         0,
+         1,
+         0
+        ],
+        "states": {
+         "1": "found",
+         "3": "found",
+         "4": "found",
+         "6": "found",
+         "9": "found"
+        },
+        "label": "water"
+       }
+      ]
+     },
+     {
+      "text": "Runs of positive water are the pools: [2, 4, 2, 1]. Largest 4.",
+      "panels": [
+       {
+        "type": "row",
+        "cells": [
+         0,
+         2,
+         0,
+         2,
+         2,
+         0,
+         2,
+         0,
+         0,
+         1,
+         0
+        ],
+        "states": {
+         "1": "found",
+         "3": "found",
+         "4": "found",
+         "6": "found",
+         "9": "found"
+        },
+        "label": "water"
+       }
+      ],
+      "result": "4"
+     }
+    ],
+    "title": "Precompute the tallest wall up to each column from the left, and from the right, in two passes. Then water and pools take one more pass."
+   },
+   "limits": [
+    {
+     "md": "Linear, but two extra arrays of n integers. Splitting at the tallest wall makes one of the two maxima unnecessary on each side, so a single running variable does the job."
+    }
+   ]
+  },
+  {
+   "title": "Split at the tallest wall",
+   "kind": "best",
+   "time": "O(n)",
+   "space": "O(1)",
+   "idea": [
+    {
+     "md": "Find the tallest column `m`. Scan `0..m−1` left to right with a running max as the water level, adding up pools. Scan `n−1` down to `m+1` with a running max from the right, the same way. Column `m` is dry, so no pool is cut in two."
+    }
+   ],
+   "build": [
+    "Find `m`, the index of the tallest wall.",
+    "Left scan: `level = max(level, walls[i])`, water = level − height, grow or reset the pool, track the best.",
+    "Reset the pool and level; scan from the right end down to `m + 1`.",
+    "Return the best."
+   ],
+   "code": {
+    "python": "class Solution:\n    def largestPool(self, walls: List[int]) -> int:\n        n = len(walls)\n        m = walls.index(max(walls))\n        best = 0\n        for side in (range(m), range(n - 1, m, -1)):\n            level = pool = 0\n            for i in side:\n                level = max(level, walls[i])\n                water = level - walls[i]\n                pool = pool + water if water > 0 else 0\n                best = max(best, pool)\n        return best\n",
+    "java": "class Solution {\n    public long largestPool(int[] walls) {\n        int n = walls.length, m = 0;\n        for (int i = 1; i < n; i++) if (walls[i] > walls[m]) m = i;\n        long best = 0, pool = 0;\n        int level = 0;\n        for (int i = 0; i < m; i++) {\n            level = Math.max(level, walls[i]);\n            int water = level - walls[i];\n            pool = water > 0 ? pool + water : 0;\n            best = Math.max(best, pool);\n        }\n        level = 0;\n        pool = 0;\n        for (int i = n - 1; i > m; i--) {\n            level = Math.max(level, walls[i]);\n            int water = level - walls[i];\n            pool = water > 0 ? pool + water : 0;\n            best = Math.max(best, pool);\n        }\n        return best;\n    }\n}\n",
+    "cpp": "class Solution {\npublic:\n    long long largestPool(vector<int>& walls) {\n        int n = walls.size();\n        int m = max_element(walls.begin(), walls.end()) - walls.begin();\n        long long best = 0, pool = 0;\n        int level = 0;\n        for (int i = 0; i < m; i++) {\n            level = max(level, walls[i]);\n            int water = level - walls[i];\n            pool = water > 0 ? pool + water : 0;\n            best = max(best, pool);\n        }\n        level = 0;\n        pool = 0;\n        for (int i = n - 1; i > m; i--) {\n            level = max(level, walls[i]);\n            int water = level - walls[i];\n            pool = water > 0 ? pool + water : 0;\n            best = max(best, pool);\n        }\n        return best;\n    }\n};\n",
+    "c": "long long largestPool(int* walls, int wallsSize) {\n    int n = wallsSize, m = 0;\n    for (int i = 1; i < n; i++) if (walls[i] > walls[m]) m = i;\n    long long best = 0, pool = 0;\n    int level = 0;\n    for (int i = 0; i < m; i++) {\n        if (walls[i] > level) level = walls[i];\n        int water = level - walls[i];\n        pool = water > 0 ? pool + water : 0;\n        if (pool > best) best = pool;\n    }\n    level = 0;\n    pool = 0;\n    for (int i = n - 1; i > m; i--) {\n        if (walls[i] > level) level = walls[i];\n        int water = level - walls[i];\n        pool = water > 0 ? pool + water : 0;\n        if (pool > best) best = pool;\n    }\n    return best;\n}\n"
+   },
+   "lines": [
+    {
+     "text": "Size, best pool (64-bit) and the pool in progress.",
+     "at": {
+      "python": [
+       [
+        3,
+        3
+       ],
+       [
+        5,
+        5
+       ]
+      ],
+      "java": [
+       [
+        3,
+        3
+       ],
+       [
+        5,
+        5
+       ]
+      ],
+      "cpp": [
+       [
+        4,
+        4
+       ],
+       [
+        6,
+        6
+       ]
+      ],
+      "c": [
+       [
+        2,
+        2
+       ],
+       [
+        4,
+        4
+       ]
+      ]
+     }
+    },
+    {
+     "text": "The tallest wall (the first one, if several tie). It can't hold water, so it separates the two sides.",
+     "at": {
+      "python": [
+       [
+        4,
+        4
+       ]
+      ],
+      "java": [
+       [
+        4,
+        4
+       ]
+      ],
+      "cpp": [
+       [
+        5,
+        5
+       ]
+      ],
+      "c": [
+       [
+        3,
+        3
+       ]
+      ]
+     }
+    },
+    {
+     "text": "Each side starts with level 0 and no pool.",
+     "at": {
+      "python": [
+       [
+        6,
+        7
+       ]
+      ],
+      "java": [
+       [
+        6,
+        6
+       ],
+       [
+        13,
+        14
+       ]
+      ],
+      "cpp": [
+       [
+        7,
+        7
+       ],
+       [
+        14,
+        15
+       ]
+      ],
+      "c": [
+       [
+        5,
+        5
+       ],
+       [
+        12,
+        13
+       ]
+      ]
+     },
+     "notes": {
+      "python": "The left side is scanned left to right, the right side right to left, each towards the peak."
+     }
+    },
+    {
+     "text": "Scanning towards the peak, the wall on the far side (the peak) is at least as tall as anything seen, so the water level is just the running maximum from the near end.",
+     "at": {
+      "python": [
+       [
+        8,
+        10
+       ]
+      ],
+      "java": [
+       [
+        7,
+        9
+       ],
+       [
+        15,
+        17
+       ]
+      ],
+      "cpp": [
+       [
+        8,
+        10
+       ],
+       [
+        16,
+        18
+       ]
+      ],
+      "c": [
+       [
+        6,
+        8
+       ],
+       [
+        14,
+        16
+       ]
+      ]
+     }
+    },
+    {
+     "text": "Water extends the current pool; a dry column ends it. Scanning the right side backwards doesn't matter: a pool's volume is the same in either direction.",
+     "at": {
+      "python": [
+       [
+        11,
+        12
+       ]
+      ],
+      "java": [
+       [
+        10,
+        11
+       ],
+       [
+        18,
+        19
+       ]
+      ],
+      "cpp": [
+       [
+        11,
+        12
+       ],
+       [
+        19,
+        20
+       ]
+      ],
+      "c": [
+       [
+        9,
+        10
+       ],
+       [
+        17,
+        18
+       ]
+      ]
+     }
+    },
+    {
+     "text": "The largest pool on either side.",
+     "at": {
+      "python": [
+       [
+        13,
+        13
+       ]
+      ],
+      "java": [
+       [
+        21,
+        21
+       ]
+      ],
+      "cpp": [
+       [
+        22,
+        22
+       ]
+      ],
+      "c": [
+       [
+        20,
+        20
+       ]
+      ]
+     }
+    }
+   ],
+   "complexity": [
+    {
+     "md": "**Time O(n):** one pass to find the peak, one scan per side. **Space O(1).**"
+    }
+   ],
+   "walk": {
+    "steps": [
+     {
+      "text": "Left part, column 0: level 2, water 0. Pool so far 0.",
+      "panels": [
+       {
+        "type": "row",
+        "cells": [
+         2,
+         0,
+         3,
+         1,
+         1,
+         4,
+         0,
+         2,
+         2,
+         0,
+         1
+        ],
+        "states": {
+         "0": "active",
+         "5": "mark"
+        },
+        "label": "walls"
+       },
+       {
+        "type": "vars",
+        "items": {
+         "level": 2,
+         "pool": 0,
+         "best": 0
+        }
+       }
+      ]
+     },
+     {
+      "text": "Left part, column 1: level 2, water 2. Pool so far 2.",
+      "panels": [
+       {
+        "type": "row",
+        "cells": [
+         2,
+         0,
+         3,
+         1,
+         1,
+         4,
+         0,
+         2,
+         2,
+         0,
+         1
+        ],
+        "states": {
+         "1": "active",
+         "5": "mark"
+        },
+        "label": "walls"
+       },
+       {
+        "type": "vars",
+        "items": {
+         "level": 2,
+         "pool": 2,
+         "best": 2
+        }
+       }
+      ]
+     },
+     {
+      "text": "Left part, column 2: level 3, water 0. Pool so far 0.",
+      "panels": [
+       {
+        "type": "row",
+        "cells": [
+         2,
+         0,
+         3,
+         1,
+         1,
+         4,
+         0,
+         2,
+         2,
+         0,
+         1
+        ],
+        "states": {
+         "2": "active",
+         "5": "mark"
+        },
+        "label": "walls"
+       },
+       {
+        "type": "vars",
+        "items": {
+         "level": 3,
+         "pool": 0,
+         "best": 2
+        }
+       }
+      ]
+     },
+     {
+      "text": "Left part, column 3: level 3, water 2. Pool so far 2.",
+      "panels": [
+       {
+        "type": "row",
+        "cells": [
+         2,
+         0,
+         3,
+         1,
+         1,
+         4,
+         0,
+         2,
+         2,
+         0,
+         1
+        ],
+        "states": {
+         "3": "active",
+         "5": "mark"
+        },
+        "label": "walls"
+       },
+       {
+        "type": "vars",
+        "items": {
+         "level": 3,
+         "pool": 2,
+         "best": 2
+        }
+       }
+      ]
+     },
+     {
+      "text": "Left part, column 4: level 3, water 2. Pool so far 4.",
+      "panels": [
+       {
+        "type": "row",
+        "cells": [
+         2,
+         0,
+         3,
+         1,
+         1,
+         4,
+         0,
+         2,
+         2,
+         0,
+         1
+        ],
+        "states": {
+         "4": "active",
+         "5": "mark"
+        },
+        "label": "walls"
+       },
+       {
+        "type": "vars",
+        "items": {
+         "level": 3,
+         "pool": 4,
+         "best": 4
+        }
+       }
+      ]
+     },
+     {
+      "text": "Right part (scanning back), column 10: level 1, water 0. Pool so far 0.",
+      "panels": [
+       {
+        "type": "row",
+        "cells": [
+         2,
+         0,
+         3,
+         1,
+         1,
+         4,
+         0,
+         2,
+         2,
+         0,
+         1
+        ],
+        "states": {
+         "10": "active",
+         "5": "mark"
+        },
+        "label": "walls"
+       },
+       {
+        "type": "vars",
+        "items": {
+         "level": 1,
+         "pool": 0,
+         "best": 4
+        }
+       }
+      ]
+     },
+     {
+      "text": "Right part (scanning back), column 9: level 1, water 1. Pool so far 1.",
+      "panels": [
+       {
+        "type": "row",
+        "cells": [
+         2,
+         0,
+         3,
+         1,
+         1,
+         4,
+         0,
+         2,
+         2,
+         0,
+         1
+        ],
+        "states": {
+         "9": "active",
+         "5": "mark"
+        },
+        "label": "walls"
+       },
+       {
+        "type": "vars",
+        "items": {
+         "level": 1,
+         "pool": 1,
+         "best": 4
+        }
+       }
+      ]
+     },
+     {
+      "text": "Right part (scanning back), column 8: level 2, water 0. Pool so far 0.",
+      "panels": [
+       {
+        "type": "row",
+        "cells": [
+         2,
+         0,
+         3,
+         1,
+         1,
+         4,
+         0,
+         2,
+         2,
+         0,
+         1
+        ],
+        "states": {
+         "8": "active",
+         "5": "mark"
+        },
+        "label": "walls"
+       },
+       {
+        "type": "vars",
+        "items": {
+         "level": 2,
+         "pool": 0,
+         "best": 4
+        }
+       }
+      ]
+     },
+     {
+      "text": "Right part (scanning back), column 7: level 2, water 0. Pool so far 0.",
+      "panels": [
+       {
+        "type": "row",
+        "cells": [
+         2,
+         0,
+         3,
+         1,
+         1,
+         4,
+         0,
+         2,
+         2,
+         0,
+         1
+        ],
+        "states": {
+         "7": "active",
+         "5": "mark"
+        },
+        "label": "walls"
+       },
+       {
+        "type": "vars",
+        "items": {
+         "level": 2,
+         "pool": 0,
+         "best": 4
+        }
+       }
+      ]
+     },
+     {
+      "text": "Right part (scanning back), column 6: level 2, water 2. Pool so far 2.",
+      "panels": [
+       {
+        "type": "row",
+        "cells": [
+         2,
+         0,
+         3,
+         1,
+         1,
+         4,
+         0,
+         2,
+         2,
+         0,
+         1
+        ],
+        "states": {
+         "6": "active",
+         "5": "mark"
+        },
+        "label": "walls"
+       },
+       {
+        "type": "vars",
+        "items": {
+         "level": 2,
+         "pool": 2,
+         "best": 4
+        }
+       }
+      ]
+     },
+     {
+      "text": "Largest pool: 4.",
+      "panels": [],
+      "result": "4"
+     }
+    ],
+    "title": "The tallest wall (column 5, height 4) holds no water and splits the ground. Left of it, the right side is always high enough, so the level is just the running max from the left; right of it, the running max from the right."
+   }
+  }
+ ],
+ "takeaways": [
+  {
+   "md": "- Trapped water at a column = `min(maxLeft, maxRight) − height`.\n- The global maximum splits the array: on each side only one running maximum matters, so no extra arrays.\n- The water can also be filled layer by layer with a stack of decreasing walls (each pop fills one horizontal\n  layer between two walls); that's useful when you need the water while scanning in a single direction."
+  }
+ ]
+}
