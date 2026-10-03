@@ -1,0 +1,1488 @@
+{
+ "version": 1,
+ "summary": "At most **two** options can each have more than n/3 votes (three such options would need more than n\nvotes). So two candidate slots are enough: a vote for a third option cancels one vote from each\ncandidate. The survivors are the only options that *could* be strong, and one counting pass confirms\nwhich really are. O(n) time, O(1) space.",
+ "question": [
+  {
+   "md": "Return every option with **more than ⌊n/3⌋** votes, in increasing order.\n\n- **Strictly more than ⌊n/3⌋:** with 10 votes, ⌊10/3⌋ = 3, so an option needs at least 4. With 3 votes it\n  needs 2, so `[1, 2, 3]` has no strong option.\n- **0, 1 or 2 options can be strong**, never 3 (that would take more than n votes).\n- **Increasing order** in the output.\n- **Ids from −10⁹ to 10⁹**, so they can't index an array. The goal is O(1) extra space."
+  }
+ ],
+ "think": [
+  {
+   "md": "Take `[3, 8, 3, 5, 8, 3, 8, 1, 3, 8]` (n = 10, ⌊n/3⌋ = 3). Option 3 has 4 votes and option 8 has 4: both\nstrong. 5 and 1 have one each."
+  },
+  {
+   "panels": [
+    {
+     "type": "row",
+     "cells": [
+      3,
+      8,
+      3,
+      5,
+      8,
+      3,
+      8,
+      1,
+      3,
+      8
+     ],
+     "states": {
+      "0": "answer",
+      "2": "answer",
+      "5": "answer",
+      "8": "answer",
+      "1": "found",
+      "4": "found",
+      "6": "found",
+      "9": "found"
+     },
+     "slots": true
+    }
+   ],
+   "caption": "3 (dark) and 8 (light) each hold 4 of the 10 votes."
+  },
+  {
+   "md": "The O(1)-space idea extends majority voting. Throw away **three votes for three different options** at\na time. Each such triple removes at most one vote from any single option, and there are at most n/3\ntriples, so an option with more than n/3 votes always has something left over.\n\nTwo slots implement \"three different options\": when a vote matches neither candidate (and both slots\nare occupied), that vote plus one vote of each candidate form a triple, and all three disappear. Every\nstrong option survives into a slot. But a survivor isn't necessarily strong, so finish with a counting\npass, exactly as with the strict majority."
+  }
+ ],
+ "approaches": [
+  {
+   "title": "Count each option by scanning",
+   "kind": "brute",
+   "time": "O(n²)",
+   "space": "O(1)",
+   "idea": [
+    {
+     "md": "For each distinct option (process an option only at its first appearance), count its votes with a full scan and keep it if the count exceeds ⌊n/3⌋. Sort the (at most two) results."
+    }
+   ],
+   "build": [
+    "For each index i, skip it if the same option appeared earlier.",
+    "Count the option's votes with a scan.",
+    "Keep it if `count > n / 3` (integer division).",
+    "Return the kept options sorted."
+   ],
+   "code": {
+    "python": "class Solution:\n    def strongCandidates(self, votes: List[int]) -> List[int]:\n        n = len(votes)\n        out = []\n        for i, x in enumerate(votes):\n            if x in votes[:i]:\n                continue\n            if votes.count(x) > n // 3:\n                out.append(x)\n        return sorted(out)\n",
+    "java": "class Solution {\n    public int[] strongCandidates(int[] votes) {\n        int n = votes.length;\n        List<Integer> out = new ArrayList<>();\n        for (int i = 0; i < n; i++) {\n            boolean seen = false;\n            for (int j = 0; j < i && !seen; j++) seen = votes[j] == votes[i];\n            if (seen) continue;\n            int c = 0;\n            for (int x : votes) if (x == votes[i]) c++;\n            if (c > n / 3) out.add(votes[i]);\n        }\n        Collections.sort(out);\n        return out.stream().mapToInt(Integer::intValue).toArray();\n    }\n}\n",
+    "cpp": "class Solution {\npublic:\n    vector<int> strongCandidates(vector<int>& votes) {\n        int n = votes.size();\n        vector<int> out;\n        for (int i = 0; i < n; i++) {\n            if (find(votes.begin(), votes.begin() + i, votes[i]) != votes.begin() + i) continue;\n            if (count(votes.begin(), votes.end(), votes[i]) > n / 3) out.push_back(votes[i]);\n        }\n        sort(out.begin(), out.end());\n        return out;\n    }\n};\n",
+    "c": "int* strongCandidates(int* votes, int votesSize, int* returnSize) {\n    int n = votesSize;\n    int* out = malloc(2 * sizeof(int));\n    *returnSize = 0;\n    for (int i = 0; i < n; i++) {\n        bool seen = false;\n        for (int j = 0; j < i && !seen; j++) seen = votes[j] == votes[i];\n        if (seen) continue;\n        int c = 0;\n        for (int j = 0; j < n; j++) if (votes[j] == votes[i]) c++;\n        if (c > n / 3) out[(*returnSize)++] = votes[i];\n    }\n    if (*returnSize == 2 && out[0] > out[1]) { int t = out[0]; out[0] = out[1]; out[1] = t; }\n    return out;\n}\n"
+   },
+   "lines": [
+    {
+     "text": "Consider each option once, at its first appearance.",
+     "at": {
+      "python": [
+       [
+        5,
+        5
+       ]
+      ],
+      "java": [
+       [
+        5,
+        5
+       ]
+      ],
+      "cpp": [
+       [
+        6,
+        6
+       ]
+      ],
+      "c": [
+       [
+        5,
+        5
+       ]
+      ]
+     }
+    },
+    {
+     "text": "If this option already appeared to the left, it was already counted.",
+     "at": {
+      "python": [
+       [
+        6,
+        7
+       ]
+      ],
+      "java": [
+       [
+        6,
+        8
+       ]
+      ],
+      "cpp": [
+       [
+        7,
+        7
+       ]
+      ],
+      "c": [
+       [
+        6,
+        8
+       ]
+      ]
+     }
+    },
+    {
+     "text": "Count its votes; more than ⌊n/3⌋ (integer division) makes it strong.",
+     "at": {
+      "python": [
+       [
+        8,
+        9
+       ]
+      ],
+      "java": [
+       [
+        9,
+        11
+       ]
+      ],
+      "cpp": [
+       [
+        8,
+        8
+       ]
+      ],
+      "c": [
+       [
+        9,
+        11
+       ]
+      ]
+     }
+    },
+    {
+     "text": "At most two results; put them in increasing order.",
+     "at": {
+      "python": [
+       [
+        10,
+        10
+       ]
+      ],
+      "java": [
+       [
+        13,
+        14
+       ]
+      ],
+      "cpp": [
+       [
+        10,
+        11
+       ]
+      ],
+      "c": [
+       [
+        13,
+        14
+       ]
+      ]
+     },
+     "notes": {
+      "c": "Two strong options at most, so room for 2 is enough, and one comparison sorts them."
+     }
+    }
+   ],
+   "complexity": [
+    {
+     "md": "**Time O(n²).** **Space O(1)** besides the (at most 2) answers."
+    }
+   ],
+   "walk": {
+    "steps": [
+     {
+      "text": "Option 1: 1 vote, not more than 3.",
+      "panels": [
+       {
+        "type": "row",
+        "cells": [
+         3,
+         8,
+         3,
+         5,
+         8,
+         3,
+         8,
+         1,
+         3,
+         8
+        ],
+        "states": {
+         "7": "found"
+        },
+        "slots": true
+       }
+      ]
+     },
+     {
+      "text": "Option 3: 4 votes > 3: strong.",
+      "panels": [
+       {
+        "type": "row",
+        "cells": [
+         3,
+         8,
+         3,
+         5,
+         8,
+         3,
+         8,
+         1,
+         3,
+         8
+        ],
+        "states": {
+         "0": "answer",
+         "2": "answer",
+         "5": "answer",
+         "8": "answer"
+        },
+        "slots": true
+       }
+      ]
+     },
+     {
+      "text": "Option 5: 1 vote, not more than 3.",
+      "panels": [
+       {
+        "type": "row",
+        "cells": [
+         3,
+         8,
+         3,
+         5,
+         8,
+         3,
+         8,
+         1,
+         3,
+         8
+        ],
+        "states": {
+         "3": "found"
+        },
+        "slots": true
+       }
+      ]
+     },
+     {
+      "text": "Option 8: 4 votes > 3: strong.",
+      "panels": [
+       {
+        "type": "row",
+        "cells": [
+         3,
+         8,
+         3,
+         5,
+         8,
+         3,
+         8,
+         1,
+         3,
+         8
+        ],
+        "states": {
+         "1": "answer",
+         "4": "answer",
+         "6": "answer",
+         "9": "answer"
+        },
+        "slots": true
+       }
+      ]
+     },
+     {
+      "text": "Strong: [3, 8].",
+      "panels": [
+       {
+        "type": "row",
+        "cells": [
+         3,
+         8,
+         3,
+         5,
+         8,
+         3,
+         8,
+         1,
+         3,
+         8
+        ],
+        "slots": true
+       }
+      ],
+      "result": "[3, 8]"
+     }
+    ],
+    "title": "Count each distinct option with a full scan; keep those above ⌊n/3⌋ = 3."
+   },
+   "limits": [
+    {
+     "md": "Each option costs a full scan. One counting pass with a hash map handles all options together."
+    }
+   ],
+   "slow": true
+  },
+  {
+   "title": "Count in a hash map",
+   "kind": "better",
+   "time": "O(n)",
+   "space": "O(n)",
+   "idea": [
+    {
+     "md": "Count every option in one pass, then keep the options whose count exceeds ⌊n/3⌋ and sort them."
+    }
+   ],
+   "build": [
+    "Count votes per option in a hash map.",
+    "Collect options with `count > n / 3`.",
+    "Sort and return."
+   ],
+   "code": {
+    "python": "from collections import Counter\n\nclass Solution:\n    def strongCandidates(self, votes: List[int]) -> List[int]:\n        count = Counter(votes)\n        return sorted(x for x, c in count.items() if c > len(votes) // 3)\n",
+    "java": "class Solution {\n    public int[] strongCandidates(int[] votes) {\n        Map<Integer, Integer> count = new HashMap<>();\n        for (int x : votes) count.merge(x, 1, Integer::sum);\n        List<Integer> out = new ArrayList<>();\n        for (Map.Entry<Integer, Integer> e : count.entrySet()) if (e.getValue() > votes.length / 3) out.add(e.getKey());\n        Collections.sort(out);\n        return out.stream().mapToInt(Integer::intValue).toArray();\n    }\n}\n",
+    "cpp": "class Solution {\npublic:\n    vector<int> strongCandidates(vector<int>& votes) {\n        unordered_map<int, int> count;\n        for (int x : votes) count[x]++;\n        vector<int> out;\n        for (auto& [x, c] : count) if (c > (int) votes.size() / 3) out.push_back(x);\n        sort(out.begin(), out.end());\n        return out;\n    }\n};\n",
+    "c": "typedef struct { int key; int count; bool used; } Slot;\n\nstatic unsigned slotOf(int key, unsigned mask) {\n    unsigned long long h = (unsigned long long) (long long) key * 0x9E3779B97F4A7C15ULL;\n    return (unsigned) (h >> 32) & mask;\n}\n\nint* strongCandidates(int* votes, int votesSize, int* returnSize) {\n    unsigned cap = 1;\n    while (cap < 2u * votesSize) cap <<= 1;\n    Slot* count = calloc(cap, sizeof(Slot));\n    for (int i = 0; i < votesSize; i++) {\n        unsigned s = slotOf(votes[i], cap - 1);\n        while (count[s].used && count[s].key != votes[i]) s = (s + 1) & (cap - 1);\n        count[s].key = votes[i];\n        count[s].used = true;\n        count[s].count++;\n    }\n    int* out = malloc(2 * sizeof(int));\n    *returnSize = 0;\n    for (unsigned s = 0; s < cap; s++) if (count[s].used && count[s].count > votesSize / 3) out[(*returnSize)++] = count[s].key;\n    if (*returnSize == 2 && out[0] > out[1]) { int t = out[0]; out[0] = out[1]; out[1] = t; }\n    free(count);\n    return out;\n}\n"
+   },
+   "lines": [
+    {
+     "text": "C has no hash map: a slot holds an option, its count and an in-use flag.",
+     "at": {
+      "c": [
+       [
+        1,
+        1
+       ],
+       [
+        3,
+        6
+       ]
+      ]
+     }
+    },
+    {
+     "text": "Votes per option, one pass.",
+     "at": {
+      "python": [
+       [
+        5,
+        5
+       ]
+      ],
+      "java": [
+       [
+        3,
+        4
+       ]
+      ],
+      "cpp": [
+       [
+        4,
+        5
+       ]
+      ],
+      "c": [
+       [
+        9,
+        18
+       ]
+      ]
+     },
+     "notes": {
+      "c": "Probe from each option's slot to its entry (or an empty slot) and bump the count."
+     }
+    },
+    {
+     "text": "Options above ⌊n/3⌋, in increasing order.",
+     "at": {
+      "python": [
+       [
+        6,
+        6
+       ]
+      ],
+      "java": [
+       [
+        5,
+        8
+       ]
+      ],
+      "cpp": [
+       [
+        6,
+        9
+       ]
+      ],
+      "c": [
+       [
+        19,
+        24
+       ]
+      ]
+     },
+     "notes": {
+      "c": "Walk the table's used slots; at most two qualify, so one comparison orders them."
+     }
+    }
+   ],
+   "complexity": [
+    {
+     "md": "**Time O(n)** on average. **Space O(n)** for the counts."
+    }
+   ],
+   "walk": {
+    "steps": [
+     {
+      "text": "Vote 3: count 1.",
+      "panels": [
+       {
+        "type": "row",
+        "cells": [
+         3,
+         8,
+         3,
+         5,
+         8,
+         3,
+         8,
+         1,
+         3,
+         8
+        ],
+        "states": {
+         "0": "active"
+        },
+        "slots": true
+       },
+       {
+        "type": "row",
+        "cells": [
+         "3:1"
+        ],
+        "states": {
+         "0": "new"
+        },
+        "label": "option:votes"
+       }
+      ]
+     },
+     {
+      "text": "Vote 8: count 1.",
+      "panels": [
+       {
+        "type": "row",
+        "cells": [
+         3,
+         8,
+         3,
+         5,
+         8,
+         3,
+         8,
+         1,
+         3,
+         8
+        ],
+        "states": {
+         "0": "dim",
+         "1": "active"
+        },
+        "slots": true
+       },
+       {
+        "type": "row",
+        "cells": [
+         "3:1",
+         "8:1"
+        ],
+        "states": {
+         "1": "new"
+        },
+        "label": "option:votes"
+       }
+      ]
+     },
+     {
+      "text": "Vote 3: count 2.",
+      "panels": [
+       {
+        "type": "row",
+        "cells": [
+         3,
+         8,
+         3,
+         5,
+         8,
+         3,
+         8,
+         1,
+         3,
+         8
+        ],
+        "states": {
+         "0": "dim",
+         "1": "dim",
+         "2": "active"
+        },
+        "slots": true
+       },
+       {
+        "type": "row",
+        "cells": [
+         "3:2",
+         "8:1"
+        ],
+        "states": {
+         "0": "new"
+        },
+        "label": "option:votes"
+       }
+      ]
+     },
+     {
+      "text": "Vote 5: count 1.",
+      "panels": [
+       {
+        "type": "row",
+        "cells": [
+         3,
+         8,
+         3,
+         5,
+         8,
+         3,
+         8,
+         1,
+         3,
+         8
+        ],
+        "states": {
+         "0": "dim",
+         "1": "dim",
+         "2": "dim",
+         "3": "active"
+        },
+        "slots": true
+       },
+       {
+        "type": "row",
+        "cells": [
+         "3:2",
+         "8:1",
+         "5:1"
+        ],
+        "states": {
+         "2": "new"
+        },
+        "label": "option:votes"
+       }
+      ]
+     },
+     {
+      "text": "Vote 8: count 2.",
+      "panels": [
+       {
+        "type": "row",
+        "cells": [
+         3,
+         8,
+         3,
+         5,
+         8,
+         3,
+         8,
+         1,
+         3,
+         8
+        ],
+        "states": {
+         "0": "dim",
+         "1": "dim",
+         "2": "dim",
+         "3": "dim",
+         "4": "active"
+        },
+        "slots": true
+       },
+       {
+        "type": "row",
+        "cells": [
+         "3:2",
+         "8:2",
+         "5:1"
+        ],
+        "states": {
+         "1": "new"
+        },
+        "label": "option:votes"
+       }
+      ]
+     },
+     {
+      "text": "Vote 3: count 3.",
+      "panels": [
+       {
+        "type": "row",
+        "cells": [
+         3,
+         8,
+         3,
+         5,
+         8,
+         3,
+         8,
+         1,
+         3,
+         8
+        ],
+        "states": {
+         "0": "dim",
+         "1": "dim",
+         "2": "dim",
+         "3": "dim",
+         "4": "dim",
+         "5": "active"
+        },
+        "slots": true
+       },
+       {
+        "type": "row",
+        "cells": [
+         "3:3",
+         "8:2",
+         "5:1"
+        ],
+        "states": {
+         "0": "new"
+        },
+        "label": "option:votes"
+       }
+      ]
+     },
+     {
+      "text": "Vote 8: count 3.",
+      "panels": [
+       {
+        "type": "row",
+        "cells": [
+         3,
+         8,
+         3,
+         5,
+         8,
+         3,
+         8,
+         1,
+         3,
+         8
+        ],
+        "states": {
+         "0": "dim",
+         "1": "dim",
+         "2": "dim",
+         "3": "dim",
+         "4": "dim",
+         "5": "dim",
+         "6": "active"
+        },
+        "slots": true
+       },
+       {
+        "type": "row",
+        "cells": [
+         "3:3",
+         "8:3",
+         "5:1"
+        ],
+        "states": {
+         "1": "new"
+        },
+        "label": "option:votes"
+       }
+      ]
+     },
+     {
+      "text": "Vote 1: count 1.",
+      "panels": [
+       {
+        "type": "row",
+        "cells": [
+         3,
+         8,
+         3,
+         5,
+         8,
+         3,
+         8,
+         1,
+         3,
+         8
+        ],
+        "states": {
+         "0": "dim",
+         "1": "dim",
+         "2": "dim",
+         "3": "dim",
+         "4": "dim",
+         "5": "dim",
+         "6": "dim",
+         "7": "active"
+        },
+        "slots": true
+       },
+       {
+        "type": "row",
+        "cells": [
+         "3:3",
+         "8:3",
+         "5:1",
+         "1:1"
+        ],
+        "states": {
+         "3": "new"
+        },
+        "label": "option:votes"
+       }
+      ]
+     },
+     {
+      "text": "Vote 3: count 4.",
+      "panels": [
+       {
+        "type": "row",
+        "cells": [
+         3,
+         8,
+         3,
+         5,
+         8,
+         3,
+         8,
+         1,
+         3,
+         8
+        ],
+        "states": {
+         "0": "dim",
+         "1": "dim",
+         "2": "dim",
+         "3": "dim",
+         "4": "dim",
+         "5": "dim",
+         "6": "dim",
+         "7": "dim",
+         "8": "active"
+        },
+        "slots": true
+       },
+       {
+        "type": "row",
+        "cells": [
+         "3:4",
+         "8:3",
+         "5:1",
+         "1:1"
+        ],
+        "states": {
+         "0": "new"
+        },
+        "label": "option:votes"
+       }
+      ]
+     },
+     {
+      "text": "Vote 8: count 4.",
+      "panels": [
+       {
+        "type": "row",
+        "cells": [
+         3,
+         8,
+         3,
+         5,
+         8,
+         3,
+         8,
+         1,
+         3,
+         8
+        ],
+        "states": {
+         "0": "dim",
+         "1": "dim",
+         "2": "dim",
+         "3": "dim",
+         "4": "dim",
+         "5": "dim",
+         "6": "dim",
+         "7": "dim",
+         "8": "dim",
+         "9": "active"
+        },
+        "slots": true
+       },
+       {
+        "type": "row",
+        "cells": [
+         "3:4",
+         "8:4",
+         "5:1",
+         "1:1"
+        ],
+        "states": {
+         "1": "new"
+        },
+        "label": "option:votes"
+       }
+      ]
+     },
+     {
+      "text": "Counts above 3: options [3, 8], sorted.",
+      "panels": [
+       {
+        "type": "row",
+        "cells": [
+         "3:4",
+         "8:4",
+         "5:1",
+         "1:1"
+        ],
+        "states": {
+         "0": "answer",
+         "1": "answer"
+        },
+        "label": "option:votes"
+       }
+      ],
+      "result": "[3, 8]"
+     }
+    ],
+    "title": "Count all options in a hash map, then keep counts above ⌊n/3⌋."
+   },
+   "limits": [
+    {
+     "md": "It stores a count for every option, but at most two options can be strong. Two candidate slots suffice, with a verification pass."
+    }
+   ]
+  },
+  {
+   "title": "Two-candidate voting, then verify",
+   "kind": "best",
+   "time": "O(n)",
+   "space": "O(1)",
+   "idea": [
+    {
+     "md": "Keep candidates A and B with counters. For each vote, in this order:\n\n1. equal to A → A's count + 1; equal to B → B's count + 1;\n2. otherwise, if a slot's count is 0, the vote takes that slot with count 1;\n3. otherwise it matches neither and both slots are busy: decrement both counts. This discards\n   three votes for three different options.\n\nEvery option with more than n/3 votes ends in a slot. Then count A and B exactly and keep those\nabove ⌊n/3⌋."
+    }
+   ],
+   "build": [
+    "Slots `a`, `b` with counts `ca = cb = 0`.",
+    "Apply the three rules above to each vote; check matches before empty slots, so one option never occupies both.",
+    "Count the real votes of `a` and `b`.",
+    "Return those with more than `n / 3`, sorted."
+   ],
+   "code": {
+    "python": "class Solution:\n    def strongCandidates(self, votes: List[int]) -> List[int]:\n        a, b, ca, cb = None, None, 0, 0\n        for x in votes:\n            if x == a:\n                ca += 1\n            elif x == b:\n                cb += 1\n            elif ca == 0:\n                a, ca = x, 1\n            elif cb == 0:\n                b, cb = x, 1\n            else:\n                ca -= 1\n                cb -= 1\n        n = len(votes)\n        return sorted(c for c in {a, b} if c is not None and votes.count(c) > n // 3)\n",
+    "java": "class Solution {\n    public int[] strongCandidates(int[] votes) {\n        int a = 0, b = 0, ca = 0, cb = 0;\n        for (int x : votes) {\n            if (ca > 0 && x == a) ca++;\n            else if (cb > 0 && x == b) cb++;\n            else if (ca == 0) { a = x; ca = 1; }\n            else if (cb == 0) { b = x; cb = 1; }\n            else { ca--; cb--; }\n        }\n        int na = 0, nb = 0;\n        for (int x : votes) {\n            if (ca > 0 && x == a) na++;\n            else if (cb > 0 && x == b) nb++;\n        }\n        List<Integer> out = new ArrayList<>();\n        if (na > votes.length / 3) out.add(a);\n        if (nb > votes.length / 3) out.add(b);\n        Collections.sort(out);\n        return out.stream().mapToInt(Integer::intValue).toArray();\n    }\n}\n",
+    "cpp": "class Solution {\npublic:\n    vector<int> strongCandidates(vector<int>& votes) {\n        int a = 0, b = 0, ca = 0, cb = 0;\n        for (int x : votes) {\n            if (ca > 0 && x == a) ca++;\n            else if (cb > 0 && x == b) cb++;\n            else if (ca == 0) { a = x; ca = 1; }\n            else if (cb == 0) { b = x; cb = 1; }\n            else { ca--; cb--; }\n        }\n        int na = 0, nb = 0;\n        for (int x : votes) {\n            if (ca > 0 && x == a) na++;\n            else if (cb > 0 && x == b) nb++;\n        }\n        vector<int> out;\n        int n = votes.size();\n        if (na > n / 3) out.push_back(a);\n        if (nb > n / 3) out.push_back(b);\n        sort(out.begin(), out.end());\n        return out;\n    }\n};\n",
+    "c": "int* strongCandidates(int* votes, int votesSize, int* returnSize) {\n    int a = 0, b = 0, ca = 0, cb = 0;\n    for (int i = 0; i < votesSize; i++) {\n        int x = votes[i];\n        if (ca > 0 && x == a) ca++;\n        else if (cb > 0 && x == b) cb++;\n        else if (ca == 0) { a = x; ca = 1; }\n        else if (cb == 0) { b = x; cb = 1; }\n        else { ca--; cb--; }\n    }\n    int na = 0, nb = 0;\n    for (int i = 0; i < votesSize; i++) {\n        if (ca > 0 && votes[i] == a) na++;\n        else if (cb > 0 && votes[i] == b) nb++;\n    }\n    int* out = malloc(2 * sizeof(int));\n    *returnSize = 0;\n    if (na > votesSize / 3) out[(*returnSize)++] = a;\n    if (nb > votesSize / 3) out[(*returnSize)++] = b;\n    if (*returnSize == 2 && out[0] > out[1]) { int t = out[0]; out[0] = out[1]; out[1] = t; }\n    return out;\n}\n"
+   },
+   "lines": [
+    {
+     "text": "Two empty slots.",
+     "at": {
+      "python": [
+       [
+        3,
+        3
+       ]
+      ],
+      "java": [
+       [
+        3,
+        3
+       ]
+      ],
+      "cpp": [
+       [
+        4,
+        4
+       ]
+      ],
+      "c": [
+       [
+        2,
+        2
+       ]
+      ]
+     },
+     "notes": {
+      "java": "A slot with count 0 is treated as empty, so the starting value of `a` and `b` doesn't matter: every match test also checks the count.",
+      "cpp": "A slot with count 0 is treated as empty, so every match test also checks the count.",
+      "c": "A slot with count 0 is treated as empty, so every match test also checks the count."
+     }
+    },
+    {
+     "text": "One pass over the votes.",
+     "at": {
+      "python": [
+       [
+        4,
+        4
+       ]
+      ],
+      "java": [
+       [
+        4,
+        4
+       ]
+      ],
+      "cpp": [
+       [
+        5,
+        5
+       ]
+      ],
+      "c": [
+       [
+        3,
+        4
+       ]
+      ]
+     }
+    },
+    {
+     "text": "A vote for a current candidate strengthens it. Matches are tested **before** filling empty slots, so the same option never ends up in both slots.",
+     "at": {
+      "python": [
+       [
+        5,
+        8
+       ]
+      ],
+      "java": [
+       [
+        5,
+        6
+       ]
+      ],
+      "cpp": [
+       [
+        6,
+        7
+       ]
+      ],
+      "c": [
+       [
+        5,
+        6
+       ]
+      ]
+     }
+    },
+    {
+     "text": "An empty slot adopts the new option.",
+     "at": {
+      "python": [
+       [
+        9,
+        12
+       ]
+      ],
+      "java": [
+       [
+        7,
+        8
+       ]
+      ],
+      "cpp": [
+       [
+        8,
+        9
+       ]
+      ],
+      "c": [
+       [
+        7,
+        8
+       ]
+      ]
+     }
+    },
+    {
+     "text": "Three different options (A, B and this vote) each lose one vote. An option with more than n/3 votes can't be wiped out by such triples.",
+     "at": {
+      "python": [
+       [
+        13,
+        15
+       ]
+      ],
+      "java": [
+       [
+        9,
+        9
+       ]
+      ],
+      "cpp": [
+       [
+        10,
+        10
+       ]
+      ],
+      "c": [
+       [
+        9,
+        9
+       ]
+      ]
+     }
+    },
+    {
+     "text": "Survivors are only candidates. Count them exactly, keep those above ⌊n/3⌋, and sort.",
+     "at": {
+      "python": [
+       [
+        16,
+        17
+       ]
+      ],
+      "java": [
+       [
+        11,
+        20
+       ]
+      ],
+      "cpp": [
+       [
+        12,
+        22
+       ]
+      ],
+      "c": [
+       [
+        11,
+        21
+       ]
+      ]
+     },
+     "notes": {
+      "python": "`{a, b}` removes the case where both slots hold the same value; `None` means an empty slot.",
+      "java": "Only slots that are still occupied (count > 0) are counted; an emptied slot's value may be stale.",
+      "cpp": "Only slots that are still occupied (count > 0) are counted; an emptied slot's value may be stale.",
+      "c": "Only slots that are still occupied (count > 0) are counted; an emptied slot's value may be stale."
+     }
+    }
+   ],
+   "complexity": [
+    {
+     "md": "**Time O(n):** two passes. **Space O(1):** four variables."
+    }
+   ],
+   "walk": {
+    "steps": [
+     {
+      "text": "Vote 3: A is free → A = 3.",
+      "panels": [
+       {
+        "type": "row",
+        "cells": [
+         3,
+         8,
+         3,
+         5,
+         8,
+         3,
+         8,
+         1,
+         3,
+         8
+        ],
+        "states": {
+         "0": "active"
+        },
+        "slots": true
+       },
+       {
+        "type": "vars",
+        "items": {
+         "A": "3 ×1",
+         "B": "None ×0"
+        }
+       }
+      ]
+     },
+     {
+      "text": "Vote 8: B is free → B = 8.",
+      "panels": [
+       {
+        "type": "row",
+        "cells": [
+         3,
+         8,
+         3,
+         5,
+         8,
+         3,
+         8,
+         1,
+         3,
+         8
+        ],
+        "states": {
+         "0": "dim",
+         "1": "active"
+        },
+        "slots": true
+       },
+       {
+        "type": "vars",
+        "items": {
+         "A": "3 ×1",
+         "B": "8 ×1"
+        }
+       }
+      ]
+     },
+     {
+      "text": "Vote 3: matches A → A has 2.",
+      "panels": [
+       {
+        "type": "row",
+        "cells": [
+         3,
+         8,
+         3,
+         5,
+         8,
+         3,
+         8,
+         1,
+         3,
+         8
+        ],
+        "states": {
+         "0": "dim",
+         "1": "dim",
+         "2": "active"
+        },
+        "slots": true
+       },
+       {
+        "type": "vars",
+        "items": {
+         "A": "3 ×2",
+         "B": "8 ×1"
+        }
+       }
+      ]
+     },
+     {
+      "text": "Vote 5: matches neither → it and one vote from each candidate cancel (A 1, B 0).",
+      "panels": [
+       {
+        "type": "row",
+        "cells": [
+         3,
+         8,
+         3,
+         5,
+         8,
+         3,
+         8,
+         1,
+         3,
+         8
+        ],
+        "states": {
+         "0": "dim",
+         "1": "dim",
+         "2": "dim",
+         "3": "active"
+        },
+        "slots": true
+       },
+       {
+        "type": "vars",
+        "items": {
+         "A": "3 ×1",
+         "B": "8 ×0"
+        }
+       }
+      ]
+     },
+     {
+      "text": "Vote 8: matches B → B has 1.",
+      "panels": [
+       {
+        "type": "row",
+        "cells": [
+         3,
+         8,
+         3,
+         5,
+         8,
+         3,
+         8,
+         1,
+         3,
+         8
+        ],
+        "states": {
+         "0": "dim",
+         "1": "dim",
+         "2": "dim",
+         "3": "dim",
+         "4": "active"
+        },
+        "slots": true
+       },
+       {
+        "type": "vars",
+        "items": {
+         "A": "3 ×1",
+         "B": "8 ×1"
+        }
+       }
+      ]
+     },
+     {
+      "text": "Vote 3: matches A → A has 2.",
+      "panels": [
+       {
+        "type": "row",
+        "cells": [
+         3,
+         8,
+         3,
+         5,
+         8,
+         3,
+         8,
+         1,
+         3,
+         8
+        ],
+        "states": {
+         "0": "dim",
+         "1": "dim",
+         "2": "dim",
+         "3": "dim",
+         "4": "dim",
+         "5": "active"
+        },
+        "slots": true
+       },
+       {
+        "type": "vars",
+        "items": {
+         "A": "3 ×2",
+         "B": "8 ×1"
+        }
+       }
+      ]
+     },
+     {
+      "text": "Vote 8: matches B → B has 2.",
+      "panels": [
+       {
+        "type": "row",
+        "cells": [
+         3,
+         8,
+         3,
+         5,
+         8,
+         3,
+         8,
+         1,
+         3,
+         8
+        ],
+        "states": {
+         "0": "dim",
+         "1": "dim",
+         "2": "dim",
+         "3": "dim",
+         "4": "dim",
+         "5": "dim",
+         "6": "active"
+        },
+        "slots": true
+       },
+       {
+        "type": "vars",
+        "items": {
+         "A": "3 ×2",
+         "B": "8 ×2"
+        }
+       }
+      ]
+     },
+     {
+      "text": "Vote 1: matches neither → it and one vote from each candidate cancel (A 1, B 1).",
+      "panels": [
+       {
+        "type": "row",
+        "cells": [
+         3,
+         8,
+         3,
+         5,
+         8,
+         3,
+         8,
+         1,
+         3,
+         8
+        ],
+        "states": {
+         "0": "dim",
+         "1": "dim",
+         "2": "dim",
+         "3": "dim",
+         "4": "dim",
+         "5": "dim",
+         "6": "dim",
+         "7": "active"
+        },
+        "slots": true
+       },
+       {
+        "type": "vars",
+        "items": {
+         "A": "3 ×1",
+         "B": "8 ×1"
+        }
+       }
+      ]
+     },
+     {
+      "text": "Vote 3: matches A → A has 2.",
+      "panels": [
+       {
+        "type": "row",
+        "cells": [
+         3,
+         8,
+         3,
+         5,
+         8,
+         3,
+         8,
+         1,
+         3,
+         8
+        ],
+        "states": {
+         "0": "dim",
+         "1": "dim",
+         "2": "dim",
+         "3": "dim",
+         "4": "dim",
+         "5": "dim",
+         "6": "dim",
+         "7": "dim",
+         "8": "active"
+        },
+        "slots": true
+       },
+       {
+        "type": "vars",
+        "items": {
+         "A": "3 ×2",
+         "B": "8 ×1"
+        }
+       }
+      ]
+     },
+     {
+      "text": "Vote 8: matches B → B has 2.",
+      "panels": [
+       {
+        "type": "row",
+        "cells": [
+         3,
+         8,
+         3,
+         5,
+         8,
+         3,
+         8,
+         1,
+         3,
+         8
+        ],
+        "states": {
+         "0": "dim",
+         "1": "dim",
+         "2": "dim",
+         "3": "dim",
+         "4": "dim",
+         "5": "dim",
+         "6": "dim",
+         "7": "dim",
+         "8": "dim",
+         "9": "active"
+        },
+        "slots": true
+       },
+       {
+        "type": "vars",
+        "items": {
+         "A": "3 ×2",
+         "B": "8 ×2"
+        }
+       }
+      ]
+     },
+     {
+      "text": "Verify by counting: 3 has 4, 8 has 4; both are more than 3.",
+      "panels": [
+       {
+        "type": "row",
+        "cells": [
+         3,
+         8,
+         3,
+         5,
+         8,
+         3,
+         8,
+         1,
+         3,
+         8
+        ],
+        "states": {
+         "0": "answer",
+         "1": "answer",
+         "2": "answer",
+         "4": "answer",
+         "5": "answer",
+         "6": "answer",
+         "8": "answer",
+         "9": "answer"
+        },
+        "slots": true
+       }
+      ],
+      "result": "[3, 8]"
+     }
+    ],
+    "title": "Two candidate slots. A vote for neither cancels one vote from each."
+   }
+  }
+ ],
+ "takeaways": [
+  {
+   "md": "- **Generalised Boyer–Moore:** to find options with more than n/k votes, keep k − 1 candidate slots; a vote\n  matching none cancels one vote from every slot (k different votes discarded at once).\n- Survivors are candidates, not answers: always verify with exact counts.\n- Check \"matches a candidate\" before \"take an empty slot\", or one option can occupy two slots."
+  }
+ ]
+}
