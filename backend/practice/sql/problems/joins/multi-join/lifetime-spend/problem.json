@@ -1,0 +1,103 @@
+{
+  "id": "lifetime-spend",
+  "title": "Lifetime Spend",
+  "topic": "joins",
+  "pattern": "multi-join",
+  "difficulty": "hard",
+  "statement": "Rank every customer by how much they've spent on **delivered** orders. Customers who haven't spent anything yet still\nappear, with `0`.\n\nReturn `name` and `spent` (the sum of `quantity × price` over their delivered orders' items, rounded to 2 decimal\nplaces). Order by `spent` from most to least, then by `name`.",
+  "notes": "A condition on the right-hand table of a LEFT JOIN belongs in the `ON` clause. In `WHERE`, it throws away the unmatched rows and the join behaves like an inner join.",
+  "tables": [
+    {
+      "name": "customers",
+      "columns": [
+        [
+          "id",
+          "INTEGER",
+          "pk"
+        ],
+        [
+          "name",
+          "TEXT"
+        ],
+        [
+          "city",
+          "TEXT"
+        ],
+        [
+          "joined_on",
+          "TEXT"
+        ]
+      ]
+    },
+    {
+      "name": "products",
+      "columns": [
+        [
+          "id",
+          "INTEGER",
+          "pk"
+        ],
+        [
+          "name",
+          "TEXT"
+        ],
+        [
+          "category",
+          "TEXT"
+        ],
+        [
+          "price",
+          "REAL"
+        ]
+      ]
+    },
+    {
+      "name": "orders",
+      "columns": [
+        [
+          "id",
+          "INTEGER",
+          "pk"
+        ],
+        [
+          "customer_id",
+          "INTEGER",
+          "fk customers.id"
+        ],
+        [
+          "ordered_on",
+          "TEXT"
+        ],
+        [
+          "status",
+          "TEXT"
+        ]
+      ]
+    },
+    {
+      "name": "order_items",
+      "columns": [
+        [
+          "order_id",
+          "INTEGER",
+          "fk orders.id"
+        ],
+        [
+          "product_id",
+          "INTEGER",
+          "fk products.id"
+        ],
+        [
+          "quantity",
+          "INTEGER"
+        ]
+      ]
+    }
+  ],
+  "ordered": true,
+  "reference": "SELECT c.name, ROUND(COALESCE(SUM(i.quantity * p.price), 0), 2) AS spent\nFROM customers c\nLEFT JOIN orders o ON o.customer_id = c.id AND o.status = 'delivered'\nLEFT JOIN order_items i ON i.order_id = o.id\nLEFT JOIN products p ON p.id = i.product_id\nGROUP BY c.id, c.name\nORDER BY spent DESC, c.name",
+  "wrong": [
+    "SELECT c.name, ROUND(COALESCE(SUM(i.quantity * p.price), 0), 2) AS spent FROM customers c LEFT JOIN orders o ON o.customer_id = c.id LEFT JOIN order_items i ON i.order_id = o.id LEFT JOIN products p ON p.id = i.product_id WHERE o.status = 'delivered' GROUP BY c.id, c.name ORDER BY spent DESC, c.name",
+    "SELECT c.name, ROUND(COALESCE(SUM(i.quantity * p.price), 0), 2) AS spent FROM customers c LEFT JOIN orders o ON o.customer_id = c.id LEFT JOIN order_items i ON i.order_id = o.id LEFT JOIN products p ON p.id = i.product_id GROUP BY c.id, c.name ORDER BY spent DESC, c.name"
+  ]
+}
