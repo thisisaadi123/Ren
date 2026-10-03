@@ -4,46 +4,85 @@
  "question": [
   {
    "md": "Count the non-empty runs of consecutive elements whose sum is exactly `target`.\n\n- **Counts runs by position:** two different runs with the same values both count. In `[0, 0]` with\n  target 0 there are 3 runs: each single 0 and the pair.\n- **Negative numbers are allowed**, so a run's sum can go up and down. That rules out the sliding-window\n  trick (which needs sums that only grow as the window grows).\n- **Size:** up to 10⁵ elements; the count can reach about 5 × 10⁹ (all-zero input, target 0), so return\n  it as a 64-bit integer."
+  },
+  {
+   "md": "**Edge cases to keep in mind**\n\n- Negative numbers are allowed, so a sliding window doesn't work (sums aren't monotone).\n- `target = 0`: stretches summing to zero, including repeated prefix values.\n- The count can reach about `n²/2 = 5 × 10⁹`: use 64 bits."
   }
  ],
  "think": [
   {
-   "md": "Take `nums = [1, 2, 1, 2, 1, 3]` with target 3. Write down the prefix sums (the sum of the first k elements):"
+   "md": "**Prefix sums.** Let `P[k]` be the sum of the first `k` elements (`P[0] = 0`). Then the sum of any stretch\n`a[i .. j−1]` is `P[j] − P[i]`: everything up to `j`, minus everything before `i`. One O(n) pass builds `P`; after\nthat, every range sum costs O(1). Many \"subarray sum\" questions become questions about **pairs of prefix sums**."
   },
   {
-   "panels": [
-    {
-     "type": "row",
-     "cells": [
-      1,
-      2,
-      1,
-      2,
-      1,
-      3
-     ],
-     "label": "nums",
-     "slots": true
-    },
-    {
-     "type": "row",
-     "cells": [
-      0,
-      1,
-      3,
-      4,
-      6,
-      7,
-      10
-     ],
-     "label": "prefix (first k)",
-     "slots": true
-    }
-   ],
-   "caption": "Runs summing to 3 are pairs of prefix sums that differ by 3."
+   "md": "**From stretches to pairs of prefixes.** A stretch ending at `j` sums to `target` exactly when some earlier prefix\nequals `P[j] − target`. So walk once, and at each position add **how many earlier prefixes** had that value. A\nhash map counts prefix values seen so far, starting with `{0: 1}` for the empty prefix."
   },
   {
-   "md": "The run from index a to index b sums to `prefix[b + 1] − prefix[a]`. So when you're at the end of a run\nwith running sum `p`, the runs ending here that hit the target are exactly the earlier prefixes equal to\n`p − 3`, however many of them there are.\n\nSo keep a **count of every prefix sum seen so far** (starting with the empty prefix, 0, seen once). At\neach element: add `count[p − target]` to the answer, then record `p`. Here that totals 5."
+   "md": "**Trace for target 3 on `[1, 2, 1, 2, 1, 3]`:**"
+  },
+  {
+   "table": {
+    "head": [
+     "i",
+     "value",
+     "prefix",
+     "looking for",
+     "earlier prefixes with it",
+     "count"
+    ],
+    "rows": [
+     [
+      "0",
+      "1",
+      "1",
+      "-2",
+      "0",
+      "0"
+     ],
+     [
+      "1",
+      "2",
+      "3",
+      "0",
+      "1",
+      "1"
+     ],
+     [
+      "2",
+      "1",
+      "4",
+      "1",
+      "1",
+      "2"
+     ],
+     [
+      "3",
+      "2",
+      "6",
+      "3",
+      "1",
+      "3"
+     ],
+     [
+      "4",
+      "1",
+      "7",
+      "4",
+      "1",
+      "4"
+     ],
+     [
+      "5",
+      "3",
+      "10",
+      "7",
+      "1",
+      "5"
+     ]
+    ]
+   }
+  },
+  {
+   "md": "Total **5** (direct check of every stretch: 5)."
   }
  ],
  "approaches": [
@@ -54,13 +93,13 @@
    "space": "O(1)",
    "idea": [
     {
-     "md": "For each start i, extend j with a running sum; count every time it equals the target. (Re-adding each run from scratch would be O(n³); carrying the sum while extending saves a factor of n.)"
+     "md": "For every start, extend to the right with a running sum and count the ends where it equals the target."
     }
    ],
    "build": [
-    "For each i: `s = 0`.",
-    "For each j ≥ i: `s += nums[j]`; if `s == target`, count it.",
-    "Return the count (64-bit)."
+    "Every start.",
+    "Running sum while extending.",
+    "Count exact hits."
    ],
    "code": {
     "python": "class Solution:\n    def countTargetStretches(self, nums: List[int], target: int) -> int:\n        n, count = len(nums), 0\n        for i in range(n):\n            s = 0\n            for j in range(i, n):\n                s += nums[j]\n                if s == target:\n                    count += 1\n        return count\n",
@@ -188,7 +227,7 @@
    ],
    "complexity": [
     {
-     "md": "**Time O(n²).** **Space O(1).**"
+     "md": "**Time O(n²):** 5 × 10⁹ steps at the limit. **Space O(1).**"
     }
    ],
    "walk": {
@@ -350,7 +389,7 @@
    },
    "limits": [
     {
-     "md": "Each run's sum is a difference of two prefix sums. Instead of pairing every start with every end, look up how many earlier prefixes complete the target."
+     "md": "It can't stop early (negative numbers can bring the sum back), so it always scans everything. Counting prefix values answers all stretches ending at a position at once."
     }
    ],
    "slow": true
@@ -362,13 +401,14 @@
    "space": "O(n)",
    "idea": [
     {
-     "md": "Keep `seen[s]`, how many prefixes so far had sum s, starting with `seen[0] = 1`. For each element: update the running prefix `p`, add `seen[p − target]` to the answer, then do `seen[p] += 1`."
+     "md": "Walk once with a running prefix. Before recording the current prefix, add the number of earlier prefixes\nequal to `prefix − target`. Start the map with the empty prefix (`0` seen once) so stretches starting at\nindex 0 are counted.\n\n**Why each stretch is counted once.** A stretch `i … j` corresponds to the pair (prefix before `i`,\nprefix through `j`), counted exactly when `j` is processed."
     }
    ],
    "build": [
-    "`seen = {0: 1}`, `p = 0`, `count = 0`.",
-    "For each x: `p += x`; `count += seen[p − target]`; `seen[p] += 1`.",
-    "Return `count`."
+    "Map with `{0: 1}`.",
+    "Running prefix.",
+    "Add `seen[prefix − target]`.",
+    "Record the prefix."
    ],
    "code": {
     "python": "from collections import Counter\n\nclass Solution:\n    def countTargetStretches(self, nums: List[int], target: int) -> int:\n        seen = Counter({0: 1})\n        count = prefix = 0\n        for x in nums:\n            prefix += x\n            count += seen[prefix - target]\n            seen[prefix] += 1\n        return count\n",
@@ -546,7 +586,7 @@
    ],
    "complexity": [
     {
-     "md": "**Time O(n)** on average. **Space O(n)** for up to n + 1 distinct prefix sums."
+     "md": "**Time O(n)** expected. **Space O(n)** for the map."
     }
    ],
    "walk": {
@@ -832,7 +872,7 @@
  ],
  "takeaways": [
   {
-   "md": "- **Count subarrays with sum = k:** walk with a running prefix sum and a hash map of how often each prefix\n  occurred; add `count[prefix − k]` each step. Start with `count[0] = 1`.\n- Look up before recording, so empty subarrays aren't counted.\n- With negatives present, sliding windows don't work; prefix sums do."
+   "md": "- **Count subarrays with sum k (any signs):** prefix sums + hash map of counts.\n- Seed the map with the empty prefix.\n- **Pitfall:** using a sliding window, which needs non-negative values."
   }
  ]
 }

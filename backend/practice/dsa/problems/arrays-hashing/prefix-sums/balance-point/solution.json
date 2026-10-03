@@ -4,41 +4,61 @@
  "question": [
   {
    "md": "Return the **leftmost** index where the sum of weights strictly to its left equals the sum strictly to its\nright, or −1.\n\n- **Strictly:** the weight at the index itself is in neither side.\n- **An empty side sums to 0.** In `[2, 1, −1]`, index 0 has left 0 and right 1 + (−1) = 0: it's a balance\n  point.\n- **Weights can be negative**, so the sides don't simply grow as you move; you can't stop early or\n  binary-search.\n- **Leftmost:** scan from the left and return the first hit.\n- **Range:** sums stay within ±10⁸, inside a 32-bit `int`."
+  },
+  {
+   "md": "**Edge cases to keep in mind**\n\n- Index 0 has an empty left side (sum 0); the last index has an empty right side.\n- Negative weights mean sums don't grow steadily, so no early stopping on size.\n- Several balance points: return the leftmost."
   }
  ],
  "think": [
   {
-   "md": "Take `[2, 5, -3, 7, 1, 2, 1]` (total 15). At index 3 (weight 7): left = 2 + 5 − 3 = 4, right = 1 + 2 + 1 = 4.\nEqual, and no earlier index works, so the answer is 3."
+   "md": "**Prefix sums.** Let `P[k]` be the sum of the first `k` elements (`P[0] = 0`). Then the sum of any stretch\n`a[i .. j−1]` is `P[j] − P[i]`: everything up to `j`, minus everything before `i`. One O(n) pass builds `P`; after\nthat, every range sum costs O(1). Many \"subarray sum\" questions become questions about **pairs of prefix sums**."
   },
   {
-   "panels": [
-    {
-     "type": "row",
-     "cells": [
-      2,
-      5,
-      -3,
-      7,
-      1,
-      2,
-      1
+   "md": "**Left and right from one running sum.** With `total` the sum of all weights and `left` the sum before index\n`i`, the right side is `total − left − weights[i]`. So one pass with a running `left` checks every index in O(1).\nFor `[2, 5, -3, 7, 1, 2, 1]` (total 15):"
+  },
+  {
+   "table": {
+    "head": [
+     "i",
+     "weight",
+     "left",
+     "right = total − left − weight",
+     ""
+    ],
+    "rows": [
+     [
+      "0",
+      "2",
+      "0",
+      "13",
+      ""
      ],
-     "states": {
-      "0": "found",
-      "1": "found",
-      "2": "found",
-      "3": "answer",
-      "4": "mark",
-      "5": "mark",
-      "6": "mark"
-     },
-     "slots": true
-    }
-   ],
-   "caption": "Left of index 3 sums to 4; right of it sums to 4."
+     [
+      "1",
+      "5",
+      "2",
+      "8",
+      ""
+     ],
+     [
+      "2",
+      "-3",
+      "7",
+      "11",
+      ""
+     ],
+     [
+      "3",
+      "7",
+      "4",
+      "4",
+      "balance point"
+     ]
+    ]
+   }
   },
   {
-   "md": "Recomputing both sides for every index is wasteful. Notice **left + w[i] + right = total**. With the total\nknown and the left sum carried along as you walk (add each weight after checking it), the right sum costs\nnothing: `right = total − left − w[i]`."
+   "md": "Leftmost balance point: **3**."
   }
  ],
  "approaches": [
@@ -49,13 +69,12 @@
    "space": "O(1)",
    "idea": [
     {
-     "md": "For each index, loop over the weights before it and after it, and compare the sums."
+     "md": "For each index, add up the left side and the right side separately and compare."
     }
    ],
    "build": [
-    "For each i: `left` = sum of `w[0 … i − 1]`, `right` = sum of `w[i + 1 … n − 1]`.",
-    "Return i if they're equal.",
-    "Return −1 after the loop."
+    "For each index, sum both sides.",
+    "Return the first equal one."
    ],
    "code": {
     "python": "class Solution:\n    def balancePoint(self, weights: List[int]) -> int:\n        for i in range(len(weights)):\n            if sum(weights[:i]) == sum(weights[i + 1:]):\n                return i\n        return -1\n",
@@ -154,7 +173,7 @@
    ],
    "complexity": [
     {
-     "md": "**Time O(n²).** **Space O(1).**"
+     "md": "**Time O(n²).** **Space O(1)** (O(n) in Python for the slices)."
     }
    ],
    "walk": {
@@ -301,7 +320,7 @@
    },
    "limits": [
     {
-     "md": "Each index re-adds almost the same weights as the previous one. Prefix sums make each side an O(1) lookup."
+     "md": "Every index re-adds almost the whole array. Prefix sums give both sides in O(1)."
     }
    ],
    "slow": true
@@ -313,12 +332,12 @@
    "space": "O(n)",
    "idea": [
     {
-     "md": "`prefix[k]` = sum of the first k weights. Left of i is `prefix[i]`; right of i is `prefix[n] − prefix[i + 1]`."
+     "md": "Build prefix sums. Index `i` balances when `P[i] = P[n] − P[i + 1]` (left side vs right side)."
     }
    ],
    "build": [
-    "Build `prefix` of length n + 1 with `prefix[0] = 0`.",
-    "For each i, compare `prefix[i]` with `prefix[n] − prefix[i + 1]`."
+    "Prefix sums.",
+    "Check each index with two lookups."
    ],
    "code": {
     "python": "class Solution:\n    def balancePoint(self, weights: List[int]) -> int:\n        n = len(weights)\n        prefix = [0] * (n + 1)\n        for i, w in enumerate(weights):\n            prefix[i + 1] = prefix[i] + w\n        for i in range(n):\n            if prefix[i] == prefix[n] - prefix[i + 1]:\n                return i\n        return -1\n",
@@ -588,7 +607,7 @@
    },
    "limits": [
     {
-     "md": "Only `prefix[i]` (the running left sum) and `prefix[n]` (the total) are ever used, so the array isn't needed."
+     "md": "Stores the whole prefix array, but each check only needs the sum to the left, which a single running variable provides."
     }
    ]
   },
@@ -599,14 +618,13 @@
    "space": "O(1)",
    "idea": [
     {
-     "md": "Compute the total. Walk left to right with `left = 0`: at index i, `right = total − left − w[i]`; if equal, return i; otherwise add `w[i]` to `left`."
+     "md": "Compute `total`. Walk with `left = 0`: at index `i`, if `left == total − left − weights[i]`, return `i`;\notherwise add `weights[i]` to `left`.\n\n**Why it's leftmost.** Indices are checked from left to right and the first success returns immediately."
     }
    ],
    "build": [
-    "`total = sum(weights)`, `left = 0`.",
-    "For each i: if `left == total − left − weights[i]`, return i.",
-    "Then `left += weights[i]`.",
-    "Return −1."
+    "Total of all weights.",
+    "Running left sum.",
+    "Compare left with `total − left − weight`."
    ],
    "code": {
     "python": "class Solution:\n    def balancePoint(self, weights: List[int]) -> int:\n        total, left = sum(weights), 0\n        for i, w in enumerate(weights):\n            if left == total - left - w:\n                return i\n            left += w\n        return -1\n",
@@ -763,7 +781,7 @@
    ],
    "complexity": [
     {
-     "md": "**Time O(n):** two passes. **Space O(1).**"
+     "md": "**Time O(n).** **Space O(1).**"
     }
    ],
    "walk": {
@@ -898,7 +916,7 @@
  ],
  "takeaways": [
   {
-   "md": "- `left + w[i] + right = total`: knowing two parts gives the third for free.\n- Sums of contiguous blocks are differences of prefix sums; if only one running prefix is needed, keep a\n  variable instead of an array.\n- With negative numbers, sums aren't monotonic, so a linear scan (not binary search) is the right tool."
+   "md": "- **Left vs right sums:** `right = total − left − current`, with one running `left`.\n- Prefix sums with a running variable need no array at all.\n- **Pitfall:** including the current element in one of the sides."
   }
  ]
 }

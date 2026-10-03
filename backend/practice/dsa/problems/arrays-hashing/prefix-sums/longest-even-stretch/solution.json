@@ -4,51 +4,109 @@
  "question": [
   {
    "md": "Find the longest run of consecutive bits containing as many 0s as 1s. Return its length, or 0.\n\n- **Consecutive:** you can't skip elements.\n- **Equal counts** means the length is always even.\n- **No such run** (e.g. `[1, 1, 1]`) gives 0.\n- **Size:** up to 10⁵ bits, so checking all ~5 × 10⁹ runs is too slow."
+  },
+  {
+   "md": "**Edge cases to keep in mind**\n\n- All 0s or all 1s: no balanced stretch, answer 0.\n- The whole array may be balanced.\n- A balanced stretch always has even length."
   }
  ],
  "think": [
   {
-   "md": "Take `bits = [1, 0, 0, 1, 1, 1, 0, 1, 0]`. Replace each 0 with −1 and keep a running sum (the **balance**):"
+   "md": "**Prefix sums.** Let `P[k]` be the sum of the first `k` elements (`P[0] = 0`). Then the sum of any stretch\n`a[i .. j−1]` is `P[j] − P[i]`: everything up to `j`, minus everything before `i`. One O(n) pass builds `P`; after\nthat, every range sum costs O(1). Many \"subarray sum\" questions become questions about **pairs of prefix sums**."
   },
   {
-   "panels": [
-    {
-     "type": "row",
-     "cells": [
-      1,
-      0,
-      0,
-      1,
-      1,
-      1,
-      0,
-      1,
-      0
-     ],
-     "label": "bit",
-     "slots": true
-    },
-    {
-     "type": "row",
-     "cells": [
-      1,
-      0,
-      -1,
-      0,
-      1,
-      2,
-      1,
-      2,
-      1
-     ],
-     "label": "balance after it",
-     "slots": true
-    }
-   ],
-   "caption": "A stretch is even exactly when the balance before it equals the balance at its end."
+   "md": "**Turn \"equal counts\" into \"sum zero\".** Replace each 0 by −1. A stretch has as many 0s as 1s exactly when its\nsum is 0, i.e. when the running balance is the same before and after it.\n\n**Longest means earliest.** For the balance value at position `i`, the longest stretch ending at `i` starts right\nafter the **first** position where that balance occurred. So remember only the first position of each balance\n(with balance 0 at position −1 for the empty prefix)."
   },
   {
-   "md": "A run from index a to index b has equal counts exactly when its +1s and −1s cancel, i.e. when\n`balance after b == balance before a`. So the question becomes: **for each position, where is the earliest\nposition with the same balance?** The farther back that is, the longer the stretch.\n\nThe balance before any bit is 0 (think of it as position −1). Storing the first position of each balance\nvalue as you go answers each lookup in O(1), and since the balance stays within −n … n, a plain array of\nsize 2n + 1 can hold the first positions. The longest here is 8."
+   "md": "**Trace on `[1, 0, 0, 1, 1, 1, 0, 1, 0]`:**"
+  },
+  {
+   "table": {
+    "head": [
+     "i",
+     "bit",
+     "balance",
+     "first time?",
+     "stretch",
+     "best"
+    ],
+    "rows": [
+     [
+      "0",
+      "1",
+      "1",
+      "new: remember position",
+      "—",
+      "0"
+     ],
+     [
+      "1",
+      "0",
+      "0",
+      "seen first at -1",
+      "stretch 0..1, length 2",
+      "2"
+     ],
+     [
+      "2",
+      "0",
+      "-1",
+      "new: remember position",
+      "—",
+      "2"
+     ],
+     [
+      "3",
+      "1",
+      "0",
+      "seen first at -1",
+      "stretch 0..3, length 4",
+      "4"
+     ],
+     [
+      "4",
+      "1",
+      "1",
+      "seen first at 0",
+      "stretch 1..4, length 4",
+      "4"
+     ],
+     [
+      "5",
+      "1",
+      "2",
+      "new: remember position",
+      "—",
+      "4"
+     ],
+     [
+      "6",
+      "0",
+      "1",
+      "seen first at 0",
+      "stretch 1..6, length 6",
+      "6"
+     ],
+     [
+      "7",
+      "1",
+      "2",
+      "seen first at 5",
+      "stretch 6..7, length 2",
+      "6"
+     ],
+     [
+      "8",
+      "0",
+      "1",
+      "seen first at 0",
+      "stretch 1..8, length 8",
+      "8"
+     ]
+    ]
+   }
+  },
+  {
+   "md": "Longest balanced stretch: **8**."
   }
  ],
  "approaches": [
@@ -59,13 +117,13 @@
    "space": "O(1)",
    "idea": [
     {
-     "md": "For each start i, extend j to the right keeping `ones − zeros`; whenever it's 0, the stretch i … j is even, so update the best length."
+     "md": "For every start, extend with a running balance (+1 for 1, −1 for 0); whenever it returns to 0, the stretch is balanced."
     }
    ],
    "build": [
-    "For each i, set `balance = 0`.",
-    "For each j ≥ i: add +1 or −1; if balance is 0, `best = max(best, j − i + 1)`.",
-    "Return `best`."
+    "Every start.",
+    "Running balance.",
+    "Record lengths where it's 0."
    ],
    "code": {
     "python": "class Solution:\n    def longestEvenStretch(self, bits: List[int]) -> int:\n        n, best = len(bits), 0\n        for i in range(n):\n            balance = 0\n            for j in range(i, n):\n                balance += 1 if bits[j] else -1\n                if balance == 0:\n                    best = max(best, j - i + 1)\n        return best\n",
@@ -356,7 +414,7 @@
    },
    "limits": [
     {
-     "md": "Each start re-walks the same bits. The balance of a stretch is the difference of two running balances, so one pass plus a lookup of earlier balances is enough."
+     "md": "Quadratic. Equal balances at two positions mark a balanced stretch between them, so remembering first occurrences finds the longest in one pass."
     }
    ],
    "slow": true
@@ -368,14 +426,13 @@
    "space": "O(n)",
    "idea": [
     {
-     "md": "Walk once with `balance` (+1 per 1, −1 per 0). Keep `first[b]`, the earliest position where the balance\nwas b, with `first[0] = −1`. At position i:\n\n- if `balance` was seen before, the stretch `first[balance] + 1 … i` is even: length `i − first[balance]`;\n- otherwise record `first[balance] = i`.\n\nOnly the **first** occurrence is stored, because the earliest start gives the longest stretch. The\nbalance stays in −n … n, so an array with an offset of n works as the map."
+     "md": "Map each balance value to the first index where it occurred, seeded with `0 → −1`. Walk once; if the\ncurrent balance was seen before, the stretch after its first occurrence is balanced, so compare its length;\notherwise record the current index.\n\n**Why only the first occurrence matters.** For a fixed end, an earlier start gives a longer stretch;\nlater occurrences of the same balance can only give shorter ones."
     }
    ],
    "build": [
-    "Make `first` of size 2n + 1 filled with \"unseen\"; set `first[0 + n] = −1`.",
-    "Walk the bits updating `balance`.",
-    "Seen before: update `best` with `i − first[balance + n]`. New: store `i`.",
-    "Return `best`."
+    "Map `{0: −1}`.",
+    "Running balance.",
+    "Seen → measure; new → record."
    ],
    "code": {
     "python": "class Solution:\n    def longestEvenStretch(self, bits: List[int]) -> int:\n        first = {0: -1}\n        best = balance = 0\n        for i, b in enumerate(bits):\n            balance += 1 if b else -1\n            if balance in first:\n                best = max(best, i - first[balance])\n            else:\n                first[balance] = i\n        return best\n",
@@ -540,7 +597,7 @@
    ],
    "complexity": [
     {
-     "md": "**Time O(n).** **Space O(n)** for the first positions."
+     "md": "**Time O(n).** **Space O(n)** (balances range over `−n … n`, so an array of size `2n + 1` also works)."
     }
    ],
    "walk": {
@@ -869,7 +926,7 @@
  ],
  "takeaways": [
   {
-   "md": "- \"Equal numbers of two kinds\" → map them to +1/−1; equal counts = **sum 0**.\n- Subarray sum 0 ⇔ the running prefix sum repeats. For the **longest**, store each prefix value's\n  **first** position.\n- A prefix value with a small known range can index an array (with an offset) instead of a hash map."
+   "md": "- **Equal counts of two kinds:** map them to +1/−1 and look for equal prefix sums.\n- **Longest stretch with a given sum:** remember the **first** index of each prefix value.\n- **Pitfall:** overwriting the first index with later ones."
   }
  ]
 }

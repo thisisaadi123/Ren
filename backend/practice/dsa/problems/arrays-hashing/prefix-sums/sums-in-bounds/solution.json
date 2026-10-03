@@ -4,44 +4,74 @@
  "question": [
   {
    "md": "Count the non-empty runs of consecutive elements whose sum lies in `[lower, upper]` (inclusive).\n\n- **Values are huge:** each element can be anywhere in the 32-bit range, and up to 3 × 10⁴ of them add up\n  to about ±6.4 × 10¹³. All sums must be 64-bit.\n- **Negatives allowed**, so no sliding window.\n- **n up to 3 × 10⁴:** the O(n²) count (~4.5 × 10⁸ runs) is explicitly too slow; aim for O(n log n)."
+  },
+  {
+   "md": "**Edge cases to keep in mind**\n\n- Values up to ±2³¹ and up to 3 × 10⁴ of them: prefix sums need 64 bits.\n- Negative numbers rule out a sliding window.\n- Both bounds are inclusive."
   }
  ],
  "think": [
   {
-   "md": "Take `nums = [3, -2, 4, -5, 1]`, bounds [-1, 2]. Prefix sums: `P = [0, 3, 1, 5, 0, 1]` (P[0] = 0 is the empty prefix).\nRun `i … j − 1` has sum `P[j] − P[i]`. So we're counting pairs `i < j` with\n`-1 ≤ P[j] − P[i] ≤ 2`, i.e. for each `P[i]`, the later `P[j]` in `[P[i] + -1, P[i] + 2]`."
+   "md": "**Prefix sums.** Let `P[k]` be the sum of the first `k` elements (`P[0] = 0`). Then the sum of any stretch\n`a[i .. j−1]` is `P[j] − P[i]`: everything up to `j`, minus everything before `i`. One O(n) pass builds `P`; after\nthat, every range sum costs O(1). Many \"subarray sum\" questions become questions about **pairs of prefix sums**."
   },
   {
-   "panels": [
-    {
-     "type": "row",
-     "cells": [
-      3,
-      -2,
-      4,
-      -5,
-      1
-     ],
-     "label": "nums",
-     "slots": true
-    },
-    {
-     "type": "row",
-     "cells": [
-      0,
-      3,
-      1,
-      5,
-      0,
-      1
-     ],
-     "label": "P",
-     "slots": true
-    }
-   ],
-   "caption": "Each run = a pair of prefix sums, later minus earlier."
+   "md": "**Pairs of prefix sums.** A run `i … j − 1` has sum `P[j] − P[i]`, so we count pairs `i < j` with\n`-1 ≤ P[j] − P[i] ≤ 2`. For `[3, -2, 4, -5, 1]`: `P = [0, 3, 1, 5, 0, 1]`. The qualifying pairs are:"
   },
   {
-   "md": "\"Count later values within a window\" is easy if the later values are **sorted**: the matching ones form a\ncontiguous block. But we must also respect \"later\". Merge sort gives both at once: split P into a left half\n(earlier positions) and a right half (later positions); after recursively sorting each half, every\nleft-right pair is automatically \"earlier, later\", and both halves are sorted, so two forward-moving\npointers find each left value's window in the right half. The answer here is 7."
+   "table": {
+    "head": [
+     "i",
+     "j",
+     "run",
+     "sum P[j] − P[i]"
+    ],
+    "rows": [
+     [
+      "0",
+      "2",
+      "[3, -2]",
+      "1"
+     ],
+     [
+      "0",
+      "4",
+      "[3, -2, 4, -5]",
+      "0"
+     ],
+     [
+      "0",
+      "5",
+      "[3, -2, 4, -5, 1]",
+      "1"
+     ],
+     [
+      "1",
+      "3",
+      "[-2, 4]",
+      "2"
+     ],
+     [
+      "2",
+      "4",
+      "[4, -5]",
+      "-1"
+     ],
+     [
+      "2",
+      "5",
+      "[4, -5, 1]",
+      "0"
+     ],
+     [
+      "4",
+      "5",
+      "[1]",
+      "1"
+     ]
+    ]
+   }
+  },
+  {
+   "md": "**7** runs.\n\n**Counting pairs fast with merge sort.** Split the prefix array into a left half and a right half. Every pair\n`i < j` is either inside the left half, inside the right half, or **crosses** (i on the left, j on the right).\nThe first two kinds are counted recursively. For crossing pairs only the *values* matter, not their order inside\neach half, so both halves may be sorted. With both sorted, for each left value `p`, the right values in\n`[p + lower, p + upper]` form one contiguous window, and as `p` increases that window only moves right: two\npointers count all crossing pairs in linear time. Merging the halves keeps them sorted for the level above."
   }
  ],
  "approaches": [
@@ -52,12 +82,13 @@
    "space": "O(1)",
    "idea": [
     {
-     "md": "For each start, extend to every end carrying a 64-bit sum; count sums inside the bounds."
+     "md": "For every start, extend with a running sum and count sums inside the bounds."
     }
    ],
    "build": [
-    "For each i: `s = 0` (64-bit).",
-    "For each j ≥ i: `s += nums[j]`; count it if `lower ≤ s ≤ upper`."
+    "Every start.",
+    "Running sum.",
+    "Count sums within the bounds."
    ],
    "code": {
     "python": "class Solution:\n    def countSumsInBounds(self, nums: List[int], lower: int, upper: int) -> int:\n        n, count = len(nums), 0\n        for i in range(n):\n            s = 0\n            for j in range(i, n):\n                s += nums[j]\n                if lower <= s <= upper:\n                    count += 1\n        return count\n",
@@ -185,7 +216,7 @@
    ],
    "complexity": [
     {
-     "md": "**Time O(n²):** about 4.5 × 10⁸ runs at the limit. **Space O(1).**"
+     "md": "**Time O(n²):** 4.5 × 10⁸ steps for `n = 3 × 10⁴`, too slow by the problem's own statement. **Space O(1).**"
     }
    ],
    "walk": {
@@ -399,7 +430,7 @@
    },
    "limits": [
     {
-     "md": "It enumerates every pair explicitly. Counting pairs within a range is a job for sorted data: merge sort can count all valid pairs in O(n log n) without listing them."
+     "md": "Every run is examined individually. Counting pairs of prefix sums with merge sort handles many runs at once."
     }
    ],
    "slow": true
@@ -411,14 +442,14 @@
    "space": "O(n)",
    "idea": [
     {
-     "md": "Build the n + 1 prefix sums. `sortCount(lo, hi)` sorts `P[lo … hi)` and returns how many pairs inside it\nhave a difference in bounds:\n\n1. Split at `mid`; recurse on both halves (each returns its internal count and comes back sorted).\n2. **Cross pairs:** for each left value `p` (in increasing order), the right values in\n   `[p + lower, p + upper]` form a contiguous block `[a, b)`. As `p` grows, both ends of the block only\n   move right, so two pointers scan the right half once in total.\n3. Merge the halves so the caller gets sorted data."
+     "md": "Build the prefix sums. `sort_count(a)` returns `a` sorted plus the number of pairs `i < j` inside `a` with\n`lower ≤ a[j] − a[i] ≤ upper`:\n\n1. Split in half and recurse on both.\n2. For each value `p` of the sorted left half, advance `lo` to the first right value `≥ p + lower` and\n   `hi` to the first right value `> p + upper`; add `hi − lo`.\n3. Merge the halves.\n\n**Why the pointers never move back.** Left values are increasing, so both window edges `p + lower` and\n`p + upper` increase too."
     }
    ],
    "build": [
-    "Prefix sums `P[0 … n]` in 64 bits.",
-    "Recursive `sortCount(lo, hi)`; base case of 0 or 1 values counts nothing.",
-    "Count cross pairs with two forward pointers `a` (first ≥ p + lower) and `b` (first > p + upper).",
-    "Merge into a temporary buffer and copy back. Return the sum of the three counts."
+    "Prefix sums (64-bit).",
+    "Recursive split.",
+    "Count crossing pairs with two pointers.",
+    "Merge."
    ],
    "code": {
     "python": "class Solution:\n    def countSumsInBounds(self, nums: List[int], lower: int, upper: int) -> int:\n        prefix = [0]\n        for x in nums:\n            prefix.append(prefix[-1] + x)\n\n        def sort_count(a):\n            if len(a) <= 1:\n                return a, 0\n            mid = len(a) // 2\n            left, c1 = sort_count(a[:mid])\n            right, c2 = sort_count(a[mid:])\n            count, lo, hi = c1 + c2, 0, 0\n            for p in left:\n                while lo < len(right) and right[lo] - p < lower:\n                    lo += 1\n                while hi < len(right) and right[hi] - p <= upper:\n                    hi += 1\n                count += hi - lo\n            merged, i, j = [], 0, 0\n            while i < len(left) and j < len(right):\n                if left[i] <= right[j]:\n                    merged.append(left[i]); i += 1\n                else:\n                    merged.append(right[j]); j += 1\n            merged += left[i:] + right[j:]\n            return merged, count\n\n        return sort_count(prefix)[1]\n",
@@ -581,7 +612,7 @@
    ],
    "complexity": [
     {
-     "md": "**Time O(n log n):** log n levels, each doing O(n) pointer moves and merging. **Space O(n)** for the buffer (plus O(log n) recursion)."
+     "md": "**Time O(n log n):** each level does O(n) counting and merging, over `log n` levels. **Space O(n)** for the merge buffers."
     }
    ],
    "walk": {
@@ -782,7 +813,7 @@
  ],
  "takeaways": [
   {
-   "md": "- Subarray sums = **differences of prefix sums**; \"count subarrays with a property of the sum\" becomes \"count\n  pairs i < j of prefix sums\".\n- **Merge sort counts pairs:** while merging, the left half is all earlier and the right half all later, and\n  both are sorted, so ranges can be counted with forward-only pointers. (Counting inversions is the classic\n  example.)\n- A Fenwick tree over compressed prefix values is another O(n log n) route."
+   "md": "- **Count subarray sums in a range:** prefix sums, then count pairs `P[j] − P[i]` in range.\n- **Merge sort counts cross pairs** in linear time once both halves are sorted.\n- **Pitfall:** 32-bit prefix sums; forgetting the empty prefix `P[0] = 0`."
   }
  ]
 }

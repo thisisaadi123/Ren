@@ -4,58 +4,84 @@
  "question": [
   {
    "md": "For each query `[l, r]`, return `sales[l] + … + sales[r]` (both ends included), in query order.\n\n- **Many queries on unchanged data:** up to 10⁵ queries over up to 10⁵ days. Summing each range directly\n  could take 10¹⁰ steps.\n- **Big numbers:** values reach ±10⁹ and a range can contain 10⁵ of them, so totals reach ±10¹⁴. Use\n  64-bit integers for the prefix sums (`[10⁹, 10⁹]` already sums past the 32-bit limit).\n- **Single-day queries** like `[3, 3]` are allowed."
+  },
+  {
+   "md": "**Edge cases to keep in mind**\n\n- A query with `l = r` is a single day.\n- Totals can reach `10⁵ × 10⁹ = 10¹⁴` in size: use 64-bit sums.\n- Up to 10⁵ queries, so each must be answered quickly."
   }
  ],
  "think": [
   {
-   "md": "Take `sales = [3, -1, 4, 1, 5, 9, -2]`. The total of days 1 … 4 is −1 + 4 + 1 + 5 = 9.\n\nThink of the running total `prefix`: `prefix[k]` is the sum of the first k days. The first 5 days sum to\n`prefix[5] = 12`, and the first 1 day to `prefix[1] = 3`. Days 1 … 4 are \"the first 5 days\nminus the first 1 day\": 12 − 3 = 9."
+   "md": "**Prefix sums.** Let `P[k]` be the sum of the first `k` elements (`P[0] = 0`). Then the sum of any stretch\n`a[i .. j−1]` is `P[j] − P[i]`: everything up to `j`, minus everything before `i`. One O(n) pass builds `P`; after\nthat, every range sum costs O(1). Many \"subarray sum\" questions become questions about **pairs of prefix sums**."
   },
   {
-   "panels": [
-    {
-     "type": "row",
-     "cells": [
-      3,
-      -1,
-      4,
-      1,
-      5,
-      9,
-      -2
-     ],
-     "states": {
-      "1": "active",
-      "2": "active",
-      "3": "active",
-      "4": "active"
-     },
-     "label": "sales",
-     "slots": true
-    },
-    {
-     "type": "row",
-     "cells": [
-      0,
-      3,
-      2,
-      6,
-      7,
-      12,
-      21,
-      19
-     ],
-     "states": {
-      "1": "mark",
-      "5": "answer"
-     },
-     "label": "prefix",
-     "slots": true
-    }
-   ],
-   "caption": "Days l … r = prefix[r + 1] − prefix[l]."
+   "md": "**Prefix sums of `[3, -1, 4, 1, 5, 9, -2]`:**"
   },
   {
-   "md": "The extra slot `prefix[0] = 0` (the sum of no days) is what makes ranges starting at day 0 work without a\nspecial case."
+   "table": {
+    "head": [
+     "k",
+     "0",
+     "1",
+     "2",
+     "3",
+     "4",
+     "5",
+     "6",
+     "7"
+    ],
+    "rows": [
+     [
+      "P[k]",
+      "0",
+      "3",
+      "2",
+      "6",
+      "7",
+      "12",
+      "21",
+      "19"
+     ]
+    ]
+   }
+  },
+  {
+   "md": "**Answering queries with `P[r + 1] − P[l]`:**"
+  },
+  {
+   "table": {
+    "head": [
+     "query [l, r]",
+     "P[r + 1]",
+     "P[l]",
+     "total"
+    ],
+    "rows": [
+     [
+      "[1, 4]",
+      "12",
+      "3",
+      "9"
+     ],
+     [
+      "[0, 6]",
+      "19",
+      "0",
+      "19"
+     ],
+     [
+      "[3, 3]",
+      "7",
+      "6",
+      "1"
+     ],
+     [
+      "[5, 6]",
+      "19",
+      "12",
+      "7"
+     ]
+    ]
+   }
   }
  ],
  "approaches": [
@@ -66,12 +92,11 @@
    "space": "O(1)",
    "idea": [
     {
-     "md": "For each query, loop from l to r adding sales (64-bit)."
+     "md": "Answer each query by adding up its range directly."
     }
    ],
    "build": [
-    "For each query: `total = 0`; add `sales[k]` for k in l … r.",
-    "Append `total`."
+    "For each query, sum `sales[l .. r]`."
    ],
    "code": {
     "python": "class Solution:\n    def rangeTotals(self, sales: List[int], queries: List[List[int]]) -> List[int]:\n        return [sum(sales[l:r + 1]) for l, r in queries]\n",
@@ -135,7 +160,7 @@
    ],
    "complexity": [
     {
-     "md": "**Time O(n · q)** in the worst case (every query spans everything). **Space O(1)** besides the output."
+     "md": "**Time O(n · q)** in the worst case: 10¹⁰ additions for 10⁵ long queries. **Space O(q)** for the answers."
     }
    ],
    "walk": {
@@ -239,7 +264,7 @@
    },
    "limits": [
     {
-     "md": "Overlapping ranges are added again and again. Precomputing running totals lets every query reuse the same work."
+     "md": "Overlapping queries re-add the same days. Precomputing prefix sums once answers every query in O(1)."
     }
    ],
    "slow": true
@@ -251,12 +276,12 @@
    "space": "O(n)",
    "idea": [
     {
-     "md": "`prefix[0] = 0`, `prefix[k + 1] = prefix[k] + sales[k]` (64-bit). Each query `[l, r]` is `prefix[r + 1] − prefix[l]`."
+     "md": "Build `P` once. Answer each query `[l, r]` with `P[r + 1] − P[l]`.\n\n**Why it's right.** `P[r + 1]` covers days `0 … r`; subtracting `P[l]` removes days `0 … l − 1`, leaving\nexactly `l … r`."
     }
    ],
    "build": [
-    "Build `prefix` of length n + 1.",
-    "For each query, append `prefix[r + 1] − prefix[l]`."
+    "Prefix sums with a leading 0.",
+    "One subtraction per query."
    ],
    "code": {
     "python": "class Solution:\n    def rangeTotals(self, sales: List[int], queries: List[List[int]]) -> List[int]:\n        prefix = [0]\n        for s in sales:\n            prefix.append(prefix[-1] + s)\n        return [prefix[r + 1] - prefix[l] for l, r in queries]\n",
@@ -329,7 +354,7 @@
    ],
    "complexity": [
     {
-     "md": "**Time O(n + q):** one pass to build, O(1) per query. **Space O(n)** for the prefix sums."
+     "md": "**Time O(n + q).** **Space O(n)** for the prefix sums."
     }
    ],
    "walk": {
@@ -544,7 +569,7 @@
  ],
  "takeaways": [
   {
-   "md": "- **Many range-sum queries on static data → prefix sums.** `sum(l … r) = prefix[r + 1] − prefix[l]`.\n- Give the prefix array a leading 0 to avoid special-casing ranges that start at 0.\n- Watch the width: sums of many 32-bit values need 64 bits."
+   "md": "- **Many range-sum queries on a fixed array:** prefix sums, O(1) per query.\n- The leading `P[0] = 0` removes the special case for `l = 0`.\n- **Pitfall:** off-by-one (`P[r] − P[l]` misses day `r`); 32-bit overflow."
   }
  ]
 }
