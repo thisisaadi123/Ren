@@ -4,56 +4,78 @@
  "question": [
   {
    "md": "A chain is `v, v + step, v + 2·step, …`. From the numbers you're given (each used at most once,\nin any order), build the longest chain and return its length.\n\n- **Order in the input doesn't matter.** You pick the numbers; you don't need them to be next to\n  each other in the list.\n- **Each number is used at most once**, and repeats don't help: `[2, 2, 2]` with step 5 gives\n  chains of length 1, because 2 + 5 = 7 isn't there. Only *distinct* values matter.\n- **Steps can be large and values negative.** `step` goes up to 10⁹ and values to ±10⁹, so\n  `value + step` can reach 2 × 10⁹, beyond the 32-bit `int`. Use 64-bit arithmetic for it in\n  Java, C++ and C.\n- **Any single number is a chain of length 1**, so the answer is at least 1.\n- **Size:** up to 10⁵ values."
+  },
+  {
+   "md": "**Edge cases to keep in mind**\n\n- Duplicates can't be used twice in a chain.\n- Negative values are fine.\n- Every value alone is a chain of length 1, so the answer is at least 1."
   }
  ],
  "think": [
   {
-   "md": "Take `values = [10, 4, 1, 7, 5, 13, 8, 2, 20, 23]` with `step = 3`.\n\nBy hand, you'd notice runs like 1, 4, 7, 10, 13. Every value belongs to exactly one maximal\nchain (its next link is forced: `v + 3`; its previous link is forced: `v − 3`). Here the values\nsplit into these chains:"
+   "md": "**Each value belongs to one maximal chain.** A value's next link must be `v + step` and its previous link\n`v − step`, so the values split into disjoint maximal chains. The **head** of a chain is a value whose\n`v − step` is absent. Walking forward only from heads visits every value exactly once. For `[10, 4, 1, 7, 5, 13, 8, 2, 20, 23]`,\n`step = 3`:"
   },
   {
-   "panels": [
-    {
-     "type": "row",
-     "cells": [
-      1,
-      4,
-      7,
-      10,
-      13
+   "table": {
+    "head": [
+     "value (distinct)",
+     "decision",
+     "chain length"
+    ],
+    "rows": [
+     [
+      "1",
+      "head: walk 1 → 4 → 7 → 10 → 13",
+      "5"
      ],
-     "states": {
-      "0": "answer"
-     },
-     "label": "length 5"
-    },
-    {
-     "type": "row",
-     "cells": [
-      2,
-      5,
-      8
+     [
+      "2",
+      "head: walk 2 → 5 → 8",
+      "3"
      ],
-     "states": {
-      "0": "answer"
-     },
-     "label": "length 3"
-    },
-    {
-     "type": "row",
-     "cells": [
-      20,
-      23
+     [
+      "4",
+      "1 is present: not a head",
+      "—"
      ],
-     "states": {
-      "0": "answer"
-     },
-     "label": "length 2"
-    }
-   ],
-   "caption": "Shaded: each chain's head, the one value whose predecessor (value − 3) is missing."
+     [
+      "5",
+      "2 is present: not a head",
+      "—"
+     ],
+     [
+      "7",
+      "4 is present: not a head",
+      "—"
+     ],
+     [
+      "8",
+      "5 is present: not a head",
+      "—"
+     ],
+     [
+      "10",
+      "7 is present: not a head",
+      "—"
+     ],
+     [
+      "13",
+      "10 is present: not a head",
+      "—"
+     ],
+     [
+      "20",
+      "head: walk 20 → 23",
+      "2"
+     ],
+     [
+      "23",
+      "20 is present: not a head",
+      "—"
+     ]
+    ]
+   }
   },
   {
-   "md": "The key question is **where to start counting**. If you start at 7 you get 7, 10, 13 (length\n3), which undercounts and wastes time. If you start only at values whose predecessor is\nmissing (1, 2 and 20 here), every chain is measured once and from its true start.\n\nAnd \"is the predecessor missing?\" and \"is the next link present?\" are both membership\nquestions, which a hash set answers in O(1)."
+   "md": "Longest chain **5**."
   }
  ],
  "approaches": [
@@ -64,13 +86,12 @@
    "space": "O(1)",
    "idea": [
     {
-     "md": "Treat every value as a possible first link. From `v`, look for `v + step` by scanning the\nlist; if it's there, look for `v + 2·step`, and so on. Keep the longest length found.\n\nIt's correct because the longest chain has some first value, and when the loop reaches\nthat value it walks the whole chain."
+     "md": "From every value, walk `v + step, v + 2·step, …` while present, searching the list each time."
     }
    ],
    "build": [
-    "For each value `v`, set `length = 1` and `next = v + step`.",
-    "While `next` appears in the list (found by scanning), add 1 to `length` and move `next` up by `step`.",
-    "Keep the maximum `length` over all starting values."
+    "For each value, extend while the next link is in the list.",
+    "Track the longest."
    ],
    "code": {
     "python": "class Solution:\n    def longestChain(self, values: List[int], step: int) -> int:\n        best = 0\n        for v in values:\n            length, nxt = 1, v + step\n            while nxt in values:\n                length += 1\n                nxt += step\n            best = max(best, length)\n        return best\n",
@@ -212,7 +233,7 @@
    ],
    "complexity": [
     {
-     "md": "**Time O(n³) in the worst case:** a chain of length n can be re-walked from each of its n\nvalues, and each step of the walk scans n numbers.\n\n**Space O(1).**"
+     "md": "**Time O(n³)** worst case: walks of length O(n), each step a linear search. **Space O(1).**"
     }
    ],
    "walk": {
@@ -585,7 +606,7 @@
    },
    "limits": [
     {
-     "md": "Two kinds of waste. Each membership check scans the list (fixable with sorting or a set),\nand each chain is walked again from every value inside it (fixable by starting only at\nchain heads). The next approach removes the first waste, the best approach removes both."
+     "md": "Linear searches, and every member of a chain walks it again."
     }
    ],
    "slow": 900
@@ -597,14 +618,13 @@
    "space": "O(n)",
    "idea": [
     {
-     "md": "Sort the distinct values in increasing order. A chain that ends at `v` is a chain that ends\nat `v − step`, plus `v`. Since `v − step < v`, that chain was already measured when we got\nhere. So:\n\n`len(v) = len(v − step) + 1` if `v − step` is among the values, else `1`.\n\nFinding `v − step` in the sorted list is a binary search, and the answer is the largest\n`len` seen. No hashing is needed."
+     "md": "Sort the distinct values. For each value `v` (in increasing order), binary-search `v − step` among the\nsmaller values; if found, `v`'s chain length is that value's length plus one. The longest length wins."
     }
    ],
    "build": [
-    "Sort the values and drop repeats.",
-    "Keep `len[i]`, the length of the chain ending at sorted position `i`.",
-    "For each `i`, binary-search `s[i] − step` among positions `0 … i − 1`. Found at `j`: `len[i] = len[j] + 1`. Not found: `len[i] = 1`.",
-    "Return the largest `len[i]`."
+    "Sorted distinct values.",
+    "Binary-search each value's predecessor.",
+    "Extend its chain length."
    ],
    "code": {
     "python": "from bisect import bisect_left\n\nclass Solution:\n    def longestChain(self, values: List[int], step: int) -> int:\n        s = sorted(set(values))\n        length = [1] * len(s)\n        for i, v in enumerate(s):\n            j = bisect_left(s, v - step, 0, i)\n            if j < i and s[j] == v - step:\n                length[i] = length[j] + 1\n        return max(length)\n",
@@ -827,7 +847,7 @@
    ],
    "complexity": [
     {
-     "md": "**Time O(n log n):** the sort, plus one O(log n) binary search per value.\n\n**Space O(n):** the sorted copy and the lengths."
+     "md": "**Time O(n log n).** **Space O(n).**"
     }
    ],
    "walk": {
@@ -1331,7 +1351,7 @@
    },
    "limits": [
     {
-     "md": "Fast and dependable, but the sort does more than needed: we only ever ask \"is `v − step`\npresent?\" and \"is `v + step` present?\", which a hash set answers in O(1) without ordering\nanything."
+     "md": "O(n log n) for the sort and searches; a hash set gives O(1) membership."
     }
    ]
   },
@@ -1342,14 +1362,13 @@
    "space": "O(n)",
    "idea": [
     {
-     "md": "Put all values in a hash set. For each distinct value `v`:\n\n- If `v − step` is in the set, `v` is not a head: some chain reaches it from below. Skip it.\n- Otherwise `v` is a head. Walk `v + step`, `v + 2·step`, … while they're in the set, and\n  count the links.\n\nEach value is the head of exactly one chain and is walked over only by that chain's walk,\nso all the walks together take O(n) steps, even though there's a loop inside a loop."
+     "md": "Put the values in a set. For each value that is a chain head (`v − step` absent), walk forward while\n`x + step` is present, counting the length.\n\n**Why it's O(n).** Chains are disjoint and each is walked only from its head."
     }
    ],
    "build": [
-    "Build a hash set of the values (64-bit keys in Java and C).",
-    "For each distinct value `v`: if `v − step` is in the set, skip it.",
-    "Otherwise walk forward from `v` while `x + step` is in the set, counting the links.",
-    "Keep the longest walk."
+    "Hash set.",
+    "Skip non-heads.",
+    "Walk forward from each head."
    ],
    "code": {
     "python": "class Solution:\n    def longestChain(self, values: List[int], step: int) -> int:\n        have = set(values)\n        best = 0\n        for v in have:\n            if v - step in have:\n                continue\n            length, x = 1, v\n            while x + step in have:\n                x += step\n                length += 1\n            best = max(best, length)\n        return best\n",
@@ -1552,7 +1571,7 @@
    ],
    "complexity": [
     {
-     "md": "**Time O(n) on average.** The skip test costs O(1) per value. A walk only starts at a\nhead and only steps through that head's own chain, and the chains don't overlap, so all\nwalks together take at most n steps.\n\n**Space O(n)** for the set."
+     "md": "**Time O(n)** expected. **Space O(n).**"
     }
    ],
    "walk": {
@@ -1927,7 +1946,7 @@
  ],
  "takeaways": [
   {
-   "md": "- For \"longest run of linked values\" problems, **only start at the beginning of a run**: a value\n  whose predecessor is missing. It turns a quadratic re-walk into a linear one.\n- A loop inside a loop can still be O(n) when the inner loop's total work across all iterations is\n  bounded. Count total work, not nesting depth.\n- Sorting + binary search is a solid hash-free fallback: it costs a log factor."
+   "md": "- **Longest arithmetic chain with a fixed step:** hash set, walk only from heads.\n- Same idea as the longest consecutive run (step 1).\n- **Pitfall:** walking from every value (quadratic on one long chain)."
   }
  ]
 }

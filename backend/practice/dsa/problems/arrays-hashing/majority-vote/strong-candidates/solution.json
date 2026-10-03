@@ -4,45 +4,92 @@
  "question": [
   {
    "md": "Return every option with **more than ⌊n/3⌋** votes, in increasing order.\n\n- **Strictly more than ⌊n/3⌋:** with 10 votes, ⌊10/3⌋ = 3, so an option needs at least 4. With 3 votes it\n  needs 2, so `[1, 2, 3]` has no strong option.\n- **0, 1 or 2 options can be strong**, never 3 (that would take more than n votes).\n- **Increasing order** in the output.\n- **Ids from −10⁹ to 10⁹**, so they can't index an array. The goal is O(1) extra space."
+  },
+  {
+   "md": "**Edge cases to keep in mind**\n\n- At most two options can be strong (three would need more than all the votes).\n- The answer may be empty, one option, or two.\n- Strict inequality: more than `⌊n/3⌋` votes."
   }
  ],
  "think": [
   {
-   "md": "Take `[3, 8, 3, 5, 8, 3, 8, 1, 3, 8]` (n = 10, ⌊n/3⌋ = 3). Option 3 has 4 votes and option 8 has 4: both\nstrong. 5 and 1 have one each."
+   "md": "**Cancelling different votes.** Remove a group of votes that are all for **different** options, and any option that\nhad more than its share before still has more than its share after:\n\n- With groups of **2** (one vote each for two different options), an option with more than `n/2` votes can't be wiped\n  out: each of its votes needs a different partner, and there aren't enough.\n- With groups of **3**, the same argument works for options with more than `n/3` votes, and at most **two** options can\n  have that many.\n\nBoyer–Moore voting performs this cancellation in one pass with a few counters. The survivors are only *candidates*:\nwhen a winner isn't guaranteed, a second pass must count their real votes."
   },
   {
-   "panels": [
-    {
-     "type": "row",
-     "cells": [
-      3,
-      8,
-      3,
-      5,
-      8,
-      3,
-      8,
-      1,
-      3,
-      8
+   "md": "**Two-candidate voting on `[3, 8, 3, 5, 8, 3, 8, 1, 3, 8]`** (n = 10, threshold > 3):"
+  },
+  {
+   "table": {
+    "head": [
+     "vote",
+     "candidate A (count)",
+     "candidate B (count)",
+     "what happens"
+    ],
+    "rows": [
+     [
+      "3",
+      "3 (1)",
+      "None (0)",
+      "A slot free: A = this vote"
      ],
-     "states": {
-      "0": "answer",
-      "2": "answer",
-      "5": "answer",
-      "8": "answer",
-      "1": "found",
-      "4": "found",
-      "6": "found",
-      "9": "found"
-     },
-     "slots": true
-    }
-   ],
-   "caption": "3 (dark) and 8 (light) each hold 4 of the 10 votes."
+     [
+      "8",
+      "3 (1)",
+      "8 (1)",
+      "B slot free: B = this vote"
+     ],
+     [
+      "3",
+      "3 (2)",
+      "8 (1)",
+      "matches A: A count 2"
+     ],
+     [
+      "5",
+      "3 (1)",
+      "8 (0)",
+      "third different option: cancel one of each"
+     ],
+     [
+      "8",
+      "3 (1)",
+      "8 (1)",
+      "matches B: B count 1"
+     ],
+     [
+      "3",
+      "3 (2)",
+      "8 (1)",
+      "matches A: A count 2"
+     ],
+     [
+      "8",
+      "3 (2)",
+      "8 (2)",
+      "matches B: B count 2"
+     ],
+     [
+      "1",
+      "3 (1)",
+      "8 (1)",
+      "third different option: cancel one of each"
+     ],
+     [
+      "3",
+      "3 (2)",
+      "8 (1)",
+      "matches A: A count 2"
+     ],
+     [
+      "8",
+      "3 (2)",
+      "8 (2)",
+      "matches B: B count 2"
+     ]
+    ]
+   }
   },
   {
-   "md": "The O(1)-space idea extends majority voting. Throw away **three votes for three different options** at\na time. Each such triple removes at most one vote from any single option, and there are at most n/3\ntriples, so an option with more than n/3 votes always has something left over.\n\nTwo slots implement \"three different options\": when a vote matches neither candidate (and both slots\nare occupied), that vote plus one vote of each candidate form a triple, and all three disappear. Every\nstrong option survives into a slot. But a survivor isn't necessarily strong, so finish with a counting\npass, exactly as with the strict majority."
+   "md": "Candidates 3 and 8; their real counts are 4 and 4, so the strong options are **[3, 8]**.\n\n**Why a strong option always survives.** Each cancellation removes three votes for three different options, so an\noption loses at most one vote per cancellation, and since every cancellation uses up three votes there are at most\n`n/3` of them. An option with more than `n/3` votes therefore keeps at least one uncancelled vote, which means it\nsits in one of the two slots at the end."
   }
  ],
  "approaches": [
@@ -53,14 +100,13 @@
    "space": "O(1)",
    "idea": [
     {
-     "md": "For each distinct option (process an option only at its first appearance), count its votes with a full scan and keep it if the count exceeds ⌊n/3⌋. Sort the (at most two) results."
+     "md": "For each distinct option, count its votes by scanning; keep those above `⌊n/3⌋`, then sort."
     }
    ],
    "build": [
-    "For each index i, skip it if the same option appeared earlier.",
-    "Count the option's votes with a scan.",
-    "Keep it if `count > n / 3` (integer division).",
-    "Return the kept options sorted."
+    "Skip options already handled.",
+    "Count by scanning.",
+    "Keep strong ones; sort."
    ],
    "code": {
     "python": "class Solution:\n    def strongCandidates(self, votes: List[int]) -> List[int]:\n        n = len(votes)\n        out = []\n        for i, x in enumerate(votes):\n            if x in votes[:i]:\n                continue\n            if votes.count(x) > n // 3:\n                out.append(x)\n        return sorted(out)\n",
@@ -191,7 +237,7 @@
    ],
    "complexity": [
     {
-     "md": "**Time O(n²).** **Space O(1)** besides the (at most 2) answers."
+     "md": "**Time O(n²).** **Space O(1)** besides the answer."
     }
    ],
    "walk": {
@@ -325,7 +371,7 @@
    },
    "limits": [
     {
-     "md": "Each option costs a full scan. One counting pass with a hash map handles all options together."
+     "md": "Each option is counted with a full scan. A hash map counts everything in one pass."
     }
    ],
    "slow": true
@@ -337,13 +383,13 @@
    "space": "O(n)",
    "idea": [
     {
-     "md": "Count every option in one pass, then keep the options whose count exceeds ⌊n/3⌋ and sort them."
+     "md": "Count all options in a hash map and keep those with more than `⌊n/3⌋` votes, sorted."
     }
    ],
    "build": [
-    "Count votes per option in a hash map.",
-    "Collect options with `count > n / 3`.",
-    "Sort and return."
+    "Count with a map.",
+    "Filter by the threshold.",
+    "Sort."
    ],
    "code": {
     "python": "from collections import Counter\n\nclass Solution:\n    def strongCandidates(self, votes: List[int]) -> List[int]:\n        count = Counter(votes)\n        return sorted(x for x, c in count.items() if c > len(votes) // 3)\n",
@@ -434,7 +480,7 @@
    ],
    "complexity": [
     {
-     "md": "**Time O(n)** on average. **Space O(n)** for the counts."
+     "md": "**Time O(n)** expected. **Space O(n).**"
     }
    ],
    "walk": {
@@ -868,7 +914,7 @@
    },
    "limits": [
     {
-     "md": "It stores a count for every option, but at most two options can be strong. Two candidate slots suffice, with a verification pass."
+     "md": "O(n) memory for the map, although at most two options can qualify."
     }
    ]
   },
@@ -879,14 +925,13 @@
    "space": "O(1)",
    "idea": [
     {
-     "md": "Keep candidates A and B with counters. For each vote, in this order:\n\n1. equal to A → A's count + 1; equal to B → B's count + 1;\n2. otherwise, if a slot's count is 0, the vote takes that slot with count 1;\n3. otherwise it matches neither and both slots are busy: decrement both counts. This discards\n   three votes for three different options.\n\nEvery option with more than n/3 votes ends in a slot. Then count A and B exactly and keep those\nabove ⌊n/3⌋."
+     "md": "Keep two candidate slots with counts. A vote for a candidate increases its count; a vote that fits an empty\nslot fills it; any other vote cancels one vote from each candidate. Finally count the two candidates'\nreal votes and keep those above `⌊n/3⌋`.\n\n**Why verification is needed.** The slots hold whatever survived cancellation, which might not be strong\n(e.g. when no option is)."
     }
    ],
    "build": [
-    "Slots `a`, `b` with counts `ca = cb = 0`.",
-    "Apply the three rules above to each vote; check matches before empty slots, so one option never occupies both.",
-    "Count the real votes of `a` and `b`.",
-    "Return those with more than `n / 3`, sorted."
+    "Two empty slots.",
+    "Match, fill, or cancel for each vote.",
+    "Count the two candidates and keep the strong ones, sorted."
    ],
    "code": {
     "python": "class Solution:\n    def strongCandidates(self, votes: List[int]) -> List[int]:\n        a, b, ca, cb = None, None, 0, 0\n        for x in votes:\n            if x == a:\n                ca += 1\n            elif x == b:\n                cb += 1\n            elif ca == 0:\n                a, ca = x, 1\n            elif cb == 0:\n                b, cb = x, 1\n            else:\n                ca -= 1\n                cb -= 1\n        n = len(votes)\n        return sorted(c for c in {a, b} if c is not None and votes.count(c) > n // 3)\n",
@@ -1083,7 +1128,7 @@
    ],
    "complexity": [
     {
-     "md": "**Time O(n):** two passes. **Space O(1):** four variables."
+     "md": "**Time O(n):** two passes. **Space O(1).**"
     }
    ],
    "walk": {
@@ -1482,7 +1527,7 @@
  ],
  "takeaways": [
   {
-   "md": "- **Generalised Boyer–Moore:** to find options with more than n/k votes, keep k − 1 candidate slots; a vote\n  matching none cancels one vote from every slot (k different votes discarded at once).\n- Survivors are candidates, not answers: always verify with exact counts.\n- Check \"matches a candidate\" before \"take an empty slot\", or one option can occupy two slots."
+   "md": "- **More than n/k votes:** at most `k − 1` options qualify; keep `k − 1` candidate slots and cancel groups of `k`.\n- Always verify candidates when existence isn't guaranteed.\n- **Pitfall:** checking a vote against an empty slot's stale value before the \"matches\" checks."
   }
  ]
 }

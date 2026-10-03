@@ -4,36 +4,128 @@
  "question": [
   {
    "md": "Return the option that received **strictly more than half** of the votes, or −1 if none did.\n\n- **\"More than half\" is strict:** in 4 votes, 2 isn't enough; you need 3. `[1, 2, 1, 2]` gives −1.\n- **There may be no winner.** This is the difference from a problem that *promises* a majority: any\n  shortcut that guesses a winner must then **verify** it.\n- **At most one winner exists**: two options each with more than half would need more than n votes.\n- **Size:** up to 10⁵ votes, option ids up to 10⁹ (so they can't index an array). The goal is O(1)\n  extra space."
+  },
+  {
+   "md": "**Edge cases to keep in mind**\n\n- Exactly half is **not** a win: `[6, 1, 6, 2, 6, 3]` has no winner.\n- One vote: it wins.\n- Voting always produces a candidate, even when nobody wins, so the verification pass is essential."
   }
  ],
  "think": [
   {
-   "md": "Take `[4, 9, 4, 4, 2, 4, 9]`: option 4 has 4 of 7 votes, a winner. And `[6, 1, 6, 2, 6, 3]`: option 6 has 3\nof 6, exactly half, so no winner.\n\nImagine pairing up votes for **different** options and throwing each pair away. A winner has more\nvotes than all the others combined, so it can't be paired off completely; something of it always\nsurvives. But the reverse fails: in `[6, 1, 6, 2, 6, 3]` the cancelling still ends with 6 as the\nsurvivor, even though 6 has only half the votes, not more."
+   "md": "**Cancelling different votes.** Remove a group of votes that are all for **different** options, and any option that\nhad more than its share before still has more than its share after:\n\n- With groups of **2** (one vote each for two different options), an option with more than `n/2` votes can't be wiped\n  out: each of its votes needs a different partner, and there aren't enough.\n- With groups of **3**, the same argument works for options with more than `n/3` votes, and at most **two** options can\n  have that many.\n\nBoyer–Moore voting performs this cancellation in one pass with a few counters. The survivors are only *candidates*:\nwhen a winner isn't guaranteed, a second pass must count their real votes."
   },
   {
-   "panels": [
-    {
-     "type": "row",
-     "cells": [
-      6,
-      1,
-      6,
-      2,
-      6,
-      3
+   "md": "**Voting on `[4, 9, 4, 4, 2, 4, 9]`:**"
+  },
+  {
+   "table": {
+    "head": [
+     "vote",
+     "candidate",
+     "count",
+     "change"
+    ],
+    "rows": [
+     [
+      "4",
+      "4",
+      "1",
+      "count 0: new candidate. +1"
      ],
-     "states": {
-      "0": "mark",
-      "2": "mark",
-      "4": "mark"
-     },
-     "slots": true
-    }
-   ],
-   "caption": "6 survives the cancelling, yet 3 of 6 votes is not more than half. A survivor is only a candidate."
+     [
+      "9",
+      "4",
+      "0",
+      "−1"
+     ],
+     [
+      "4",
+      "4",
+      "1",
+      "count 0: new candidate. +1"
+     ],
+     [
+      "4",
+      "4",
+      "2",
+      "+1"
+     ],
+     [
+      "2",
+      "4",
+      "1",
+      "−1"
+     ],
+     [
+      "4",
+      "4",
+      "2",
+      "+1"
+     ],
+     [
+      "9",
+      "4",
+      "1",
+      "−1"
+     ]
+    ]
+   }
   },
   {
-   "md": "So the plan has two steps: **find the candidate** cheaply by cancelling, then **count** it once to see\nwhether it truly passes n/2."
+   "md": "Candidate 4, which really has 4 of 7 votes: a winner."
+  },
+  {
+   "md": "**Voting on `[6, 1, 6, 2, 6, 3]`:**"
+  },
+  {
+   "table": {
+    "head": [
+     "vote",
+     "candidate",
+     "count",
+     "change"
+    ],
+    "rows": [
+     [
+      "6",
+      "6",
+      "1",
+      "count 0: new candidate. +1"
+     ],
+     [
+      "1",
+      "6",
+      "0",
+      "−1"
+     ],
+     [
+      "6",
+      "6",
+      "1",
+      "count 0: new candidate. +1"
+     ],
+     [
+      "2",
+      "6",
+      "0",
+      "−1"
+     ],
+     [
+      "6",
+      "6",
+      "1",
+      "count 0: new candidate. +1"
+     ],
+     [
+      "3",
+      "6",
+      "0",
+      "−1"
+     ]
+    ]
+   }
+  },
+  {
+   "md": "Candidate 6, but it has only 3 of 6 votes, so the answer is **−1**."
   }
  ],
  "approaches": [
@@ -44,13 +136,12 @@
    "space": "O(1)",
    "idea": [
     {
-     "md": "For each vote, count how many votes share its option. The first option whose count is more than n/2 wins; if none is, return −1."
+     "md": "For each vote, count its option by scanning all votes; return the first option with more than half."
     }
    ],
    "build": [
-    "For each vote `x`, count the votes equal to `x` with a scan.",
-    "If `count × 2 > n`, return `x`.",
-    "After all votes, return −1."
+    "For each vote, count by scanning.",
+    "Return the first majority, else −1."
    ],
    "code": {
     "python": "class Solution:\n    def strictMajority(self, votes: List[int]) -> int:\n        n = len(votes)\n        for x in votes:\n            if votes.count(x) * 2 > n:\n                return x\n        return -1\n",
@@ -207,7 +298,7 @@
    },
    "limits": [
     {
-     "md": "The same option is recounted for every one of its votes. Counting all options in one pass removes the repetition, at the cost of memory."
+     "md": "Recounts the same options repeatedly. A hash map counts all options in one pass."
     }
    ],
    "slow": true
@@ -219,13 +310,12 @@
    "space": "O(n)",
    "idea": [
     {
-     "md": "One pass counts every option in a hash map; return the option whose count passes n/2 (stop as soon as one does), else −1."
+     "md": "Count options in a hash map; return as soon as one passes `n/2`, or −1 at the end."
     }
    ],
    "build": [
-    "Empty map option → votes.",
-    "For each vote, increment its count; if `count × 2 > n`, return it.",
-    "Return −1."
+    "Map option → votes.",
+    "Return when a count exceeds half."
    ],
    "code": {
     "python": "class Solution:\n    def strictMajority(self, votes: List[int]) -> int:\n        n = len(votes)\n        count = {}\n        for x in votes:\n            count[x] = count.get(x, 0) + 1\n            if count[x] * 2 > n:\n                return x\n        return -1\n",
@@ -377,7 +467,7 @@
    ],
    "complexity": [
     {
-     "md": "**Time O(n)** on average. **Space O(n)** for the counts."
+     "md": "**Time O(n)** expected. **Space O(n)** for the map."
     }
    ],
    "walk": {
@@ -652,7 +742,7 @@
    },
    "limits": [
     {
-     "md": "It keeps a count for every option, although at most one can win. Voting needs only one candidate and one counter; the price is a second pass to verify."
+     "md": "Uses O(n) memory. Voting plus a verification pass needs O(1)."
     }
    ]
   },
@@ -663,14 +753,13 @@
    "space": "O(1)",
    "idea": [
     {
-     "md": "**Pass 1 (find a candidate):** keep `candidate` and `count`. When `count` is 0 the current vote\nbecomes the candidate; a matching vote adds 1, a different vote subtracts 1. Each subtraction\ndiscards one candidate vote together with one different vote. A real winner has more votes than\neveryone else together, so it can never be fully discarded: if a winner exists, it is the final\ncandidate.\n\n**Pass 2 (verify):** the candidate might not be a winner (when there is none, the survivor is\narbitrary). Count its votes and return it only if the count passes n/2."
+     "md": "Pass 1: Boyer–Moore voting gives a candidate (the only option that *could* have a majority). Pass 2:\ncount the candidate's votes and return it only if it has more than half.\n\n**Why the candidate is the only possibility.** If a majority option exists, cancellation can't remove all\nof its votes, so it's the survivor."
     }
    ],
    "build": [
-    "`candidate = −1`, `count = 0`.",
-    "For each vote: if `count == 0`, adopt it; then `count += 1` if it equals the candidate, else `count −= 1`.",
-    "Count the candidate's votes in a second pass.",
-    "Return it if `votes × 2 > n`, else −1."
+    "Vote to get a candidate.",
+    "Count the candidate's real votes.",
+    "Return it if it's a strict majority, else −1."
    ],
    "code": {
     "python": "class Solution:\n    def strictMajority(self, votes: List[int]) -> int:\n        candidate, count = -1, 0\n        for x in votes:\n            if count == 0:\n                candidate = x\n            count += 1 if x == candidate else -1\n        support = sum(1 for x in votes if x == candidate)\n        return candidate if support * 2 > len(votes) else -1\n",
@@ -1255,7 +1344,7 @@
  ],
  "takeaways": [
   {
-   "md": "- Boyer–Moore voting returns the majority **if one exists**. When it might not, always verify with a\n  second count.\n- \"More than half\" in integer code: `count * 2 > n`, avoiding `n / 2` rounding mistakes.\n- Compare with **Majority Reading**, where the majority is guaranteed and the verify pass can be dropped."
+   "md": "- **Majority not guaranteed:** vote, then verify with a second pass.\n- Voting never proves a winner exists; it only narrows it to one candidate.\n- **Pitfall:** `≥ n/2` instead of `> n/2`."
   }
  ]
 }
