@@ -4,37 +4,65 @@
  "question": [
   {
    "md": "For every index i, return the product of all elements **except** `nums[i]`, without using division.\n\n- **Why no division?** The obvious trick, \"total product ÷ nums[i]\", breaks on zeros: with one zero,\n  every other answer is 0 but the zero's own answer isn't; with two zeros, all answers are 0. The\n  no-division rule forces an approach that handles zeros naturally.\n- **Values are −2 … 2**, and at most 60 of them are ±2, so every answer fits in a 64-bit integer\n  (|answer| ≤ 2⁶⁰). Use `long` in Java and C++/C.\n- **Size:** up to 10⁵, so the O(n²) \"multiply all the others\" is too slow."
+  },
+  {
+   "md": "**Edge cases to keep in mind**\n\n- Zeros: one zero makes every other answer 0; two zeros make every answer 0. Division would fail here, which is\n  why it's banned.\n- Negative values flip signs; nothing special is needed.\n- Products fit in 64 bits by the constraints (at most 60 factors of ±2)."
   }
  ],
  "think": [
   {
-   "md": "Take `[3, −1, 2, 2, −2]`. For index 2, the answer is `3 × (−1)` (left of it) times `2 × (−2)` (right of\nit) = −3 × −4 = 12."
+   "md": "**Two passes, one from each side.** Many \"everything except me\" or \"everything to my left/right\" questions split\ninto a part that depends only on what comes **before** an index and a part that depends only on what comes **after**\nit. A left-to-right pass accumulates the first part, a right-to-left pass accumulates the second, and each index\ncombines them in O(1). Two linear passes replace an O(n) scan per index."
   },
   {
-   "panels": [
-    {
-     "type": "row",
-     "cells": [
-      3,
-      -1,
-      2,
-      2,
-      -2
+   "md": "**Split each answer into left and right.** The product of everything except `nums[i]` is\n`(product of nums[0 … i−1]) × (product of nums[i+1 … n−1])`. Both parts are running products. For `[3, -1, 2, 2, -2]`:"
+  },
+  {
+   "table": {
+    "head": [
+     "i",
+     "nums[i]",
+     "product to the left",
+     "product to the right",
+     "answer"
+    ],
+    "rows": [
+     [
+      "0",
+      "3",
+      "1",
+      "8",
+      "8"
      ],
-     "states": {
-      "0": "found",
-      "1": "found",
-      "2": "mark",
-      "3": "active",
-      "4": "active"
-     },
-     "slots": true
-    }
-   ],
-   "caption": "Everything except index 2 = the left block × the right block."
-  },
-  {
-   "md": "Every answer splits the same way: left block × right block. And the left blocks grow one element at a\ntime as i moves right (`1`, `3`, `3 × −1`, …), so all of them come from **one running product**. The\nsame is true of the right blocks from the other end. Two passes, no division, and zeros need no special\nhandling: a zero simply makes every block that contains it 0."
+     [
+      "1",
+      "-1",
+      "3",
+      "-8",
+      "-24"
+     ],
+     [
+      "2",
+      "2",
+      "-3",
+      "-4",
+      "12"
+     ],
+     [
+      "3",
+      "2",
+      "-6",
+      "-2",
+      "12"
+     ],
+     [
+      "4",
+      "-2",
+      "-12",
+      "1",
+      "-12"
+     ]
+    ]
+   }
   }
  ],
  "approaches": [
@@ -45,13 +73,12 @@
    "space": "O(1)",
    "idea": [
     {
-     "md": "For each i, loop over every j ≠ i and multiply. Direct, but each answer redoes almost the same work."
+     "md": "For each index, multiply all the other elements together."
     }
    ],
    "build": [
-    "For each i: start a product at 1.",
-    "Multiply in every `nums[j]` with `j ≠ i` (64-bit).",
-    "Store it."
+    "For each index, loop over the others.",
+    "Store the product."
    ],
    "code": {
     "python": "class Solution:\n    def productOfOthers(self, nums: List[int]) -> List[int]:\n        n = len(nums)\n        out = []\n        for i in range(n):\n            p = 1\n            for j in range(n):\n                if j != i:\n                    p *= nums[j]\n            out.append(p)\n        return out\n",
@@ -363,7 +390,7 @@
    },
    "limits": [
     {
-     "md": "The products for i and i + 1 share all but two factors, yet each is rebuilt from scratch. Running products from both ends share that work."
+     "md": "Neighbouring answers share almost all their factors. Running products from both ends compute every answer from two shared passes."
     }
    ],
    "slow": true
@@ -375,13 +402,13 @@
    "space": "O(n)",
    "idea": [
     {
-     "md": "Build `prefix[i]` = product of `nums[0 … i − 1]` (with `prefix[0] = 1`) and `suffix[i]` = product of `nums[i + 1 … n − 1]` (with `suffix[n − 1] = 1`). Then `answer[i] = prefix[i] × suffix[i]`."
+     "md": "Build `prefix[i]` = product before `i` and `suffix[i]` = product after `i`; each answer is `prefix[i] × suffix[i]`."
     }
    ],
    "build": [
-    "`prefix[0] = 1`; `prefix[i] = prefix[i − 1] × nums[i − 1]`.",
-    "`suffix[n − 1] = 1`; `suffix[i] = suffix[i + 1] × nums[i + 1]`.",
-    "`answer[i] = prefix[i] × suffix[i]`."
+    "Prefix products.",
+    "Suffix products.",
+    "Multiply them index by index."
    ],
    "code": {
     "python": "class Solution:\n    def productOfOthers(self, nums: List[int]) -> List[int]:\n        n = len(nums)\n        prefix = [1] * n\n        for i in range(1, n):\n            prefix[i] = prefix[i - 1] * nums[i - 1]\n        suffix = [1] * n\n        for i in range(n - 2, -1, -1):\n            suffix[i] = suffix[i + 1] * nums[i + 1]\n        return [prefix[i] * suffix[i] for i in range(n)]\n",
@@ -483,7 +510,7 @@
    ],
    "complexity": [
     {
-     "md": "**Time O(n):** three passes. **Space O(n)** for the two helper arrays."
+     "md": "**Time O(n).** **Space O(n)** for the two extra arrays."
     }
    ],
    "walk": {
@@ -610,7 +637,7 @@
    },
    "limits": [
     {
-     "md": "Two extra arrays of size n. The output array can hold the prefix products, and the suffix product only needs to exist one index at a time."
+     "md": "The two arrays aren't needed: the output can hold the prefix products, and the suffix product can be a single running variable."
     }
    ]
   },
@@ -621,13 +648,13 @@
    "space": "O(1)",
    "idea": [
     {
-     "md": "Pass 1 (left to right): write the running left product into `out[i]` *before* multiplying in `nums[i]`. Pass 2 (right to left): keep `right`, the product of everything after i, multiply it into `out[i]`, then multiply `nums[i]` into `right`."
+     "md": "First pass (left to right): `out[i] = left`, then `left *= nums[i]`. Second pass (right to left):\n`out[i] *= right`, then `right *= nums[i]`.\n\n**Invariant.** In the first pass, `left` is the product of everything before `i`; in the second, `right` is\nthe product of everything after `i`. So each `out[i]` ends as left × right."
     }
    ],
    "build": [
-    "`left = 1`; for i from 0: `out[i] = left`, then `left *= nums[i]`.",
-    "`right = 1`; for i from n − 1 down: `out[i] *= right`, then `right *= nums[i]`.",
-    "Return `out`."
+    "Output of ones.",
+    "Left pass writes products before each index.",
+    "Right pass multiplies in products after each index."
    ],
    "code": {
     "python": "class Solution:\n    def productOfOthers(self, nums: List[int]) -> List[int]:\n        n = len(nums)\n        out = [1] * n\n        left = 1\n        for i in range(n):\n            out[i] = left\n            left *= nums[i]\n        right = 1\n        for i in range(n - 1, -1, -1):\n            out[i] *= right\n            right *= nums[i]\n        return out\n",
@@ -755,7 +782,7 @@
    ],
    "complexity": [
     {
-     "md": "**Time O(n):** two passes. **Space O(1)** besides the output."
+     "md": "**Time O(n).** **Space O(1)** besides the output."
     }
    ],
    "walk": {
@@ -996,7 +1023,7 @@
  ],
  "takeaways": [
   {
-   "md": "- \"All except i\" = **prefix up to i − 1** combined with **suffix from i + 1**. Works for products, sums,\n  maxima, …\n- Write the running value *before* folding in the current element to exclude it.\n- The output array can store one direction's results; carry the other direction in a variable."
+   "md": "- **\"All except me\" without division:** prefix × suffix.\n- Store one side in the output and carry the other in a variable.\n- **Pitfall:** dividing the total product by `nums[i]` (fails on zeros)."
   }
  ]
 }

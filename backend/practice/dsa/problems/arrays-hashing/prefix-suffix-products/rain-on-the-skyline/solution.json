@@ -4,56 +4,159 @@
  "question": [
   {
    "md": "Columns of width 1 have heights `walls[i]`. After rain, water sits wherever it's held in by taller columns on\n**both** sides; anything over the ends runs off. Return the total water, in unit squares.\n\n- **Both sides matter:** water above column i can rise only as high as the shorter of its two\n  surrounding \"dam walls\".\n- **The ends hold nothing** (water runs off the edge), and a strictly rising or falling skyline holds\n  nothing.\n- **The total can be large:** up to 10⁵ columns × 10⁵ height ≈ 10¹⁰, more than 32 bits. Use 64-bit.\n- **Size:** up to 10⁵ columns, so the per-column scan in both directions (O(n²)) is too slow."
+  },
+  {
+   "md": "**Edge cases to keep in mind**\n\n- The first and last columns never hold water (it flows off the ends).\n- Strictly increasing or decreasing skylines hold nothing.\n- The total can reach about `10⁵ × 10⁵ = 10¹⁰`: use 64 bits."
   }
  ],
  "think": [
   {
-   "md": "Take `walls = [3, 0, 2, 0, 4, 1, 0, 2]`. Look at column 3 (height 0). The tallest wall to its left is 3,\nthe tallest to its right is 4. Water above it rises until it would spill over the **lower** of those,\nso it reaches level 3: 3 units of water."
+   "md": "**Two passes, one from each side.** Many \"everything except me\" or \"everything to my left/right\" questions split\ninto a part that depends only on what comes **before** an index and a part that depends only on what comes **after**\nit. A left-to-right pass accumulates the first part, a right-to-left pass accumulates the second, and each index\ncombines them in O(1). Two linear passes replace an O(n) scan per index."
   },
   {
-   "panels": [
-    {
-     "type": "row",
-     "cells": [
-      3,
-      0,
-      2,
-      0,
-      4,
-      1,
-      0,
-      2
-     ],
-     "label": "height",
-     "slots": true
-    },
-    {
-     "type": "row",
-     "cells": [
-      0,
-      3,
-      1,
-      3,
-      0,
-      1,
-      2,
-      0
-     ],
-     "states": {
-      "1": "answer",
-      "2": "answer",
-      "3": "answer",
-      "5": "answer",
-      "6": "answer"
-     },
-     "label": "water above",
-     "slots": true
-    }
-   ],
-   "caption": "Per column: min(tallest left, tallest right) − own height. Total 10."
+   "md": "**Water above one column.** Water above column `i` rises until it would spill over the lower of the two tallest\nwalls around it: level `min(tallest on the left, tallest on the right)`, including the column itself. The water is\nthat level minus the column's height. For `[3, 0, 2, 0, 4, 1, 0, 2]`:"
   },
   {
-   "md": "So for every column, `water[i] = min(leftMax[i], rightMax[i]) − walls[i]`, where the maxima include the\ncolumn itself (which makes the value never negative). The rest is computing those maxima efficiently:\n\n- by scanning both ways for each column (O(n²));\n- with running maxima from each end (O(n), two arrays);\n- or with two pointers that settle the lower side first (O(n), no arrays)."
+   "table": {
+    "head": [
+     "i",
+     "height",
+     "tallest left (incl.)",
+     "tallest right (incl.)",
+     "water"
+    ],
+    "rows": [
+     [
+      "0",
+      "3",
+      "3",
+      "4",
+      "0"
+     ],
+     [
+      "1",
+      "0",
+      "3",
+      "4",
+      "3"
+     ],
+     [
+      "2",
+      "2",
+      "3",
+      "4",
+      "1"
+     ],
+     [
+      "3",
+      "0",
+      "3",
+      "4",
+      "3"
+     ],
+     [
+      "4",
+      "4",
+      "4",
+      "4",
+      "0"
+     ],
+     [
+      "5",
+      "1",
+      "4",
+      "2",
+      "1"
+     ],
+     [
+      "6",
+      "0",
+      "4",
+      "2",
+      "2"
+     ],
+     [
+      "7",
+      "2",
+      "4",
+      "2",
+      "0"
+     ]
+    ]
+   }
+  },
+  {
+   "md": "Total **10**.\n\n**Settling the lower side with two pointers.** Move inward from both ends, always on the side with the **lower**\ncurrent wall. Invariant: the wall under the pointer that stays put is at least as tall as every wall already\npassed on the moving side. So when the left wall is lower, the right side certainly has a wall at least as tall\nas the left maximum, and the left column's level is just the left maximum: its water is settled without knowing\nthe true right maximum."
+  },
+  {
+   "table": {
+    "head": [
+     "lo",
+     "hi",
+     "move",
+     "running max",
+     "water added",
+     "total"
+    ],
+    "rows": [
+     [
+      "0",
+      "7",
+      "right (2 ≤ 3)",
+      "right max 2",
+      "0",
+      "0"
+     ],
+     [
+      "0",
+      "6",
+      "right (0 ≤ 3)",
+      "right max 2",
+      "2",
+      "2"
+     ],
+     [
+      "0",
+      "5",
+      "right (1 ≤ 3)",
+      "right max 2",
+      "1",
+      "3"
+     ],
+     [
+      "0",
+      "4",
+      "left (3 < 4)",
+      "left max 3",
+      "0",
+      "3"
+     ],
+     [
+      "1",
+      "4",
+      "left (0 < 4)",
+      "left max 3",
+      "3",
+      "6"
+     ],
+     [
+      "2",
+      "4",
+      "left (2 < 4)",
+      "left max 3",
+      "1",
+      "7"
+     ],
+     [
+      "3",
+      "4",
+      "left (0 < 4)",
+      "left max 3",
+      "3",
+      "10"
+     ]
+    ]
+   }
   }
  ],
  "approaches": [
@@ -64,12 +167,12 @@
    "space": "O(1)",
    "idea": [
     {
-     "md": "For each column, scan left for the tallest wall (including itself) and right for the tallest wall (including itself). Add `min(left, right) − height`."
+     "md": "For each column, scan left and right for the tallest walls and add `min(left, right) − height`."
     }
    ],
    "build": [
-    "For each i: `L` = max of `walls[0 … i]`, `R` = max of `walls[i … n − 1]`.",
-    "Add `min(L, R) − walls[i]` to a 64-bit total."
+    "For each column, find both maxima by scanning.",
+    "Add the water."
    ],
    "code": {
     "python": "class Solution:\n    def trappedWater(self, walls: List[int]) -> int:\n        n = len(walls)\n        total = 0\n        for i in range(n):\n            left = max(walls[:i + 1])\n            right = max(walls[i:])\n            total += min(left, right) - walls[i]\n        return total\n",
@@ -197,7 +300,7 @@
    ],
    "complexity": [
     {
-     "md": "**Time O(n²).** **Space O(1).**"
+     "md": "**Time O(n²).** **Space O(1)** (Python's slices cost O(n))."
     }
    ],
    "walk": {
@@ -604,7 +707,7 @@
    },
    "limits": [
     {
-     "md": "Neighbouring columns repeat almost the same scans. The left maximum for i + 1 is just `max(leftMax for i, walls[i + 1])`: a running maximum."
+     "md": "Each column rescans both sides; the maxima are running maxima that two passes compute for all columns."
     }
    ],
    "slow": true
@@ -616,13 +719,13 @@
    "space": "O(n)",
    "idea": [
     {
-     "md": "`leftMax[i] = max(leftMax[i − 1], walls[i])` from the left; `rightMax[i] = max(rightMax[i + 1], walls[i])` from the right. Then sum `min(leftMax[i], rightMax[i]) − walls[i]`."
+     "md": "Precompute `left_max[i]` (left to right) and `right_max[i]` (right to left), then sum `min(left_max, right_max) − height`."
     }
    ],
    "build": [
-    "Fill `leftMax` left to right.",
-    "Fill `rightMax` right to left.",
-    "Sum `min(leftMax[i], rightMax[i]) − walls[i]` (64-bit)."
+    "Running maximum from the left.",
+    "Running maximum from the right.",
+    "Sum the water."
    ],
    "code": {
     "python": "class Solution:\n    def trappedWater(self, walls: List[int]) -> int:\n        n = len(walls)\n        left_max = [0] * n\n        left_max[0] = walls[0]\n        for i in range(1, n):\n            left_max[i] = max(left_max[i - 1], walls[i])\n        right_max = [0] * n\n        right_max[-1] = walls[-1]\n        for i in range(n - 2, -1, -1):\n            right_max[i] = max(right_max[i + 1], walls[i])\n        return sum(min(left_max[i], right_max[i]) - walls[i] for i in range(n))\n",
@@ -724,7 +827,7 @@
    ],
    "complexity": [
     {
-     "md": "**Time O(n):** three passes. **Space O(n)** for the two arrays."
+     "md": "**Time O(n).** **Space O(n)** for the two arrays."
     }
    ],
    "walk": {
@@ -877,7 +980,7 @@
    },
    "limits": [
     {
-     "md": "Both arrays are only ever needed at one index at a time, if we process columns in the right order. Two pointers find that order."
+     "md": "Two extra arrays. Two pointers settle each column using only the maximum on its own side."
     }
    ]
   },
@@ -888,14 +991,13 @@
    "space": "O(1)",
    "idea": [
     {
-     "md": "Pointers `lo` and `hi` start at the ends, with `leftMax` (tallest seen from the left) and `rightMax`\n(tallest seen from the right).\n\nThe left pointer only ever moves when its wall is **lower** than the wall under the right\npointer. So every wall it has stood on (including the current one) is lower than some wall at or\nbeyond `hi`, which lies to the right of `lo`. That means the tallest wall on `lo`'s right is at\nleast `leftMax`, so `min(leftMax, tallest on the right) = leftMax`, and column `lo` holds exactly\n`leftMax − walls[lo]`. Settle it and move `lo` right.\n\nWhen `walls[hi] ≤ walls[lo]`, the same argument works in mirror image: settle column `hi` with\n`rightMax` and move `hi` left."
+     "md": "`lo` and `hi` at the ends, with running maxima on each side. If `walls[lo] < walls[hi]`, update the left\nmaximum, add `left_max − walls[lo]`, and move `lo`; otherwise do the same on the right.\n\n**Why it's correct.** By the invariant above, the moving side's own running maximum is the lower of the two\nbounding walls for that column, so it's exactly the column's water level."
     }
    ],
    "build": [
-    "`lo = 0`, `hi = n − 1`, both maxima 0, total 0.",
-    "While `lo < hi`: if `walls[lo] < walls[hi]`, update `leftMax`, add `leftMax − walls[lo]`, `lo += 1`.",
-    "Else update `rightMax`, add `rightMax − walls[hi]`, `hi −= 1`.",
-    "Return the total."
+    "Pointers at both ends, maxima at 0.",
+    "Work on the lower side.",
+    "Update its maximum and add its water."
    ],
    "code": {
     "python": "class Solution:\n    def trappedWater(self, walls: List[int]) -> int:\n        lo, hi = 0, len(walls) - 1\n        left_max = right_max = total = 0\n        while lo < hi:\n            if walls[lo] < walls[hi]:\n                left_max = max(left_max, walls[lo])\n                total += left_max - walls[lo]\n                lo += 1\n            else:\n                right_max = max(right_max, walls[hi])\n                total += right_max - walls[hi]\n                hi -= 1\n        return total\n",
@@ -1052,7 +1154,7 @@
    ],
    "complexity": [
     {
-     "md": "**Time O(n):** each column is settled once. **Space O(1).**"
+     "md": "**Time O(n).** **Space O(1).**"
     }
    ],
    "walk": {
@@ -1329,7 +1431,7 @@
  ],
  "takeaways": [
   {
-   "md": "- Water above a column = `min(max to the left, max to the right) − height`. Get both maxima with running\n  prefix/suffix maxima.\n- **Two pointers** can replace both arrays: always process the side with the lower wall, because its\n  bound is already known.\n- Totals over 10⁵ columns of height 10⁵ need 64-bit integers."
+   "md": "- **Trapped water per column = min(max left, max right) − height.**\n- Two passes of running maxima, or two pointers that settle the lower side.\n- **Pitfall:** using the nearest taller wall instead of the tallest one."
   }
  ]
 }

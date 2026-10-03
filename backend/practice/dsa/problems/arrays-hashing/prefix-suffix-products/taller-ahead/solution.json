@@ -4,47 +4,74 @@
  "question": [
   {
    "md": "For each building, return the height of the tallest building **strictly after** it, or −1 for the last\nbuilding.\n\n- **Strictly after:** the building itself doesn't count. For `[2, 2, 2]` the answer is `[2, 2, −1]`: the\n  first building sees two buildings of height 2.\n- **It's the maximum, not the next taller one.** `[4, 9, 2, 7, 3]` gives 9 for the first building even\n  though 9 is just one step away; for building 2 (height 2) it's 7.\n- **Size:** up to 10⁵, so scanning the rest of the street for every building is too slow."
+  },
+  {
+   "md": "**Edge cases to keep in mind**\n\n- The last building has nothing after it: `−1`.\n- \"Strictly after\": a building's own height never counts for itself.\n- All equal heights: every answer except the last is that height."
   }
  ],
  "think": [
   {
-   "md": "Take `[4, 9, 2, 7, 3, 3, 1]`. The answers are `[9, 7, 7, 3, 3, 1, −1]`.\n\nRead the answers from the **right**: −1, then 1, 3, 3, 7, 7, 9. Each one is the maximum of everything\nalready passed when walking leftwards. So walk from the right carrying `best`, the tallest building seen\nso far; that is exactly the tallest building after the current one."
+   "md": "**Two passes, one from each side.** Many \"everything except me\" or \"everything to my left/right\" questions split\ninto a part that depends only on what comes **before** an index and a part that depends only on what comes **after**\nit. A left-to-right pass accumulates the first part, a right-to-left pass accumulates the second, and each index\ncombines them in O(1). Two linear passes replace an O(n) scan per index."
   },
   {
-   "panels": [
-    {
-     "type": "row",
-     "cells": [
-      4,
-      9,
-      2,
-      7,
-      3,
-      3,
-      1
-     ],
-     "label": "height",
-     "slots": true
-    },
-    {
-     "type": "row",
-     "cells": [
-      9,
-      7,
-      7,
-      3,
-      3,
-      1,
-      -1
-     ],
-     "label": "tallest after",
-     "slots": true
-    }
-   ],
-   "caption": "Reading right to left, the answers are a running maximum."
+   "md": "**Only the right-hand pass is needed.** \"Tallest building after `i`\" is a running maximum taken from the right.\nWalk from the end, carrying `best` = tallest building seen so far (to the right of the current one): write `best`\nas the answer **before** folding in the current building. For `[4, 9, 2, 7, 3, 3, 1]`:"
   },
   {
-   "md": "The only subtlety is order: write `best` into the answer **before** adding the current building to it,\nso a building never counts as being \"after\" itself."
+   "table": {
+    "head": [
+     "i",
+     "height",
+     "answer (best so far)",
+     "best after including it"
+    ],
+    "rows": [
+     [
+      "6",
+      "1",
+      "-1",
+      "1"
+     ],
+     [
+      "5",
+      "3",
+      "1",
+      "3"
+     ],
+     [
+      "4",
+      "3",
+      "3",
+      "3"
+     ],
+     [
+      "3",
+      "7",
+      "3",
+      "7"
+     ],
+     [
+      "2",
+      "2",
+      "7",
+      "7"
+     ],
+     [
+      "1",
+      "9",
+      "7",
+      "9"
+     ],
+     [
+      "0",
+      "4",
+      "9",
+      "9"
+     ]
+    ]
+   }
+  },
+  {
+   "md": "Answers **[9, 7, 7, 3, 3, 1, -1]**."
   }
  ],
  "approaches": [
@@ -55,13 +82,12 @@
    "space": "O(1)",
    "idea": [
     {
-     "md": "For each i, scan `heights[i + 1 …]` and take the maximum, or −1 if there's nothing after it."
+     "md": "For each building, scan everything after it for the maximum."
     }
    ],
    "build": [
-    "For each i, set `best = −1`.",
-    "Scan j from i + 1 to the end, keeping the maximum.",
-    "Store `best`."
+    "For each building, scan to the end.",
+    "Store the maximum (or −1)."
    ],
    "code": {
     "python": "class Solution:\n    def tallestAhead(self, heights: List[int]) -> List[int]:\n        n = len(heights)\n        out = []\n        for i in range(n):\n            best = -1\n            for j in range(i + 1, n):\n                best = max(best, heights[j])\n            out.append(best)\n        return out\n",
@@ -491,7 +517,7 @@
    },
    "limits": [
     {
-     "md": "The scans for i and i + 1 overlap almost entirely. The answer for i is just `max(heights[i + 1], answer for i + 1)`."
+     "md": "Building `i`'s scan repeats building `i + 1`'s scan plus one more element. Carrying the maximum from the right reuses it."
     }
    ],
    "slow": true
@@ -503,13 +529,12 @@
    "space": "O(1)",
    "idea": [
     {
-     "md": "Walk i from the last building to the first with `best = −1`. Set `out[i] = best` (the tallest strictly after i), then `best = max(best, heights[i])` so building i counts for everything before it."
+     "md": "Walk from right to left with `best = −1`. At each building, record `best`, then update\n`best = max(best, height)`.\n\n**Invariant.** Just before processing index `i`, `best` is the maximum of `heights[i+1 …]` (or −1 if\nempty), exactly the required answer."
     }
    ],
    "build": [
-    "`best = −1`.",
-    "For i from n − 1 down to 0: `out[i] = best`, then `best = max(best, heights[i])`.",
-    "Return `out`."
+    "Output filled with −1, `best = −1`.",
+    "Right to left: write `best`, then fold in the height."
    ],
    "code": {
     "python": "class Solution:\n    def tallestAhead(self, heights: List[int]) -> List[int]:\n        out = [-1] * len(heights)\n        best = -1\n        for i in range(len(heights) - 1, -1, -1):\n            out[i] = best\n            best = max(best, heights[i])\n        return out\n",
@@ -666,7 +691,7 @@
    ],
    "complexity": [
     {
-     "md": "**Time O(n):** one pass. **Space O(1)** besides the output."
+     "md": "**Time O(n).** **Space O(1)** besides the output."
     }
    ],
    "walk": {
@@ -1008,7 +1033,7 @@
  ],
  "takeaways": [
   {
-   "md": "- \"Best of everything after i\" = a **suffix** running value, computed right to left.\n- Strictly after: write the running value *before* folding in the current element.\n- Prefix/suffix running values turn many O(n²) \"look at the rest\" problems into O(n)."
+   "md": "- **\"Maximum to my right\":** a running maximum from the right; write before you fold.\n- Same pattern for minimum, sum, product to the left or right.\n- **Pitfall:** updating `best` before writing it (includes the building itself)."
   }
  ]
 }
