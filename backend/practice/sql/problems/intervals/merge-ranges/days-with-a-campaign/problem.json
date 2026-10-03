@@ -1,0 +1,35 @@
+{
+  "id": "days-with-a-campaign",
+  "title": "Days with a Campaign",
+  "topic": "intervals",
+  "pattern": "merge-ranges",
+  "difficulty": "hard",
+  "statement": "Each marketing campaign runs from `start_day` to `end_day`, **both included**. Campaigns can overlap.\n\nReturn one row with `days`: how many different calendar days had at least one campaign running.",
+  "notes": "",
+  "tables": [
+    {
+      "name": "campaigns",
+      "columns": [
+        [
+          "id",
+          "INTEGER",
+          "pk"
+        ],
+        [
+          "start_day",
+          "TEXT"
+        ],
+        [
+          "end_day",
+          "TEXT"
+        ]
+      ]
+    }
+  ],
+  "ordered": false,
+  "reference": "WITH ordered AS (\n  SELECT julianday(start_day) AS s, julianday(end_day) AS e,\n         MAX(julianday(end_day)) OVER (ORDER BY start_day, end_day ROWS BETWEEN UNBOUNDED PRECEDING AND 1 PRECEDING) AS reach\n  FROM campaigns\n),\ngrouped AS (\n  SELECT s, e, SUM(CASE WHEN reach IS NULL OR s > reach THEN 1 ELSE 0 END) OVER (ORDER BY s, e ROWS UNBOUNDED PRECEDING) AS block\n  FROM ordered\n)\nSELECT CAST(SUM(last - first + 1) AS INTEGER) AS days\nFROM (SELECT MIN(s) AS first, MAX(e) AS last FROM grouped GROUP BY block)",
+  "wrong": [
+    "SELECT CAST(SUM(julianday(end_day) - julianday(start_day) + 1) AS INTEGER) AS days FROM campaigns",
+    "SELECT CAST(julianday(MAX(end_day)) - julianday(MIN(start_day)) + 1 AS INTEGER) AS days FROM campaigns"
+  ]
+}

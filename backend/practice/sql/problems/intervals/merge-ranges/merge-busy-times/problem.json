@@ -1,0 +1,34 @@
+{
+  "id": "merge-busy-times",
+  "title": "Merge Busy Times",
+  "topic": "intervals",
+  "pattern": "merge-ranges",
+  "difficulty": "hard",
+  "statement": "`busy` lists blocks of time (in minutes) when people are busy, from `start_min` to `end_min`. Blocks can overlap or\ntouch. For each person, merge their blocks: blocks that overlap or touch (one ends exactly when the next starts)\nbecome one.\n\nReturn `person`, `start_min` and `end_min` of each merged block, ordered by `person`, then `start_min`.",
+  "notes": "Compare each block with the furthest end reached by any earlier block (a running `MAX`), not just the previous block: a long block can cover several later ones.",
+  "tables": [
+    {
+      "name": "busy",
+      "columns": [
+        [
+          "person",
+          "TEXT"
+        ],
+        [
+          "start_min",
+          "INTEGER"
+        ],
+        [
+          "end_min",
+          "INTEGER"
+        ]
+      ]
+    }
+  ],
+  "ordered": true,
+  "reference": "WITH ordered AS (\n  SELECT person, start_min, end_min,\n         MAX(end_min) OVER (PARTITION BY person ORDER BY start_min, end_min\n                            ROWS BETWEEN UNBOUNDED PRECEDING AND 1 PRECEDING) AS reach\n  FROM busy\n),\ngrouped AS (\n  SELECT person, start_min, end_min,\n         SUM(CASE WHEN reach IS NULL OR start_min > reach THEN 1 ELSE 0 END)\n           OVER (PARTITION BY person ORDER BY start_min, end_min ROWS UNBOUNDED PRECEDING) AS block\n  FROM ordered\n)\nSELECT person, MIN(start_min) AS start_min, MAX(end_min) AS end_min\nFROM grouped\nGROUP BY person, block\nORDER BY person, start_min",
+  "wrong": [
+    "WITH ordered AS (SELECT person, start_min, end_min, LAG(end_min) OVER (PARTITION BY person ORDER BY start_min, end_min) AS reach FROM busy), grouped AS (SELECT person, start_min, end_min, SUM(CASE WHEN reach IS NULL OR start_min > reach THEN 1 ELSE 0 END) OVER (PARTITION BY person ORDER BY start_min, end_min ROWS UNBOUNDED PRECEDING) AS block FROM ordered) SELECT person, MIN(start_min) AS start_min, MAX(end_min) AS end_min FROM grouped GROUP BY person, block ORDER BY person, start_min",
+    "WITH ordered AS (SELECT person, start_min, end_min, MAX(end_min) OVER (PARTITION BY person ORDER BY start_min, end_min ROWS BETWEEN UNBOUNDED PRECEDING AND 1 PRECEDING) AS reach FROM busy), grouped AS (SELECT person, start_min, end_min, SUM(CASE WHEN reach IS NULL OR start_min >= reach THEN 1 ELSE 0 END) OVER (PARTITION BY person ORDER BY start_min, end_min ROWS UNBOUNDED PRECEDING) AS block FROM ordered) SELECT person, MIN(start_min) AS start_min, MAX(end_min) AS end_min FROM grouped GROUP BY person, block ORDER BY person, start_min"
+  ]
+}
