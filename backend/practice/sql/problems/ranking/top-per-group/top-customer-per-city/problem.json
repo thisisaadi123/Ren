@@ -1,0 +1,103 @@
+{
+  "id": "top-customer-per-city",
+  "title": "Top Customer in Each City",
+  "topic": "ranking",
+  "pattern": "top-per-group",
+  "difficulty": "hard",
+  "statement": "A customer's spend is the sum of `quantity × price` over their **delivered** orders. In each city, find the customer\nwho spent the most; list everyone tied for the most. Customers who haven't spent anything don't count.\n\nReturn `city`, `name` and `spent` (rounded to 2 decimal places), ordered by `city`, then `name`.",
+  "notes": "",
+  "tables": [
+    {
+      "name": "customers",
+      "columns": [
+        [
+          "id",
+          "INTEGER",
+          "pk"
+        ],
+        [
+          "name",
+          "TEXT"
+        ],
+        [
+          "city",
+          "TEXT"
+        ],
+        [
+          "joined_on",
+          "TEXT"
+        ]
+      ]
+    },
+    {
+      "name": "products",
+      "columns": [
+        [
+          "id",
+          "INTEGER",
+          "pk"
+        ],
+        [
+          "name",
+          "TEXT"
+        ],
+        [
+          "category",
+          "TEXT"
+        ],
+        [
+          "price",
+          "REAL"
+        ]
+      ]
+    },
+    {
+      "name": "orders",
+      "columns": [
+        [
+          "id",
+          "INTEGER",
+          "pk"
+        ],
+        [
+          "customer_id",
+          "INTEGER",
+          "fk customers.id"
+        ],
+        [
+          "ordered_on",
+          "TEXT"
+        ],
+        [
+          "status",
+          "TEXT"
+        ]
+      ]
+    },
+    {
+      "name": "order_items",
+      "columns": [
+        [
+          "order_id",
+          "INTEGER",
+          "fk orders.id"
+        ],
+        [
+          "product_id",
+          "INTEGER",
+          "fk products.id"
+        ],
+        [
+          "quantity",
+          "INTEGER"
+        ]
+      ]
+    }
+  ],
+  "ordered": true,
+  "reference": "WITH spend AS (\n  SELECT c.city, c.name, SUM(i.quantity * p.price) AS spent\n  FROM customers c\n  JOIN orders o ON o.customer_id = c.id AND o.status = 'delivered'\n  JOIN order_items i ON i.order_id = o.id\n  JOIN products p ON p.id = i.product_id\n  GROUP BY c.id, c.city, c.name\n),\nranked AS (\n  SELECT city, name, spent, RANK() OVER (PARTITION BY city ORDER BY spent DESC) AS r FROM spend\n)\nSELECT city, name, ROUND(spent, 2) AS spent FROM ranked WHERE r = 1 ORDER BY city, name",
+  "wrong": [
+    "WITH spend AS (SELECT c.city, c.name, SUM(i.quantity * p.price) AS spent FROM customers c JOIN orders o ON o.customer_id = c.id AND o.status = 'delivered' JOIN order_items i ON i.order_id = o.id JOIN products p ON p.id = i.product_id GROUP BY c.id, c.city, c.name), ranked AS (SELECT city, name, spent, ROW_NUMBER() OVER (PARTITION BY city ORDER BY spent DESC) AS r FROM spend) SELECT city, name, ROUND(spent, 2) AS spent FROM ranked WHERE r = 1 ORDER BY city, name",
+    "WITH spend AS (SELECT c.city, c.name, SUM(i.quantity * p.price) AS spent FROM customers c JOIN orders o ON o.customer_id = c.id JOIN order_items i ON i.order_id = o.id JOIN products p ON p.id = i.product_id GROUP BY c.id, c.city, c.name), ranked AS (SELECT city, name, spent, RANK() OVER (PARTITION BY city ORDER BY spent DESC) AS r FROM spend) SELECT city, name, ROUND(spent, 2) AS spent FROM ranked WHERE r = 1 ORDER BY city, name"
+  ]
+}

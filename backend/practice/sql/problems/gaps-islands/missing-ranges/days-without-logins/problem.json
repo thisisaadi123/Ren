@@ -1,0 +1,30 @@
+{
+  "id": "days-without-logins",
+  "title": "Days Without Logins",
+  "topic": "gaps-islands",
+  "pattern": "missing-ranges",
+  "difficulty": "hard",
+  "statement": "Between each user's first and last login, find the **runs of days with no login**. A user may log in several times a\nday.\n\nReturn `user_id`, `gap_start` and `gap_end` (the first and last day of each run), ordered by `user_id`, then\n`gap_start`.",
+  "notes": "",
+  "tables": [
+    {
+      "name": "logins",
+      "columns": [
+        [
+          "user_id",
+          "INTEGER"
+        ],
+        [
+          "login_on",
+          "TEXT"
+        ]
+      ]
+    }
+  ],
+  "ordered": true,
+  "reference": "WITH days AS (\n  SELECT DISTINCT user_id, login_on FROM logins\n),\nnexts AS (\n  SELECT user_id, login_on, LEAD(login_on) OVER (PARTITION BY user_id ORDER BY login_on) AS next_on FROM days\n)\nSELECT user_id, date(login_on, '+1 day') AS gap_start, date(next_on, '-1 day') AS gap_end\nFROM nexts\nWHERE julianday(next_on) - julianday(login_on) > 1\nORDER BY user_id, gap_start",
+  "wrong": [
+    "WITH days AS (SELECT DISTINCT user_id, login_on FROM logins), nexts AS (SELECT user_id, login_on, LEAD(login_on) OVER (ORDER BY login_on) AS next_on FROM days) SELECT user_id, date(login_on, '+1 day') AS gap_start, date(next_on, '-1 day') AS gap_end FROM nexts WHERE julianday(next_on) - julianday(login_on) > 1 ORDER BY user_id, gap_start",
+    "WITH days AS (SELECT DISTINCT user_id, login_on FROM logins), nexts AS (SELECT user_id, login_on, LEAD(login_on) OVER (PARTITION BY user_id ORDER BY login_on) AS next_on FROM days) SELECT user_id, login_on AS gap_start, next_on AS gap_end FROM nexts WHERE julianday(next_on) - julianday(login_on) > 1 ORDER BY user_id, gap_start"
+  ]
+}
