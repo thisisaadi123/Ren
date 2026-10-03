@@ -1,0 +1,1531 @@
+{
+ "version": 1,
+ "summary": "Instead of finding the low of each stretch, ask how many stretches each day is the low of. Day `i` is the low of\nevery stretch that starts after the previous cheaper day and ends before the next day that's no more expensive:\n`left × right` stretches. Two monotonic-stack passes find those neighbours. Total = Σ price × left × right, O(n).",
+ "question": [
+  {
+   "md": "Every stretch of consecutive days (there are n(n+1)/2 of them) has a low, its smallest price. Add up all those\nlows, modulo 10⁹ + 7.\n\n- **Single days count:** a one-day stretch's low is that day's price.\n- **Prices can repeat**, so a stretch can contain its low twice. It must still be counted once.\n- **Up to 10⁵ days**: about 5 × 10⁹ stretches, too many to visit one by one."
+  }
+ ],
+ "think": [
+  {
+   "md": "Take `[3, 1, 2, 4, 2]`. There are 15 stretches. Listing them by start day: from day 0 the lows are\n3, 1, 1, 1, 1; from day 1 they're all 1; and so on. The total is **25**.\n\nNow look at it from day 1 (price 1): it's the cheapest day, so it's the low of every stretch that contains it:\n2 possible starts × 4 possible ends = 8 stretches, contributing 8. Day 3 (price 4) is the low only of itself."
+  },
+  {
+   "table": {
+    "head": [
+     "day",
+     "price",
+     "starts",
+     "ends",
+     "stretches",
+     "contribution"
+    ],
+    "rows": [
+     [
+      "0",
+      "3",
+      "1",
+      "1",
+      "1",
+      "3"
+     ],
+     [
+      "1",
+      "1",
+      "2",
+      "4",
+      "8",
+      "8"
+     ],
+     [
+      "2",
+      "2",
+      "1",
+      "2",
+      "2",
+      "4"
+     ],
+     [
+      "3",
+      "4",
+      "1",
+      "1",
+      "1",
+      "4"
+     ],
+     [
+      "4",
+      "2",
+      "3",
+      "1",
+      "3",
+      "6"
+     ]
+    ]
+   }
+  },
+  {
+   "md": "Day `i` is the low of a stretch exactly when nothing in the stretch is cheaper. So the stretch can reach left\nuntil the previous cheaper day and right until the next cheaper day. Any start in that left range and any end in\nthe right range work, independently: `left × right` stretches.\n\n**Ties:** days 2 and 4 both cost 2, and the stretch `2, 4, 2` would be counted twice. Fix this by letting a day\nreach left past equal prices but stop at equal prices on the right, so each stretch is credited to its rightmost\nlow only."
+  }
+ ],
+ "approaches": [
+  {
+   "title": "Every start, running low",
+   "kind": "brute",
+   "time": "O(n²)",
+   "space": "O(1)",
+   "idea": [
+    {
+     "md": "For each start day, extend the stretch to the right one day at a time, keeping the running minimum. Each extension is a new stretch whose low is the running minimum: add it."
+    }
+   ],
+   "build": [
+    "For each start `i`, set `low = prices[i]`.",
+    "For each end `j ≥ i`, update `low = min(low, prices[j])` and add it.",
+    "Return the total modulo 10⁹ + 7."
+   ],
+   "code": {
+    "python": "class Solution:\n    def sumOfLows(self, prices: List[int]) -> int:\n        n = len(prices)\n        total = 0\n        for i in range(n):\n            low = prices[i]\n            for j in range(i, n):\n                low = min(low, prices[j])\n                total += low\n        return total % (10**9 + 7)\n",
+    "java": "class Solution {\n    public int sumOfLows(int[] prices) {\n        int n = prices.length;\n        long total = 0;\n        for (int i = 0; i < n; i++) {\n            int low = prices[i];\n            for (int j = i; j < n; j++) {\n                low = Math.min(low, prices[j]);\n                total += low;\n            }\n        }\n        return (int) (total % 1_000_000_007);\n    }\n}\n",
+    "cpp": "class Solution {\npublic:\n    int sumOfLows(vector<int>& prices) {\n        int n = prices.size();\n        long long total = 0;\n        for (int i = 0; i < n; i++) {\n            int low = prices[i];\n            for (int j = i; j < n; j++) {\n                low = min(low, prices[j]);\n                total += low;\n            }\n        }\n        return total % 1000000007;\n    }\n};\n",
+    "c": "int sumOfLows(int* prices, int pricesSize) {\n    int n = pricesSize;\n    long long total = 0;\n    for (int i = 0; i < n; i++) {\n        int low = prices[i];\n        for (int j = i; j < n; j++) {\n            if (prices[j] < low) low = prices[j];\n            total += low;\n        }\n    }\n    return total % 1000000007;\n}\n"
+   },
+   "lines": [
+    {
+     "text": "Running total.",
+     "at": {
+      "python": [
+       [
+        3,
+        4
+       ]
+      ],
+      "java": [
+       [
+        3,
+        4
+       ]
+      ],
+      "cpp": [
+       [
+        4,
+        5
+       ]
+      ],
+      "c": [
+       [
+        2,
+        3
+       ]
+      ]
+     },
+     "notes": {
+      "java": "A `long`: the true total reaches about 1.5 × 10¹⁴ before the modulo.",
+      "cpp": "`long long`: the true total reaches about 1.5 × 10¹⁴ before the modulo.",
+      "c": "`long long`: the true total reaches about 1.5 × 10¹⁴ before the modulo."
+     }
+    },
+    {
+     "text": "Stretches starting at day `i`.",
+     "at": {
+      "python": [
+       [
+        5,
+        6
+       ]
+      ],
+      "java": [
+       [
+        5,
+        6
+       ]
+      ],
+      "cpp": [
+       [
+        6,
+        7
+       ]
+      ],
+      "c": [
+       [
+        4,
+        5
+       ]
+      ]
+     }
+    },
+    {
+     "text": "Adding day `j` can only lower the low.",
+     "at": {
+      "python": [
+       [
+        7,
+        8
+       ]
+      ],
+      "java": [
+       [
+        7,
+        8
+       ]
+      ],
+      "cpp": [
+       [
+        8,
+        9
+       ]
+      ],
+      "c": [
+       [
+        6,
+        7
+       ]
+      ]
+     }
+    },
+    {
+     "text": "The stretch `i..j` has low `low`.",
+     "at": {
+      "python": [
+       [
+        9,
+        9
+       ]
+      ],
+      "java": [
+       [
+        9,
+        9
+       ]
+      ],
+      "cpp": [
+       [
+        10,
+        10
+       ]
+      ],
+      "c": [
+       [
+        8,
+        8
+       ]
+      ]
+     }
+    },
+    {
+     "text": "Reduce modulo 10⁹ + 7 at the end (the exact total fits in 64 bits).",
+     "at": {
+      "python": [
+       [
+        10,
+        10
+       ]
+      ],
+      "java": [
+       [
+        12,
+        12
+       ]
+      ],
+      "cpp": [
+       [
+        13,
+        13
+       ]
+      ],
+      "c": [
+       [
+        11,
+        11
+       ]
+      ]
+     }
+    }
+   ],
+   "complexity": [
+    {
+     "md": "**Time O(n²):** one step per stretch. **Space O(1).**"
+    }
+   ],
+   "walk": {
+    "steps": [
+     {
+      "text": "Start at day 0: the lows of the stretches ending at days 0..4 are [3, 1, 1, 1, 1], adding 7.",
+      "panels": [
+       {
+        "type": "row",
+        "cells": [
+         3,
+         1,
+         2,
+         4,
+         2
+        ],
+        "states": {
+         "0": "active"
+        },
+        "label": "prices"
+       },
+       {
+        "type": "row",
+        "cells": [
+         3,
+         1,
+         1,
+         1,
+         1
+        ],
+        "label": "running low"
+       },
+       {
+        "type": "vars",
+        "items": {
+         "total": 7
+        }
+       }
+      ]
+     },
+     {
+      "text": "Start at day 1: the lows of the stretches ending at days 1..4 are [1, 1, 1, 1], adding 4.",
+      "panels": [
+       {
+        "type": "row",
+        "cells": [
+         3,
+         1,
+         2,
+         4,
+         2
+        ],
+        "states": {
+         "1": "active"
+        },
+        "label": "prices"
+       },
+       {
+        "type": "row",
+        "cells": [
+         "·",
+         1,
+         1,
+         1,
+         1
+        ],
+        "label": "running low"
+       },
+       {
+        "type": "vars",
+        "items": {
+         "total": 11
+        }
+       }
+      ]
+     },
+     {
+      "text": "Start at day 2: the lows of the stretches ending at days 2..4 are [2, 2, 2], adding 6.",
+      "panels": [
+       {
+        "type": "row",
+        "cells": [
+         3,
+         1,
+         2,
+         4,
+         2
+        ],
+        "states": {
+         "2": "active"
+        },
+        "label": "prices"
+       },
+       {
+        "type": "row",
+        "cells": [
+         "·",
+         "·",
+         2,
+         2,
+         2
+        ],
+        "label": "running low"
+       },
+       {
+        "type": "vars",
+        "items": {
+         "total": 17
+        }
+       }
+      ]
+     },
+     {
+      "text": "Start at day 3: the lows of the stretches ending at days 3..4 are [4, 2], adding 6.",
+      "panels": [
+       {
+        "type": "row",
+        "cells": [
+         3,
+         1,
+         2,
+         4,
+         2
+        ],
+        "states": {
+         "3": "active"
+        },
+        "label": "prices"
+       },
+       {
+        "type": "row",
+        "cells": [
+         "·",
+         "·",
+         "·",
+         4,
+         2
+        ],
+        "label": "running low"
+       },
+       {
+        "type": "vars",
+        "items": {
+         "total": 23
+        }
+       }
+      ]
+     },
+     {
+      "text": "Start at day 4: the lows of the stretches ending at days 4..4 are [2], adding 2.",
+      "panels": [
+       {
+        "type": "row",
+        "cells": [
+         3,
+         1,
+         2,
+         4,
+         2
+        ],
+        "states": {
+         "4": "active"
+        },
+        "label": "prices"
+       },
+       {
+        "type": "row",
+        "cells": [
+         "·",
+         "·",
+         "·",
+         "·",
+         2
+        ],
+        "label": "running low"
+       },
+       {
+        "type": "vars",
+        "items": {
+         "total": 25
+        }
+       }
+      ]
+     },
+     {
+      "text": "Total of all 15 lows: 25.",
+      "panels": [],
+      "result": "25"
+     }
+    ],
+    "title": "Fix each start day; extend the stretch one day at a time, keeping its running low, and add that low every time."
+   },
+   "limits": [
+    {
+     "md": "One step per stretch is ~5 × 10⁹ steps for 10⁵ days. Counting stretches per day instead of visiting them is the way out."
+    }
+   ],
+   "slow": true
+  },
+  {
+   "title": "Count each day's stretches by walking outward",
+   "kind": "better",
+   "time": "O(n²) worst",
+   "space": "O(1)",
+   "idea": [
+    {
+     "md": "For each day `i`, walk left while prices are ≥ `prices[i]` and right while prices are > `prices[i]`. With `left` possible starts and `right` possible ends, day `i` is the (rightmost) low of `left × right` stretches; add `prices[i] × left × right`."
+    }
+   ],
+   "build": [
+    "For each day `i`: extend `l` left over prices `≥ prices[i]`.",
+    "Extend `r` right over prices `> prices[i]`.",
+    "Add `prices[i] × (i − l + 1) × (r − i + 1)`."
+   ],
+   "code": {
+    "python": "class Solution:\n    def sumOfLows(self, prices: List[int]) -> int:\n        n = len(prices)\n        total = 0\n        for i in range(n):\n            l = i\n            while l > 0 and prices[l - 1] >= prices[i]:\n                l -= 1\n            r = i\n            while r < n - 1 and prices[r + 1] > prices[i]:\n                r += 1\n            total += prices[i] * (i - l + 1) * (r - i + 1)\n        return total % (10**9 + 7)\n",
+    "java": "class Solution {\n    public int sumOfLows(int[] prices) {\n        int n = prices.length;\n        long total = 0;\n        for (int i = 0; i < n; i++) {\n            int l = i;\n            while (l > 0 && prices[l - 1] >= prices[i]) l--;\n            int r = i;\n            while (r < n - 1 && prices[r + 1] > prices[i]) r++;\n            total += (long) prices[i] * (i - l + 1) * (r - i + 1);\n        }\n        return (int) (total % 1_000_000_007);\n    }\n}\n",
+    "cpp": "class Solution {\npublic:\n    int sumOfLows(vector<int>& prices) {\n        int n = prices.size();\n        long long total = 0;\n        for (int i = 0; i < n; i++) {\n            int l = i;\n            while (l > 0 && prices[l - 1] >= prices[i]) l--;\n            int r = i;\n            while (r < n - 1 && prices[r + 1] > prices[i]) r++;\n            total += (long long) prices[i] * (i - l + 1) * (r - i + 1);\n        }\n        return total % 1000000007;\n    }\n};\n",
+    "c": "int sumOfLows(int* prices, int pricesSize) {\n    int n = pricesSize;\n    long long total = 0;\n    for (int i = 0; i < n; i++) {\n        int l = i;\n        while (l > 0 && prices[l - 1] >= prices[i]) l--;\n        int r = i;\n        while (r < n - 1 && prices[r + 1] > prices[i]) r++;\n        total += (long long) prices[i] * (i - l + 1) * (r - i + 1);\n    }\n    return total % 1000000007;\n}\n"
+   },
+   "lines": [
+    {
+     "text": "Running total (64-bit in the typed languages).",
+     "at": {
+      "python": [
+       [
+        3,
+        4
+       ]
+      ],
+      "java": [
+       [
+        3,
+        4
+       ]
+      ],
+      "cpp": [
+       [
+        4,
+        5
+       ]
+      ],
+      "c": [
+       [
+        2,
+        3
+       ]
+      ]
+     }
+    },
+    {
+     "text": "Count the stretches whose low is day `i`.",
+     "at": {
+      "python": [
+       [
+        5,
+        5
+       ]
+      ],
+      "java": [
+       [
+        5,
+        5
+       ]
+      ],
+      "cpp": [
+       [
+        6,
+        6
+       ]
+      ],
+      "c": [
+       [
+        4,
+        4
+       ]
+      ]
+     }
+    },
+    {
+     "text": "Starts can go left past prices at least as high (ties included), stopping at the previous strictly cheaper day.",
+     "at": {
+      "python": [
+       [
+        6,
+        8
+       ]
+      ],
+      "java": [
+       [
+        6,
+        7
+       ]
+      ],
+      "cpp": [
+       [
+        7,
+        8
+       ]
+      ],
+      "c": [
+       [
+        5,
+        6
+       ]
+      ]
+     }
+    },
+    {
+     "text": "Ends can go right past strictly higher prices only, stopping at the next price ≤ this one. Together with the left rule, a stretch with a repeated low is credited only to its rightmost copy.",
+     "at": {
+      "python": [
+       [
+        9,
+        11
+       ]
+      ],
+      "java": [
+       [
+        8,
+        9
+       ]
+      ],
+      "cpp": [
+       [
+        9,
+        10
+       ]
+      ],
+      "c": [
+       [
+        7,
+        8
+       ]
+      ]
+     }
+    },
+    {
+     "text": "Any of the `i − l + 1` starts with any of the `r − i + 1` ends.",
+     "at": {
+      "python": [
+       [
+        12,
+        12
+       ]
+      ],
+      "java": [
+       [
+        10,
+        10
+       ]
+      ],
+      "cpp": [
+       [
+        11,
+        11
+       ]
+      ],
+      "c": [
+       [
+        9,
+        9
+       ]
+      ]
+     },
+     "notes": {
+      "java": "Cast to `long` before multiplying: price × starts × ends reaches ~7.5 × 10¹³.",
+      "cpp": "Cast before multiplying: price × starts × ends reaches ~7.5 × 10¹³.",
+      "c": "Cast before multiplying: price × starts × ends reaches ~7.5 × 10¹³."
+     }
+    },
+    {
+     "text": "Reduce modulo 10⁹ + 7.",
+     "at": {
+      "python": [
+       [
+        13,
+        13
+       ]
+      ],
+      "java": [
+       [
+        12,
+        12
+       ]
+      ],
+      "cpp": [
+       [
+        13,
+        13
+       ]
+      ],
+      "c": [
+       [
+        11,
+        11
+       ]
+      ]
+     }
+    }
+   ],
+   "complexity": [
+    {
+     "md": "**Time O(n²) worst case:** if all prices are equal or sorted, the walks are long. Often much faster in practice. **Space O(1).**"
+    }
+   ],
+   "walk": {
+    "steps": [
+     {
+      "text": "Day 0 (price 3): it's the low of stretches starting at days 0..0 (1 choices) and ending at days 0..0 (1 choices): 1×1 stretches, contributing 3×1 = 3.",
+      "panels": [
+       {
+        "type": "row",
+        "cells": [
+         3,
+         1,
+         2,
+         4,
+         2
+        ],
+        "states": {
+         "0": "active"
+        },
+        "label": "prices"
+       },
+       {
+        "type": "vars",
+        "items": {
+         "total": 3
+        }
+       }
+      ]
+     },
+     {
+      "text": "Day 1 (price 1): it's the low of stretches starting at days 0..1 (2 choices) and ending at days 1..4 (4 choices): 2×4 stretches, contributing 1×8 = 8.",
+      "panels": [
+       {
+        "type": "row",
+        "cells": [
+         3,
+         1,
+         2,
+         4,
+         2
+        ],
+        "states": {
+         "0": "mark",
+         "1": "active",
+         "2": "mark",
+         "3": "mark",
+         "4": "mark"
+        },
+        "label": "prices"
+       },
+       {
+        "type": "vars",
+        "items": {
+         "total": 11
+        }
+       }
+      ]
+     },
+     {
+      "text": "Day 2 (price 2): it's the low of stretches starting at days 2..2 (1 choices) and ending at days 2..3 (2 choices): 1×2 stretches, contributing 2×2 = 4.",
+      "panels": [
+       {
+        "type": "row",
+        "cells": [
+         3,
+         1,
+         2,
+         4,
+         2
+        ],
+        "states": {
+         "2": "active",
+         "3": "mark"
+        },
+        "label": "prices"
+       },
+       {
+        "type": "vars",
+        "items": {
+         "total": 15
+        }
+       }
+      ]
+     },
+     {
+      "text": "Day 3 (price 4): it's the low of stretches starting at days 3..3 (1 choices) and ending at days 3..3 (1 choices): 1×1 stretches, contributing 4×1 = 4.",
+      "panels": [
+       {
+        "type": "row",
+        "cells": [
+         3,
+         1,
+         2,
+         4,
+         2
+        ],
+        "states": {
+         "3": "active"
+        },
+        "label": "prices"
+       },
+       {
+        "type": "vars",
+        "items": {
+         "total": 19
+        }
+       }
+      ]
+     },
+     {
+      "text": "Day 4 (price 2): it's the low of stretches starting at days 2..4 (3 choices) and ending at days 4..4 (1 choices): 3×1 stretches, contributing 2×3 = 6.",
+      "panels": [
+       {
+        "type": "row",
+        "cells": [
+         3,
+         1,
+         2,
+         4,
+         2
+        ],
+        "states": {
+         "2": "mark",
+         "3": "mark",
+         "4": "active"
+        },
+        "label": "prices"
+       },
+       {
+        "type": "vars",
+        "items": {
+         "total": 25
+        }
+       }
+      ]
+     },
+     {
+      "text": "Same total, 25, with each stretch counted once by its low.",
+      "panels": [],
+      "result": "25"
+     }
+    ],
+    "title": "Flip the question: for each day, in how many stretches is it the low? Walk outward while neighbours don't undercut it."
+   },
+   "limits": [
+    {
+     "md": "Each day walks to its boundaries from scratch, so a sorted or constant input still costs O(n²). The boundaries are 'previous smaller' and 'next smaller-or-equal', which a monotonic stack finds for all days in one pass."
+    }
+   ],
+   "slow": true
+  },
+  {
+   "title": "Boundaries from monotonic stacks",
+   "kind": "best",
+   "time": "O(n)",
+   "space": "O(n)",
+   "idea": [
+    {
+     "md": "Left pass: keep a stack of indices with strictly increasing prices. For day `i`, pop while the top's price ≥ `prices[i]`; the remaining top is the previous strictly cheaper day, so `left[i] = i − top` (or `i + 1` if empty). Right pass from the end: pop while the top's price > `prices[i]`; the top is the next day with price ≤ `prices[i]`, so `right[i] = top − i` (or `n − i`). Add `prices[i] × left[i] × right[i]`."
+    }
+   ],
+   "build": [
+    "Left pass with a stack, filling `left`.",
+    "Right pass from the end with a fresh stack, computing `right` and adding the contribution.",
+    "Return the total modulo 10⁹ + 7."
+   ],
+   "code": {
+    "python": "class Solution:\n    def sumOfLows(self, prices: List[int]) -> int:\n        n = len(prices)\n        left = [0] * n\n        stack = []\n        for i in range(n):\n            while stack and prices[stack[-1]] >= prices[i]:\n                stack.pop()\n            left[i] = i - (stack[-1] if stack else -1)\n            stack.append(i)\n        stack, total = [], 0\n        for i in range(n - 1, -1, -1):\n            while stack and prices[stack[-1]] > prices[i]:\n                stack.pop()\n            right = (stack[-1] if stack else n) - i\n            total += prices[i] * left[i] * right\n            stack.append(i)\n        return total % (10**9 + 7)\n",
+    "java": "class Solution {\n    public int sumOfLows(int[] prices) {\n        int n = prices.length;\n        int[] left = new int[n], stack = new int[n];\n        int top = 0;\n        for (int i = 0; i < n; i++) {\n            while (top > 0 && prices[stack[top - 1]] >= prices[i]) top--;\n            left[i] = i - (top > 0 ? stack[top - 1] : -1);\n            stack[top++] = i;\n        }\n        long total = 0;\n        top = 0;\n        for (int i = n - 1; i >= 0; i--) {\n            while (top > 0 && prices[stack[top - 1]] > prices[i]) top--;\n            int right = (top > 0 ? stack[top - 1] : n) - i;\n            total += (long) prices[i] * left[i] * right;\n            stack[top++] = i;\n        }\n        return (int) (total % 1_000_000_007);\n    }\n}\n",
+    "cpp": "class Solution {\npublic:\n    int sumOfLows(vector<int>& prices) {\n        int n = prices.size();\n        vector<int> left(n), stack;\n        for (int i = 0; i < n; i++) {\n            while (!stack.empty() && prices[stack.back()] >= prices[i]) stack.pop_back();\n            left[i] = i - (stack.empty() ? -1 : stack.back());\n            stack.push_back(i);\n        }\n        stack.clear();\n        long long total = 0;\n        for (int i = n - 1; i >= 0; i--) {\n            while (!stack.empty() && prices[stack.back()] > prices[i]) stack.pop_back();\n            int right = (stack.empty() ? n : stack.back()) - i;\n            total += (long long) prices[i] * left[i] * right;\n            stack.push_back(i);\n        }\n        return total % 1000000007;\n    }\n};\n",
+    "c": "int sumOfLows(int* prices, int pricesSize) {\n    int n = pricesSize;\n    int* left = malloc(n * sizeof(int));\n    int* stack = malloc(n * sizeof(int));\n    int top = 0;\n    for (int i = 0; i < n; i++) {\n        while (top > 0 && prices[stack[top - 1]] >= prices[i]) top--;\n        left[i] = i - (top > 0 ? stack[top - 1] : -1);\n        stack[top++] = i;\n    }\n    long long total = 0;\n    top = 0;\n    for (int i = n - 1; i >= 0; i--) {\n        while (top > 0 && prices[stack[top - 1]] > prices[i]) top--;\n        int right = (top > 0 ? stack[top - 1] : n) - i;\n        total += (long long) prices[i] * left[i] * right;\n        stack[top++] = i;\n    }\n    free(left);\n    free(stack);\n    return total % 1000000007;\n}\n"
+   },
+   "lines": [
+    {
+     "text": "`left[i]` will hold the number of possible start days for stretches whose low is day `i`.",
+     "at": {
+      "python": [
+       [
+        3,
+        4
+       ]
+      ],
+      "java": [
+       [
+        3,
+        4
+       ]
+      ],
+      "cpp": [
+       [
+        4,
+        5
+       ]
+      ],
+      "c": [
+       [
+        2,
+        4
+       ]
+      ]
+     }
+    },
+    {
+     "text": "Left to right, the stack holds indices whose prices strictly increase from bottom to top.",
+     "at": {
+      "python": [
+       [
+        5,
+        6
+       ]
+      ],
+      "java": [
+       [
+        5,
+        6
+       ]
+      ],
+      "cpp": [
+       [
+        6,
+        6
+       ]
+      ],
+      "c": [
+       [
+        5,
+        6
+       ]
+      ]
+     }
+    },
+    {
+     "text": "Days priced ≥ today can't be anyone's 'previous cheaper day' from now on, since today is cheaper or equal and closer. Pop them.",
+     "at": {
+      "python": [
+       [
+        7,
+        8
+       ]
+      ],
+      "java": [
+       [
+        7,
+        7
+       ]
+      ],
+      "cpp": [
+       [
+        7,
+        7
+       ]
+      ],
+      "c": [
+       [
+        7,
+        7
+       ]
+      ]
+     }
+    },
+    {
+     "text": "The top is the previous strictly cheaper day (or none, −1), so the starts run from just after it to `i`. Then push today.",
+     "at": {
+      "python": [
+       [
+        9,
+        10
+       ]
+      ],
+      "java": [
+       [
+        8,
+        9
+       ]
+      ],
+      "cpp": [
+       [
+        8,
+        9
+       ]
+      ],
+      "c": [
+       [
+        8,
+        9
+       ]
+      ]
+     }
+    },
+    {
+     "text": "Right to left with a fresh stack.",
+     "at": {
+      "python": [
+       [
+        11,
+        12
+       ]
+      ],
+      "java": [
+       [
+        11,
+        13
+       ]
+      ],
+      "cpp": [
+       [
+        11,
+        13
+       ]
+      ],
+      "c": [
+       [
+        11,
+        13
+       ]
+      ]
+     }
+    },
+    {
+     "text": "Pop days priced strictly higher; an equal price stays and acts as the stopper (the tie rule).",
+     "at": {
+      "python": [
+       [
+        13,
+        14
+       ]
+      ],
+      "java": [
+       [
+        14,
+        14
+       ]
+      ],
+      "cpp": [
+       [
+        14,
+        14
+       ]
+      ],
+      "c": [
+       [
+        14,
+        14
+       ]
+      ]
+     }
+    },
+    {
+     "text": "The top is the next day priced ≤ today (or none, `n`): ends run from `i` up to just before it.",
+     "at": {
+      "python": [
+       [
+        15,
+        15
+       ],
+       [
+        17,
+        17
+       ]
+      ],
+      "java": [
+       [
+        15,
+        15
+       ],
+       [
+        17,
+        17
+       ]
+      ],
+      "cpp": [
+       [
+        15,
+        15
+       ],
+       [
+        17,
+        17
+       ]
+      ],
+      "c": [
+       [
+        15,
+        15
+       ],
+       [
+        17,
+        17
+       ]
+      ]
+     }
+    },
+    {
+     "text": "Day `i` is the low of `left × right` stretches.",
+     "at": {
+      "python": [
+       [
+        16,
+        16
+       ]
+      ],
+      "java": [
+       [
+        16,
+        16
+       ]
+      ],
+      "cpp": [
+       [
+        16,
+        16
+       ]
+      ],
+      "c": [
+       [
+        16,
+        16
+       ]
+      ]
+     },
+     "notes": {
+      "java": "64-bit product: up to ~7.5 × 10¹³.",
+      "cpp": "64-bit product: up to ~7.5 × 10¹³.",
+      "c": "64-bit product: up to ~7.5 × 10¹³."
+     }
+    },
+    {
+     "text": "The exact total fits in 64 bits; reduce it once at the end.",
+     "at": {
+      "python": [
+       [
+        18,
+        18
+       ]
+      ],
+      "java": [
+       [
+        19,
+        19
+       ]
+      ],
+      "cpp": [
+       [
+        19,
+        19
+       ]
+      ],
+      "c": [
+       [
+        19,
+        21
+       ]
+      ]
+     }
+    }
+   ],
+   "complexity": [
+    {
+     "md": "**Time O(n):** each index is pushed and popped at most once per pass. **Space O(n)** for `left` and the stack."
+    }
+   ],
+   "walk": {
+    "steps": [
+     {
+      "text": "Left pass, day 0: pop prices ≥ 3; the stopper is the start. Left count 1.",
+      "panels": [
+       {
+        "type": "row",
+        "cells": [
+         3,
+         1,
+         2,
+         4,
+         2
+        ],
+        "states": {
+         "0": "active"
+        },
+        "label": "prices"
+       },
+       {
+        "type": "row",
+        "cells": [
+         "·"
+        ],
+        "label": "stack (day:price)"
+       },
+       {
+        "type": "row",
+        "cells": [
+         1,
+         "·",
+         "·",
+         "·",
+         "·"
+        ],
+        "label": "left"
+       }
+      ]
+     },
+     {
+      "text": "Left pass, day 1: pop prices ≥ 1; the stopper is the start. Left count 2.",
+      "panels": [
+       {
+        "type": "row",
+        "cells": [
+         3,
+         1,
+         2,
+         4,
+         2
+        ],
+        "states": {
+         "1": "active"
+        },
+        "label": "prices"
+       },
+       {
+        "type": "row",
+        "cells": [
+         "·"
+        ],
+        "label": "stack (day:price)"
+       },
+       {
+        "type": "row",
+        "cells": [
+         1,
+         2,
+         "·",
+         "·",
+         "·"
+        ],
+        "label": "left"
+       }
+      ]
+     },
+     {
+      "text": "Left pass, day 2: pop prices ≥ 2; the stopper is day 1. Left count 1.",
+      "panels": [
+       {
+        "type": "row",
+        "cells": [
+         3,
+         1,
+         2,
+         4,
+         2
+        ],
+        "states": {
+         "2": "active"
+        },
+        "label": "prices"
+       },
+       {
+        "type": "row",
+        "cells": [
+         "1:1"
+        ],
+        "label": "stack (day:price)"
+       },
+       {
+        "type": "row",
+        "cells": [
+         1,
+         2,
+         1,
+         "·",
+         "·"
+        ],
+        "label": "left"
+       }
+      ]
+     },
+     {
+      "text": "Left pass, day 3: pop prices ≥ 4; the stopper is day 2. Left count 1.",
+      "panels": [
+       {
+        "type": "row",
+        "cells": [
+         3,
+         1,
+         2,
+         4,
+         2
+        ],
+        "states": {
+         "3": "active"
+        },
+        "label": "prices"
+       },
+       {
+        "type": "row",
+        "cells": [
+         "1:1",
+         "2:2"
+        ],
+        "label": "stack (day:price)"
+       },
+       {
+        "type": "row",
+        "cells": [
+         1,
+         2,
+         1,
+         1,
+         "·"
+        ],
+        "label": "left"
+       }
+      ]
+     },
+     {
+      "text": "Left pass, day 4: pop prices ≥ 2; the stopper is day 1. Left count 3.",
+      "panels": [
+       {
+        "type": "row",
+        "cells": [
+         3,
+         1,
+         2,
+         4,
+         2
+        ],
+        "states": {
+         "4": "active"
+        },
+        "label": "prices"
+       },
+       {
+        "type": "row",
+        "cells": [
+         "1:1"
+        ],
+        "label": "stack (day:price)"
+       },
+       {
+        "type": "row",
+        "cells": [
+         1,
+         2,
+         1,
+         1,
+         3
+        ],
+        "label": "left"
+       }
+      ]
+     },
+     {
+      "text": "Right pass, day 4: pop prices > 2; the stopper is the end. Right count 1; add 2×3×1.",
+      "panels": [
+       {
+        "type": "row",
+        "cells": [
+         3,
+         1,
+         2,
+         4,
+         2
+        ],
+        "states": {
+         "4": "active"
+        },
+        "label": "prices"
+       },
+       {
+        "type": "row",
+        "cells": [
+         "·"
+        ],
+        "label": "stack (day:price)"
+       },
+       {
+        "type": "row",
+        "cells": [
+         "·",
+         "·",
+         "·",
+         "·",
+         1
+        ],
+        "label": "right"
+       },
+       {
+        "type": "vars",
+        "items": {
+         "total": 6
+        }
+       }
+      ]
+     },
+     {
+      "text": "Right pass, day 3: pop prices > 4; the stopper is day 4. Right count 1; add 4×1×1.",
+      "panels": [
+       {
+        "type": "row",
+        "cells": [
+         3,
+         1,
+         2,
+         4,
+         2
+        ],
+        "states": {
+         "3": "active"
+        },
+        "label": "prices"
+       },
+       {
+        "type": "row",
+        "cells": [
+         "4:2"
+        ],
+        "label": "stack (day:price)"
+       },
+       {
+        "type": "row",
+        "cells": [
+         "·",
+         "·",
+         "·",
+         1,
+         1
+        ],
+        "label": "right"
+       },
+       {
+        "type": "vars",
+        "items": {
+         "total": 10
+        }
+       }
+      ]
+     },
+     {
+      "text": "Right pass, day 2: pop prices > 2; the stopper is day 4. Right count 2; add 2×1×2.",
+      "panels": [
+       {
+        "type": "row",
+        "cells": [
+         3,
+         1,
+         2,
+         4,
+         2
+        ],
+        "states": {
+         "2": "active"
+        },
+        "label": "prices"
+       },
+       {
+        "type": "row",
+        "cells": [
+         "4:2"
+        ],
+        "label": "stack (day:price)"
+       },
+       {
+        "type": "row",
+        "cells": [
+         "·",
+         "·",
+         2,
+         1,
+         1
+        ],
+        "label": "right"
+       },
+       {
+        "type": "vars",
+        "items": {
+         "total": 14
+        }
+       }
+      ]
+     },
+     {
+      "text": "Right pass, day 1: pop prices > 1; the stopper is the end. Right count 4; add 1×2×4.",
+      "panels": [
+       {
+        "type": "row",
+        "cells": [
+         3,
+         1,
+         2,
+         4,
+         2
+        ],
+        "states": {
+         "1": "active"
+        },
+        "label": "prices"
+       },
+       {
+        "type": "row",
+        "cells": [
+         "·"
+        ],
+        "label": "stack (day:price)"
+       },
+       {
+        "type": "row",
+        "cells": [
+         "·",
+         4,
+         2,
+         1,
+         1
+        ],
+        "label": "right"
+       },
+       {
+        "type": "vars",
+        "items": {
+         "total": 22
+        }
+       }
+      ]
+     },
+     {
+      "text": "Right pass, day 0: pop prices > 3; the stopper is day 1. Right count 1; add 3×1×1.",
+      "panels": [
+       {
+        "type": "row",
+        "cells": [
+         3,
+         1,
+         2,
+         4,
+         2
+        ],
+        "states": {
+         "0": "active"
+        },
+        "label": "prices"
+       },
+       {
+        "type": "row",
+        "cells": [
+         "1:1"
+        ],
+        "label": "stack (day:price)"
+       },
+       {
+        "type": "row",
+        "cells": [
+         1,
+         4,
+         2,
+         1,
+         1
+        ],
+        "label": "right"
+       },
+       {
+        "type": "vars",
+        "items": {
+         "total": 25
+        }
+       }
+      ]
+     },
+     {
+      "text": "Total 25, modulo 10⁹ + 7.",
+      "panels": [],
+      "result": "25"
+     }
+    ],
+    "title": "Find both boundaries with monotonic stacks: the previous strictly smaller price (left) and the next smaller-or-equal price (right)."
+   }
+  }
+ ],
+ "takeaways": [
+  {
+   "md": "- **Contribution counting:** to sum a property over all subarrays, ask how many subarrays each element is\n  responsible for, and multiply.\n- \"Previous smaller\" and \"next smaller\" for every element = two monotonic-stack passes.\n- With duplicates, make one side strict and the other not, so every subarray is credited exactly once."
+  }
+ ]
+}
