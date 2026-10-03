@@ -1,0 +1,679 @@
+{
+ "version": 1,
+ "summary": "Slide a window of `k` items with a count per type and a `distinct` counter. Adding an item whose count goes\n0 → 1 raises `distinct`; removing one whose count goes 1 → 0 lowers it. Record `distinct` for every full\nwindow. O(n) expected (types up to 10⁹, so use a hash map, or compress the values).",
+ "question": [
+  {
+   "md": "For every window of `k` consecutive `items`, return the number of different values in it.\n\n- **n up to 10⁵**, values up to 10⁹."
+  }
+ ],
+ "think": [
+  {
+   "md": "`items = [4, 1, 4, 4, 7, 1, 7, 2]`, `k = 3` → **[2, 2, 2, 3, 2, 3]**.\n\nRecomputing each window's distinct count is O(k). But one slide changes just two items, and the distinct count\nonly changes when an item's count crosses zero, so keeping counts makes each step O(1)."
+  },
+  {
+   "panels": [
+    {
+     "type": "row",
+     "cells": [
+      4,
+      1,
+      4,
+      4,
+      7,
+      1,
+      7,
+      2
+     ],
+     "label": "items"
+    }
+   ]
+  }
+ ],
+ "approaches": [
+  {
+   "title": "A set per window",
+   "kind": "brute",
+   "time": "O(n · k)",
+   "space": "O(k)",
+   "idea": [
+    {
+     "md": "For each window, build a set and record its size."
+    }
+   ],
+   "build": [
+    "Every window.",
+    "Set size."
+   ],
+   "code": {
+    "python": "class Solution:\n    def varietyPerWindow(self, items: List[int], k: int) -> List[int]:\n        return [len(set(items[i:i + k])) for i in range(len(items) - k + 1)]\n",
+    "java": "class Solution {\n    public int[] varietyPerWindow(int[] items, int k) {\n        int[] out = new int[items.length - k + 1];\n        for (int i = 0; i < out.length; i++) {\n            Set<Integer> seen = new HashSet<>();\n            for (int j = i; j < i + k; j++) seen.add(items[j]);\n            out[i] = seen.size();\n        }\n        return out;\n    }\n}\n",
+    "cpp": "class Solution {\npublic:\n    vector<int> varietyPerWindow(vector<int>& items, int k) {\n        vector<int> out;\n        for (int i = 0; i + k <= (int) items.size(); i++)\n            out.push_back(unordered_set<int>(items.begin() + i, items.begin() + i + k).size());\n        return out;\n    }\n};\n",
+    "c": "static int cmp_int(const void* a, const void* b) {\n    int x = *(const int*) a, y = *(const int*) b;\n    return (x > y) - (x < y);\n}\n\nstatic int* compress(const int* v, int n, int* distinct) {\n    int* sorted = malloc(n * sizeof(int));\n    memcpy(sorted, v, n * sizeof(int));\n    qsort(sorted, n, sizeof(int), cmp_int);\n    int d = 0;\n    for (int i = 0; i < n; i++) if (i == 0 || sorted[i] != sorted[i - 1]) sorted[d++] = sorted[i];\n    int* id = malloc(n * sizeof(int));\n    for (int i = 0; i < n; i++) id[i] = (int) ((int*) bsearch(&v[i], sorted, d, sizeof(int), cmp_int) - sorted);\n    free(sorted);\n    *distinct = d;\n    return id;\n}\n\nint* varietyPerWindow(int* items, int itemsSize, int k, int* returnSize) {\n    int n = itemsSize, d, count = n - k + 1;\n    int* id = compress(items, n, &d);\n    int* mark = calloc(d, sizeof(int));\n    int* out = malloc(count * sizeof(int));\n    for (int i = 0; i < count; i++) {\n        out[i] = 0;\n        for (int j = i; j < i + k; j++) if (mark[id[j]] != i + 1) { mark[id[j]] = i + 1; out[i]++; }\n    }\n    free(id); free(mark);\n    *returnSize = count;\n    return out;\n}\n"
+   },
+   "lines": [
+    {
+     "text": "Each window's distinct count, from scratch.",
+     "at": {
+      "python": [
+       [
+        3,
+        3
+       ]
+      ],
+      "java": [
+       [
+        3,
+        7
+       ],
+       [
+        9,
+        9
+       ]
+      ],
+      "cpp": [
+       [
+        4,
+        7
+       ]
+      ],
+      "c": [
+       [
+        20,
+        26
+       ],
+       [
+        28,
+        30
+       ]
+      ]
+     },
+     "notes": {
+      "c": "Values are compressed to ids; `mark[id] = i + 1` means 'seen in window `i`'."
+     }
+    },
+    {
+     "text": "Sort a copy, remove duplicates, and find each value's position by binary search.",
+     "at": {
+      "c": [
+       [
+        1,
+        4
+       ],
+       [
+        6,
+        17
+       ]
+      ]
+     }
+    }
+   ],
+   "complexity": [
+    {
+     "md": "**Time O(n · k).** **Space O(k).**"
+    }
+   ],
+   "walk": {
+    "steps": [
+     {
+      "text": "[4, 1, 4] → 2 type(s).",
+      "panels": [
+       {
+        "type": "row",
+        "cells": [
+         4,
+         1,
+         4,
+         4,
+         7,
+         1,
+         7,
+         2
+        ],
+        "states": {
+         "0": "active",
+         "1": "active",
+         "2": "active"
+        }
+       }
+      ]
+     },
+     {
+      "text": "[1, 4, 4] → 2 type(s).",
+      "panels": [
+       {
+        "type": "row",
+        "cells": [
+         4,
+         1,
+         4,
+         4,
+         7,
+         1,
+         7,
+         2
+        ],
+        "states": {
+         "1": "active",
+         "2": "active",
+         "3": "active"
+        }
+       }
+      ]
+     },
+     {
+      "text": "[4, 4, 7] → 2 type(s).",
+      "panels": [
+       {
+        "type": "row",
+        "cells": [
+         4,
+         1,
+         4,
+         4,
+         7,
+         1,
+         7,
+         2
+        ],
+        "states": {
+         "2": "active",
+         "3": "active",
+         "4": "active"
+        }
+       }
+      ]
+     },
+     {
+      "text": "[4, 7, 1] → 3 type(s).",
+      "panels": [
+       {
+        "type": "row",
+        "cells": [
+         4,
+         1,
+         4,
+         4,
+         7,
+         1,
+         7,
+         2
+        ],
+        "states": {
+         "3": "active",
+         "4": "active",
+         "5": "active"
+        }
+       }
+      ]
+     },
+     {
+      "text": "[7, 1, 7] → 2 type(s).",
+      "panels": [
+       {
+        "type": "row",
+        "cells": [
+         4,
+         1,
+         4,
+         4,
+         7,
+         1,
+         7,
+         2
+        ],
+        "states": {
+         "4": "active",
+         "5": "active",
+         "6": "active"
+        }
+       }
+      ]
+     },
+     {
+      "text": "[1, 7, 2] → 3 type(s).",
+      "panels": [
+       {
+        "type": "row",
+        "cells": [
+         4,
+         1,
+         4,
+         4,
+         7,
+         1,
+         7,
+         2
+        ],
+        "states": {
+         "5": "active",
+         "6": "active",
+         "7": "active"
+        }
+       }
+      ]
+     },
+     {
+      "text": "Answer: [2, 2, 2, 3, 2, 3].",
+      "panels": [],
+      "result": "[2, 2, 2, 3, 2, 3]"
+     }
+    ],
+    "title": "Put each window's items into a set and take its size."
+   },
+   "limits": [
+    {
+     "md": "Each window costs O(k), although consecutive windows differ by two items."
+    }
+   ],
+   "slow": true
+  },
+  {
+   "title": "Sliding counts",
+   "kind": "best",
+   "time": "O(n)",
+   "space": "O(k)",
+   "idea": [
+    {
+     "md": "Add `items[i]` (0 → 1 raises `distinct`), remove `items[i − k]` (1 → 0 lowers it); from `i = k − 1` on, append `distinct`."
+    }
+   ],
+   "build": [
+    "Count map and `distinct`.",
+    "Add and remove.",
+    "Record each full window."
+   ],
+   "code": {
+    "python": "class Solution:\n    def varietyPerWindow(self, items: List[int], k: int) -> List[int]:\n        count, distinct, out = {}, 0, []\n        for i, v in enumerate(items):\n            count[v] = count.get(v, 0) + 1\n            if count[v] == 1:\n                distinct += 1\n            if i >= k:\n                u = items[i - k]\n                count[u] -= 1\n                if count[u] == 0:\n                    distinct -= 1\n            if i >= k - 1:\n                out.append(distinct)\n        return out\n",
+    "java": "class Solution {\n    public int[] varietyPerWindow(int[] items, int k) {\n        Map<Integer, Integer> count = new HashMap<>();\n        int distinct = 0;\n        int[] out = new int[items.length - k + 1];\n        for (int i = 0; i < items.length; i++) {\n            if (count.merge(items[i], 1, Integer::sum) == 1) distinct++;\n            if (i >= k && count.merge(items[i - k], -1, Integer::sum) == 0) distinct--;\n            if (i >= k - 1) out[i - k + 1] = distinct;\n        }\n        return out;\n    }\n}\n",
+    "cpp": "class Solution {\npublic:\n    vector<int> varietyPerWindow(vector<int>& items, int k) {\n        unordered_map<int, int> count;\n        int distinct = 0;\n        vector<int> out;\n        for (int i = 0; i < (int) items.size(); i++) {\n            if (++count[items[i]] == 1) distinct++;\n            if (i >= k && --count[items[i - k]] == 0) distinct--;\n            if (i >= k - 1) out.push_back(distinct);\n        }\n        return out;\n    }\n};\n",
+    "c": "static int cmp_int(const void* a, const void* b) {\n    int x = *(const int*) a, y = *(const int*) b;\n    return (x > y) - (x < y);\n}\n\nstatic int* compress(const int* v, int n, int* distinct) {\n    int* sorted = malloc(n * sizeof(int));\n    memcpy(sorted, v, n * sizeof(int));\n    qsort(sorted, n, sizeof(int), cmp_int);\n    int d = 0;\n    for (int i = 0; i < n; i++) if (i == 0 || sorted[i] != sorted[i - 1]) sorted[d++] = sorted[i];\n    int* id = malloc(n * sizeof(int));\n    for (int i = 0; i < n; i++) id[i] = (int) ((int*) bsearch(&v[i], sorted, d, sizeof(int), cmp_int) - sorted);\n    free(sorted);\n    *distinct = d;\n    return id;\n}\n\nint* varietyPerWindow(int* items, int itemsSize, int k, int* returnSize) {\n    int n = itemsSize, d, distinct = 0;\n    int* id = compress(items, n, &d);\n    int* count = calloc(d, sizeof(int));\n    int* out = malloc((n - k + 1) * sizeof(int));\n    for (int i = 0; i < n; i++) {\n        if (count[id[i]]++ == 0) distinct++;\n        if (i >= k && --count[id[i - k]] == 0) distinct--;\n        if (i >= k - 1) out[i - k + 1] = distinct;\n    }\n    free(id); free(count);\n    *returnSize = n - k + 1;\n    return out;\n}\n"
+   },
+   "lines": [
+    {
+     "text": "Counts of the window's values and how many are present.",
+     "at": {
+      "python": [
+       [
+        3,
+        3
+       ]
+      ],
+      "java": [
+       [
+        3,
+        5
+       ]
+      ],
+      "cpp": [
+       [
+        4,
+        6
+       ]
+      ],
+      "c": [
+       [
+        20,
+        23
+       ]
+      ]
+     },
+     "notes": {
+      "c": "Compress values to ids `0..d−1` so the counts are an array."
+     }
+    },
+    {
+     "text": "Sort a copy, remove duplicates, and find each value's position by binary search.",
+     "at": {
+      "c": [
+       [
+        1,
+        4
+       ],
+       [
+        6,
+        17
+       ]
+      ]
+     }
+    },
+    {
+     "text": "Item `i` enters; a value going 0 → 1 is a new type.",
+     "at": {
+      "python": [
+       [
+        4,
+        7
+       ]
+      ],
+      "java": [
+       [
+        6,
+        7
+       ]
+      ],
+      "cpp": [
+       [
+        7,
+        8
+       ]
+      ],
+      "c": [
+       [
+        24,
+        25
+       ]
+      ]
+     }
+    },
+    {
+     "text": "Item `i − k` leaves; a value going 1 → 0 is gone.",
+     "at": {
+      "python": [
+       [
+        8,
+        12
+       ]
+      ],
+      "java": [
+       [
+        8,
+        8
+       ]
+      ],
+      "cpp": [
+       [
+        9,
+        9
+       ]
+      ],
+      "c": [
+       [
+        26,
+        26
+       ]
+      ]
+     }
+    },
+    {
+     "text": "Every full window's count, left to right.",
+     "at": {
+      "python": [
+       [
+        13,
+        14
+       ]
+      ],
+      "java": [
+       [
+        9,
+        9
+       ]
+      ],
+      "cpp": [
+       [
+        10,
+        10
+       ]
+      ],
+      "c": [
+       [
+        27,
+        27
+       ]
+      ]
+     }
+    },
+    {
+     "text": "One number per window.",
+     "at": {
+      "python": [
+       [
+        15,
+        15
+       ]
+      ],
+      "java": [
+       [
+        11,
+        11
+       ]
+      ],
+      "cpp": [
+       [
+        12,
+        12
+       ]
+      ],
+      "c": [
+       [
+        29,
+        31
+       ]
+      ]
+     }
+    }
+   ],
+   "complexity": [
+    {
+     "md": "**Time O(n)** expected (O(n log n) for C's compression). **Space O(k)** for the map (O(n) in C)."
+    }
+   ],
+   "walk": {
+    "steps": [
+     {
+      "text": "Window [4, 1, 4] (add 4): 2 type(s).",
+      "panels": [
+       {
+        "type": "row",
+        "cells": [
+         4,
+         1,
+         4,
+         4,
+         7,
+         1,
+         7,
+         2
+        ],
+        "states": {
+         "0": "active",
+         "1": "active",
+         "2": "active"
+        }
+       },
+       {
+        "type": "vars",
+        "items": {
+         "answer": [
+          2
+         ]
+        }
+       }
+      ]
+     },
+     {
+      "text": "Window [1, 4, 4] (add 4, remove 4): 2 type(s).",
+      "panels": [
+       {
+        "type": "row",
+        "cells": [
+         4,
+         1,
+         4,
+         4,
+         7,
+         1,
+         7,
+         2
+        ],
+        "states": {
+         "1": "active",
+         "2": "active",
+         "3": "active"
+        }
+       },
+       {
+        "type": "vars",
+        "items": {
+         "answer": [
+          2,
+          2
+         ]
+        }
+       }
+      ]
+     },
+     {
+      "text": "Window [4, 4, 7] (add 7, remove 1): 2 type(s).",
+      "panels": [
+       {
+        "type": "row",
+        "cells": [
+         4,
+         1,
+         4,
+         4,
+         7,
+         1,
+         7,
+         2
+        ],
+        "states": {
+         "2": "active",
+         "3": "active",
+         "4": "active"
+        }
+       },
+       {
+        "type": "vars",
+        "items": {
+         "answer": [
+          2,
+          2,
+          2
+         ]
+        }
+       }
+      ]
+     },
+     {
+      "text": "Window [4, 7, 1] (add 1, remove 4): 3 type(s).",
+      "panels": [
+       {
+        "type": "row",
+        "cells": [
+         4,
+         1,
+         4,
+         4,
+         7,
+         1,
+         7,
+         2
+        ],
+        "states": {
+         "3": "active",
+         "4": "active",
+         "5": "active"
+        }
+       },
+       {
+        "type": "vars",
+        "items": {
+         "answer": [
+          2,
+          2,
+          2,
+          3
+         ]
+        }
+       }
+      ]
+     },
+     {
+      "text": "Window [7, 1, 7] (add 7, remove 4): 2 type(s).",
+      "panels": [
+       {
+        "type": "row",
+        "cells": [
+         4,
+         1,
+         4,
+         4,
+         7,
+         1,
+         7,
+         2
+        ],
+        "states": {
+         "4": "active",
+         "5": "active",
+         "6": "active"
+        }
+       },
+       {
+        "type": "vars",
+        "items": {
+         "answer": [
+          2,
+          2,
+          2,
+          3,
+          2
+         ]
+        }
+       }
+      ]
+     },
+     {
+      "text": "Window [1, 7, 2] (add 2, remove 7): 3 type(s).",
+      "panels": [
+       {
+        "type": "row",
+        "cells": [
+         4,
+         1,
+         4,
+         4,
+         7,
+         1,
+         7,
+         2
+        ],
+        "states": {
+         "5": "active",
+         "6": "active",
+         "7": "active"
+        }
+       },
+       {
+        "type": "vars",
+        "items": {
+         "answer": [
+          2,
+          2,
+          2,
+          3,
+          2,
+          3
+         ]
+        }
+       }
+      ]
+     },
+     {
+      "text": "Answer: [2, 2, 2, 3, 2, 3].",
+      "panels": [],
+      "result": "[2, 2, 2, 3, 2, 3]"
+     }
+    ],
+    "title": "Keep a count per type in the window and the number of types with a positive count. Each step adds one item and removes one."
+   }
+  }
+ ],
+ "takeaways": [
+  {
+   "md": "- **Distinct count per window:** a count map + a counter updated on 0 ↔ 1 transitions.\n- Large values: hash map, or compress once.\n- The same machinery powers \"at most k distinct\" windows."
+  }
+ ]
+}

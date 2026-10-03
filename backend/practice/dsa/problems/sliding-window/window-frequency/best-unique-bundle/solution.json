@@ -1,0 +1,826 @@
+{
+ "version": 1,
+ "summary": "A fixed-size window that also tracks duplicates. Keep the window total, a count per price, and `dup` = number\nof prices with count ≥ 2 (it changes only when a count crosses 1 ↔ 2). Each full window with `dup == 0` is a\ncandidate. O(n).",
+ "question": [
+  {
+   "md": "Among windows of exactly `k` consecutive prices with no repeated value, return the largest total (0 if none).\n\n- **n up to 10⁵**, prices up to 10⁵; totals need 64 bits."
+  }
+ ],
+ "think": [
+  {
+   "md": "`prices = [4, 2, 4, 5, 3, 3, 1, 6, 1]`, `k = 3` → **12**.\n\nTwo things change as the window slides: its total (one price in, one out) and whether it has a repeat. Checking\nfor repeats from scratch costs O(k); but \"number of values that appear twice or more\" changes by at most one\nper added or removed price, so it can be maintained in O(1)."
+  },
+  {
+   "panels": [
+    {
+     "type": "row",
+     "cells": [
+      4,
+      2,
+      4,
+      5,
+      3,
+      3,
+      1,
+      6,
+      1
+     ],
+     "label": "prices"
+    }
+   ]
+  }
+ ],
+ "approaches": [
+  {
+   "title": "Check every window",
+   "kind": "brute",
+   "time": "O(n · k)",
+   "space": "O(k)",
+   "idea": [
+    {
+     "md": "For each window, build a set; if it has `k` values, compare the sum."
+    }
+   ],
+   "build": [
+    "Every window.",
+    "Distinctness via a set.",
+    "Keep the best total."
+   ],
+   "code": {
+    "python": "class Solution:\n    def bestUniqueBundle(self, prices: List[int], k: int) -> int:\n        best = 0\n        for i in range(len(prices) - k + 1):\n            window = prices[i:i + k]\n            if len(set(window)) == k:\n                best = max(best, sum(window))\n        return best\n",
+    "java": "class Solution {\n    public long bestUniqueBundle(int[] prices, int k) {\n        long best = 0;\n        for (int i = 0; i + k <= prices.length; i++) {\n            Set<Integer> seen = new HashSet<>();\n            long total = 0;\n            for (int j = i; j < i + k; j++) { seen.add(prices[j]); total += prices[j]; }\n            if (seen.size() == k) best = Math.max(best, total);\n        }\n        return best;\n    }\n}\n",
+    "cpp": "class Solution {\npublic:\n    long long bestUniqueBundle(vector<int>& prices, int k) {\n        long long best = 0;\n        for (int i = 0; i + k <= (int) prices.size(); i++) {\n            unordered_set<int> seen;\n            long long total = 0;\n            for (int j = i; j < i + k; j++) { seen.insert(prices[j]); total += prices[j]; }\n            if ((int) seen.size() == k) best = max(best, total);\n        }\n        return best;\n    }\n};\n",
+    "c": "long long bestUniqueBundle(int* prices, int pricesSize, int k) {\n    int* mark = calloc(100001, sizeof(int));\n    long long best = 0;\n    for (int i = 0; i + k <= pricesSize; i++) {\n        long long total = 0;\n        int ok = 1;\n        for (int j = i; j < i + k && ok; j++) {\n            if (mark[prices[j]] == i + 1) ok = 0;\n            mark[prices[j]] = i + 1;\n            total += prices[j];\n        }\n        if (ok && total > best) best = total;\n    }\n    free(mark);\n    return best;\n}\n"
+   },
+   "lines": [
+    {
+     "text": "0 if no window qualifies.",
+     "at": {
+      "python": [
+       [
+        3,
+        3
+       ]
+      ],
+      "java": [
+       [
+        3,
+        3
+       ]
+      ],
+      "cpp": [
+       [
+        4,
+        4
+       ]
+      ],
+      "c": [
+       [
+        2,
+        3
+       ]
+      ]
+     },
+     "notes": {
+      "c": "`mark[v] = i + 1` means 'seen in window `i`', so nothing needs clearing."
+     }
+    },
+    {
+     "text": "Every window of `k` prices.",
+     "at": {
+      "python": [
+       [
+        4,
+        5
+       ]
+      ],
+      "java": [
+       [
+        4,
+        4
+       ]
+      ],
+      "cpp": [
+       [
+        5,
+        5
+       ]
+      ],
+      "c": [
+       [
+        4,
+        4
+       ]
+      ]
+     }
+    },
+    {
+     "text": "All different, and its total.",
+     "at": {
+      "python": [
+       [
+        6,
+        7
+       ]
+      ],
+      "java": [
+       [
+        5,
+        8
+       ]
+      ],
+      "cpp": [
+       [
+        6,
+        9
+       ]
+      ],
+      "c": [
+       [
+        5,
+        10
+       ],
+       [
+        12,
+        12
+       ]
+      ]
+     }
+    },
+    {
+     "text": "Best total.",
+     "at": {
+      "python": [
+       [
+        8,
+        8
+       ]
+      ],
+      "java": [
+       [
+        10,
+        10
+       ]
+      ],
+      "cpp": [
+       [
+        11,
+        11
+       ]
+      ],
+      "c": [
+       [
+        14,
+        15
+       ]
+      ]
+     }
+    }
+   ],
+   "complexity": [
+    {
+     "md": "**Time O(n · k).** **Space O(k).**"
+    }
+   ],
+   "walk": {
+    "steps": [
+     {
+      "text": "[4, 2, 4]: has a repeat.",
+      "panels": [
+       {
+        "type": "row",
+        "cells": [
+         4,
+         2,
+         4,
+         5,
+         3,
+         3,
+         1,
+         6,
+         1
+        ],
+        "states": {
+         "0": "mark",
+         "1": "mark",
+         "2": "mark"
+        }
+       },
+       {
+        "type": "vars",
+        "items": {
+         "best": 0
+        }
+       }
+      ]
+     },
+     {
+      "text": "[2, 4, 5]: all different, total 11.",
+      "panels": [
+       {
+        "type": "row",
+        "cells": [
+         4,
+         2,
+         4,
+         5,
+         3,
+         3,
+         1,
+         6,
+         1
+        ],
+        "states": {
+         "1": "found",
+         "2": "found",
+         "3": "found"
+        }
+       },
+       {
+        "type": "vars",
+        "items": {
+         "best": 11
+        }
+       }
+      ]
+     },
+     {
+      "text": "[4, 5, 3]: all different, total 12.",
+      "panels": [
+       {
+        "type": "row",
+        "cells": [
+         4,
+         2,
+         4,
+         5,
+         3,
+         3,
+         1,
+         6,
+         1
+        ],
+        "states": {
+         "2": "found",
+         "3": "found",
+         "4": "found"
+        }
+       },
+       {
+        "type": "vars",
+        "items": {
+         "best": 12
+        }
+       }
+      ]
+     },
+     {
+      "text": "[5, 3, 3]: has a repeat.",
+      "panels": [
+       {
+        "type": "row",
+        "cells": [
+         4,
+         2,
+         4,
+         5,
+         3,
+         3,
+         1,
+         6,
+         1
+        ],
+        "states": {
+         "3": "mark",
+         "4": "mark",
+         "5": "mark"
+        }
+       },
+       {
+        "type": "vars",
+        "items": {
+         "best": 12
+        }
+       }
+      ]
+     },
+     {
+      "text": "[3, 3, 1]: has a repeat.",
+      "panels": [
+       {
+        "type": "row",
+        "cells": [
+         4,
+         2,
+         4,
+         5,
+         3,
+         3,
+         1,
+         6,
+         1
+        ],
+        "states": {
+         "4": "mark",
+         "5": "mark",
+         "6": "mark"
+        }
+       },
+       {
+        "type": "vars",
+        "items": {
+         "best": 12
+        }
+       }
+      ]
+     },
+     {
+      "text": "[3, 1, 6]: all different, total 10.",
+      "panels": [
+       {
+        "type": "row",
+        "cells": [
+         4,
+         2,
+         4,
+         5,
+         3,
+         3,
+         1,
+         6,
+         1
+        ],
+        "states": {
+         "5": "found",
+         "6": "found",
+         "7": "found"
+        }
+       },
+       {
+        "type": "vars",
+        "items": {
+         "best": 12
+        }
+       }
+      ]
+     },
+     {
+      "text": "[1, 6, 1]: has a repeat.",
+      "panels": [
+       {
+        "type": "row",
+        "cells": [
+         4,
+         2,
+         4,
+         5,
+         3,
+         3,
+         1,
+         6,
+         1
+        ],
+        "states": {
+         "6": "mark",
+         "7": "mark",
+         "8": "mark"
+        }
+       },
+       {
+        "type": "vars",
+        "items": {
+         "best": 12
+        }
+       }
+      ]
+     },
+     {
+      "text": "Best bundle: 12.",
+      "panels": [],
+      "result": "12"
+     }
+    ],
+    "title": "Check every window of k items: are the prices all different? If so, compare its total."
+   },
+   "limits": [
+    {
+     "md": "Rebuilds each window's set and sum from scratch."
+    }
+   ],
+   "slow": true
+  },
+  {
+   "title": "Sliding window with a duplicate counter",
+   "kind": "best",
+   "time": "O(n)",
+   "space": "O(V)",
+   "idea": [
+    {
+     "md": "Add `prices[i]` (count 1 → 2 means `dup += 1`), remove `prices[i − k]` (count 2 → 1 means `dup −= 1`), update the total. Full windows with `dup == 0` are candidates."
+    }
+   ],
+   "build": [
+    "Counts, `dup`, and the total.",
+    "Add the new price, remove the old one.",
+    "Candidates when no duplicates."
+   ],
+   "code": {
+    "python": "class Solution:\n    def bestUniqueBundle(self, prices: List[int], k: int) -> int:\n        count = [0] * 100001\n        dup = total = best = 0\n        for i, v in enumerate(prices):\n            count[v] += 1\n            if count[v] == 2:\n                dup += 1\n            total += v\n            if i >= k:\n                u = prices[i - k]\n                count[u] -= 1\n                if count[u] == 1:\n                    dup -= 1\n                total -= u\n            if i >= k - 1 and dup == 0:\n                best = max(best, total)\n        return best\n",
+    "java": "class Solution {\n    public long bestUniqueBundle(int[] prices, int k) {\n        int[] count = new int[100001];\n        int dup = 0;\n        long total = 0, best = 0;\n        for (int i = 0; i < prices.length; i++) {\n            if (++count[prices[i]] == 2) dup++;\n            total += prices[i];\n            if (i >= k) {\n                if (--count[prices[i - k]] == 1) dup--;\n                total -= prices[i - k];\n            }\n            if (i >= k - 1 && dup == 0) best = Math.max(best, total);\n        }\n        return best;\n    }\n}\n",
+    "cpp": "class Solution {\npublic:\n    long long bestUniqueBundle(vector<int>& prices, int k) {\n        vector<int> count(100001, 0);\n        int dup = 0;\n        long long total = 0, best = 0;\n        for (int i = 0; i < (int) prices.size(); i++) {\n            if (++count[prices[i]] == 2) dup++;\n            total += prices[i];\n            if (i >= k) {\n                if (--count[prices[i - k]] == 1) dup--;\n                total -= prices[i - k];\n            }\n            if (i >= k - 1 && dup == 0) best = max(best, total);\n        }\n        return best;\n    }\n};\n",
+    "c": "long long bestUniqueBundle(int* prices, int pricesSize, int k) {\n    int* count = calloc(100001, sizeof(int));\n    int dup = 0;\n    long long total = 0, best = 0;\n    for (int i = 0; i < pricesSize; i++) {\n        if (++count[prices[i]] == 2) dup++;\n        total += prices[i];\n        if (i >= k) {\n            if (--count[prices[i - k]] == 1) dup--;\n            total -= prices[i - k];\n        }\n        if (i >= k - 1 && dup == 0 && total > best) best = total;\n    }\n    free(count);\n    return best;\n}\n"
+   },
+   "lines": [
+    {
+     "text": "A count per possible price (≤ 10⁵), the number of repeated prices, and the window total.",
+     "at": {
+      "python": [
+       [
+        3,
+        4
+       ]
+      ],
+      "java": [
+       [
+        3,
+        5
+       ]
+      ],
+      "cpp": [
+       [
+        4,
+        6
+       ]
+      ],
+      "c": [
+       [
+        2,
+        4
+       ]
+      ]
+     }
+    },
+    {
+     "text": "Price `i` enters; reaching count 2 makes it a duplicate.",
+     "at": {
+      "python": [
+       [
+        5,
+        9
+       ]
+      ],
+      "java": [
+       [
+        6,
+        8
+       ]
+      ],
+      "cpp": [
+       [
+        7,
+        9
+       ]
+      ],
+      "c": [
+       [
+        5,
+        7
+       ]
+      ]
+     }
+    },
+    {
+     "text": "Price `i − k` leaves; dropping to count 1 means it's no longer duplicated.",
+     "at": {
+      "python": [
+       [
+        10,
+        15
+       ]
+      ],
+      "java": [
+       [
+        9,
+        11
+       ]
+      ],
+      "cpp": [
+       [
+        10,
+        12
+       ]
+      ],
+      "c": [
+       [
+        8,
+        10
+       ]
+      ]
+     }
+    },
+    {
+     "text": "A full window with no duplicates.",
+     "at": {
+      "python": [
+       [
+        16,
+        17
+       ]
+      ],
+      "java": [
+       [
+        13,
+        13
+       ]
+      ],
+      "cpp": [
+       [
+        14,
+        14
+       ]
+      ],
+      "c": [
+       [
+        12,
+        12
+       ]
+      ]
+     }
+    },
+    {
+     "text": "Best total, or 0.",
+     "at": {
+      "python": [
+       [
+        18,
+        18
+       ]
+      ],
+      "java": [
+       [
+        15,
+        15
+       ]
+      ],
+      "cpp": [
+       [
+        16,
+        16
+       ]
+      ],
+      "c": [
+       [
+        14,
+        15
+       ]
+      ]
+     }
+    }
+   ],
+   "complexity": [
+    {
+     "md": "**Time O(n).** **Space O(V)** for the price counts (V = 10⁵; a hash map would make it O(k))."
+    }
+   ],
+   "walk": {
+    "steps": [
+     {
+      "text": "Window [4, 2, 4]: total 10, dup 1.",
+      "panels": [
+       {
+        "type": "row",
+        "cells": [
+         4,
+         2,
+         4,
+         5,
+         3,
+         3,
+         1,
+         6,
+         1
+        ],
+        "states": {
+         "0": "mark",
+         "1": "mark",
+         "2": "mark"
+        }
+       },
+       {
+        "type": "vars",
+        "items": {
+         "total": 10,
+         "dup": 1,
+         "best": 0
+        }
+       }
+      ]
+     },
+     {
+      "text": "Window [2, 4, 5]: total 11, dup 0.",
+      "panels": [
+       {
+        "type": "row",
+        "cells": [
+         4,
+         2,
+         4,
+         5,
+         3,
+         3,
+         1,
+         6,
+         1
+        ],
+        "states": {
+         "1": "found",
+         "2": "found",
+         "3": "found"
+        }
+       },
+       {
+        "type": "vars",
+        "items": {
+         "total": 11,
+         "dup": 0,
+         "best": 11
+        }
+       }
+      ]
+     },
+     {
+      "text": "Window [4, 5, 3]: total 12, dup 0.",
+      "panels": [
+       {
+        "type": "row",
+        "cells": [
+         4,
+         2,
+         4,
+         5,
+         3,
+         3,
+         1,
+         6,
+         1
+        ],
+        "states": {
+         "2": "found",
+         "3": "found",
+         "4": "found"
+        }
+       },
+       {
+        "type": "vars",
+        "items": {
+         "total": 12,
+         "dup": 0,
+         "best": 12
+        }
+       }
+      ]
+     },
+     {
+      "text": "Window [5, 3, 3]: total 11, dup 1.",
+      "panels": [
+       {
+        "type": "row",
+        "cells": [
+         4,
+         2,
+         4,
+         5,
+         3,
+         3,
+         1,
+         6,
+         1
+        ],
+        "states": {
+         "3": "mark",
+         "4": "mark",
+         "5": "mark"
+        }
+       },
+       {
+        "type": "vars",
+        "items": {
+         "total": 11,
+         "dup": 1,
+         "best": 12
+        }
+       }
+      ]
+     },
+     {
+      "text": "Window [3, 3, 1]: total 7, dup 1.",
+      "panels": [
+       {
+        "type": "row",
+        "cells": [
+         4,
+         2,
+         4,
+         5,
+         3,
+         3,
+         1,
+         6,
+         1
+        ],
+        "states": {
+         "4": "mark",
+         "5": "mark",
+         "6": "mark"
+        }
+       },
+       {
+        "type": "vars",
+        "items": {
+         "total": 7,
+         "dup": 1,
+         "best": 12
+        }
+       }
+      ]
+     },
+     {
+      "text": "Window [3, 1, 6]: total 10, dup 0.",
+      "panels": [
+       {
+        "type": "row",
+        "cells": [
+         4,
+         2,
+         4,
+         5,
+         3,
+         3,
+         1,
+         6,
+         1
+        ],
+        "states": {
+         "5": "found",
+         "6": "found",
+         "7": "found"
+        }
+       },
+       {
+        "type": "vars",
+        "items": {
+         "total": 10,
+         "dup": 0,
+         "best": 12
+        }
+       }
+      ]
+     },
+     {
+      "text": "Window [1, 6, 1]: total 8, dup 1.",
+      "panels": [
+       {
+        "type": "row",
+        "cells": [
+         4,
+         2,
+         4,
+         5,
+         3,
+         3,
+         1,
+         6,
+         1
+        ],
+        "states": {
+         "6": "mark",
+         "7": "mark",
+         "8": "mark"
+        }
+       },
+       {
+        "type": "vars",
+        "items": {
+         "total": 8,
+         "dup": 1,
+         "best": 12
+        }
+       }
+      ]
+     },
+     {
+      "text": "Best bundle: 12.",
+      "panels": [],
+      "result": "12"
+     }
+    ],
+    "title": "Slide the window keeping its total, a count per price, and dup = how many prices appear more than once. A window counts when dup is 0."
+   }
+  }
+ ],
+ "takeaways": [
+  {
+   "md": "- **Fixed window + \"all distinct\":** maintain a count map and a duplicate counter.\n- Update aggregate flags only on threshold crossings (1 ↔ 2).\n- Keep the sum alongside; both update in O(1)."
+  }
+ ]
+}
