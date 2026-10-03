@@ -2,8 +2,15 @@
 from sol import Row, Steps, Vars, approach, fig, problem, sol, table  # noqa: F401
 
 
+def _fmt(d):
+    return ", ".join(f"{k} {v}" for k, v in d.items())
+
+
+SHOW = 6
+
+
 def shrink_walk(w, shown, n, valid, info=None):
-    """Grow right; while the window is valid, record it and drop the left element."""
+    """Grow R until the window is valid, then shrink L while it stays valid, recording each valid window."""
     l, best = 0, None
     for r in range(n):
         start = l
@@ -11,30 +18,40 @@ def shrink_walk(w, shown, n, valid, info=None):
             if best is None or r - l + 1 < best[0]:
                 best = (r - l + 1, l)
             l += 1
+        state = f" ({_fmt(info(start, r))})" if info else ""
         if l > start:
-            note = f" Valid: shrink while it stays valid (shortest ending here: {l - 1}..{r}, length {r - l + 2})."
-            st = {**{x: "found" for x in range(l - 1, r + 1)}, **{x: "dim" for x in range(start, l - 1)}}
+            tight = l - 1
+            text = f"R adds {shown[r]} at {r}: the window {start}..{r} is valid{state}. L moves right while it stays valid; the tightest is {tight}..{r} (length {r - tight + 1}). One more step would break it, so L stops at {l}."
+            st = {**{x: "found" for x in range(tight, r + 1)}, **{x: "dim" for x in range(start, tight)}}
+            ptr = {"L": tight, "R": r}
         else:
-            note = " Not valid yet."
+            text = f"R adds {shown[r]} at {r}: window {l}..{r} isn't valid yet{state}, so keep growing."
             st = {x: "active" for x in range(l, r + 1)}
-        w.step(f"Add {shown[r]} (index {r}).{note}", Row(shown, st=st), Vars(best=best[0] if best else "—", **(info(l, r) if info else {})))
+            ptr = {"L": l, "R": r}
+        w.step(text, Row(shown, st=st, ptr=ptr), Vars(best=best[0] if best else "—"))
+    w.step("Every index entered the window once (via R) and left at most once (via L): O(n) moves in total.")
     return best
 
 
 def first_valid_walk(w, shown, n, valid):
     """Brute force: from each start, extend until the window first becomes valid."""
-    best = None
+    best, work = None, 0
     for l in range(n):
         r = l
         while r < n and not valid(l, r):
             r += 1
-        if r < n:
-            if best is None or r - l + 1 < best[0]:
-                best = (r - l + 1, l)
-            w.step(f"From {l}: first valid at {r}, length {r - l + 1}.", Row(shown, st={x: "found" for x in range(l, r + 1)}), Vars(best=best[0]))
-        else:
-            w.step(f"From {l}: never valid.", Row(shown, st={x: "dim" for x in range(l, n)}), Vars(best=best[0] if best else "—"))
+        work += min(r, n - 1) - l + 1
+        if r < n and (best is None or r - l + 1 < best[0]):
+            best = (r - l + 1, l)
+        if l < SHOW:
+            if r < n:
+                w.step(f"Start {l}: extend until the window first becomes valid at {r}; length {r - l + 1}.", Row(shown, st={x: "found" for x in range(l, r + 1)}, ptr={"L": l, "R": r}), Vars(best=best[0]))
+            else:
+                w.step(f"Start {l}: it never becomes valid, and later starts have even less to work with, so stop.", Row(shown, st={x: "dim" for x in range(l, n)}), Vars(best=best[0] if best else "—"))
+        if r >= n:
             break
+    if n > SHOW and best:
+        w.step(f"The remaining starts are checked the same way, about {work} cells read in total, which grows like n². Shortest: {best[1]}..{best[1] + best[0] - 1}.", Row(shown, st={x: "found" for x in range(best[1], best[1] + best[0])}, ptr={"L": best[1], "R": best[1] + best[0] - 1}), Vars(best=best[0]))
     return best
 
 

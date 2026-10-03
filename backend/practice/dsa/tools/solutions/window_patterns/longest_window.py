@@ -5,30 +5,52 @@ from collections import deque
 from sol import Row, Steps, Vars, approach, fig, problem, sol, table  # noqa: F401
 
 
+def _fmt(d):
+    return ", ".join(f"{k} {v}" for k, v in d.items())
+
+
+SHOW = 6
+
+
 def extend_walk(w, shown, n, ok, every=1):
-    """Brute force: from each start, extend while the window stays valid."""
-    best = 0
+    """Brute force: from each start, extend while valid. Shows the first starts, then summarises the rest."""
+    best, best_l, work = 0, 0, 0
     for l in range(0, n, every):
         r = l
         while r < n and ok(l, r):
             r += 1
-        best = max(best, r - l)
-        stop = f"; {shown[r]} at {r} would break it" if r < n else ""
-        w.step(f"From {l}: extends to {r - 1}, length {r - l}{stop}.", Row(shown, st={**{x: "active" for x in range(l, r)}, **({r: "mark"} if r < n else {})}), Vars(best=best))
+        work += r - l + 1
+        if r - l > best:
+            best, best_l = r - l, l
+        if l < SHOW:
+            stop = f" Adding {shown[r]} at {r} would break the rule, so this start stops." if r < n else " It reaches the end."
+            w.step(f"Start {l}: the window grows to {l}..{r - 1} (length {r - l}).{stop}", Row(shown, st={**{x: "active" for x in range(l, r)}, **({r: "mark"} if r < n else {})}, ptr={"L": l, "R": r - 1}), Vars(best=best))
+    if n > SHOW:
+        w.step(f"Starts {SHOW}..{n - 1} are checked the same way. The longest window starts at {best_l}. In total about {work} cells were re-read, which grows like n²: the same cells are scanned again from every start.", Row(shown, st={x: "found" for x in range(best_l, best_l + best)}, ptr={"L": best_l, "R": best_l + best - 1}), Vars(best=best))
     return best
 
 
 def grow_shrink_walk(w, shown, n, ok, info=None):
-    """Two pointers: add the right element, then move left while the window is invalid."""
+    """Two pointers: R adds a cell; if that breaks the rule, L moves right until it holds again."""
     l = best = 0
     for r in range(n):
-        moved = 0
+        broken = not ok(l, r)
+        before = _fmt(info(l, r)) if (broken and info) else ""
+        start = l
         while not ok(l, r):
             l += 1
-            moved += 1
+        new_best = r - l + 1 > best
         best = max(best, r - l + 1)
-        note = f"; it broke the rule, so drop {moved} from the left" if moved else ""
-        w.step(f"Add {shown[r]} (index {r}){note}. Window {l}..{r}, length {r - l + 1}.", Row(shown, st={**{x: "active" for x in range(l, r + 1)}, **{x: "dim" for x in range(l - moved, l)}}), Vars(best=best, **(info(l, r) if info else {})))
+        if broken:
+            why = f" That breaks the rule ({before})." if before else " That breaks the rule."
+            text = f"R adds {shown[r]} at {r}.{why} L moves past {start}..{l - 1} until it holds again: window {l}..{r}."
+        else:
+            text = f"R adds {shown[r]} at {r}; the rule still holds, so the window just grows to {l}..{r}."
+        text += f" New best: {best}." if new_best else ""
+        st = {x: ("found" if new_best else "active") for x in range(l, r + 1)}
+        st.update({x: "dim" for x in range(start, l)})
+        w.step(text, Row(shown, st=st, ptr={"L": l, "R": r}), Vars(best=best, **(info(l, r) if info else {})))
+    w.step(f"R visited each index once and L only ever moved right, so the pointers made at most {2 * n} moves in total: O(n).")
     return best
 
 

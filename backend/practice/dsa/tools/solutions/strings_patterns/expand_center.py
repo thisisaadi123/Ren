@@ -16,11 +16,14 @@ def centres_walk(title, s, mode):
             j += 1
         total += found
         length = j - i - 1
-        if length > best[0]:
+        new_best = length > best[0]
+        if new_best:
             best = (length, i + 1)
         if found:
-            kind = "letter" if c % 2 == 0 else "gap"
-            w.step(f"Centre at {kind} {c / 2:g}: expands {found} step(s); the widest is '{s[i + 1:j]}'.", Row(list(s), st={t: "found" for t in range(i + 1, j)}), Vars(**({"palindromes": total} if mode == "count" else {"longest": best[0]})))
+            where = f"letter {c // 2} ('{s[c // 2]}')" if c % 2 == 0 else f"the gap between {c // 2} and {c // 2 + 1}"
+            stop = f"'{s[i]}' ≠ '{s[j]}'" if i >= 0 and j < n else "the edge of the string"
+            gain = f" +{found} palindromes." if mode == "count" else (" New longest." if new_best else "")
+            w.step(f"Centre on {where}: expands {found} step(s) to '{s[i + 1:j]}', then stops at {stop}.{gain}", Row(list(s), st={**{t: "found" for t in range(i + 1, j)}, **({i: "mark"} if i >= 0 else {}), **({j: "mark"} if j < n else {})}, ptr={"i": max(i, 0), "j": min(j, n - 1)}), Vars(**({"palindromes": total} if mode == "count" else {"longest": best[0]})))
     return w, total, best
 
 

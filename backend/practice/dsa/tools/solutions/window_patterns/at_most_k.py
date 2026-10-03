@@ -2,14 +2,21 @@
 from sol import Row, Steps, Vars, approach, fig, problem, sol, table  # noqa: F401
 
 
+def _fmt(d):
+    return ", ".join(f"{k} {v}" for k, v in d.items())
+
+
 def count_walk(w, shown, n, ok, title_k="", info=None):
-    """For each right end, the window is the longest valid one ending there; it contributes its length."""
+    """Each right end R contributes every start from L to R: R − L + 1 windows."""
     l = total = 0
     for r in range(n):
+        start = l
         while not ok(l, r):
             l += 1
         total += r - l + 1
-        w.step(f"{title_k}End {r}: valid starts {l}..{r}, adding {r - l + 1}.", Row(shown, st={x: "active" for x in range(l, r + 1)}), Vars(total=total, **(info(l, r) if info else {})))
+        moved = f" L moves past {start}..{l - 1} to restore the rule." if l > start else ""
+        starts = f"starts {l}..{r}" if l < r else f"start {r}"
+        w.step(f"{title_k}R = {r} adds {shown[r]}.{moved} Every {starts} gives a valid window ending at R: +{r - l + 1}.", Row(shown, st={**{x: "active" for x in range(l, r + 1)}, **{x: "dim" for x in range(start, l)}}, ptr={"L": l, "R": r}), Vars(total=total, **(info(l, r) if info else {})))
     return total
 
 

@@ -2,16 +2,30 @@
 from sol import Row, Steps, Vars, approach, fig, problem, sol, table  # noqa: F401
 
 
+def _fmt(d):
+    return ", ".join(f"{k} {v}" for k, v in d.items())
+
+
 def slide_steps(w, values, k, score, label="value", better=lambda a, b: a > b, shown=None, extra=None):
-    """One step per window: highlight it, show its score and the best so far."""
+    """One step per window: the entering cell, the leaving cell, and the O(1) update."""
     n = len(values)
-    best = None
+    cells = shown or values
+    best = prev = None
     for i in range(n - k + 1):
         cur = score(i)
-        if best is None or better(cur, best):
+        new_best = best is None or better(cur, best)
+        if new_best:
             best = cur
-        how = "first window, summed directly" if i == 0 else f"add {values[i + k - 1]}, drop {values[i - 1]}"
-        w.step(f"Window {i}..{i + k - 1} ({how}): {cur}.", Row(shown or values, st={x: "active" for x in range(i, i + k)}, label=label), Vars(window=cur, best=best, **(extra(i) if extra else {})))
+        st = {x: "active" for x in range(i, i + k)}
+        if i == 0:
+            text = f"First window 0..{k - 1}: computed directly, {cur}."
+        else:
+            st[i - 1] = "dim"
+            st[i + k - 1] = "found"
+            text = f"Slide: {values[i + k - 1]} enters, {values[i - 1]} leaves, so {prev} + {values[i + k - 1]} − {values[i - 1]} = {cur}."
+        text += " New best." if new_best and i else ""
+        w.step(text, Row(cells, st=st, ptr={"L": i, "R": i + k - 1}, label=label), Vars(window=cur, best=best, **(extra(i) if extra else {})))
+        prev = cur
     return best
 
 
