@@ -4,55 +4,40 @@
  "question": [
   {
    "md": "Move every seat k places toward the end, wrapping around to the front. Return the new order.\n\n- **k can be huge** (up to 10⁹) but rotating by n is a full turn, so only `k mod n` matters. `[9, 8]` with\n  k = 3 is the same as k = 1: `[8, 9]`.\n- **k = 0** (or a multiple of n) leaves the order unchanged.\n- **Goal:** in place with O(1) extra space."
+  },
+  {
+   "md": "**Edge cases to keep in mind**\n\n- `k` larger than `n`: only `k mod n` matters (a full turn changes nothing).\n- `k mod n = 0`: unchanged.\n- One seat: unchanged."
   }
  ],
  "think": [
   {
-   "md": "Take `[1, 2, 3, 4, 5, 6, 7]` with k = 3. Each seat moves 3 places right; the last 3 seats wrap to the front:\n`[5, 6, 7, 1, 2, 3, 4]`. In other words, the array is two blocks, `A = [1, 2, 3, 4]` and `B = [5, 6, 7]`, and the\nanswer is `B` followed by `A`."
+   "md": "**Rotation = swapping two blocks.** Rotating right by `k` moves the last `k` seats to the front: the array is\n`A B` with `B` the last `k` seats, and the answer is `B A`.\n\n**Three reversals.** Reversing the whole array gives `reverse(B) reverse(A)`: the blocks are in the right order,\nbut each is backwards. Reversing each block separately fixes that. For `[1, 2, 3, 4, 5, 6, 7]`, `k = 3`:"
   },
   {
-   "panels": [
-    {
-     "type": "row",
-     "cells": [
-      1,
-      2,
-      3,
-      4,
-      5,
-      6,
-      7
+   "table": {
+    "head": [
+     "step",
+     "seats"
+    ],
+    "rows": [
+     [
+      "input (A = first n − k, B = last k)",
+      "[1, 2, 3, 4, 5, 6, 7]"
      ],
-     "states": {
-      "4": "mark",
-      "5": "mark",
-      "6": "mark"
-     },
-     "slots": true
-    },
-    {
-     "type": "row",
-     "cells": [
-      5,
-      6,
-      7,
-      1,
-      2,
-      3,
-      4
+     [
+      "reverse everything",
+      "[7, 6, 5, 4, 3, 2, 1]"
      ],
-     "states": {
-      "0": "mark",
-      "1": "mark",
-      "2": "mark"
-     },
-     "slots": true
-    }
-   ],
-   "caption": "A B → B A, each block keeping its own order."
-  },
-  {
-   "md": "Swapping two blocks of different lengths in place sounds hard, but reversal does it neatly. Reverse the\nwhole array: `B` comes first and `A` second, but each is backwards. Reverse each block again and both read\nforwards. Every reversal is a simple two-pointer swap loop with O(1) extra space."
+     [
+      "reverse the first 3",
+      "[5, 6, 7, 4, 3, 2, 1]"
+     ],
+     [
+      "reverse the remaining 4",
+      "[5, 6, 7, 1, 2, 3, 4]"
+     ]
+    ]
+   }
   }
  ],
  "approaches": [
@@ -63,12 +48,12 @@
    "space": "O(1)",
    "idea": [
     {
-     "md": "One step right means: save the last seat, shift everything one place right, put the saved seat at the front. Do it `k mod n` times."
+     "md": "Rotate by one step `k mod n` times: save the last seat, shift everything right by one, put it in front."
     }
    ],
    "build": [
-    "`k %= n`.",
-    "Repeat k times: save `a[n − 1]`, shift `a[0 … n − 2]` right by one, put the saved value at index 0."
+    "Repeat `k mod n` times.",
+    "Shift by one."
    ],
    "code": {
     "python": "class Solution:\n    def rotateRight(self, slots: List[int], k: int) -> List[int]:\n        n = len(slots)\n        for _ in range(k % n):\n            last = slots[-1]\n            for i in range(n - 1, 0, -1):\n                slots[i] = slots[i - 1]\n            slots[0] = last\n        return slots\n",
@@ -167,7 +152,7 @@
    ],
    "complexity": [
     {
-     "md": "**Time O(n · (k mod n))**, up to O(n²). **Space O(1).**"
+     "md": "**Time O(n · k):** up to 10¹⁰ moves. **Space O(1).**"
     }
    ],
    "walk": {
@@ -241,7 +226,7 @@
    },
    "limits": [
     {
-     "md": "Each seat is moved k times by one place instead of once by k places."
+     "md": "Every seat moves `k` times instead of once."
     }
    ],
    "slow": true
@@ -253,13 +238,12 @@
    "space": "O(n)",
    "idea": [
     {
-     "md": "Seat i goes to position `(i + k) mod n`. Write every seat directly there in a new array."
+     "md": "Copy each seat `i` to `out[(i + k) mod n]` in a new array."
     }
    ],
    "build": [
-    "`k %= n`.",
-    "For each i: `out[(i + k) % n] = slots[i]`.",
-    "Return `out`."
+    "New array.",
+    "Place each seat at its rotated position."
    ],
    "code": {
     "python": "class Solution:\n    def rotateRight(self, slots: List[int], k: int) -> List[int]:\n        n = len(slots)\n        out = [0] * n\n        for i in range(n):\n            out[(i + k) % n] = slots[i]\n        return out\n",
@@ -640,7 +624,7 @@
    },
    "limits": [
     {
-     "md": "Needs a whole second array; the problem asks for O(1) extra space."
+     "md": "Uses a second array; three reversals do it in place."
     }
    ]
   },
@@ -651,14 +635,13 @@
    "space": "O(1)",
    "idea": [
     {
-     "md": "With `k %= n`: reverse the whole array, then reverse the first k elements, then reverse the remaining n − k. The array was A B with |B| = k; the first reversal gives B' A' (both backwards); the next two give B A."
+     "md": "Reduce `k` modulo `n`, then reverse the whole array, reverse the first `k` seats, and reverse the rest.\n\n**Why it works.** Whole reversal: `A B → B' A'` (primes mean reversed). Reversing each block:\n`B' → B`, `A' → A`. Result `B A`."
     }
    ],
    "build": [
     "`k %= n`.",
-    "Reverse `[0, n − 1]`.",
-    "Reverse `[0, k − 1]`.",
-    "Reverse `[k, n − 1]`."
+    "Reverse all.",
+    "Reverse `[0, k)` and `[k, n)`."
    ],
    "code": {
     "python": "class Solution:\n    def rotateRight(self, slots: List[int], k: int) -> List[int]:\n        n = len(slots)\n        k %= n\n        def rev(i, j):\n            while i < j:\n                slots[i], slots[j] = slots[j], slots[i]\n                i, j = i + 1, j - 1\n        rev(0, n - 1)\n        rev(0, k - 1)\n        rev(k, n - 1)\n        return slots\n",
@@ -783,7 +766,7 @@
    ],
    "complexity": [
     {
-     "md": "**Time O(n):** every element is swapped about twice. **Space O(1).**"
+     "md": "**Time O(n):** each seat is swapped about twice. **Space O(1).**"
     }
    ],
    "walk": {
@@ -889,7 +872,7 @@
  ],
  "takeaways": [
   {
-   "md": "- Rotation = swapping two blocks: **A B → B A**. In place: reverse all, then reverse each block.\n- Reduce shift amounts with `k mod n` first.\n- Rotate left by k is the same trick with the blocks split at k from the front."
+   "md": "- **Rotate in place = three reversals.** Left rotation reverses the blocks in the other order.\n- Always reduce `k` modulo `n` first.\n- **Pitfall:** forgetting `k %= n` (out-of-range reversal for `k ≥ n`)."
   }
  ]
 }

@@ -4,42 +4,46 @@
  "question": [
   {
    "md": "Rearrange the digits of `code` into the **smallest number larger than `code`**, using every digit exactly\nas often as it appears. Return `\"\"` if no rearrangement is larger.\n\n- **Same multiset of digits:** `\"115\"` can become `\"151\"` or `\"511\"`; the next larger is `\"151\"`.\n- **No answer** when the digits are already in decreasing order (`\"4321\"` is the largest arrangement).\n- **Same length**, so comparing as strings is the same as comparing as numbers. Leading zeros can't\n  appear in the answer: anything starting with 0 is smaller than `code`.\n- **Up to 10⁵ digits:** far beyond any integer type, so work on the characters. Trying all arrangements\n  is out of the question."
+  },
+  {
+   "md": "**Edge cases to keep in mind**\n\n- Digits in non-increasing order (like `\"9531\"`): no larger number exists, return `\"\"`.\n- Repeated digits: `\"115\"` → `\"151\"`.\n- Up to 10⁵ digits, far beyond any integer type, so work on the string."
   }
  ],
  "think": [
   {
-   "md": "Take `code = \"158476531\"`. To grow a number by the smallest amount, change it as far to the **right** as\npossible, because changing an earlier digit makes a bigger jump.\n\nLook at the tail from the right: 1, 3, 5, 6, 7 read leftwards keep increasing, i.e. the tail `76531`\nis in **decreasing** order. A decreasing tail is already the largest arrangement of its digits; no\nreshuffle of `76531` alone can grow the number. So the change has to involve the digit just before it:\nthe **4** (index 3), the pivot."
+   "md": "**The next arrangement, step by step.** To get the next larger arrangement, change as little as possible, as far to\nthe right as possible.\n\n1. **Find the pivot.** Scan from the right while values don't increase (`a[i] ≥ a[i+1]`). That tail is already the\n   *largest* arrangement of its values, so nothing inside it can grow. The pivot is the first index `i` from the right\n   with `a[i] < a[i+1]`; if there is none, the whole sequence is the last arrangement.\n2. **Swap.** Replace `a[i]` with the smallest tail value that's larger than it. Because the tail is non-increasing,\n   that's the **rightmost** tail value greater than `a[i]`.\n3. **Reverse the tail.** After the swap the tail is still non-increasing; reversing it makes it non-decreasing, its\n   *smallest* arrangement, so the result is the very next one.\n\nAll three steps are linear, so the whole thing is O(n) with O(1) extra space. Duplicates are handled by the `≥`/`≤`\ncomparisons, which skip equal values."
   },
   {
-   "panels": [
-    {
-     "type": "row",
-     "cells": [
-      "1",
-      "5",
-      "8",
-      "4",
-      "7",
-      "6",
-      "5",
-      "3",
-      "1"
+   "md": "**On `\"158476531\"`:**"
+  },
+  {
+   "table": {
+    "head": [
+     "step",
+     "digits"
+    ],
+    "rows": [
+     [
+      "input",
+      "1 5 8 4 7 6 5 3 1"
      ],
-     "states": {
-      "3": "mark",
-      "4": "found",
-      "5": "found",
-      "6": "found",
-      "7": "found",
-      "8": "found"
-     },
-     "slots": true
-    }
-   ],
-   "caption": "The tail 7 6 5 3 1 is decreasing. The pivot is 4, the first digit that is smaller than the one after it."
+     [
+      "pivot at index 3 (value 4); tail ['7', '6', '5', '3', '1'] is non-increasing",
+      "—"
+     ],
+     [
+      "swap with index 6 (value 5), the rightmost tail value > 4",
+      "1 5 8 5 7 6 4 3 1"
+     ],
+     [
+      "reverse the tail after index 3",
+      "1 5 8 5 1 3 4 6 7"
+     ]
+    ]
+   }
   },
   {
-   "md": "Now make the pivot position grow by as little as possible: replace 4 with the **smallest digit in the\ntail that is bigger than 4**, which is 5. That gives `1585…` with the leftover digits 7, 6, 4, 3, 1. To\nmake the result as small as possible, put those in increasing order: `13467`. Answer: `158513467`.\n\nOne more observation saves a sort: after swapping 4 and 5, the tail `76431` is **still decreasing** (5\nwas the smallest digit above 4, so 4 slots into the same position). Reversing a decreasing sequence makes\nit increasing, so the \"sort\" is just a reversal."
+   "md": "Next badge: **`158513467`**."
   }
  ],
  "approaches": [
@@ -50,14 +54,13 @@
    "space": "O(n)",
    "idea": [
     {
-     "md": "Build arrangements of the digits recursively, always trying smaller digits first, so they come out in increasing order. The first complete arrangement that is larger than `code` is the answer. Counting how many of each digit is left (10 counters) avoids generating duplicates."
+     "md": "Generate digit arrangements in increasing order and return the first one larger than `code`."
     }
    ],
    "build": [
-    "Count the digits.",
-    "Recursively fill positions left to right, trying digits 0 … 9 that still have copies.",
-    "When all positions are filled, compare with `code`; return the first arrangement that's larger.",
-    "If none is, return `\"\"`."
+    "Count digits.",
+    "Generate arrangements smallest first.",
+    "Return the first larger one, or `\"\"`."
    ],
    "code": {
     "python": "class Solution:\n    def nextBadge(self, code: str) -> str:\n        count = [0] * 10\n        for ch in code:\n            count[ord(ch) - 48] += 1\n        buf = []\n        def build():\n            if len(buf) == len(code):\n                s = \"\".join(buf)\n                return s if s > code else None\n            for d in range(10):\n                if count[d]:\n                    count[d] -= 1\n                    buf.append(chr(48 + d))\n                    found = build()\n                    buf.pop()\n                    count[d] += 1\n                    if found:\n                        return found\n            return None\n        return build() or \"\"\n",
@@ -301,7 +304,7 @@
    ],
    "complexity": [
     {
-     "md": "**Time O(n! · n)** in the worst case: every arrangement up to the answer is built (each costs O(n) to compare). **Space O(n)** for the recursion and buffer. Hopeless beyond about 10 digits."
+     "md": "**Time O(n! · n)** in the worst case. **Space O(n).**"
     }
    ],
    "walk": {
@@ -386,7 +389,7 @@
    },
    "limits": [
     {
-     "md": "Almost all of the work generates arrangements *smaller* than the code. The answer is determined by a local change near the right end, which can be found directly."
+     "md": "Factorial; only for tiny inputs."
     }
    ],
    "slow": 19
@@ -398,14 +401,13 @@
    "space": "O(n)",
    "idea": [
     {
-     "md": "1. **Pivot:** scan from the right for the first index `i` with `d[i] < d[i + 1]`. If there is none,\n   the digits are in decreasing order and no larger arrangement exists.\n2. **Swap:** in the tail after `i`, find the smallest digit that is larger than `d[i]` and swap them.\n3. **Sort the tail ascending**, making the end as small as possible."
+     "md": "Find the pivot, swap it with the smallest larger digit in the tail, then **sort** the tail ascending."
     }
    ],
    "build": [
-    "Copy the digits into a mutable array.",
-    "Find the pivot from the right; return `\"\"` if none.",
-    "Find the smallest digit in the tail that's larger than the pivot (taking the rightmost of equal ones); swap.",
-    "Sort the tail ascending and return."
+    "Pivot.",
+    "Smallest larger tail digit.",
+    "Swap and sort the tail."
    ],
    "code": {
     "python": "class Solution:\n    def nextBadge(self, code: str) -> str:\n        d = list(code)\n        i = len(d) - 2\n        while i >= 0 and d[i] >= d[i + 1]:\n            i -= 1\n        if i < 0:\n            return \"\"\n        j = min((k for k in range(i + 1, len(d)) if d[k] > d[i]), key=lambda k: d[k])\n        d[i], d[j] = d[j], d[i]\n        d[i + 1:] = sorted(d[i + 1:])\n        return \"\".join(d)\n",
@@ -598,7 +600,7 @@
    ],
    "complexity": [
     {
-     "md": "**Time O(n log n)** because of the sort (the scans are O(n)). **Space O(n)** for the copy."
+     "md": "**Time O(n log n)** for the sort. **Space O(n).**"
     }
    ],
    "walk": {
@@ -691,7 +693,7 @@
    },
    "limits": [
     {
-     "md": "The sort ignores something we already know: the tail was in decreasing order before the swap and still is after it. Reversing a decreasing sequence sorts it in O(n)."
+     "md": "The tail is already non-increasing after the swap, so sorting it is just a reversal: O(n) instead of O(n log n)."
     }
    ]
   },
@@ -702,14 +704,13 @@
    "space": "O(n)",
    "idea": [
     {
-     "md": "Same three steps, using the fact that the tail is **decreasing**:\n\n- The smallest digit larger than the pivot is the **rightmost** tail digit larger than the pivot:\n  scan from the end until you find one.\n- After the swap the tail is still decreasing (the new digit takes the old one's place in the order),\n  so **reversing** it gives ascending order."
+     "md": "Pivot, swap with the rightmost larger tail digit, reverse the tail. If there's no pivot, return `\"\"`."
     }
    ],
    "build": [
-    "Find the pivot `i` from the right; return `\"\"` if none.",
-    "Scan `j` from the end while `d[j] ≤ d[i]`; swap `d[i]` and `d[j]`.",
-    "Reverse `d[i + 1 …]` with two pointers.",
-    "Return the digits as a string."
+    "Pivot from the right; none → `\"\"`.",
+    "Swap with the rightmost larger digit.",
+    "Reverse the tail."
    ],
    "code": {
     "python": "class Solution:\n    def nextBadge(self, code: str) -> str:\n        d = list(code)\n        i = len(d) - 2\n        while i >= 0 and d[i] >= d[i + 1]:\n            i -= 1\n        if i < 0:\n            return \"\"\n        j = len(d) - 1\n        while d[j] <= d[i]:\n            j -= 1\n        d[i], d[j] = d[j], d[i]\n        d[i + 1:] = reversed(d[i + 1:])\n        return \"\".join(d)\n",
@@ -898,7 +899,7 @@
    ],
    "complexity": [
     {
-     "md": "**Time O(n):** at most three linear scans. **Space O(n)** for the mutable copy (O(1) extra if the input could be modified)."
+     "md": "**Time O(n).** **Space O(n)** for the digit list."
     }
    ],
    "walk": {
@@ -1147,7 +1148,7 @@
  ],
  "takeaways": [
   {
-   "md": "- **Next permutation:** pivot = rightmost `a[i] < a[i + 1]`; swap with the rightmost element larger than\n  it; reverse the suffix. No pivot means it's the last permutation.\n- A suffix that never increases is already at its maximum; growth must happen just before it.\n- Knowing a range is sorted (here, descending) often turns a sort into a reversal."
+   "md": "- **Next larger number with the same digits = next permutation of the digit string.**\n- Sorting the tail works but reversing it is enough.\n- **Pitfall:** converting to an integer (overflow) instead of working on digits."
   }
  ]
 }

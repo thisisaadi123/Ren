@@ -4,41 +4,49 @@
  "question": [
   {
    "md": "`code` reads the same forwards and backwards. Rearrange its digits into the **smallest larger** number that\nalso reads the same both ways, or return `\"\"`.\n\n- **The result must be a mirror number too**, using exactly the same digits.\n- **Odd length:** exactly one digit value appears an odd number of times, and one copy of it must sit\n  in the middle. So the middle digit never changes.\n- **No answer** when the left half is already in decreasing order: `\"32123\"` has left half `\"32\"`, the\n  largest arrangement of 3 and 2.\n- **Up to 10⁵ digits**, so trying arrangements is out."
+  },
+  {
+   "md": "**Edge cases to keep in mind**\n\n- Odd length: the middle digit (the one with an odd count) is fixed.\n- A left half in non-increasing order: no larger mirror number, return `\"\"`.\n- One or two digits: the left half is too short to change, so `\"\"`."
   }
  ],
  "think": [
   {
-   "md": "Take `code = \"1323231\"` (7 digits). Its left half is `132`, the middle is `3`, and the right half is\njust `132` reversed.\n\nAny mirror number made from these digits also has a left half, middle and mirrored right half. Its middle\nmust be 3 (the only digit with an odd count), and its left half must use the remaining digits split\nevenly: one 1, one 2 and one 3. So mirror numbers from these digits correspond one-to-one with\narrangements of `{1, 2, 3}` for the left half."
+   "md": "**A mirror number is decided by its left half.** The right half is the left half reversed, and with an odd\nlength the middle digit is forced (it's the digit with an odd count). Comparing two mirror numbers of the same\ndigits compares their left halves first, so the next larger mirror number has the **next larger left half**. That\nis the next permutation of the left half.\n\n`\"1323231\"`: left half `132`, middle `3`."
   },
   {
-   "panels": [
-    {
-     "type": "row",
-     "cells": [
-      "1",
-      "3",
-      "2",
-      "3",
-      "2",
-      "3",
-      "1"
+   "md": "**The next arrangement, step by step.** To get the next larger arrangement, change as little as possible, as far to\nthe right as possible.\n\n1. **Find the pivot.** Scan from the right while values don't increase (`a[i] ≥ a[i+1]`). That tail is already the\n   *largest* arrangement of its values, so nothing inside it can grow. The pivot is the first index `i` from the right\n   with `a[i] < a[i+1]`; if there is none, the whole sequence is the last arrangement.\n2. **Swap.** Replace `a[i]` with the smallest tail value that's larger than it. Because the tail is non-increasing,\n   that's the **rightmost** tail value greater than `a[i]`.\n3. **Reverse the tail.** After the swap the tail is still non-increasing; reversing it makes it non-decreasing, its\n   *smallest* arrangement, so the result is the very next one.\n\nAll three steps are linear, so the whole thing is O(n) with O(1) extra space. Duplicates are handled by the `≥`/`≤`\ncomparisons, which skip equal values."
+  },
+  {
+   "md": "**Next permutation of the left half:**"
+  },
+  {
+   "table": {
+    "head": [
+     "step",
+     "left half"
+    ],
+    "rows": [
+     [
+      "input",
+      "1 3 2"
      ],
-     "states": {
-      "0": "mark",
-      "1": "mark",
-      "2": "mark",
-      "3": "found",
-      "4": "dim",
-      "5": "dim",
-      "6": "dim"
-     },
-     "slots": true
-    }
-   ],
-   "caption": "Left half (dark) decides everything; the middle (light) is fixed; the right half is the mirror image."
+     [
+      "pivot at index 0 (value 1); tail ['3', '2'] is non-increasing",
+      "—"
+     ],
+     [
+      "swap with index 2 (value 2), the rightmost tail value > 1",
+      "2 3 1"
+     ],
+     [
+      "reverse the tail after index 0",
+      "2 1 3"
+     ]
+    ]
+   }
   },
   {
-   "md": "And the order matches too: comparing two mirror numbers, the first difference appears in the left half\n(the middles are equal, and the right halves only repeat the left). So the **next larger mirror number**\ncomes from the **next larger left half**: `132` → `213`, giving `213` + `3` + `312` = `2133312`."
+   "md": "Mirror it back: **`2133312`**."
   }
  ],
  "approaches": [
@@ -49,14 +57,13 @@
    "space": "O(h)",
    "idea": [
     {
-     "md": "Generate arrangements of the left half's digits in increasing order (recursively, smallest digit first, with digit counts to avoid duplicates). The first one larger than the current left half is the new left half; mirror it. If none exists, return `\"\"`."
+     "md": "Generate arrangements of the left half's digits in increasing order; take the first one larger than the current left half and mirror it."
     }
    ],
    "build": [
-    "Take the left half `h = code[0 … n/2 − 1]` and count its digits.",
-    "Build arrangements recursively, trying digits 0 … 9 in order.",
-    "Return the first arrangement larger than `h`, mirrored around the middle.",
-    "If none, return `\"\"`."
+    "Left half's digit counts.",
+    "Generate arrangements in order.",
+    "Mirror the first larger one."
    ],
    "code": {
     "python": "class Solution:\n    def nextMirror(self, code: str) -> str:\n        n = len(code)\n        half = code[:n // 2]\n        count = [0] * 10\n        for ch in half:\n            count[ord(ch) - 48] += 1\n        buf = []\n        def build():\n            if len(buf) == len(half):\n                s = \"\".join(buf)\n                return s if s > half else None\n            for d in range(10):\n                if count[d]:\n                    count[d] -= 1\n                    buf.append(chr(48 + d))\n                    found = build()\n                    buf.pop()\n                    count[d] += 1\n                    if found:\n                        return found\n            return None\n        left = build()\n        if left is None:\n            return \"\"\n        return left + code[n // 2:(n + 1) // 2] + left[::-1]\n",
@@ -171,7 +178,7 @@
    ],
    "complexity": [
     {
-     "md": "**Time O(h! · h)** for a half of length h = n/2. **Space O(h).** Only feasible for very short codes."
+     "md": "**Time O(h! · h)** for a half of length `h`. **Space O(h).**"
     }
    ],
    "walk": {
@@ -263,7 +270,7 @@
    },
    "limits": [
     {
-     "md": "Nearly all generated halves are smaller than the current one. The next larger half can be computed directly with the next-permutation steps."
+     "md": "Factorial; only for tiny inputs. Next permutation of the half is linear."
     }
    ],
    "slow": 24
@@ -275,14 +282,13 @@
    "space": "O(n)",
    "idea": [
     {
-     "md": "Apply next permutation to the left half: find the pivot (rightmost `h[i] < h[i + 1]`), swap it with\nthe rightmost larger digit after it, reverse the tail. If there's no pivot, the half is already its\nlargest arrangement and there is no answer. Otherwise the answer is\n`newHalf + middle + reverse(newHalf)`."
+     "md": "Take the left half, apply next permutation (no pivot → `\"\"`), and build left + middle + reversed left.\n\n**Why it's the smallest larger mirror.** Any larger mirror number made of these digits has a left half\nlarger than the current one, and the next permutation is the smallest such half."
     }
    ],
    "build": [
-    "Copy the left half `code[0 … n/2 − 1]`.",
-    "Find the pivot from the right; return `\"\"` if none.",
-    "Swap with the rightmost larger digit; reverse the tail.",
-    "Return `half + middle + reversed half`."
+    "Left half.",
+    "Next permutation (or `\"\"`).",
+    "Mirror with the middle digit."
    ],
    "code": {
     "python": "class Solution:\n    def nextMirror(self, code: str) -> str:\n        n = len(code)\n        h = list(code[:n // 2])\n        i = len(h) - 2\n        while i >= 0 and h[i] >= h[i + 1]:\n            i -= 1\n        if i < 0:\n            return \"\"\n        j = len(h) - 1\n        while h[j] <= h[i]:\n            j -= 1\n        h[i], h[j] = h[j], h[i]\n        h[i + 1:] = reversed(h[i + 1:])\n        left = \"\".join(h)\n        return left + code[n // 2:(n + 1) // 2] + left[::-1]\n",
@@ -478,7 +484,7 @@
    ],
    "complexity": [
     {
-     "md": "**Time O(n).** **Space O(n)** for the output."
+     "md": "**Time O(n).** **Space O(n).**"
     }
    ],
    "walk": {
@@ -653,7 +659,7 @@
  ],
  "takeaways": [
   {
-   "md": "- A palindrome is defined by its first half (plus a fixed middle). Reduce palindrome problems to the half.\n- Ordering palindromes by value = ordering their halves, so \"next larger palindrome with the same digits\"\n  is next permutation of the half.\n- Reuse proven building blocks (next permutation) instead of reinventing them."
+   "md": "- **Palindromes are determined by their first half**; operate on the half, then mirror.\n- The middle digit of an odd-length palindrome never moves.\n- **Pitfall:** permuting the whole string, which breaks the mirror property."
   }
  ]
 }

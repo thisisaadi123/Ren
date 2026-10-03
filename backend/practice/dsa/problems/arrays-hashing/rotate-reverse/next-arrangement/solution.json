@@ -4,65 +4,46 @@
  "question": [
   {
    "md": "Among all arrangements of the values, in dictionary order, return the one right **after** `values`. If\n`values` is the last arrangement (fully descending), return the first (fully ascending).\n\n- **Repeated values** count once per distinct arrangement: `[1, 1, 5]` → `[1, 5, 1]`.\n- **Wrap-around:** `[3, 2, 1]` → `[1, 2, 3]`.\n- **Up to 10⁵ values**, so the change must be computed directly, not by listing arrangements.\n- The same algorithm as **Next Badge Number** (on digits) and the mirror of **One Step Back**."
+  },
+  {
+   "md": "**Edge cases to keep in mind**\n\n- Fully descending (the last arrangement): wrap to fully ascending.\n- Repeated values: equal values must not be swapped with each other.\n- One element: unchanged."
   }
  ],
  "think": [
   {
-   "md": "Take `[1, 5, 8, 4, 7, 6, 5, 3, 1]`. From the right, `7, 6, 5, 3, 1` never increases: it's already the largest arrangement of\nthose values, so the change must happen just before it, at the **4** (index 3). Replace the 4 with the\nsmallest tail value bigger than it (5, the rightmost one larger than 4), then make the tail as small as\npossible by reversing it into ascending order: `[1, 5, 8, 5, 1, 3, 4, 6, 7]`."
+   "md": "**The next arrangement, step by step.** To get the next larger arrangement, change as little as possible, as far to\nthe right as possible.\n\n1. **Find the pivot.** Scan from the right while values don't increase (`a[i] ≥ a[i+1]`). That tail is already the\n   *largest* arrangement of its values, so nothing inside it can grow. The pivot is the first index `i` from the right\n   with `a[i] < a[i+1]`; if there is none, the whole sequence is the last arrangement.\n2. **Swap.** Replace `a[i]` with the smallest tail value that's larger than it. Because the tail is non-increasing,\n   that's the **rightmost** tail value greater than `a[i]`.\n3. **Reverse the tail.** After the swap the tail is still non-increasing; reversing it makes it non-decreasing, its\n   *smallest* arrangement, so the result is the very next one.\n\nAll three steps are linear, so the whole thing is O(n) with O(1) extra space. Duplicates are handled by the `≥`/`≤`\ncomparisons, which skip equal values."
   },
   {
-   "panels": [
-    {
-     "type": "row",
-     "cells": [
-      1,
-      5,
-      8,
-      4,
-      7,
-      6,
-      5,
-      3,
-      1
-     ],
-     "states": {
-      "3": "mark",
-      "4": "found",
-      "5": "found",
-      "6": "found",
-      "7": "found",
-      "8": "found"
-     },
-     "slots": true
-    },
-    {
-     "type": "row",
-     "cells": [
-      1,
-      5,
-      8,
-      5,
-      1,
-      3,
-      4,
-      6,
-      7
-     ],
-     "states": {
-      "3": "new",
-      "4": "new",
-      "5": "new",
-      "6": "new",
-      "7": "new",
-      "8": "new"
-     },
-     "slots": true
-    }
-   ],
-   "caption": "Pivot 4, swapped with 5; the tail reversed into ascending order."
+   "md": "**On `[1, 5, 8, 4, 7, 6, 5, 3, 1]`:**"
   },
   {
-   "md": "Without a pivot, the whole list is non-increasing: the last arrangement. Reversing it gives the first\narrangement, which is exactly the wrap-around the problem asks for. So the same \"reverse the tail\" step\nhandles both cases if the tail starts at index `pivot + 1 = 0`."
+   "table": {
+    "head": [
+     "step",
+     "values"
+    ],
+    "rows": [
+     [
+      "input",
+      "1 5 8 4 7 6 5 3 1"
+     ],
+     [
+      "pivot at index 3 (value 4); tail [7, 6, 5, 3, 1] is non-increasing",
+      "—"
+     ],
+     [
+      "swap with index 6 (value 5), the rightmost tail value > 4",
+      "1 5 8 5 7 6 4 3 1"
+     ],
+     [
+      "reverse the tail after index 3",
+      "1 5 8 5 1 3 4 6 7"
+     ]
+    ]
+   }
+  },
+  {
+   "md": "Next arrangement: **[1, 5, 8, 5, 1, 3, 4, 6, 7]**."
   }
  ],
  "approaches": [
@@ -73,14 +54,13 @@
    "space": "O(n)",
    "idea": [
     {
-     "md": "Recursively build arrangements in increasing order (smallest available value first, with counts for repeats). Return the first one larger than the input. If none is larger, return the values sorted ascending."
+     "md": "Generate arrangements of the values in dictionary order (smallest value first at each position) and return the first one larger than the input; if none, return the sorted values."
     }
    ],
    "build": [
-    "Count each value (0 … 100).",
-    "Recursively fill positions trying values 0 … 100.",
-    "At a full arrangement, return it if it's larger than the input.",
-    "If none is, return all values in ascending order."
+    "Count the values.",
+    "Depth-first generation in increasing order.",
+    "Stop at the first arrangement larger than the input."
    ],
    "code": {
     "python": "class Solution:\n    def nextArrangement(self, values: List[int]) -> List[int]:\n        count = [0] * 101\n        for v in values:\n            count[v] += 1\n        buf = []\n        def build():\n            if len(buf) == len(values):\n                return list(buf) if buf > values else None\n            for v in range(101):\n                if count[v]:\n                    count[v] -= 1\n                    buf.append(v)\n                    found = build()\n                    buf.pop()\n                    count[v] += 1\n                    if found:\n                        return found\n            return None\n        return build() or sorted(values)\n",
@@ -191,7 +171,7 @@
    ],
    "complexity": [
     {
-     "md": "**Time O(n! · n)** in the worst case. **Space O(n).** Only practical for a handful of values."
+     "md": "**Time O(n! · n)** in the worst case. **Space O(n)** for the recursion."
     }
    ],
    "walk": {
@@ -269,7 +249,7 @@
    },
    "limits": [
     {
-     "md": "The next arrangement differs from the input only in a suffix that can be found directly, so generating everything before it is pure waste."
+     "md": "Only usable for a handful of values (the checker runs it on tiny inputs). The pivot-swap-reverse rule jumps straight to the answer."
     }
    ],
    "slow": 24
@@ -281,14 +261,13 @@
    "space": "O(1)",
    "idea": [
     {
-     "md": "1. **Pivot:** the rightmost `i` with `a[i] < a[i + 1]`.\n2. If it exists, find the rightmost `j > i` with `a[j] > a[i]` and swap them.\n3. **Reverse** `a[i + 1 …]`. Without a pivot, `i = −1` and this reverses the whole list, which turns the\n   last arrangement into the first."
+     "md": "Pivot, swap, reverse, as above. If there's no pivot, reversing the whole array gives the ascending order,\nwhich is exactly the wrap-around."
     }
    ],
    "build": [
-    "Scan i from n − 2 down while `a[i] ≥ a[i + 1]`.",
-    "If `i ≥ 0`: scan j from the end while `a[j] ≤ a[i]`, then swap.",
-    "Reverse from `i + 1` to the end.",
-    "Return the array."
+    "Find the pivot from the right.",
+    "If found, swap with the rightmost larger tail value.",
+    "Reverse everything after the pivot (the whole array if none)."
    ],
    "code": {
     "python": "class Solution:\n    def nextArrangement(self, values: List[int]) -> List[int]:\n        a = values\n        i = len(a) - 2\n        while i >= 0 and a[i] >= a[i + 1]:\n            i -= 1\n        if i >= 0:\n            j = len(a) - 1\n            while a[j] <= a[i]:\n                j -= 1\n            a[i], a[j] = a[j], a[i]\n        a[i + 1:] = reversed(a[i + 1:])\n        return a\n",
@@ -717,7 +696,7 @@
  ],
  "takeaways": [
   {
-   "md": "- Next permutation: pivot, swap with rightmost larger, reverse suffix. Letting the reversal start at\n  `pivot + 1` also handles the wrap-around when there's no pivot.\n- It's the same building block as **Next Badge Number** and **Next Mirror Number**; recognise it."
+   "md": "- **Next permutation:** rightmost ascent, swap with the rightmost larger value, reverse the tail.\n- The tail after the pivot is non-increasing, which is why \"rightmost larger\" is the smallest larger.\n- **Pitfall:** `>` instead of `≥` when finding the pivot (breaks with duplicates)."
   }
  ]
 }
