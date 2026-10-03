@@ -4,34 +4,71 @@
  "question": [
   {
    "md": "Merge two sorted linked lists into one sorted list, **reusing the existing nodes**, and return its head.\n\n- **Either list can be empty** (or both).\n- **Up to 5 × 10⁴ nodes each.**"
+  },
+  {
+   "md": "**Edge cases to keep in mind**\n\n- Either train (or both) can be empty.\n- Cars must be **reused**: change `next` links instead of creating new nodes.\n- Equal car numbers can come from either train."
   }
  ],
  "think": [
   {
-   "md": "`[1, 4, 6]` and `[2, 3, 6, 9]` become `[1, 2, 3, 4, 6, 6, 9]`.\n\nIt's the array merge, but instead of copying values into an output, we change `next` pointers. A dummy head\navoids special-casing the first node: the merged list is whatever follows the dummy."
+   "md": "**The merge idea.** Two sorted inputs, one pointer into each. The smallest element not yet output must be at one of the\ntwo pointers (everything after a pointer is at least as large as the element under it). So compare the two fronts,\noutput the smaller, and advance that pointer. When one input runs out, the rest of the other is already in order.\nEvery element is handled once: **O(n + m)**."
   },
   {
-   "panels": [
-    {
-     "type": "list",
-     "values": [
-      1,
-      4,
-      6
+   "md": "**Merging linked lists by relinking.** Instead of copying values, keep a `tail` pointer to the last car of the\nmerged train and set `tail.next` to the smaller front car, then advance. No new cars are created.\n\n**The dummy head.** The first car of the result isn't known until the first comparison. Start with a throw-away\n`dummy` car and let `tail = dummy`; then the first real car is attached exactly like every other one, and the\nanswer is `dummy.next`."
+  },
+  {
+   "md": "**Trace on `[1, 4, 6]` and `[2, 3, 6, 9]`:**"
+  },
+  {
+   "table": {
+    "head": [
+     "front of first",
+     "front of second",
+     "action",
+     "merged so far"
+    ],
+    "rows": [
+     [
+      "1",
+      "2",
+      "take 1 from the first",
+      "[1]"
      ],
-     "label": "first"
-    },
-    {
-     "type": "list",
-     "values": [
-      2,
-      3,
-      6,
-      9
+     [
+      "4",
+      "2",
+      "take 2 from the second",
+      "[1, 2]"
      ],
-     "label": "second"
-    }
-   ]
+     [
+      "4",
+      "3",
+      "take 3 from the second",
+      "[1, 2, 3]"
+     ],
+     [
+      "4",
+      "6",
+      "take 4 from the first",
+      "[1, 2, 3, 4]"
+     ],
+     [
+      "6",
+      "6",
+      "take 6 from the first",
+      "[1, 2, 3, 4, 6]"
+     ],
+     [
+      "—",
+      "6",
+      "one side is empty: append [6, 9]",
+      "[1, 2, 3, 4, 6, 6, 9]"
+     ]
+    ]
+   }
+  },
+  {
+   "md": "At the end, attaching the leftover part is a single link: `tail.next = whichever train still has cars`."
   }
  ],
  "approaches": [
@@ -42,13 +79,13 @@
    "space": "O(n + m)",
    "idea": [
     {
-     "md": "Collect all values, sort them, and create a new list."
+     "md": "Read all car numbers into an array, sort it, and build a brand-new train. It works but doesn't reuse the cars, which the task asks for."
     }
    ],
    "build": [
-    "Collect values from both lists.",
+    "Collect the values.",
     "Sort.",
-    "Build new nodes."
+    "Build a new list."
    ],
    "code": {
     "python": "class Solution:\n    def mergeLines(self, first: Optional[ListNode], second: Optional[ListNode]) -> Optional[ListNode]:\n        vals = []\n        for node in (first, second):\n            while node:\n                vals.append(node.val)\n                node = node.next\n        vals.sort()\n        dummy = tail = ListNode()\n        for v in vals:\n            tail.next = ListNode(v)\n            tail = tail.next\n        return dummy.next\n",
@@ -58,7 +95,7 @@
    },
    "lines": [
     {
-     "text": "Every value from both trains.",
+     "text": "Every car number from both trains.",
      "at": {
       "python": [
        [
@@ -87,7 +124,7 @@
      }
     },
     {
-     "text": "Sort them.",
+     "text": "Sort the numbers.",
      "at": {
       "python": [
        [
@@ -120,7 +157,7 @@
      }
     },
     {
-     "text": "A new car for each value.",
+     "text": "Create a new car for each number, linked after a dummy head.",
      "at": {
       "python": [
        [
@@ -149,7 +186,7 @@
      }
     },
     {
-     "text": "The new train.",
+     "text": "The first new car.",
      "at": {
       "python": [
        [
@@ -180,7 +217,7 @@
    ],
    "complexity": [
     {
-     "md": "**Time O((n + m) log(n + m)).** **Space O(n + m)** for the values and new nodes."
+     "md": "**Time O((n + m) log(n + m)).** **Space O(n + m)** for the values and the new nodes."
     }
    ],
    "walk": {
@@ -246,7 +283,7 @@
    },
    "limits": [
     {
-     "md": "Builds new cars instead of reusing them, and sorts data that is already in two sorted runs. Relinking merges in one pass with no new nodes."
+     "md": "Allocates a whole new train and re-sorts sorted data. Relinking the existing cars costs O(1) extra space."
     }
    ]
   },
@@ -257,13 +294,14 @@
    "space": "O(1)",
    "idea": [
     {
-     "md": "`tail` starts at a dummy node. While both lists have nodes, link the smaller front to `tail.next` and advance it and `tail`. Then link whichever list is left."
+     "md": "`dummy` and `tail` start at a placeholder car. While both trains have cars, attach the smaller front car\nto `tail`, advance that train, and move `tail` forward. Finally attach the rest of the non-empty train.\n\n**Invariant.** The cars after `dummy` form the merged train of everything already detached, in order, and\n`tail` is its last car."
     }
    ],
    "build": [
-    "Dummy node and tail.",
-    "Link the smaller front.",
-    "Link the remainder."
+    "Dummy head and tail.",
+    "Attach the smaller front car each step.",
+    "Attach the leftover train.",
+    "Return `dummy.next`."
    ],
    "code": {
     "python": "class Solution:\n    def mergeLines(self, first: Optional[ListNode], second: Optional[ListNode]) -> Optional[ListNode]:\n        dummy = tail = ListNode()\n        a, b = first, second\n        while a and b:\n            if a.val <= b.val:\n                tail.next, a = a, a.next\n            else:\n                tail.next, b = b, b.next\n            tail = tail.next\n        tail.next = a or b\n        return dummy.next\n",
@@ -273,7 +311,7 @@
    },
    "lines": [
     {
-     "text": "A dummy node before the result, and the tail of the merged part.",
+     "text": "A placeholder car so the first real car is attached like every other; `tail` is the end of the merged train.",
      "at": {
       "python": [
        [
@@ -302,7 +340,7 @@
      }
     },
     {
-     "text": "Link the smaller front car and move on in that train; the tail follows.",
+     "text": "Link the smaller front car after `tail`, advance that train, then move `tail` to the new last car.",
      "at": {
       "python": [
        [
@@ -331,7 +369,7 @@
      }
     },
     {
-     "text": "Whatever remains is already sorted: link it all at once.",
+     "text": "One train is empty; the other is already sorted, so link all of it at once.",
      "at": {
       "python": [
        [
@@ -360,7 +398,7 @@
      }
     },
     {
-     "text": "The merged train starts after the dummy.",
+     "text": "The merged train starts right after the placeholder.",
      "at": {
       "python": [
        [
@@ -391,7 +429,7 @@
    ],
    "complexity": [
     {
-     "md": "**Time O(n + m).** **Space O(1)** extra: only pointers change."
+     "md": "**Time O(n + m).** **Space O(1):** only pointers change."
     }
    ],
    "walk": {
@@ -588,7 +626,7 @@
  ],
  "takeaways": [
   {
-   "md": "- **Linked-list merge = array merge with pointer splicing**, O(1) extra space.\n- A dummy head removes the \"which node is first?\" special case.\n- The leftover list attaches in one step."
+   "md": "- **Merging linked lists:** relink with a `tail` pointer; no copying.\n- **Dummy head** removes the special case for the first node.\n- **Pitfall:** forgetting to move `tail` after linking."
   }
  ]
 }

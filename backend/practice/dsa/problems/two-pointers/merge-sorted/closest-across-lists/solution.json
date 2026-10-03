@@ -4,36 +4,89 @@
  "question": [
   {
    "md": "Pick one value from each sorted list to minimise `|a[i] − b[j]|`. Return that minimum.\n\n- **Values up to ±10⁹**: differences reach 2 × 10⁹, which still fits a signed 32-bit result but should be\n  computed in 64 bits.\n- **Up to 10⁵ values each.**"
+  },
+  {
+   "md": "**Edge cases to keep in mind**\n\n- One element in a list: compare it with the nearest values of the other.\n- Equal values across lists: the answer is 0.\n- Differences up to `2 × 10⁹` fit in a signed 32-bit int, but only just."
   }
  ],
  "think": [
   {
-   "md": "`a = [1, 7, 15, 30]`, `b = [4, 12, 19, 28, 40]`. The closest pair is 30 and 28: **2**.\n\nSuppose `a[i] < b[j]`. Pairing `b[j]` with any later `b` value only moves further from `a[i]`, so `a[i]` has\nalready met its best partner on this side; the only way to find a closer pair is to raise `a[i]`. So advance\nthe smaller one, exactly like merging."
+   "md": "**Which pointer to advance?** Look at `a[i]` and `b[j]` and suppose `a[i] < b[j]`. Every later value of `b` is\nat least `b[j]`, so it's even farther from `a[i]`: `a[i]` has already met its best partner among the remaining\n`b` values. The only way to get closer is a larger `a`, so advance `i`. Symmetrically, if `b[j] ≤ a[i]`, advance\n`j`.\n\nEvery pair skipped this way is no closer than one already measured, so the minimum is never missed."
   },
   {
-   "panels": [
-    {
-     "type": "row",
-     "cells": [
-      1,
-      7,
-      15,
-      30
+   "md": "**Trace on `a = [1, 7, 15, 30]`, `b = [4, 12, 19, 28, 40]`:**"
+  },
+  {
+   "table": {
+    "head": [
+     "a[i]",
+     "b[j]",
+     "difference",
+     "best",
+     "decision"
+    ],
+    "rows": [
+     [
+      "1",
+      "4",
+      "3",
+      "3",
+      "1 is smaller: its other partners are even farther, advance a"
      ],
-     "label": "a"
-    },
-    {
-     "type": "row",
-     "cells": [
-      4,
-      12,
-      19,
-      28,
-      40
+     [
+      "7",
+      "4",
+      "3",
+      "3",
+      "4 is smaller (or equal): advance b"
      ],
-     "label": "b"
-    }
-   ]
+     [
+      "7",
+      "12",
+      "5",
+      "3",
+      "7 is smaller: its other partners are even farther, advance a"
+     ],
+     [
+      "15",
+      "12",
+      "3",
+      "3",
+      "12 is smaller (or equal): advance b"
+     ],
+     [
+      "15",
+      "19",
+      "4",
+      "3",
+      "15 is smaller: its other partners are even farther, advance a"
+     ],
+     [
+      "30",
+      "19",
+      "11",
+      "3",
+      "19 is smaller (or equal): advance b"
+     ],
+     [
+      "30",
+      "28",
+      "2",
+      "2",
+      "28 is smaller (or equal): advance b"
+     ],
+     [
+      "30",
+      "40",
+      "10",
+      "2",
+      "30 is smaller: its other partners are even farther, advance a"
+     ]
+    ]
+   }
+  },
+  {
+   "md": "Smallest difference **2**."
   }
  ],
  "approaches": [
@@ -44,12 +97,12 @@
    "space": "O(1)",
    "idea": [
     {
-     "md": "Compute `|a[i] − b[j]|` for all pairs; keep the minimum."
+     "md": "Compare every value of `a` with every value of `b` and take the smallest difference."
     }
    ],
    "build": [
-    "Double loop.",
-    "64-bit differences."
+    "All pairs.",
+    "Minimum absolute difference."
    ],
    "code": {
     "python": "class Solution:\n    def closestAcross(self, a: List[int], b: List[int]) -> int:\n        return min(abs(x - y) for x in a for y in b)\n",
@@ -59,7 +112,7 @@
    },
    "lines": [
     {
-     "text": "Every pair's distance, in 64 bits; the smallest fits in an `int`.",
+     "text": "Every (a, b) pair's absolute difference; keep the smallest.",
      "at": {
       "python": [
        [
@@ -90,7 +143,7 @@
    ],
    "complexity": [
     {
-     "md": "**Time O(n·m)**, up to 10¹⁰. **Space O(1).**"
+     "md": "**Time O(n · m):** 10¹⁰ pairs at the limits. **Space O(1).**"
     }
    ],
    "walk": {
@@ -233,7 +286,7 @@
    },
    "limits": [
     {
-     "md": "Ignores that both lists are sorted. For each value only its neighbours in the other list matter, which binary search or a merge-style walk finds."
+     "md": "Ignores the sorting. For each value only its nearest neighbours in the other list matter."
     }
    ],
    "slow": true
@@ -245,13 +298,13 @@
    "space": "O(1)",
    "idea": [
     {
-     "md": "For each `x` in `a`, find the first `b[p] ≥ x`; the closest value in `b` is `b[p]` or `b[p − 1]`."
+     "md": "For each `x` in `a`, binary-search `b` for the first value `≥ x`. The closest value to `x` is either that\none or the one just before it."
     }
    ],
    "build": [
-    "Lower-bound search in `b` for each `x`.",
-    "Check both neighbours.",
-    "Keep the minimum."
+    "Start with any pair as the best.",
+    "Binary-search each `x` in `b`.",
+    "Check the two neighbours."
    ],
    "code": {
     "python": "import bisect\n\nclass Solution:\n    def closestAcross(self, a: List[int], b: List[int]) -> int:\n        best = abs(a[0] - b[0])\n        for x in a:\n            p = bisect.bisect_left(b, x)\n            if p < len(b):\n                best = min(best, b[p] - x)\n            if p > 0:\n                best = min(best, x - b[p - 1])\n        return best\n",
@@ -261,7 +314,7 @@
    },
    "lines": [
     {
-     "text": "Any pair gives a starting answer.",
+     "text": "Any pair gives a valid starting answer.",
      "at": {
       "python": [
        [
@@ -290,7 +343,7 @@
      }
     },
     {
-     "text": "Where `x` would sit in `b`: the first `b[p] ≥ x`.",
+     "text": "Where `x` would be inserted into `b`: the first value `≥ x`.",
      "at": {
       "python": [
        [
@@ -319,7 +372,7 @@
      }
     },
     {
-     "text": "The closest `b` value is just above (`b[p]`) or just below (`b[p − 1]`) that spot.",
+     "text": "The nearest values to `x` are at that position and just before it.",
      "at": {
       "python": [
        [
@@ -348,7 +401,7 @@
      }
     },
     {
-     "text": "The smallest gap.",
+     "text": "The smallest difference.",
      "at": {
       "python": [
        [
@@ -525,7 +578,7 @@
    },
    "limits": [
     {
-     "md": "Each search starts from scratch, but as `x` grows its position in `b` only moves right. A single merge-style walk reuses that progress: O(n + m)."
+     "md": "Each search starts from scratch, although consecutive values of `a` land at non-decreasing positions in `b`. One walk over both lists uses that."
     }
    ]
   },
@@ -536,12 +589,12 @@
    "space": "O(1)",
    "idea": [
     {
-     "md": "`i = j = 0`. Record `|a[i] − b[j]|`; advance the pointer at the smaller value. Stop when either list ends."
+     "md": "Pointers at the start of both lists. Record `|a[i] − b[j]|`, then advance the pointer at the smaller value.\nStop when either list ends.\n\n**Why stopping early is fine.** When `a` runs out, the last `a` value was smaller than the current `b[j]`,\nand all remaining `b` values are larger still: no closer pair remains (and symmetrically)."
     }
    ],
    "build": [
-    "Pointers at both starts.",
-    "Record the gap.",
+    "Two pointers at the starts.",
+    "Record the difference.",
     "Advance the smaller side."
    ],
    "code": {
@@ -552,7 +605,7 @@
    },
    "lines": [
     {
-     "text": "Pointers at the starts; the first pair's gap.",
+     "text": "Both pointers at the start; the first pair is the best so far.",
      "at": {
       "python": [
        [
@@ -581,7 +634,7 @@
      }
     },
     {
-     "text": "Record the current gap (64-bit).",
+     "text": "Record the current pair's difference.",
      "at": {
       "python": [
        [
@@ -610,7 +663,7 @@
      }
     },
     {
-     "text": "Raise the smaller value: the larger one can only drift further away from it.",
+     "text": "The smaller value has met its closest remaining partner, so advance past it.",
      "at": {
       "python": [
        [
@@ -639,7 +692,7 @@
      }
     },
     {
-     "text": "The smallest gap.",
+     "text": "The smallest difference.",
      "at": {
       "python": [
        [
@@ -991,7 +1044,7 @@
  ],
  "takeaways": [
   {
-   "md": "- **Two sorted lists → walk them together**, advancing the smaller side.\n- The binary-search version is a good stepping stone and works when one list is much longer.\n- Compute differences in 64 bits near the 32-bit limits."
+   "md": "- **Closest pair across two sorted lists:** walk both, advance the smaller.\n- Binary search per element is the O(n log m) alternative.\n- **Pitfall:** advancing the larger value, which moves away from the answer."
   }
  ]
 }

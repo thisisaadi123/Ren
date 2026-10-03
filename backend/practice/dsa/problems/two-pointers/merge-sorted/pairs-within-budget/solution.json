@@ -4,35 +4,66 @@
  "question": [
   {
    "md": "Count (main, side) pairs with `main + side ≤ budget`. Both price lists are sorted.\n\n- **Up to 10⁵ of each**: up to 10¹⁰ pairs, so the count needs 64 bits.\n- Prices up to 10⁹: sums up to 2 × 10⁹, use 64-bit sums."
+  },
+  {
+   "md": "**Edge cases to keep in mind**\n\n- A main that costs more than the budget minus the cheapest side contributes 0.\n- \"At most\" includes equality.\n- Up to `10¹⁰` combinations and totals up to `2 × 10⁹`: use 64 bits."
   }
  ],
  "think": [
   {
-   "md": "Mains `[5, 8, 12, 20]`, sides `[2, 4, 9, 11]`, budget 16: **8** pairs fit.\n\nFor a fixed main, the sides that fit form a prefix of the sorted sides (all prices up to `budget − main`).\nThe prefix length is what we add. And when the main gets more expensive, the allowed prefix can only shrink, so\nthe boundary pointer never needs to move back."
+   "md": "**For one main, the fitting sides are a prefix.** Sides are sorted, so the sides that fit with main `x` are\nexactly those priced at most `budget − x`: the first few sides. Count = length of that prefix.\n\n**The prefix only shrinks.** Mains are sorted too. A more expensive main leaves less money, so its prefix is no\nlonger than the previous one. So one pointer `j` (the last side that fits) only moves left over the whole run:\nstart it at the most expensive side and move it down as needed for each main."
   },
   {
-   "panels": [
-    {
-     "type": "row",
-     "cells": [
-      5,
-      8,
-      12,
-      20
+   "md": "**Trace with budget 16:**"
+  },
+  {
+   "table": {
+    "head": [
+     "main",
+     "money left for a side",
+     "sides dropped now",
+     "sides that fit",
+     "count",
+     "total"
+    ],
+    "rows": [
+     [
+      "5",
+      "11",
+      "—",
+      "[2, 4, 9, 11]",
+      "4",
+      "4"
      ],
-     "label": "mains"
-    },
-    {
-     "type": "row",
-     "cells": [
-      2,
-      4,
-      9,
-      11
+     [
+      "8",
+      "8",
+      "11, 9",
+      "[2, 4]",
+      "2",
+      "6"
      ],
-     "label": "sides"
-    }
-   ]
+     [
+      "12",
+      "4",
+      "—",
+      "[2, 4]",
+      "2",
+      "8"
+     ],
+     [
+      "20",
+      "-4",
+      "4, 2",
+      "[]",
+      "0",
+      "8"
+     ]
+    ]
+   }
+  },
+  {
+   "md": "Total **8** combinations."
   }
  ],
  "approaches": [
@@ -43,12 +74,12 @@
    "space": "O(1)",
    "idea": [
     {
-     "md": "Count every pair whose total is within budget."
+     "md": "Check every (main, side) combination."
     }
    ],
    "build": [
-    "Double loop.",
-    "64-bit sums and count."
+    "All pairs.",
+    "Count those within budget."
    ],
    "code": {
     "python": "class Solution:\n    def countPairsWithin(self, mains: List[int], sides: List[int], budget: int) -> int:\n        return sum(1 for x in mains for y in sides if x + y <= budget)\n",
@@ -58,7 +89,7 @@
    },
    "lines": [
     {
-     "text": "Every pair, with a 64-bit sum and count.",
+     "text": "Every (main, side) combination; count it if it fits the budget.",
      "at": {
       "python": [
        [
@@ -89,7 +120,7 @@
    ],
    "complexity": [
     {
-     "md": "**Time O(n·m).** **Space O(1).**"
+     "md": "**Time O(n · m).** **Space O(1).**"
     }
    ],
    "walk": {
@@ -230,7 +261,7 @@
    },
    "limits": [
     {
-     "md": "Up to 10¹⁰ pairs. The fitting sides form a prefix, so we can count them without visiting them."
+     "md": "10¹⁰ combinations at the limits. The fitting sides for a main form a prefix that can be measured instead of enumerated."
     }
    ],
    "slow": true
@@ -242,12 +273,12 @@
    "space": "O(1)",
    "idea": [
     {
-     "md": "For each main `x`, count sides `≤ budget − x` with an upper-bound binary search."
+     "md": "For each main, binary-search the sides for the last price `≤ budget − main`; its position + 1 is the count."
     }
    ],
    "build": [
-    "Upper-bound search for `budget − x`.",
-    "Add the count."
+    "For each main, upper-bound search.",
+    "Add the prefix length."
    ],
    "code": {
     "python": "import bisect\n\nclass Solution:\n    def countPairsWithin(self, mains: List[int], sides: List[int], budget: int) -> int:\n        total = 0\n        for x in mains:\n            total += bisect.bisect_right(sides, budget - x)\n        return total\n",
@@ -257,7 +288,7 @@
    },
    "lines": [
     {
-     "text": "The running count (64-bit).",
+     "text": "The running total (64-bit).",
      "at": {
       "python": [
        [
@@ -286,7 +317,7 @@
      }
     },
     {
-     "text": "The number of sides that cost at most `budget − x`: the first index with a bigger price.",
+     "text": "The number of sides priced at most `budget − main`: an upper-bound binary search.",
      "at": {
       "python": [
        [
@@ -315,7 +346,7 @@
      }
     },
     {
-     "text": "Total.",
+     "text": "The total.",
      "at": {
       "python": [
        [
@@ -511,7 +542,7 @@
    },
    "limits": [
     {
-     "md": "Each search restarts, even though the boundary only moves one way as mains grow. A single sweeping pointer makes it linear."
+     "md": "Each search restarts, although the boundary only moves one way as mains get pricier."
     }
    ]
   },
@@ -522,13 +553,13 @@
    "space": "O(1)",
    "idea": [
     {
-     "md": "`j` starts at the dearest side. For each main from cheapest to dearest, move `j` left while `main + sides[j] > budget`; add `j + 1`."
+     "md": "`j` starts at the last side. For each main in increasing order, move `j` left while the pair is over budget;\nthen sides `0 … j` all fit, so add `j + 1`.\n\n**Why `j` never needs to move right.** A side that's too expensive for this main is too expensive for every\nlater (pricier) main."
     }
    ],
    "build": [
-    "`j` at the last side.",
-    "Shrink while over budget.",
-    "Add the prefix length."
+    "`j` at the most expensive side.",
+    "For each main: move `j` left while over budget.",
+    "Add `j + 1`."
    ],
    "code": {
     "python": "class Solution:\n    def countPairsWithin(self, mains: List[int], sides: List[int], budget: int) -> int:\n        total, j = 0, len(sides) - 1\n        for x in mains:\n            while j >= 0 and x + sides[j] > budget:\n                j -= 1\n            total += j + 1\n        return total\n",
@@ -538,7 +569,7 @@
    },
    "lines": [
     {
-     "text": "Count, and `j` on the dearest side.",
+     "text": "The total and the boundary `j`, starting at the most expensive side.",
      "at": {
       "python": [
        [
@@ -567,7 +598,7 @@
      }
     },
     {
-     "text": "Mains from cheapest to dearest.",
+     "text": "Mains from cheapest to most expensive.",
      "at": {
       "python": [
        [
@@ -596,7 +627,7 @@
      }
     },
     {
-     "text": "Drop sides that no longer fit with this (or any pricier) main.",
+     "text": "Drop sides that no longer fit; they won't fit any later main either.",
      "at": {
       "python": [
        [
@@ -625,7 +656,7 @@
      }
     },
     {
-     "text": "Sides `0..j` all fit.",
+     "text": "Sides `0 … j` all fit with this main.",
      "at": {
       "python": [
        [
@@ -654,7 +685,7 @@
      }
     },
     {
-     "text": "Total (64-bit).",
+     "text": "The total number of combinations.",
      "at": {
       "python": [
        [
@@ -685,7 +716,7 @@
    ],
    "complexity": [
     {
-     "md": "**Time O(n + m):** `j` only moves left. **Space O(1).**"
+     "md": "**Time O(n + m):** `j` moves left at most `m` times in total. **Space O(1).**"
     }
    ],
    "walk": {
@@ -864,7 +895,7 @@
  ],
  "takeaways": [
   {
-   "md": "- **Counting pairs under a bound across two sorted lists:** one pointer per list, moving monotonically.\n- When a boundary only moves one way, a sweep beats repeated binary searches.\n- Counts of pairs can exceed 32 bits."
+   "md": "- **Counting pairs across two sorted lists under a bound:** one pointer per list, moving in opposite directions.\n- Count a whole prefix at once instead of enumerating it.\n- **Pitfall:** resetting `j` for every main (back to O(n · m))."
   }
  ]
 }
