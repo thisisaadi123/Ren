@@ -1,0 +1,751 @@
+{
+ "version": 1,
+ "summary": "Longest common substring. Shared runs are monotone in length (a shared run's prefix is shared too), so binary\nsearch the length. For a length `L`, hash every window of `a` into a set and check whether any window of `b`\nis in it, using prefix hashes with two primes. O((n + m) log min(n, m)) expected.",
+ "question": [
+  {
+   "md": "Return the length of the longest substring that appears in both `a` and `b` (0 if none).\n\n- **Both up to 2 × 10⁴ letters**: the classic table is 4 × 10⁸ cells."
+  }
+ ],
+ "think": [
+  {
+   "md": "`a = \"abcdxyz\"`, `b = \"xyzabcq\"` → **3** (`abc` and `xyz` are both shared).\n\nFor a fixed length `L`, the question \"is there a common window of length `L`?\" is a set-intersection between\nthe windows of `a` and of `b`, which hashing answers in linear time. Since the answer to that question is yes\nfor every length up to the true answer and no beyond it, binary search finds the answer with about 15 tests."
+  },
+  {
+   "md": "With prefix hashes `pre[i]` (the hash of the first `i` letters) and powers `pw[L] = B^L`, the hash of any\nsubstring is O(1): `hash(s[i..i+L)) = pre[i+L] − pre[i] · pw[L]` (mod M)."
+  },
+  {
+   "panels": [
+    {
+     "type": "row",
+     "cells": [
+      "a",
+      "b",
+      "c",
+      "d",
+      "x",
+      "y",
+      "z"
+     ],
+     "label": "a"
+    },
+    {
+     "type": "row",
+     "cells": [
+      "x",
+      "y",
+      "z",
+      "a",
+      "b",
+      "c",
+      "q"
+     ],
+     "label": "b"
+    }
+   ]
+  }
+ ],
+ "approaches": [
+  {
+   "title": "Dynamic programming on common runs",
+   "kind": "brute",
+   "time": "O(n · m)",
+   "space": "O(m)",
+   "idea": [
+    {
+     "md": "`run[i][j] = run[i−1][j−1] + 1` if `a[i−1] == b[j−1]`, else 0. The answer is the largest cell. Only the previous row is needed."
+    }
+   ],
+   "build": [
+    "Two rows.",
+    "Fill from the diagonal.",
+    "Track the maximum."
+   ],
+   "code": {
+    "python": "class Solution:\n    def sharedTune(self, a: str, b: str) -> int:\n        m, best = len(b), 0\n        prev = [0] * (m + 1)\n        for x in a:\n            cur = [0] * (m + 1)\n            for j in range(1, m + 1):\n                if x == b[j - 1]:\n                    cur[j] = prev[j - 1] + 1\n                    best = max(best, cur[j])\n            prev = cur\n        return best\n",
+    "java": "class Solution {\n    public int sharedTune(String a, String b) {\n        int m = b.length(), best = 0;\n        int[] prev = new int[m + 1], cur = new int[m + 1];\n        for (int i = 0; i < a.length(); i++) {\n            char x = a.charAt(i);\n            for (int j = 1; j <= m; j++) {\n                cur[j] = x == b.charAt(j - 1) ? prev[j - 1] + 1 : 0;\n                best = Math.max(best, cur[j]);\n            }\n            int[] t = prev; prev = cur; cur = t;\n        }\n        return best;\n    }\n}\n",
+    "cpp": "class Solution {\npublic:\n    int sharedTune(string& a, string& b) {\n        int m = b.size(), best = 0;\n        vector<int> prev(m + 1, 0), cur(m + 1, 0);\n        for (char x : a) {\n            for (int j = 1; j <= m; j++) {\n                cur[j] = x == b[j - 1] ? prev[j - 1] + 1 : 0;\n                best = max(best, cur[j]);\n            }\n            swap(prev, cur);\n        }\n        return best;\n    }\n};\n",
+    "c": "int sharedTune(char* a, char* b) {\n    int n = strlen(a), m = strlen(b), best = 0;\n    int* prev = calloc(m + 1, sizeof(int));\n    int* cur = calloc(m + 1, sizeof(int));\n    for (int i = 0; i < n; i++) {\n        for (int j = 1; j <= m; j++) {\n            cur[j] = a[i] == b[j - 1] ? prev[j - 1] + 1 : 0;\n            if (cur[j] > best) best = cur[j];\n        }\n        int* t = prev; prev = cur; cur = t;\n    }\n    free(prev); free(cur);\n    return best;\n}\n"
+   },
+   "lines": [
+    {
+     "text": "The previous row of the table (all zeros before the first letter of `a`).",
+     "at": {
+      "python": [
+       [
+        3,
+        4
+       ]
+      ],
+      "java": [
+       [
+        3,
+        4
+       ]
+      ],
+      "cpp": [
+       [
+        4,
+        5
+       ]
+      ],
+      "c": [
+       [
+        2,
+        4
+       ]
+      ]
+     }
+    },
+    {
+     "text": "One row per letter of `a`; swap rows when done.",
+     "at": {
+      "python": [
+       [
+        5,
+        7
+       ],
+       [
+        11,
+        11
+       ]
+      ],
+      "java": [
+       [
+        5,
+        7
+       ],
+       [
+        11,
+        11
+       ]
+      ],
+      "cpp": [
+       [
+        6,
+        7
+       ],
+       [
+        11,
+        11
+       ]
+      ],
+      "c": [
+       [
+        5,
+        6
+       ],
+       [
+        10,
+        10
+       ]
+      ]
+     }
+    },
+    {
+     "text": "A matching pair extends the run that ended one step earlier in both strings; a mismatch breaks it.",
+     "at": {
+      "python": [
+       [
+        8,
+        10
+       ]
+      ],
+      "java": [
+       [
+        8,
+        9
+       ]
+      ],
+      "cpp": [
+       [
+        8,
+        9
+       ]
+      ],
+      "c": [
+       [
+        7,
+        8
+       ]
+      ]
+     }
+    },
+    {
+     "text": "The longest run anywhere.",
+     "at": {
+      "python": [
+       [
+        12,
+        12
+       ]
+      ],
+      "java": [
+       [
+        13,
+        13
+       ]
+      ],
+      "cpp": [
+       [
+        13,
+        13
+       ]
+      ],
+      "c": [
+       [
+        12,
+        13
+       ]
+      ]
+     }
+    }
+   ],
+   "complexity": [
+    {
+     "md": "**Time O(n · m):** 4 × 10⁸ cells at the limit. **Space O(m).**"
+    }
+   ],
+   "walk": {
+    "steps": [
+     {
+      "text": "Row for a[0] = 'a'.",
+      "panels": [
+       {
+        "type": "row",
+        "cells": [
+         "x",
+         "y",
+         "z",
+         "a",
+         "b",
+         "c",
+         "q"
+        ],
+        "label": "b"
+       },
+       {
+        "type": "row",
+        "cells": [
+         0,
+         0,
+         0,
+         1,
+         0,
+         0,
+         0
+        ],
+        "label": "run"
+       },
+       {
+        "type": "vars",
+        "items": {
+         "best": 1
+        }
+       }
+      ]
+     },
+     {
+      "text": "Row for a[1] = 'b'.",
+      "panels": [
+       {
+        "type": "row",
+        "cells": [
+         "x",
+         "y",
+         "z",
+         "a",
+         "b",
+         "c",
+         "q"
+        ],
+        "label": "b"
+       },
+       {
+        "type": "row",
+        "cells": [
+         0,
+         0,
+         0,
+         0,
+         2,
+         0,
+         0
+        ],
+        "label": "run"
+       },
+       {
+        "type": "vars",
+        "items": {
+         "best": 2
+        }
+       }
+      ]
+     },
+     {
+      "text": "Row for a[2] = 'c'.",
+      "panels": [
+       {
+        "type": "row",
+        "cells": [
+         "x",
+         "y",
+         "z",
+         "a",
+         "b",
+         "c",
+         "q"
+        ],
+        "label": "b"
+       },
+       {
+        "type": "row",
+        "cells": [
+         0,
+         0,
+         0,
+         0,
+         0,
+         3,
+         0
+        ],
+        "label": "run"
+       },
+       {
+        "type": "vars",
+        "items": {
+         "best": 3
+        }
+       }
+      ]
+     },
+     {
+      "text": "Row for a[3] = 'd'.",
+      "panels": [
+       {
+        "type": "row",
+        "cells": [
+         "x",
+         "y",
+         "z",
+         "a",
+         "b",
+         "c",
+         "q"
+        ],
+        "label": "b"
+       },
+       {
+        "type": "row",
+        "cells": [
+         0,
+         0,
+         0,
+         0,
+         0,
+         0,
+         0
+        ],
+        "label": "run"
+       },
+       {
+        "type": "vars",
+        "items": {
+         "best": 3
+        }
+       }
+      ]
+     },
+     {
+      "text": "Row for a[4] = 'x'.",
+      "panels": [
+       {
+        "type": "row",
+        "cells": [
+         "x",
+         "y",
+         "z",
+         "a",
+         "b",
+         "c",
+         "q"
+        ],
+        "label": "b"
+       },
+       {
+        "type": "row",
+        "cells": [
+         1,
+         0,
+         0,
+         0,
+         0,
+         0,
+         0
+        ],
+        "label": "run"
+       },
+       {
+        "type": "vars",
+        "items": {
+         "best": 3
+        }
+       }
+      ]
+     },
+     {
+      "text": "Row for a[5] = 'y'.",
+      "panels": [
+       {
+        "type": "row",
+        "cells": [
+         "x",
+         "y",
+         "z",
+         "a",
+         "b",
+         "c",
+         "q"
+        ],
+        "label": "b"
+       },
+       {
+        "type": "row",
+        "cells": [
+         0,
+         2,
+         0,
+         0,
+         0,
+         0,
+         0
+        ],
+        "label": "run"
+       },
+       {
+        "type": "vars",
+        "items": {
+         "best": 3
+        }
+       }
+      ]
+     },
+     {
+      "text": "Row for a[6] = 'z'.",
+      "panels": [
+       {
+        "type": "row",
+        "cells": [
+         "x",
+         "y",
+         "z",
+         "a",
+         "b",
+         "c",
+         "q"
+        ],
+        "label": "b"
+       },
+       {
+        "type": "row",
+        "cells": [
+         0,
+         0,
+         3,
+         0,
+         0,
+         0,
+         0
+        ],
+        "label": "run"
+       },
+       {
+        "type": "vars",
+        "items": {
+         "best": 3
+        }
+       }
+      ]
+     },
+     {
+      "text": "The largest run is 3.",
+      "panels": [],
+      "result": "3"
+     }
+    ],
+    "title": "run[i][j] = length of the common run ending at a[i−1] and b[j−1]: one more than the diagonal when the letters match, else 0."
+   },
+   "limits": [
+    {
+     "md": "Quadratic. Binary search on the length with hashing needs only ~15 linear passes."
+    }
+   ],
+   "slow": true
+  },
+  {
+   "title": "Binary search on the length + rolling hash",
+   "kind": "best",
+   "time": "O((n + m) log min(n, m))",
+   "space": "O(n + m)",
+   "idea": [
+    {
+     "md": "Prefix hashes for both strings (two primes). `shared(L)`: all length-`L` keys of `a` in a set; any length-`L` key of `b` in the set means yes. Binary search the largest `L` that passes."
+    }
+   ],
+   "build": [
+    "Prefix hashes for `a` and `b`.",
+    "Test a length with a set.",
+    "Binary search."
+   ],
+   "code": {
+    "python": "class Solution:\n    def sharedTune(self, a: str, b: str) -> int:\n        M1, M2, B = 1_000_000_007, 1_000_000_009, 131\n        top = max(len(a), len(b))\n        pw1, pw2 = [1] * (top + 1), [1] * (top + 1)\n        for i in range(top):\n            pw1[i + 1], pw2[i + 1] = pw1[i] * B % M1, pw2[i] * B % M2\n\n        def prefix(s, M):\n            pre = [0] * (len(s) + 1)\n            for i, c in enumerate(s):\n                pre[i + 1] = (pre[i] * B + ord(c)) % M\n            return pre\n\n        a1, a2, b1, b2 = prefix(a, M1), prefix(a, M2), prefix(b, M1), prefix(b, M2)\n\n        def keys(p1, p2, n, L):\n            return ((((p1[i + L] - p1[i] * pw1[L]) % M1), (p2[i + L] - p2[i] * pw2[L]) % M2) for i in range(n - L + 1))\n\n        def shared(L):\n            seen = set(keys(a1, a2, len(a), L))\n            return any(k in seen for k in keys(b1, b2, len(b), L))\n\n        lo, hi = 0, min(len(a), len(b))\n        while lo < hi:\n            mid = (lo + hi + 1) // 2\n            if shared(mid):\n                lo = mid\n            else:\n                hi = mid - 1\n        return lo\n",
+    "java": "class Solution {\n    static final long M1 = 1_000_000_007L, M2 = 1_000_000_009L, B = 131;\n    long[] pw1, pw2;\n\n    private long[] prefix(String s, long M) {\n        long[] pre = new long[s.length() + 1];\n        for (int i = 0; i < s.length(); i++) pre[i + 1] = (pre[i] * B + s.charAt(i)) % M;\n        return pre;\n    }\n\n    private long key(long[] p1, long[] p2, int i, int L) {\n        long x = (p1[i + L] - p1[i] * pw1[L] % M1 + M1) % M1;\n        long y = (p2[i + L] - p2[i] * pw2[L] % M2 + M2) % M2;\n        return x << 32 | y;\n    }\n\n    public int sharedTune(String a, String b) {\n        int n = a.length(), m = b.length(), top = Math.max(n, m);\n        pw1 = new long[top + 1]; pw2 = new long[top + 1];\n        pw1[0] = pw2[0] = 1;\n        for (int i = 0; i < top; i++) { pw1[i + 1] = pw1[i] * B % M1; pw2[i + 1] = pw2[i] * B % M2; }\n        long[] a1 = prefix(a, M1), a2 = prefix(a, M2), b1 = prefix(b, M1), b2 = prefix(b, M2);\n        int lo = 0, hi = Math.min(n, m);\n        while (lo < hi) {\n            int mid = (lo + hi + 1) / 2;\n            Set<Long> seen = new HashSet<>();\n            for (int i = 0; i + mid <= n; i++) seen.add(key(a1, a2, i, mid));\n            boolean found = false;\n            for (int j = 0; j + mid <= m && !found; j++) found = seen.contains(key(b1, b2, j, mid));\n            if (found) lo = mid; else hi = mid - 1;\n        }\n        return lo;\n    }\n}\n",
+    "cpp": "class Solution {\n    static constexpr long long M1 = 1000000007LL, M2 = 1000000009LL, B = 131;\n    vector<long long> pw1, pw2;\n\n    static vector<long long> prefix(const string& s, long long M) {\n        vector<long long> pre(s.size() + 1, 0);\n        for (size_t i = 0; i < s.size(); i++) pre[i + 1] = (pre[i] * B + s[i]) % M;\n        return pre;\n    }\n\n    long long key(const vector<long long>& p1, const vector<long long>& p2, int i, int L) {\n        long long x = (p1[i + L] - p1[i] * pw1[L] % M1 + M1) % M1;\n        long long y = (p2[i + L] - p2[i] * pw2[L] % M2 + M2) % M2;\n        return x << 32 | y;\n    }\n\npublic:\n    int sharedTune(string& a, string& b) {\n        int n = a.size(), m = b.size(), top = max(n, m);\n        pw1.assign(top + 1, 1); pw2.assign(top + 1, 1);\n        for (int i = 0; i < top; i++) { pw1[i + 1] = pw1[i] * B % M1; pw2[i + 1] = pw2[i] * B % M2; }\n        auto a1 = prefix(a, M1), a2 = prefix(a, M2), b1 = prefix(b, M1), b2 = prefix(b, M2);\n        int lo = 0, hi = min(n, m);\n        while (lo < hi) {\n            int mid = (lo + hi + 1) / 2;\n            unordered_set<long long> seen;\n            seen.reserve(2 * n);\n            for (int i = 0; i + mid <= n; i++) seen.insert(key(a1, a2, i, mid));\n            bool found = false;\n            for (int j = 0; j + mid <= m && !found; j++) found = seen.count(key(b1, b2, j, mid));\n            if (found) lo = mid; else hi = mid - 1;\n        }\n        return lo;\n    }\n};\n",
+    "c": "#define M1 1000000007LL\n#define M2 1000000009LL\n#define BASE 131LL\n\nstatic long long* pw1;\nstatic long long* pw2;\n\nstatic long long* prefix(const char* s, int n, long long M) {\n    long long* pre = calloc(n + 1, sizeof(long long));\n    for (int i = 0; i < n; i++) pre[i + 1] = (pre[i] * BASE + s[i]) % M;\n    return pre;\n}\n\nstatic unsigned long long key(long long* p1, long long* p2, int i, int L) {\n    long long x = (p1[i + L] - p1[i] * pw1[L] % M1 + M1) % M1;\n    long long y = (p2[i + L] - p2[i] * pw2[L] % M2 + M2) % M2;\n    return (unsigned long long) x << 32 | y;\n}\n\nstatic int by_key(const void* x, const void* y) {\n    unsigned long long a = *(const unsigned long long*) x, b = *(const unsigned long long*) y;\n    return a < b ? -1 : a > b;\n}\n\nint sharedTune(char* a, char* b) {\n    int n = strlen(a), m = strlen(b), top = n > m ? n : m;\n    pw1 = malloc((top + 1) * sizeof(long long));\n    pw2 = malloc((top + 1) * sizeof(long long));\n    pw1[0] = pw2[0] = 1;\n    for (int i = 0; i < top; i++) { pw1[i + 1] = pw1[i] * BASE % M1; pw2[i + 1] = pw2[i] * BASE % M2; }\n    long long *a1 = prefix(a, n, M1), *a2 = prefix(a, n, M2), *b1 = prefix(b, m, M1), *b2 = prefix(b, m, M2);\n    unsigned long long* keys = malloc((n + 1) * sizeof(unsigned long long));\n    int lo = 0, hi = n < m ? n : m;\n    while (lo < hi) {\n        int mid = (lo + hi + 1) / 2, count = n - mid + 1;\n        for (int i = 0; i < count; i++) keys[i] = key(a1, a2, i, mid);\n        qsort(keys, count, sizeof(unsigned long long), by_key);\n        bool found = false;\n        for (int j = 0; j + mid <= m && !found; j++) {\n            unsigned long long k = key(b1, b2, j, mid);\n            found = bsearch(&k, keys, count, sizeof(unsigned long long), by_key) != NULL;\n        }\n        if (found) lo = mid; else hi = mid - 1;\n    }\n    free(pw1); free(pw2); free(a1); free(a2); free(b1); free(b2); free(keys);\n    return lo;\n}\n"
+   },
+   "lines": [
+    {
+     "text": "Powers of `B` up to the longer string, and prefix hashes of both strings for both primes.",
+     "at": {
+      "python": [
+       [
+        3,
+        7
+       ],
+       [
+        9,
+        13
+       ],
+       [
+        15,
+        15
+       ]
+      ],
+      "java": [
+       [
+        2,
+        3
+       ],
+       [
+        5,
+        9
+       ],
+       [
+        18,
+        22
+       ]
+      ],
+      "cpp": [
+       [
+        2,
+        3
+       ],
+       [
+        5,
+        9
+       ],
+       [
+        19,
+        22
+       ]
+      ],
+      "c": [
+       [
+        5,
+        6
+       ],
+       [
+        8,
+        12
+       ],
+       [
+        26,
+        32
+       ]
+      ]
+     }
+    },
+    {
+     "text": "For length `L`: collect every window key of `a`, then check `b`'s windows against them.",
+     "at": {
+      "python": [
+       [
+        17,
+        18
+       ],
+       [
+        20,
+        22
+       ]
+      ],
+      "java": [
+       [
+        11,
+        15
+       ],
+       [
+        26,
+        29
+       ]
+      ],
+      "cpp": [
+       [
+        11,
+        15
+       ],
+       [
+        26,
+        30
+       ]
+      ],
+      "c": [
+       [
+        14,
+        18
+       ],
+       [
+        20,
+        23
+       ],
+       [
+        36,
+        41
+       ]
+      ]
+     },
+     "notes": {
+      "c": "Sort `a`'s keys once per length and binary-search each of `b`'s keys."
+     }
+    },
+    {
+     "text": "Find the largest `L` that is shared; `mid` rounds up so `lo = mid` makes progress.",
+     "at": {
+      "python": [
+       [
+        24,
+        30
+       ]
+      ],
+      "java": [
+       [
+        23,
+        25
+       ],
+       [
+        30,
+        30
+       ]
+      ],
+      "cpp": [
+       [
+        23,
+        25
+       ],
+       [
+        31,
+        31
+       ]
+      ],
+      "c": [
+       [
+        33,
+        35
+       ],
+       [
+        43,
+        43
+       ]
+      ]
+     }
+    },
+    {
+     "text": "The longest shared run.",
+     "at": {
+      "python": [
+       [
+        31,
+        31
+       ]
+      ],
+      "java": [
+       [
+        32,
+        32
+       ]
+      ],
+      "cpp": [
+       [
+        33,
+        33
+       ]
+      ],
+      "c": [
+       [
+        45,
+        46
+       ]
+      ]
+     }
+    }
+   ],
+   "complexity": [
+    {
+     "md": "**Time O((n + m) log min(n, m))** expected (an extra log factor with C's sorting). **Space O(n + m).**"
+    }
+   ],
+   "walk": {
+    "steps": [
+     {
+      "text": "L = 4: nothing shared, so L < 4.",
+      "panels": [
+       {
+        "type": "vars",
+        "items": {
+         "lo": 0,
+         "hi": 7,
+         "mid": 4
+        }
+       }
+      ]
+     },
+     {
+      "text": "L = 2: 'xy' is in both, so L ≥ 2.",
+      "panels": [
+       {
+        "type": "vars",
+        "items": {
+         "lo": 0,
+         "hi": 3,
+         "mid": 2
+        }
+       }
+      ]
+     },
+     {
+      "text": "L = 3: 'xyz' is in both, so L ≥ 3.",
+      "panels": [
+       {
+        "type": "vars",
+        "items": {
+         "lo": 2,
+         "hi": 3,
+         "mid": 3
+        }
+       }
+      ]
+     },
+     {
+      "text": "Longest shared run: 3.",
+      "panels": [],
+      "result": "3"
+     }
+    ],
+    "title": "Binary search on the length L; for each L, put the hashes of all of a's windows in a set and look up b's windows."
+   }
+  }
+ ],
+ "takeaways": [
+  {
+   "md": "- **Longest common substring:** binary search on the length + hashing beats the O(n · m) table.\n- The same template as \"longest repeated substring\", with two strings instead of one.\n- Hash comparison is probabilistic; double hashing makes a false match negligible."
+  }
+ ]
+}

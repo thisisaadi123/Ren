@@ -1,0 +1,661 @@
+{
+ "version": 1,
+ "summary": "Hash each window instead of storing its text. A polynomial rolling hash moves from one window to the next in\nO(1): remove the leaving letter's contribution, shift by the base, add the new letter. Two hashes with\ndifferent primes, packed into one 64-bit key, go into a set; its size is the answer. O(n) expected.",
+ "question": [
+  {
+   "md": "Count the different strings seen by a window of exactly `k` letters sliding across `s`.\n\n- **n up to 10⁵**, and `k` can be large too, so storing every window's text can take billions of characters."
+  }
+ ],
+ "think": [
+  {
+   "md": "`\"abcabcba\"` with `k = 3`: windows ['abc', 'bca', 'cab', 'abc', 'bcb', 'cba'] → **5** different.\n\nComparing windows as text costs O(k) each. Instead, give each window a fingerprint that updates in O(1) as the\nwindow slides, and compare fingerprints."
+  },
+  {
+   "md": "A polynomial hash reads a string as a number in base `B`: `h(\"abc\") = a·B² + b·B + c` (mod a large prime). Moving\na window one step is O(1): subtract the leaving letter times `B^(k−1)`, multiply by `B`, add the new letter.\nTwo different primes together make an accidental collision about as likely as guessing a random 60-bit number."
+  },
+  {
+   "panels": [
+    {
+     "type": "row",
+     "cells": [
+      "a",
+      "b",
+      "c",
+      "a",
+      "b",
+      "c",
+      "b",
+      "a"
+     ],
+     "label": "s"
+    }
+   ]
+  }
+ ],
+ "approaches": [
+  {
+   "title": "Set of window strings",
+   "kind": "brute",
+   "time": "O(n · k)",
+   "space": "O(n · k)",
+   "idea": [
+    {
+     "md": "Slice every window and insert it into a hash set."
+    }
+   ],
+   "build": [
+    "All windows.",
+    "Set of strings."
+   ],
+   "code": {
+    "python": "class Solution:\n    def distinctWindows(self, s: str, k: int) -> int:\n        return len({s[i:i + k] for i in range(len(s) - k + 1)})\n",
+    "java": "class Solution {\n    public int distinctWindows(String s, int k) {\n        Set<String> seen = new HashSet<>();\n        for (int i = 0; i + k <= s.length(); i++) seen.add(s.substring(i, i + k));\n        return seen.size();\n    }\n}\n",
+    "cpp": "class Solution {\npublic:\n    int distinctWindows(string& s, int k) {\n        unordered_set<string> seen;\n        for (int i = 0; i + k <= (int) s.size(); i++) seen.insert(s.substr(i, k));\n        return seen.size();\n    }\n};\n",
+    "c": "static int K;\n\nstatic int by_window(const void* x, const void* y) {\n    return strncmp(*(char* const*) x, *(char* const*) y, K);\n}\n\nint distinctWindows(char* s, int k) {\n    int count = strlen(s) - k + 1, distinct = 1;\n    char** starts = malloc(count * sizeof(char*));\n    for (int i = 0; i < count; i++) starts[i] = s + i;\n    K = k;\n    qsort(starts, count, sizeof(char*), by_window);\n    for (int i = 1; i < count; i++) if (strncmp(starts[i - 1], starts[i], k) != 0) distinct++;\n    free(starts);\n    return distinct;\n}\n"
+   },
+   "lines": [
+    {
+     "text": "Every window's text, de-duplicated by a set.",
+     "at": {
+      "python": [
+       [
+        3,
+        3
+       ]
+      ],
+      "java": [
+       [
+        3,
+        5
+       ]
+      ],
+      "cpp": [
+       [
+        4,
+        6
+       ]
+      ],
+      "c": [
+       [
+        8,
+        10
+       ]
+      ]
+     },
+     "notes": {
+      "c": "C has no string set: point at every window start instead."
+     }
+    },
+    {
+     "text": "Sort the windows by their first `k` letters, so equal windows sit next to each other.",
+     "at": {
+      "c": [
+       [
+        1,
+        1
+       ],
+       [
+        3,
+        5
+       ],
+       [
+        11,
+        12
+       ]
+      ]
+     }
+    },
+    {
+     "text": "Count the places where neighbours differ.",
+     "at": {
+      "c": [
+       [
+        13,
+        15
+       ]
+      ]
+     }
+    }
+   ],
+   "complexity": [
+    {
+     "md": "**Time O(n · k)** to slice and hash the windows (C: O(n · k · log n) for the sort). **Space O(n · k)** for the stored text (C stores only pointers)."
+    }
+   ],
+   "walk": {
+    "steps": [
+     {
+      "text": "Window 0: 'abc' is new.",
+      "panels": [
+       {
+        "type": "row",
+        "cells": [
+         "a",
+         "b",
+         "c",
+         "a",
+         "b",
+         "c",
+         "b",
+         "a"
+        ],
+        "states": {
+         "0": "found",
+         "1": "found",
+         "2": "found"
+        }
+       },
+       {
+        "type": "vars",
+        "items": {
+         "distinct": 1
+        }
+       }
+      ]
+     },
+     {
+      "text": "Window 1: 'bca' is new.",
+      "panels": [
+       {
+        "type": "row",
+        "cells": [
+         "a",
+         "b",
+         "c",
+         "a",
+         "b",
+         "c",
+         "b",
+         "a"
+        ],
+        "states": {
+         "1": "found",
+         "2": "found",
+         "3": "found"
+        }
+       },
+       {
+        "type": "vars",
+        "items": {
+         "distinct": 2
+        }
+       }
+      ]
+     },
+     {
+      "text": "Window 2: 'cab' is new.",
+      "panels": [
+       {
+        "type": "row",
+        "cells": [
+         "a",
+         "b",
+         "c",
+         "a",
+         "b",
+         "c",
+         "b",
+         "a"
+        ],
+        "states": {
+         "2": "found",
+         "3": "found",
+         "4": "found"
+        }
+       },
+       {
+        "type": "vars",
+        "items": {
+         "distinct": 3
+        }
+       }
+      ]
+     },
+     {
+      "text": "Window 3: 'abc' was seen before.",
+      "panels": [
+       {
+        "type": "row",
+        "cells": [
+         "a",
+         "b",
+         "c",
+         "a",
+         "b",
+         "c",
+         "b",
+         "a"
+        ],
+        "states": {
+         "3": "dim",
+         "4": "dim",
+         "5": "dim"
+        }
+       },
+       {
+        "type": "vars",
+        "items": {
+         "distinct": 3
+        }
+       }
+      ]
+     },
+     {
+      "text": "Window 4: 'bcb' is new.",
+      "panels": [
+       {
+        "type": "row",
+        "cells": [
+         "a",
+         "b",
+         "c",
+         "a",
+         "b",
+         "c",
+         "b",
+         "a"
+        ],
+        "states": {
+         "4": "found",
+         "5": "found",
+         "6": "found"
+        }
+       },
+       {
+        "type": "vars",
+        "items": {
+         "distinct": 4
+        }
+       }
+      ]
+     },
+     {
+      "text": "Window 5: 'cba' is new.",
+      "panels": [
+       {
+        "type": "row",
+        "cells": [
+         "a",
+         "b",
+         "c",
+         "a",
+         "b",
+         "c",
+         "b",
+         "a"
+        ],
+        "states": {
+         "5": "found",
+         "6": "found",
+         "7": "found"
+        }
+       },
+       {
+        "type": "vars",
+        "items": {
+         "distinct": 5
+        }
+       }
+      ]
+     },
+     {
+      "text": "5 different windows.",
+      "panels": [],
+      "result": "5"
+     }
+    ],
+    "title": "Put every window's text in a set."
+   },
+   "limits": [
+    {
+     "md": "Each window costs O(k). With `n = 10⁵` and `k = 5 × 10⁴`, that's billions of character operations."
+    }
+   ],
+   "slow": true
+  },
+  {
+   "title": "Rolling double hash",
+   "kind": "best",
+   "time": "O(n)",
+   "space": "O(n)",
+   "idea": [
+    {
+     "md": "Compute both hashes of the first window. For each next window: `h = ((h − out · B^(k−1)) · B + in) mod M` for both moduli. Insert `(h1 << 32) | h2` into a set."
+    }
+   ],
+   "build": [
+    "`B^(k−1)` for both moduli.",
+    "Hash the first window.",
+    "Roll, insert, count."
+   ],
+   "code": {
+    "python": "class Solution:\n    def distinctWindows(self, s: str, k: int) -> int:\n        M1, M2, B = 1_000_000_007, 1_000_000_009, 131\n        top1, top2 = pow(B, k - 1, M1), pow(B, k - 1, M2)\n        h1 = h2 = 0\n        for c in s[:k]:\n            h1, h2 = (h1 * B + ord(c)) % M1, (h2 * B + ord(c)) % M2\n        seen = {(h1, h2)}\n        for i in range(k, len(s)):\n            out, c = ord(s[i - k]), ord(s[i])\n            h1 = ((h1 - out * top1) * B + c) % M1\n            h2 = ((h2 - out * top2) * B + c) % M2\n            seen.add((h1, h2))\n        return len(seen)\n",
+    "java": "class Solution {\n    public int distinctWindows(String s, int k) {\n        final long M1 = 1_000_000_007L, M2 = 1_000_000_009L, B = 131;\n        long top1 = 1, top2 = 1;\n        for (int i = 1; i < k; i++) { top1 = top1 * B % M1; top2 = top2 * B % M2; }\n        long h1 = 0, h2 = 0;\n        for (int i = 0; i < k; i++) { h1 = (h1 * B + s.charAt(i)) % M1; h2 = (h2 * B + s.charAt(i)) % M2; }\n        Set<Long> seen = new HashSet<>();\n        seen.add(h1 << 32 | h2);\n        for (int i = k; i < s.length(); i++) {\n            long out = s.charAt(i - k), c = s.charAt(i);\n            h1 = ((h1 - out * top1 % M1 + M1) * B + c) % M1;\n            h2 = ((h2 - out * top2 % M2 + M2) * B + c) % M2;\n            seen.add(h1 << 32 | h2);\n        }\n        return seen.size();\n    }\n}\n",
+    "cpp": "class Solution {\npublic:\n    int distinctWindows(string& s, int k) {\n        const long long M1 = 1000000007LL, M2 = 1000000009LL, B = 131;\n        long long top1 = 1, top2 = 1;\n        for (int i = 1; i < k; i++) { top1 = top1 * B % M1; top2 = top2 * B % M2; }\n        long long h1 = 0, h2 = 0;\n        for (int i = 0; i < k; i++) { h1 = (h1 * B + s[i]) % M1; h2 = (h2 * B + s[i]) % M2; }\n        unordered_set<long long> seen;\n        seen.insert(h1 << 32 | h2);\n        for (int i = k; i < (int) s.size(); i++) {\n            long long out = s[i - k], c = s[i];\n            h1 = ((h1 - out * top1 % M1 + M1) * B + c) % M1;\n            h2 = ((h2 - out * top2 % M2 + M2) * B + c) % M2;\n            seen.insert(h1 << 32 | h2);\n        }\n        return seen.size();\n    }\n};\n",
+    "c": "static int by_key(const void* x, const void* y) {\n    unsigned long long a = *(const unsigned long long*) x, b = *(const unsigned long long*) y;\n    return a < b ? -1 : a > b;\n}\n\nint distinctWindows(char* s, int k) {\n    const long long M1 = 1000000007LL, M2 = 1000000009LL, B = 131;\n    int n = strlen(s), count = n - k + 1, distinct = 1;\n    long long top1 = 1, top2 = 1;\n    for (int i = 1; i < k; i++) { top1 = top1 * B % M1; top2 = top2 * B % M2; }\n    long long h1 = 0, h2 = 0;\n    for (int i = 0; i < k; i++) { h1 = (h1 * B + s[i]) % M1; h2 = (h2 * B + s[i]) % M2; }\n    unsigned long long* keys = malloc(count * sizeof(unsigned long long));\n    keys[0] = (unsigned long long) h1 << 32 | h2;\n    for (int i = k; i < n; i++) {\n        long long out = s[i - k], c = s[i];\n        h1 = ((h1 - out * top1 % M1 + M1) * B + c) % M1;\n        h2 = ((h2 - out * top2 % M2 + M2) * B + c) % M2;\n        keys[i - k + 1] = (unsigned long long) h1 << 32 | h2;\n    }\n    qsort(keys, count, sizeof(unsigned long long), by_key);\n    for (int i = 1; i < count; i++) if (keys[i] != keys[i - 1]) distinct++;\n    free(keys);\n    return distinct;\n}\n"
+   },
+   "lines": [
+    {
+     "text": "Two primes and a base larger than any letter code. `top = B^(k−1)` is the weight of a window's first letter.",
+     "at": {
+      "python": [
+       [
+        3,
+        4
+       ]
+      ],
+      "java": [
+       [
+        3,
+        5
+       ]
+      ],
+      "cpp": [
+       [
+        4,
+        6
+       ]
+      ],
+      "c": [
+       [
+        7,
+        10
+       ]
+      ]
+     }
+    },
+    {
+     "text": "Hash the first window and record it. Both hashes are below 2³⁰, so they pack into one 64-bit key.",
+     "at": {
+      "python": [
+       [
+        5,
+        8
+       ]
+      ],
+      "java": [
+       [
+        6,
+        9
+       ]
+      ],
+      "cpp": [
+       [
+        7,
+        10
+       ]
+      ],
+      "c": [
+       [
+        11,
+        14
+       ]
+      ]
+     }
+    },
+    {
+     "text": "Remove the leaving letter (`out · top`), shift everything one place (`· B`), add the new letter. Adding `M` before the `%` keeps it non-negative.",
+     "at": {
+      "python": [
+       [
+        9,
+        13
+       ]
+      ],
+      "java": [
+       [
+        10,
+        14
+       ]
+      ],
+      "cpp": [
+       [
+        11,
+        15
+       ]
+      ],
+      "c": [
+       [
+        15,
+        19
+       ]
+      ]
+     },
+     "notes": {
+      "python": "Python's `%` is always non-negative, so no adjustment is needed."
+     }
+    },
+    {
+     "text": "The number of different keys.",
+     "at": {
+      "python": [
+       [
+        14,
+        14
+       ]
+      ],
+      "java": [
+       [
+        16,
+        16
+       ]
+      ],
+      "cpp": [
+       [
+        17,
+        17
+       ]
+      ],
+      "c": [
+       [
+        1,
+        4
+       ],
+       [
+        21,
+        24
+       ]
+      ]
+     },
+     "notes": {
+      "c": "Sort the keys and count where neighbours differ."
+     }
+    }
+   ],
+   "complexity": [
+    {
+     "md": "**Time O(n)** expected (O(n log n) with the sort in C). **Space O(n)** for the keys."
+    }
+   ],
+   "walk": {
+    "steps": [
+     {
+      "text": "Window 'abc': hash 1677554 (computed from scratch); new.",
+      "panels": [
+       {
+        "type": "row",
+        "cells": [
+         "a",
+         "b",
+         "c",
+         "a",
+         "b",
+         "c",
+         "b",
+         "a"
+        ],
+        "states": {
+         "0": "found",
+         "1": "found",
+         "2": "found"
+        }
+       },
+       {
+        "type": "vars",
+        "items": {
+         "distinct": 1
+        }
+       }
+      ]
+     },
+     {
+      "text": "Window 'bca': hash 1694844 (rolled: drop 'a', add 'a'); new.",
+      "panels": [
+       {
+        "type": "row",
+        "cells": [
+         "a",
+         "b",
+         "c",
+         "a",
+         "b",
+         "c",
+         "b",
+         "a"
+        ],
+        "states": {
+         "1": "found",
+         "2": "found",
+         "3": "found"
+        }
+       },
+       {
+        "type": "vars",
+        "items": {
+         "distinct": 2
+        }
+       }
+      ]
+     },
+     {
+      "text": "Window 'cab': hash 1711744 (rolled: drop 'b', add 'b'); new.",
+      "panels": [
+       {
+        "type": "row",
+        "cells": [
+         "a",
+         "b",
+         "c",
+         "a",
+         "b",
+         "c",
+         "b",
+         "a"
+        ],
+        "states": {
+         "2": "found",
+         "3": "found",
+         "4": "found"
+        }
+       },
+       {
+        "type": "vars",
+        "items": {
+         "distinct": 3
+        }
+       }
+      ]
+     },
+     {
+      "text": "Window 'abc': hash 1677554 (rolled: drop 'c', add 'c'); already in the set.",
+      "panels": [
+       {
+        "type": "row",
+        "cells": [
+         "a",
+         "b",
+         "c",
+         "a",
+         "b",
+         "c",
+         "b",
+         "a"
+        ],
+        "states": {
+         "3": "dim",
+         "4": "dim",
+         "5": "dim"
+        }
+       },
+       {
+        "type": "vars",
+        "items": {
+         "distinct": 3
+        }
+       }
+      ]
+     },
+     {
+      "text": "Window 'bcb': hash 1694845 (rolled: drop 'a', add 'b'); new.",
+      "panels": [
+       {
+        "type": "row",
+        "cells": [
+         "a",
+         "b",
+         "c",
+         "a",
+         "b",
+         "c",
+         "b",
+         "a"
+        ],
+        "states": {
+         "4": "found",
+         "5": "found",
+         "6": "found"
+        }
+       },
+       {
+        "type": "vars",
+        "items": {
+         "distinct": 4
+        }
+       }
+      ]
+     },
+     {
+      "text": "Window 'cba': hash 1711874 (rolled: drop 'b', add 'a'); new.",
+      "panels": [
+       {
+        "type": "row",
+        "cells": [
+         "a",
+         "b",
+         "c",
+         "a",
+         "b",
+         "c",
+         "b",
+         "a"
+        ],
+        "states": {
+         "5": "found",
+         "6": "found",
+         "7": "found"
+        }
+       },
+       {
+        "type": "vars",
+        "items": {
+         "distinct": 5
+        }
+       }
+      ]
+     },
+     {
+      "text": "5 different hash pairs, so 5 different windows.",
+      "panels": [],
+      "result": "5"
+     }
+    ],
+    "title": "Keep the window's hash as a number and update it in O(1) per step; store the pair of hashes in a set."
+   }
+  }
+ ],
+ "takeaways": [
+  {
+   "md": "- **Rolling hash:** fixed-length windows get an O(1) fingerprint update.\n- **Double hashing** (two primes) makes collisions negligible; pack both into one 64-bit key.\n- Keep the arithmetic in range: products below 2⁶³, and add the modulus before `%` after subtracting."
+  }
+ ]
+}
