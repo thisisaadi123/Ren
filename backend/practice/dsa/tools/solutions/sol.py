@@ -139,7 +139,7 @@ def approach(title, kind, time, space, idea, build, code, lines, complexity, wal
         at = {lang: ranges(tags[lang][tag]) for lang in langs if tag in tags[lang]}
         assert at, f"{title}: breakdown row @{tag} matches no code line"
         assert set(notes) <= set(at), f"{title}: @{tag} has a note for a language without that line"
-        row = {"text": dd(text), "at": at}
+        row = {"text": dd(text), "at": at, "tag": tag}
         if notes:
             row["notes"] = {k: dd(v) for k, v in notes.items()}
         rows.append(row)
@@ -181,6 +181,15 @@ def sol(pid, summary, question, think, approaches, takeaways):
                 a[key] = blocks(more[key], a["title"])
         if "build" in more:
             a["build"] = [dd(b) for b in more["build"]]
+        if "lines" in more:
+            known = {row["tag"] for row in a["lines"]}
+            assert set(more["lines"]) <= known, f"{pid} #{i}: unknown line tags {set(more['lines']) - known}"
+            for row in a["lines"]:
+                if row["tag"] in more["lines"]:
+                    row["text"] = dd(more["lines"][row["tag"]])
+    for a in approaches:
+        for row in a["lines"]:
+            row.pop("tag", None)
     assert approaches, pid
     assert approaches[-1]["kind"] == "best", f"{pid}: the last approach should be the best one"
     for a in approaches[:-1]:
