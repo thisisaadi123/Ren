@@ -4,38 +4,85 @@
  "question": [
   {
    "md": "Codes are sorted with repeats. Keep each code once, in increasing order, ideally in place.\n\n- **Sorted** means equal codes are adjacent.\n- **Up to 10⁵ codes.**"
+  },
+  {
+   "md": "**Edge cases to keep in mind**\n\n- One code: unchanged.\n- All codes equal: one code remains.\n- The input is sorted, so equal codes are always next to each other."
   }
  ],
  "think": [
   {
-   "md": "`[3, 3, 5, 8, 8, 8, 11]` → `[3, 5, 8, 11]`.\n\nBecause the list is sorted, a code is a repeat exactly when it equals the code just before it, or, even more\nsimply, the last code we've kept. That comparison is all the read/write loop needs."
+   "md": "**Why deleting by shifting is slow.** Removing one element from the middle of an array means moving everything after\nit one step left: O(n) per deletion. With many deletions that's O(n²), even though each kept element only needs to\nmove once, straight to its final slot."
   },
   {
-   "panels": [
-    {
-     "type": "row",
-     "cells": [
-      3,
-      3,
-      5,
-      8,
-      8,
-      8,
-      11
+   "md": "**The read/write idea.** One pointer, `read`, visits every element once. A second pointer, `write`, marks the end of\nthe part we're keeping, which always sits at the **front** of the array. Each kept element is copied to `a[write]`\nand `write` moves on; a dropped element is simply not copied.\n\n**Why it's safe to overwrite in place.** `write` never gets ahead of `read` (it moves at most once per element read),\nso every write lands on a slot that has already been read. Nothing unread is ever lost.\n\n**Invariant.** After reading the first `r` elements, `a[0 .. write)` holds exactly the elements that should be kept\namong those `r`, in their original order."
+  },
+  {
+   "md": "**What counts as a repeat?** Because the list is sorted, equal codes form one consecutive run. A code is a repeat\nexactly when it equals the **last code we kept**. (Comparing with the previous code in the input works too; the\nlast kept code is the same value.)"
+  },
+  {
+   "md": "**Trace on `[3, 3, 5, 8, 8, 8, 11]`:**"
+  },
+  {
+   "table": {
+    "head": [
+     "read",
+     "code",
+     "decision",
+     "write after",
+     "kept part"
+    ],
+    "rows": [
+     [
+      "0",
+      "3",
+      "first code: always kept",
+      "1",
+      "[3]"
      ],
-     "label": "codes"
-    },
-    {
-     "type": "row",
-     "cells": [
-      3,
-      5,
-      8,
-      11
+     [
+      "1",
+      "3",
+      "equals last kept 3: repeat",
+      "1",
+      "[3]"
      ],
-     "label": "unique"
-    }
-   ]
+     [
+      "2",
+      "5",
+      "differs from last kept 3: keep",
+      "2",
+      "[3, 5]"
+     ],
+     [
+      "3",
+      "8",
+      "differs from last kept 5: keep",
+      "3",
+      "[3, 5, 8]"
+     ],
+     [
+      "4",
+      "8",
+      "equals last kept 8: repeat",
+      "3",
+      "[3, 5, 8]"
+     ],
+     [
+      "5",
+      "8",
+      "equals last kept 8: repeat",
+      "3",
+      "[3, 5, 8]"
+     ],
+     [
+      "6",
+      "11",
+      "differs from last kept 8: keep",
+      "4",
+      "[3, 5, 8, 11]"
+     ]
+    ]
+   }
   }
  ],
  "approaches": [
@@ -46,13 +93,13 @@
    "space": "O(1)",
    "idea": [
     {
-     "md": "Walk the list; when a code equals its predecessor, delete it by shifting everything after it left."
+     "md": "Scan from the second code; when a code equals the one before it, shift the tail left over it and shrink the list."
     }
    ],
    "build": [
-    "Compare with the previous code.",
-    "Shift to delete.",
-    "Continue."
+    "Scan from index 1.",
+    "On a repeat, shift and shrink.",
+    "Otherwise advance."
    ],
    "code": {
     "python": "class Solution:\n    def uniqueSorted(self, codes: List[int]) -> List[int]:\n        a, n, i = codes[:], len(codes), 1\n        while i < n:\n            if a[i] == a[i - 1]:\n                for j in range(i, n - 1):\n                    a[j] = a[j + 1]\n                n -= 1\n            else:\n                i += 1\n        return a[:n]\n",
@@ -62,7 +109,7 @@
    },
    "lines": [
     {
-     "text": "A copy and its live length.",
+     "text": "A working copy, its length, and the scan position (starting at the second code).",
      "at": {
       "python": [
        [
@@ -91,7 +138,7 @@
      }
     },
     {
-     "text": "A new code: move on.",
+     "text": "Compare each code with its left neighbour in the shrinking list.",
      "at": {
       "python": [
        [
@@ -136,7 +183,7 @@
      }
     },
     {
-     "text": "A repeat: delete it by shifting the tail; stay at `i` to check the code that moved in.",
+     "text": "A repeat: slide the tail left over it and shrink. The index stays to check the code that moved in.",
      "at": {
       "python": [
        [
@@ -165,7 +212,7 @@
      }
     },
     {
-     "text": "The live part.",
+     "text": "The first `n` codes.",
      "at": {
       "python": [
        [
@@ -196,7 +243,7 @@
    ],
    "complexity": [
     {
-     "md": "**Time O(n²)** with many repeats. **Space O(1)** beyond the copy."
+     "md": "**Time O(n²)** for long runs of repeats. **Space O(1)** besides the copy."
     }
    ],
    "walk": {
@@ -285,7 +332,7 @@
    },
    "limits": [
     {
-     "md": "Each deletion shifts the tail. Keeping codes with a write pointer moves each kept code once."
+     "md": "Every removed repeat shifts the whole tail. The write pointer places each kept code once."
     }
    ],
    "slow": true
@@ -297,13 +344,13 @@
    "space": "O(1)",
    "idea": [
     {
-     "md": "`write = 1` (the first code is always kept). For each later code, if it differs from `a[write − 1]`, copy it to `a[write++]`."
+     "md": "Keep `a[0]`. For each later code, copy it to `a[write]` if it differs from `a[write − 1]`, the last kept\ncode. The answer is `a[0 .. write)`.\n\n**Why one comparison is enough.** The kept part is strictly increasing and the input is sorted, so a new\ncode is either equal to the last kept code (a repeat) or larger than every kept code (new)."
     }
    ],
    "build": [
-    "Keep the first code.",
-    "Compare each code with the last kept one.",
-    "Return the kept prefix."
+    "`write = 1` (the first code is always kept).",
+    "For each later code, keep it if it differs from the last kept one.",
+    "Return the first `write` codes."
    ],
    "code": {
     "python": "class Solution:\n    def uniqueSorted(self, codes: List[int]) -> List[int]:\n        a, write = codes[:], 1\n        for i in range(1, len(a)):\n            if a[i] != a[write - 1]:\n                a[write] = a[i]\n                write += 1\n        return a[:write]\n",
@@ -313,7 +360,7 @@
    },
    "lines": [
     {
-     "text": "The first code is always kept (the list has at least one).",
+     "text": "The first code is always kept, so the kept prefix starts with length 1.",
      "at": {
       "python": [
        [
@@ -342,7 +389,7 @@
      }
     },
     {
-     "text": "Every later code.",
+     "text": "Every later code, in order.",
      "at": {
       "python": [
        [
@@ -371,7 +418,7 @@
      }
     },
     {
-     "text": "Different from the last kept code means it's new (the list is sorted).",
+     "text": "A code different from the last kept one is new: write it to the next free slot.",
      "at": {
       "python": [
        [
@@ -400,7 +447,7 @@
      }
     },
     {
-     "text": "The unique prefix.",
+     "text": "The kept prefix, one copy of each code in increasing order.",
      "at": {
       "python": [
        [
@@ -431,7 +478,7 @@
    ],
    "complexity": [
     {
-     "md": "**Time O(n).** **Space O(1)** extra."
+     "md": "**Time O(n).** **Space O(1)** besides the output."
     }
    ],
    "walk": {
@@ -626,7 +673,7 @@
  ],
  "takeaways": [
   {
-   "md": "- **Dedup a sorted array in place:** compare with the last kept element.\n- Sortedness makes \"seen before\" a single comparison instead of a hash set.\n- Generalises to \"at most k copies\": compare with `a[write − k]`."
+   "md": "- **De-duplicate a sorted array in place:** compare with the last kept value.\n- Sortedness turns \"seen anywhere before\" into \"equal to the last kept\".\n- **Pitfall:** comparing with `a[i − 1]` after it may have been overwritten; compare with the kept prefix instead."
   }
  ]
 }

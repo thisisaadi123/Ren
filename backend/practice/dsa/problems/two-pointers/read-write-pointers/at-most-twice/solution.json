@@ -4,42 +4,96 @@
  "question": [
   {
    "md": "In a sorted list, keep each value **at most twice**, preserving order, in place with O(1) extra space.\n\n- **Sorted** input: copies are adjacent.\n- **Up to 10⁵ values.**"
+  },
+  {
+   "md": "**Edge cases to keep in mind**\n\n- Lists of length 1 or 2 are always fine.\n- Values appearing once or twice are kept in full.\n- Negative values are allowed; only equality matters."
   }
  ],
  "think": [
   {
-   "md": "`[1, 1, 1, 2, 2, 3, 3, 3, 3]` → `[1, 1, 2, 2, 3, 3]`.\n\nWhen deciding about the next value `x`, look at the kept part. If its last two entries are both `x`, a third\nwould be too many. Thanks to sorting, checking just the entry **two back** (`a[write − 2]`) is enough: if it\nequals `x`, so does everything after it."
+   "md": "**The read/write idea.** One pointer, `read`, visits every element once. A second pointer, `write`, marks the end of\nthe part we're keeping, which always sits at the **front** of the array. Each kept element is copied to `a[write]`\nand `write` moves on; a dropped element is simply not copied.\n\n**Why it's safe to overwrite in place.** `write` never gets ahead of `read` (it moves at most once per element read),\nso every write lands on a slot that has already been read. Nothing unread is ever lost.\n\n**Invariant.** After reading the first `r` elements, `a[0 .. write)` holds exactly the elements that should be kept\namong those `r`, in their original order."
   },
   {
-   "panels": [
-    {
-     "type": "row",
-     "cells": [
-      1,
-      1,
-      1,
-      2,
-      2,
-      3,
-      3,
-      3,
-      3
+   "md": "**When is a value one copy too many?** When the kept part already ends with two copies of it. Because the input\nis sorted and the kept part is too, checking just **the element two back**, `a[write − 2]`, is enough: if it\nequals `x`, then `a[write − 1]` (which lies between it and `x` in sorted order) equals `x` as well, so two copies\nare already kept.\n\nThe same check generalises: to keep at most `k` copies, compare with `a[write − k]`."
+  },
+  {
+   "md": "**Trace on `[1, 1, 1, 2, 2, 3, 3, 3, 3]`:**"
+  },
+  {
+   "table": {
+    "head": [
+     "read",
+     "value",
+     "decision",
+     "write after",
+     "kept part"
+    ],
+    "rows": [
+     [
+      "0",
+      "1",
+      "fewer than 2 kept: keep",
+      "1",
+      "[1]"
      ],
-     "label": "values"
-    },
-    {
-     "type": "row",
-     "cells": [
-      1,
-      1,
-      2,
-      2,
-      3,
-      3
+     [
+      "1",
+      "1",
+      "fewer than 2 kept: keep",
+      "2",
+      "[1, 1]"
      ],
-     "label": "at most twice"
-    }
-   ]
+     [
+      "2",
+      "1",
+      "a[write−2] = 1 = 1: third copy, skip",
+      "2",
+      "[1, 1]"
+     ],
+     [
+      "3",
+      "2",
+      "a[write−2] = 1 ≠ 2: keep",
+      "3",
+      "[1, 1, 2]"
+     ],
+     [
+      "4",
+      "2",
+      "a[write−2] = 1 ≠ 2: keep",
+      "4",
+      "[1, 1, 2, 2]"
+     ],
+     [
+      "5",
+      "3",
+      "a[write−2] = 2 ≠ 3: keep",
+      "5",
+      "[1, 1, 2, 2, 3]"
+     ],
+     [
+      "6",
+      "3",
+      "a[write−2] = 2 ≠ 3: keep",
+      "6",
+      "[1, 1, 2, 2, 3, 3]"
+     ],
+     [
+      "7",
+      "3",
+      "a[write−2] = 3 = 3: third copy, skip",
+      "6",
+      "[1, 1, 2, 2, 3, 3]"
+     ],
+     [
+      "8",
+      "3",
+      "a[write−2] = 3 = 3: third copy, skip",
+      "6",
+      "[1, 1, 2, 2, 3, 3]"
+     ]
+    ]
+   }
   }
  ],
  "approaches": [
@@ -50,12 +104,13 @@
    "space": "O(n)",
    "idea": [
     {
-     "md": "Find each run of equal values and append `min(2, run length)` copies to a new list."
+     "md": "Walk the runs of equal values; for each run, append `min(2, run length)` copies to a new list. Simple, but it builds a separate output."
     }
    ],
    "build": [
-    "Scan runs with an inner pointer.",
-    "Append up to two."
+    "Find each run's end.",
+    "Append up to two copies.",
+    "Jump to the next run."
    ],
    "code": {
     "python": "class Solution:\n    def keepAtMostTwo(self, values: List[int]) -> List[int]:\n        out, i = [], 0\n        while i < len(values):\n            j = i\n            while j < len(values) and values[j] == values[i]:\n                j += 1\n            out += [values[i]] * min(2, j - i)\n            i = j\n        return out\n",
@@ -65,7 +120,7 @@
    },
    "lines": [
     {
-     "text": "A separate output list.",
+     "text": "The output list and the start of the current run.",
      "at": {
       "python": [
        [
@@ -94,7 +149,7 @@
      }
     },
     {
-     "text": "Find where the run of `values[i]` ends.",
+     "text": "Advance `j` to the end of the run of equal values.",
      "at": {
       "python": [
        [
@@ -123,7 +178,7 @@
      }
     },
     {
-     "text": "Up to two copies, then jump to the next run.",
+     "text": "Append at most two copies of the run's value, then continue after the run.",
      "at": {
       "python": [
        [
@@ -183,7 +238,7 @@
    ],
    "complexity": [
     {
-     "md": "**Time O(n).** **Space O(n)** for the separate output."
+     "md": "**Time O(n).** **Space O(n)** for the new list."
     }
    ],
    "walk": {
@@ -300,7 +355,7 @@
    },
    "limits": [
     {
-     "md": "Builds a second list, but the task asks for O(1) extra space. The same decision can be made in place by looking two places back in the kept part."
+     "md": "The task asks for O(1) extra space. The look-back-two check does it in place."
     }
    ]
   },
@@ -311,13 +366,13 @@
    "space": "O(1)",
    "idea": [
     {
-     "md": "For each `x`: if `write < 2` or `a[write − 2] != x`, set `a[write] = x` and advance."
+     "md": "Read every value; keep it if fewer than two values have been kept so far, or if `a[write − 2] ≠ x`.\n\n**Why it's correct.** If `a[write − 2] = x`, the last two kept values are both `x` (sorted order), so `x`\nwould be a third copy. Otherwise at most one `x` is kept so far, and keeping this one is fine."
     }
    ],
    "build": [
-    "Copy; `write = 0`.",
-    "Keep `x` unless the kept part ends with two `x`s.",
-    "Return the prefix."
+    "`write = 0`.",
+    "Keep `x` if `write < 2` or `a[write − 2] ≠ x`.",
+    "Return the first `write` values."
    ],
    "code": {
     "python": "class Solution:\n    def keepAtMostTwo(self, values: List[int]) -> List[int]:\n        a, write = values[:], 0\n        for x in values:\n            if write < 2 or a[write - 2] != x:\n                a[write] = x\n                write += 1\n        return a[:write]\n",
@@ -327,7 +382,7 @@
    },
    "lines": [
     {
-     "text": "The kept part grows from the left.",
+     "text": "A working copy and the write position.",
      "at": {
       "python": [
        [
@@ -356,7 +411,7 @@
      }
     },
     {
-     "text": "Each value in order (read from the original, so overwrites can't confuse us).",
+     "text": "Every value, in order.",
      "at": {
       "python": [
        [
@@ -385,7 +440,7 @@
      }
     },
     {
-     "text": "Two back in the kept part: if it's `x`, the kept part already ends with `x, x`.",
+     "text": "The first two values are always kept. After that, a value equal to the one two places back would be a third copy, so it's skipped.",
      "at": {
       "python": [
        [
@@ -445,7 +500,7 @@
    ],
    "complexity": [
     {
-     "md": "**Time O(n).** **Space O(1)** extra."
+     "md": "**Time O(n).** **Space O(1)** besides the output copy."
     }
    ],
    "walk": {
@@ -722,7 +777,7 @@
  ],
  "takeaways": [
   {
-   "md": "- **At most k copies:** keep `x` unless `a[write − k] == x`.\n- k = 1 is the plain dedup.\n- Works because the input is sorted (copies are contiguous)."
+   "md": "- **At most k copies in a sorted array:** compare with `a[write − k]`.\n- The comparison is against the kept prefix, never the original positions.\n- **Pitfall:** comparing with `a[read − 2]`, which may already have been overwritten."
   }
  ]
 }

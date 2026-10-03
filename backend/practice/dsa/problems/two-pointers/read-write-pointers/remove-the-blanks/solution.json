@@ -4,38 +4,85 @@
  "question": [
   {
    "md": "Remove every cell equal to `blank`, keep the others in order, and return them, ideally in place.\n\n- **Order matters**: the kept cells stay in their original order.\n- **Up to 10⁵ cells.**"
+  },
+  {
+   "md": "**Edge cases to keep in mind**\n\n- No blanks: the list is unchanged.\n- All blanks: the result is empty.\n- The kept cells must stay in their original order."
   }
  ],
  "think": [
   {
-   "md": "`[4, 0, 7, 0, 0, 3, 8]` with blank 0 → `[4, 7, 3, 8]`.\n\nDeleting a blank by shifting the rest left is O(n) each time. Instead, notice that every kept cell only ever\nmoves **left**, to the next free spot in the kept prefix. A write pointer tracks that spot; it never overtakes\nthe read pointer, so we never overwrite a cell we haven't read yet."
+   "md": "**Why deleting by shifting is slow.** Removing one element from the middle of an array means moving everything after\nit one step left: O(n) per deletion. With many deletions that's O(n²), even though each kept element only needs to\nmove once, straight to its final slot."
   },
   {
-   "panels": [
-    {
-     "type": "row",
-     "cells": [
-      4,
-      0,
-      7,
-      0,
-      0,
-      3,
-      8
+   "md": "**The read/write idea.** One pointer, `read`, visits every element once. A second pointer, `write`, marks the end of\nthe part we're keeping, which always sits at the **front** of the array. Each kept element is copied to `a[write]`\nand `write` moves on; a dropped element is simply not copied.\n\n**Why it's safe to overwrite in place.** `write` never gets ahead of `read` (it moves at most once per element read),\nso every write lands on a slot that has already been read. Nothing unread is ever lost.\n\n**Invariant.** After reading the first `r` elements, `a[0 .. write)` holds exactly the elements that should be kept\namong those `r`, in their original order."
+  },
+  {
+   "md": "**Trace on `[4, 0, 7, 0, 0, 3, 8]` with blank 0:**"
+  },
+  {
+   "table": {
+    "head": [
+     "read",
+     "value",
+     "decision",
+     "write after",
+     "kept part"
+    ],
+    "rows": [
+     [
+      "0",
+      "4",
+      "keep → a[0]",
+      "1",
+      "[4]"
      ],
-     "label": "cells"
-    },
-    {
-     "type": "row",
-     "cells": [
-      4,
-      7,
-      3,
-      8
+     [
+      "1",
+      "0",
+      "blank: skip",
+      "1",
+      "[4]"
      ],
-     "label": "kept"
-    }
-   ]
+     [
+      "2",
+      "7",
+      "keep → a[1]",
+      "2",
+      "[4, 7]"
+     ],
+     [
+      "3",
+      "0",
+      "blank: skip",
+      "2",
+      "[4, 7]"
+     ],
+     [
+      "4",
+      "0",
+      "blank: skip",
+      "2",
+      "[4, 7]"
+     ],
+     [
+      "5",
+      "3",
+      "keep → a[2]",
+      "3",
+      "[4, 7, 3]"
+     ],
+     [
+      "6",
+      "8",
+      "keep → a[3]",
+      "4",
+      "[4, 7, 3, 8]"
+     ]
+    ]
+   }
+  },
+  {
+   "md": "Result **`[4, 7, 3, 8]`**."
   }
  ],
  "approaches": [
@@ -46,13 +93,13 @@
    "space": "O(1)",
    "idea": [
     {
-     "md": "While a blank exists, remove it by shifting every later cell left one place."
+     "md": "Scan the list; whenever a blank is found, shift everything after it one place left and shrink the length. Don't advance the index after a deletion, because a new element has moved into it."
     }
    ],
    "build": [
-    "Scan for a blank.",
-    "Shift the tail left.",
-    "Repeat."
+    "Scan with an index.",
+    "On a blank, shift the tail left and shrink.",
+    "Otherwise move on."
    ],
    "code": {
     "python": "class Solution:\n    def removeValue(self, cells: List[int], blank: int) -> List[int]:\n        a, n, i = cells[:], len(cells), 0\n        while i < n:\n            if a[i] == blank:\n                for j in range(i, n - 1):\n                    a[j] = a[j + 1]\n                n -= 1\n            else:\n                i += 1\n        return a[:n]\n",
@@ -62,7 +109,7 @@
    },
    "lines": [
     {
-     "text": "A copy and its live length.",
+     "text": "A working copy, its current length and the scan position.",
      "at": {
       "python": [
        [
@@ -91,7 +138,7 @@
      }
     },
     {
-     "text": "Move on past kept cells.",
+     "text": "Look at each cell of the shrinking list.",
      "at": {
       "python": [
        [
@@ -136,7 +183,7 @@
      }
     },
     {
-     "text": "Delete the blank: everything after it moves one place left. Don't advance `i`: a new cell has arrived there.",
+     "text": "A blank: slide the rest of the list left over it and shrink the length. The index stays, because the next cell now sits here.",
      "at": {
       "python": [
        [
@@ -165,7 +212,7 @@
      }
     },
     {
-     "text": "The live part.",
+     "text": "The first `n` cells.",
      "at": {
       "python": [
        [
@@ -196,7 +243,7 @@
    ],
    "complexity": [
     {
-     "md": "**Time O(n²)** with many blanks. **Space O(1)** beyond the copy."
+     "md": "**Time O(n²)** when many cells are blank. **Space O(1)** besides the copy."
     }
    ],
    "walk": {
@@ -295,7 +342,7 @@
    },
    "limits": [
     {
-     "md": "Each deletion shifts the whole tail. Writing each kept cell straight to its final spot moves every cell at most once."
+     "md": "Each deletion moves the whole tail. The read/write pass moves each kept cell once, straight to its final slot."
     }
    ],
    "slow": true
@@ -307,13 +354,13 @@
    "space": "O(1)",
    "idea": [
     {
-     "md": "`write = 0`. For each cell (the read pointer), if it isn't blank, copy it to `a[write]` and advance `write`. Return the first `write` cells."
+     "md": "Read every cell; copy each non-blank cell to `a[write]` and advance `write`. The answer is `a[0 .. write)`."
     }
    ],
    "build": [
-    "Copy; `write = 0`.",
-    "Copy kept cells forward.",
-    "Trim to `write`."
+    "`write = 0`.",
+    "For each cell: if it isn't blank, `a[write] = cell`, `write += 1`.",
+    "Return the first `write` cells."
    ],
    "code": {
     "python": "class Solution:\n    def removeValue(self, cells: List[int], blank: int) -> List[int]:\n        a, write = cells[:], 0\n        for x in cells:\n            if x != blank:\n                a[write] = x\n                write += 1\n        return a[:write]\n",
@@ -323,7 +370,7 @@
    },
    "lines": [
     {
-     "text": "`write` = how many cells are kept so far, and where the next one goes.",
+     "text": "The write position starts at 0: nothing kept yet.",
      "at": {
       "python": [
        [
@@ -352,7 +399,7 @@
      }
     },
     {
-     "text": "Every cell, in order.",
+     "text": "Visit every cell once, in order.",
      "at": {
       "python": [
        [
@@ -381,7 +428,7 @@
      }
     },
     {
-     "text": "A kept cell moves to the end of the kept part. `write ≤ read` always, so nothing unread is overwritten.",
+     "text": "A non-blank cell goes to the next free slot of the kept prefix. Blank cells are skipped by not writing them.",
      "at": {
       "python": [
        [
@@ -410,7 +457,7 @@
      }
     },
     {
-     "text": "The kept prefix.",
+     "text": "The kept prefix. C reports its length through `returnSize`.",
      "at": {
       "python": [
        [
@@ -441,7 +488,7 @@
    ],
    "complexity": [
     {
-     "md": "**Time O(n).** **Space O(1)** extra (in place)."
+     "md": "**Time O(n):** one read per cell, at most one write. **Space O(1)** besides the output."
     }
    ],
    "walk": {
@@ -634,7 +681,7 @@
  ],
  "takeaways": [
   {
-   "md": "- **Filter in place = read pointer + write pointer.** Kept items move left to `write`.\n- `write` never passes `read`, so in-place copying is safe.\n- The same skeleton dedups, compacts and filters arrays."
+   "md": "- **Filter in place:** a reader visits everything, a writer collects what stays.\n- The writer never passes the reader, so overwriting is safe.\n- **Pitfall:** deleting with shifts (O(n²))."
   }
  ]
 }
