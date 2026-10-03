@@ -4,30 +4,119 @@
  "question": [
   {
    "md": "Return the length of the longest run of consecutive `readings` whose highest and lowest values differ by at most\n`limit`.\n\n- **n up to 10⁵.**"
+  },
+  {
+   "md": "**Edge cases to keep in mind**\n\n- `limit = 0`: the longest run of equal readings.\n- A single reading is always steady (spread 0).\n- Readings up to 10⁹: the spread fits in 32 bits, but compute differences carefully."
   }
  ],
  "think": [
   {
-   "md": "`readings = [8, 2, 4, 7, 5, 6, 9, 3, 4]`, `limit = 3` → **4**.\n\nIt's a longest-window problem (shrinking never increases the spread). The hard part is the window's max and\nmin after removing from the left. A reading that is smaller than a later reading can never be the window's\nmaximum again while that later one is inside, so it can be discarded. What remains is a decreasing list whose\nfront is the max. The same, mirrored, for the min."
+   "md": "**Shape of the rule.** The spread `max − min` can only shrink (or stay) when you remove a reading, and only grow\nwhen you add one. So it's another longest-valid-window problem."
   },
   {
-   "panels": [
-    {
-     "type": "row",
-     "cells": [
-      8,
-      2,
-      4,
-      7,
-      5,
-      6,
-      9,
-      3,
-      4
+   "md": "**Why the left edge never goes back.** If the window `[L, R]` breaks the rule, then every longer window `[L, R']` with\n`R' > R` contains it and breaks the rule too. So once a start `L` fails for some `R`, it fails for all later `R`, and\nwe can throw it away forever. That's what lets the left pointer only move forward, and makes the whole scan O(n)."
+  },
+  {
+   "md": "**Trace with `limit = 3`:**"
+  },
+  {
+   "table": {
+    "head": [
+     "R",
+     "reading",
+     "L",
+     "window",
+     "length",
+     "best",
+     "state"
+    ],
+    "rows": [
+     [
+      "0",
+      "8",
+      "0",
+      "8",
+      "1",
+      "1",
+      "max 8, min 8"
      ],
-     "label": "readings"
-    }
-   ]
+     [
+      "1",
+      "2",
+      "1",
+      "2",
+      "1",
+      "1",
+      "max 2, min 2"
+     ],
+     [
+      "2",
+      "4",
+      "1",
+      "2 4",
+      "2",
+      "2",
+      "max 4, min 2"
+     ],
+     [
+      "3",
+      "7",
+      "2",
+      "4 7",
+      "2",
+      "2",
+      "max 7, min 4"
+     ],
+     [
+      "4",
+      "5",
+      "2",
+      "4 7 5",
+      "3",
+      "3",
+      "max 7, min 4"
+     ],
+     [
+      "5",
+      "6",
+      "2",
+      "4 7 5 6",
+      "4",
+      "4",
+      "max 7, min 4"
+     ],
+     [
+      "6",
+      "9",
+      "5",
+      "6 9",
+      "2",
+      "4",
+      "max 9, min 6"
+     ],
+     [
+      "7",
+      "3",
+      "7",
+      "3",
+      "1",
+      "4",
+      "max 3, min 3"
+     ],
+     [
+      "8",
+      "4",
+      "7",
+      "3 4",
+      "2",
+      "4",
+      "max 4, min 3"
+     ]
+    ]
+   }
+  },
+  {
+   "md": "**The real difficulty: max and min after removals.** Adding a reading updates the max and min easily, but when\nthe left reading leaves, it might have been the max. Recomputing over the window costs O(window).\n\n**Monotonic deques.** Think about which readings could ever be the window's maximum again. If an older reading is\n**≤** a newer one, the newer one stays in the window at least as long, so the older one can never be the maximum\nagain: discard it. What remains, read from front to back, is a strictly decreasing list of candidates, and its\nfront is the current maximum. When the window's left edge passes the front's index, drop the front.\n\nThe minimum uses the mirror image: discard older readings that are **≥** a newer one; the remaining list is\nincreasing and its front is the minimum."
   }
  ],
  "approaches": [
@@ -38,7 +127,7 @@
    "space": "O(1)",
    "idea": [
     {
-     "md": "For each start, extend while tracking the running max and min; stop when they differ by more than `limit`."
+     "md": "From every start, extend while tracking the running max and min; stop when they're more than `limit` apart. Simple and correct, but every start rescans."
     }
    ],
    "build": [
@@ -201,7 +290,7 @@
    ],
    "complexity": [
     {
-     "md": "**Time O(n²)** with a generous limit. **Space O(1).**"
+     "md": "**Time O(n²)** for a generous limit. **Space O(1).**"
     }
    ],
    "walk": {
@@ -469,14 +558,14 @@
    "space": "O(n)",
    "idea": [
     {
-     "md": "`hi`: indices with decreasing readings; `lo`: increasing. On adding `i`, pop smaller (resp. larger) readings from the back, then push `i`. While `readings[hi[0]] − readings[lo[0]] > limit`, advance `left` and drop deque fronts that fall out of the window."
+     "md": "Two deques of **indices**: `hi` (readings decreasing from front to back) and `lo` (increasing).\n\nFor each `R` with reading `v`:\n\n1. Pop from the back of `hi` every index whose reading is `≤ v`, then push `R`. Same for `lo` with `≥ v`.\n2. While `readings[hi.front] − readings[lo.front] > limit`: advance `L`, and pop a deque's front if its\n   index is now `< L`.\n3. Record `R − L + 1`.\n\n**Invariants.** Every index in a deque lies in `[L, R]`, the deques are monotone, and their fronts are the\nwindow's maximum and minimum. Storing indices (not values) is what lets us tell when a front has left."
     }
    ],
    "build": [
-    "Two deques.",
-    "Push with back-pops.",
-    "Shrink while the spread is too big.",
-    "Track the longest."
+    "Two empty deques, `L = 0`, `best = 0`.",
+    "Push `R` into both, popping dominated indices from the back first.",
+    "Shrink: while the fronts are more than `limit` apart, `L += 1` and drop fronts with index `< L`.",
+    "`best = max(best, R − L + 1)`."
    ],
    "code": {
     "python": "from collections import deque\n\n\nclass Solution:\n    def longestSteady(self, readings: List[int], limit: int) -> int:\n        hi, lo = deque(), deque()\n        left = best = 0\n        for i, v in enumerate(readings):\n            while hi and readings[hi[-1]] <= v:\n                hi.pop()\n            hi.append(i)\n            while lo and readings[lo[-1]] >= v:\n                lo.pop()\n            lo.append(i)\n            while readings[hi[0]] - readings[lo[0]] > limit:\n                left += 1\n                if hi[0] < left:\n                    hi.popleft()\n                if lo[0] < left:\n                    lo.popleft()\n            best = max(best, i - left + 1)\n        return best\n",
@@ -636,7 +725,7 @@
    ],
    "complexity": [
     {
-     "md": "**Time O(n):** every index enters and leaves each deque at most once. **Space O(n).**"
+     "md": "**Time O(n):** each index is pushed once and popped at most once from each deque, and `L` moves at most\n`n` times. **Space O(n)** in the worst case (e.g. a strictly decreasing sequence fills `hi`)."
     }
    ],
    "walk": {
@@ -977,7 +1066,7 @@
  ],
  "takeaways": [
   {
-   "md": "- **Window max/min under removals → monotonic deques**, amortised O(1).\n- Max − min is monotone under shrinking, so the longest-window template applies.\n- Store indices in the deques so you can tell when a front has left the window."
+   "md": "- **Window max/min under removals → monotonic deques of indices**, amortised O(1).\n- Max − min is monotone under shrinking, so the longest-window template applies.\n- The same deques give the \"sliding window maximum\" for fixed windows."
   }
  ]
 }

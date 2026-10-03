@@ -4,30 +4,109 @@
  "question": [
   {
    "md": "Return the length of the longest substring of `s` with no repeated character.\n\n- **n up to 10⁵**, letters and digits (36 possible characters)."
+  },
+  {
+   "md": "**Edge cases to keep in mind**\n\n- A single character: the answer is 1.\n- All characters different: the whole string.\n- A repeat **outside** the current window (like the first `a` in `abba` when we reach the last `a`) must not\n  move the window."
   }
  ],
  "think": [
   {
-   "md": "`\"abcabdcbb\"` → **4** (`cabd`).\n\nIf a window is fresh, every smaller window inside it is too, so for each right end there's a leftmost valid\nstart, and that start only moves right as the right end grows. When a repeat appears, everything up to and\nincluding the earlier copy must leave, and remembering each character's last index tells us exactly where\nthat is."
+   "md": "**The rule and its shape.** A window is valid when no character appears twice in it. Shrinking a valid window\nkeeps it valid, and growing an invalid one keeps it invalid. That's the signature of a \"longest valid window\"\nproblem."
   },
   {
-   "panels": [
-    {
-     "type": "row",
-     "cells": [
+   "md": "**Why the left edge never goes back.** If the window `[L, R]` breaks the rule, then every longer window `[L, R']` with\n`R' > R` contains it and breaks the rule too. So once a start `L` fails for some `R`, it fails for all later `R`, and\nwe can throw it away forever. That's what lets the left pointer only move forward, and makes the whole scan O(n)."
+  },
+  {
+   "md": "**A trace on `\"abcabdcbb\"`.** `R` adds one character per row; `L` is moved just far enough to remove the repeat:"
+  },
+  {
+   "table": {
+    "head": [
+     "R",
+     "char",
+     "L",
+     "window",
+     "length",
+     "best"
+    ],
+    "rows": [
+     [
+      "0",
       "a",
-      "b",
-      "c",
+      "0",
       "a",
-      "b",
-      "d",
-      "c",
-      "b",
-      "b"
+      "1",
+      "1"
      ],
-     "label": "s"
-    }
-   ]
+     [
+      "1",
+      "b",
+      "0",
+      "ab",
+      "2",
+      "2"
+     ],
+     [
+      "2",
+      "c",
+      "0",
+      "abc",
+      "3",
+      "3"
+     ],
+     [
+      "3",
+      "a",
+      "1",
+      "bca",
+      "3",
+      "3"
+     ],
+     [
+      "4",
+      "b",
+      "2",
+      "cab",
+      "3",
+      "3"
+     ],
+     [
+      "5",
+      "d",
+      "2",
+      "cabd",
+      "4",
+      "4"
+     ],
+     [
+      "6",
+      "c",
+      "3",
+      "abdc",
+      "4",
+      "4"
+     ],
+     [
+      "7",
+      "b",
+      "5",
+      "dcb",
+      "3",
+      "4"
+     ],
+     [
+      "8",
+      "b",
+      "8",
+      "b",
+      "1",
+      "4"
+     ]
+    ]
+   }
+  },
+  {
+   "md": "**Moving `L` faster.** When the new character `c` repeats inside the window, the window must start **after the\nprevious `c`**: any start at or before it still contains both copies. Instead of stepping `L` one character at a\ntime, remember the last index of each character and jump straight there.\n\n**The stale-entry trap.** The remembered index may already be left of `L` (the earlier copy was dropped long\nago). Then nothing repeats inside the window, and `L` must not move. In `\"abba\"`, at the final `a` the last `a`\nis at 0 but `L` is already 2; jumping to 1 would move `L` backwards and allow `\"bba\"`, which isn't fresh. So the\njump is taken only if `last[c] ≥ L`."
   }
  ],
  "approaches": [
@@ -38,7 +117,7 @@
    "space": "O(σ)",
    "idea": [
     {
-     "md": "For each start, add characters to a seen set until one repeats. A fresh run has at most σ = 36 characters, so each start stops quickly."
+     "md": "For each start `i`, walk right adding characters to a \"seen\" set until the next character is already\nseen. The run `s[i..j−1]` is the longest fresh run starting at `i`.\n\nBecause there are only 36 possible characters, a fresh run is at most 36 long, so each start stops\nquickly here. But with a large alphabet (say all Unicode) this becomes O(n²), and it re-reads the same\ncharacters from many starts."
     }
    ],
    "build": [
@@ -201,7 +280,7 @@
    ],
    "complexity": [
     {
-     "md": "**Time O(n · σ)** with σ = 36 distinct characters (O(n²) for a large alphabet). **Space O(σ).**"
+     "md": "**Time O(n · σ)**, where σ is the number of distinct characters (36 here, up to n in general). **Space O(σ)** for the seen set."
     }
    ],
    "walk": {
@@ -474,13 +553,14 @@
    "space": "O(σ)",
    "idea": [
     {
-     "md": "`last[c]` = most recent index of `c`. For each `r`: if `last[s[r]] ≥ left`, set `left = last[s[r]] + 1`. Update `last`, then `best = max(best, r − left + 1)`."
+     "md": "One pass with `R` over the string, and `L` as the start of the current fresh window. `last[c]` stores the\nmost recent index of character `c`.\n\nFor each `R` with character `c`:\n\n1. If `last[c] ≥ L`, the previous `c` is inside the window; set `L = last[c] + 1`.\n2. Record `last[c] = R`.\n3. The window `s[L..R]` is fresh; update the best length with `R − L + 1`.\n\n**Invariant.** After step 1, `s[L..R]` has no repeated character, and `L` is the smallest start for which\nthat's true. Since every fresh window ending at `R` starts at `L` or later, `R − L + 1` is the longest\none ending at `R`; taking the max over all `R` gives the answer."
     }
    ],
    "build": [
-    "Last-seen table.",
-    "Jump the left edge past a repeat.",
-    "Track the longest window."
+    "`last` maps each character to its latest index (or −1); `L = 0`, `best = 0`.",
+    "For each `R`: if `last[s[R]] ≥ L`, jump `L` to `last[s[R]] + 1`.",
+    "Store `last[s[R]] = R`.",
+    "`best = max(best, R − L + 1)`."
    ],
    "code": {
     "python": "class Solution:\n    def longestFresh(self, s: str) -> int:\n        last = {}\n        left = best = 0\n        for i, c in enumerate(s):\n            if last.get(c, -1) >= left:\n                left = last[c] + 1\n            last[c] = i\n            best = max(best, i - left + 1)\n        return best\n",
@@ -658,7 +738,7 @@
    ],
    "complexity": [
     {
-     "md": "**Time O(n):** each character is processed once, and `left` jumps directly. **Space O(σ).**"
+     "md": "**Time O(n):** one step per character; `L` jumps in O(1). **Space O(σ)** for `last` (a 128-entry\narray in Java, C++ and C)."
     }
    ],
    "walk": {
@@ -951,7 +1031,7 @@
  ],
  "takeaways": [
   {
-   "md": "- **Longest window with a rule that survives shrinking:** grow right, move left only as needed.\n- Store **last positions** to jump the left edge instead of stepping.\n- Ignore stale positions that are already left of the window."
+   "md": "- **Longest window with \"no repeats\"** → sliding window with last-seen positions.\n- **Jump, don't crawl:** `L = last[c] + 1`, but only if `last[c] ≥ L` (ignore stale positions).\n- **Template for longest-valid-window:** for each `R`: add, fix the window by moving `L`, record `R − L + 1`."
   }
  ]
 }

@@ -4,30 +4,119 @@
  "question": [
   {
    "md": "Repaint at most `k` tiles of `s`. Return the longest run of consecutive tiles that can end up one colour.\n\n- **n up to 10⁵**, 26 colours."
+  },
+  {
+   "md": "**Edge cases to keep in mind**\n\n- `k = 0`: the answer is the longest run of one colour already present.\n- `k ≥ n − 1`: the whole banner can be made one colour.\n- Repainting can only help tiles inside the run we choose; changes elsewhere are wasted."
   }
  ],
  "think": [
   {
-   "md": "`\"ABAABBBAB\"`, `k = 1` → **5**.\n\nFor a fixed run, the cheapest choice is to keep its most common colour and repaint everything else, so it\nneeds `length − maxCount` repaints. Shrinking a valid run keeps it valid, so this is a longest-window problem.\n\nThe subtle refinement: we only care about windows **longer** than the best so far. A longer valid window needs\na larger `maxCount` than we've ever had. So `maxf` may safely be a historical maximum: while it's stale, the\nwindow just slides at its current length and can't produce a wrong (too large) answer."
+   "md": "**Cost of one run.** To make a run one colour with as few repaints as possible, keep its most common colour and\nrepaint everything else. So a run of length `len` whose most frequent colour appears `top` times needs\n`len − top` repaints, and it's achievable when `len − top ≤ k`.\n\n**Shape of the rule.** Removing a tile from either end can't increase `len − top` (`len` drops by 1 and `top`\ndrops by at most 1). So shrinking keeps a run valid: a longest-valid-window problem."
   },
   {
-   "panels": [
-    {
-     "type": "row",
-     "cells": [
+   "md": "**Why the left edge never goes back.** If the window `[L, R]` breaks the rule, then every longer window `[L, R']` with\n`R' > R` contains it and breaks the rule too. So once a start `L` fails for some `R`, it fails for all later `R`, and\nwe can throw it away forever. That's what lets the left pointer only move forward, and makes the whole scan O(n)."
+  },
+  {
+   "md": "**A trace on `\"ABAABBBAB\"` with `k = 1`** (last column = repaints needed for the window):"
+  },
+  {
+   "table": {
+    "head": [
+     "R",
+     "tile",
+     "L",
+     "window",
+     "length",
+     "best",
+     "repaints"
+    ],
+    "rows": [
+     [
+      "0",
       "A",
-      "B",
+      "0",
       "A",
-      "A",
-      "B",
-      "B",
-      "B",
-      "A",
-      "B"
+      "1",
+      "1",
+      "0"
      ],
-     "label": "s"
-    }
-   ]
+     [
+      "1",
+      "B",
+      "0",
+      "AB",
+      "2",
+      "2",
+      "1"
+     ],
+     [
+      "2",
+      "A",
+      "0",
+      "ABA",
+      "3",
+      "3",
+      "1"
+     ],
+     [
+      "3",
+      "A",
+      "0",
+      "ABAA",
+      "4",
+      "4",
+      "1"
+     ],
+     [
+      "4",
+      "B",
+      "2",
+      "AAB",
+      "3",
+      "4",
+      "1"
+     ],
+     [
+      "5",
+      "B",
+      "3",
+      "ABB",
+      "3",
+      "4",
+      "1"
+     ],
+     [
+      "6",
+      "B",
+      "3",
+      "ABBB",
+      "4",
+      "4",
+      "1"
+     ],
+     [
+      "7",
+      "A",
+      "4",
+      "BBBA",
+      "4",
+      "4",
+      "1"
+     ],
+     [
+      "8",
+      "B",
+      "4",
+      "BBBAB",
+      "5",
+      "5",
+      "1"
+     ]
+    ]
+   }
+  },
+  {
+   "md": "**The subtle speed-up.** Computing `top` exactly means scanning 26 counters after every change. But we're only\nhunting for windows **longer than the best so far**. A longer window can only pass `len − top ≤ k` if its `top`\nis larger than any `top` we've already met. So it's enough to remember `maxf`, the **largest count ever seen**,\neven if the current window's real top count is smaller. With a stale `maxf` the window may be invalid for a while,\nbut then it just slides at its current length (one in, one out), never reporting a length we haven't legitimately\nreached before. The window only grows when some colour sets a new `maxf`."
   }
  ],
  "approaches": [
@@ -38,7 +127,7 @@
    "space": "O(1)",
    "idea": [
     {
-     "md": "For each start, extend while `length − maxCount ≤ k`, updating counts and `maxCount` incrementally."
+     "md": "For each start, extend to the right, keeping colour counts and the running top count; stop as soon as\n`len − top > k`. The last valid length is the best run from that start."
     }
    ],
    "build": [
@@ -201,7 +290,7 @@
    ],
    "complexity": [
     {
-     "md": "**Time O(n²)** in the worst case (large `k`). **Space O(1)** (26 counters)."
+     "md": "**Time O(n²)** when `k` is large (runs extend far from every start). **Space O(1)**: 26 counters."
     }
    ],
    "walk": {
@@ -477,7 +566,7 @@
    "space": "O(1)",
    "idea": [
     {
-     "md": "Add `s[r]` to the counts. While `length − max(count) > k`, remove `s[left]` and advance. Track the longest window."
+     "md": "A sliding window with 26 colour counts. Add `s[R]`; while `len − max(count) > k`, remove `s[L]` and move\n`L` right. Record the window length.\n\n**Correctness** follows the usual pattern: after the while loop, `[L, R]` is the longest valid window\nending at `R` (any earlier start was rejected for an earlier or equal `R`, and stays invalid)."
     }
    ],
    "build": [
@@ -648,7 +737,7 @@
    ],
    "complexity": [
     {
-     "md": "**Time O(26 · n).** **Space O(1).**"
+     "md": "**Time O(26 · n):** each of the up to `2n` pointer moves recomputes a max over 26 counts. **Space O(1).**"
     }
    ],
    "walk": {
@@ -999,13 +1088,14 @@
    "space": "O(1)",
    "idea": [
     {
-     "md": "Keep `maxf` = largest count seen in any window so far. After adding `s[r]`, if `length − maxf > k`, remove one tile from the left (the window slides at constant length). The final window length (or the max seen) is the answer."
+     "md": "Keep `maxf` = the highest count of any colour in any window so far (it never decreases). After adding\n`s[R]`, if `len − maxf > k`, remove exactly one tile from the left. The window length never decreases;\nit grows by one exactly when the new tile pushes `maxf` up (or the window still fits).\n\n**Why every recorded length is achievable.** At the step when `maxf` last went up, the window held\n`maxf` copies of one colour and fitted the rule (a step that raises `maxf` never slides). Since then the\nwindow has grown only while `len − maxf ≤ k`. Take that earlier window and extend it to the current length\n`len`: it still holds at least `maxf` copies of that colour, so at most `len − maxf ≤ k` tiles need\nrepainting. So a valid run of length `len` really exists.\n\n**Why nothing longer is missed.** To beat the current length `len`, a run needs a colour appearing at\nleast `len + 1 − k` times, more than `maxf`. While `R` walks through such a run, that colour's count in\nour window climbs past `maxf`, which lets the window grow instead of sliding. So the final length reaches\nthe true answer."
     }
    ],
    "build": [
-    "Counts and `maxf`.",
-    "Grow; slide by one if too long for `maxf`.",
-    "Track the length."
+    "26 counts, `L = 0`, `maxf = 0`, `best = 0`.",
+    "Add `s[R]`: increment its count and set `maxf = max(maxf, count)`.",
+    "If `R − L + 1 − maxf > k`, decrement `count[s[L]]` and move `L` one step (the window slides).",
+    "`best = max(best, R − L + 1)`."
    ],
    "code": {
     "python": "class Solution:\n    def longestUniform(self, s: str, k: int) -> int:\n        count = [0] * 26\n        left = maxf = best = 0\n        for i, c in enumerate(s):\n            x = ord(c) - 65\n            count[x] += 1\n            maxf = max(maxf, count[x])\n            if i - left + 1 - maxf > k:\n                count[ord(s[left]) - 65] -= 1\n                left += 1\n            best = max(best, i - left + 1)\n        return best\n",
@@ -1191,7 +1281,7 @@
    ],
    "complexity": [
     {
-     "md": "**Time O(n).** **Space O(1).**"
+     "md": "**Time O(n):** O(1) work per tile. **Space O(1).**"
     }
    ],
    "walk": {
@@ -1491,7 +1581,7 @@
  ],
  "takeaways": [
   {
-   "md": "- **\"Make a window uniform with ≤ k changes\":** cost = length − most frequent count.\n- When you only want the maximum length, the window may **slide instead of shrink**, and a stale maximum is fine.\n- Same template as \"longest run of 1s with k flips\"."
+   "md": "- **\"Make a window uniform with ≤ k changes\":** cost = length − most frequent count.\n- **Same template as \"flip at most k zeros\"**, where the \"most frequent\" is always the 1s.\n- **When only the maximum length matters**, the window may slide instead of shrinking, and a stale maximum\n  frequency is safe."
   }
  ]
 }

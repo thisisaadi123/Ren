@@ -4,33 +4,146 @@
  "question": [
   {
    "md": "Turn at most `k` zeros of `status` into ones. Return the longest run of consecutive ones you can get.\n\n- **n up to 10⁵.**"
+  },
+  {
+   "md": "**Edge cases to keep in mind**\n\n- `k = 0`: the longest existing run of 1s.\n- `k` at least the number of zeros: the whole log.\n- All zeros: the answer is `min(k, n)`."
   }
  ],
  "think": [
   {
-   "md": "`status = [1, 1, 0, 0, 1, 1, 1, 0, 1, 1, 0, 1]`, `k = 2` → **8**.\n\nWhich zeros to patch? Only those inside the run we end up with. So a run is achievable exactly when it holds\nat most `k` zeros: we're looking for the longest window with at most `k` zeros. A sub-window of a valid window\nis valid, so the left edge only ever moves right."
+   "md": "**Which zeros should we patch?** Patching a zero only helps if it ends up inside the run we report. So pick the\nrun first: a run can be made all ones exactly when it contains **at most `k` zeros**. The problem is \"longest\nwindow with at most `k` zeros\"."
   },
   {
-   "panels": [
-    {
-     "type": "row",
-     "cells": [
-      1,
-      1,
-      0,
-      0,
-      1,
-      1,
-      1,
-      0,
-      1,
-      1,
-      0,
-      1
+   "md": "**Why the left edge never goes back.** If the window `[L, R]` breaks the rule, then every longer window `[L, R']` with\n`R' > R` contains it and breaks the rule too. So once a start `L` fails for some `R`, it fails for all later `R`, and\nwe can throw it away forever. That's what lets the left pointer only move forward, and makes the whole scan O(n)."
+  },
+  {
+   "md": "**Trace with `k = 2`** (last column = zeros in the window):"
+  },
+  {
+   "table": {
+    "head": [
+     "R",
+     "value",
+     "L",
+     "window",
+     "length",
+     "best",
+     "zeros"
+    ],
+    "rows": [
+     [
+      "0",
+      "1",
+      "0",
+      "1",
+      "1",
+      "1",
+      "0"
      ],
-     "label": "status"
-    }
-   ]
+     [
+      "1",
+      "1",
+      "0",
+      "1 1",
+      "2",
+      "2",
+      "0"
+     ],
+     [
+      "2",
+      "0",
+      "0",
+      "1 1 0",
+      "3",
+      "3",
+      "1"
+     ],
+     [
+      "3",
+      "0",
+      "0",
+      "1 1 0 0",
+      "4",
+      "4",
+      "2"
+     ],
+     [
+      "4",
+      "1",
+      "0",
+      "1 1 0 0 1",
+      "5",
+      "5",
+      "2"
+     ],
+     [
+      "5",
+      "1",
+      "0",
+      "1 1 0 0 1 1",
+      "6",
+      "6",
+      "2"
+     ],
+     [
+      "6",
+      "1",
+      "0",
+      "1 1 0 0 1 1 1",
+      "7",
+      "7",
+      "2"
+     ],
+     [
+      "7",
+      "0",
+      "3",
+      "0 1 1 1 0",
+      "5",
+      "7",
+      "2"
+     ],
+     [
+      "8",
+      "1",
+      "3",
+      "0 1 1 1 0 1",
+      "6",
+      "7",
+      "2"
+     ],
+     [
+      "9",
+      "1",
+      "3",
+      "0 1 1 1 0 1 1",
+      "7",
+      "7",
+      "2"
+     ],
+     [
+      "10",
+      "0",
+      "4",
+      "1 1 1 0 1 1 0",
+      "7",
+      "7",
+      "2"
+     ],
+     [
+      "11",
+      "1",
+      "4",
+      "1 1 1 0 1 1 0 1",
+      "8",
+      "8",
+      "2"
+     ]
+    ]
+   }
+  },
+  {
+   "md": "When a third zero enters, `L` walks right until a zero has left; ones it passes over are simply dropped. Note\nthat we never need to decide **which** zeros get patched: all zeros in the final window are."
   }
  ],
  "approaches": [
@@ -41,7 +154,7 @@
    "space": "O(1)",
    "idea": [
     {
-     "md": "For each start, extend while the zero count stays at most `k`."
+     "md": "From every start, extend while the window has at most `k` zeros. Each start's run is the longest from that\nstart; the best of them is the answer. It restarts the zero count for every start."
     }
    ],
    "build": [
@@ -521,13 +634,14 @@
    "space": "O(1)",
    "idea": [
     {
-     "md": "Add `status[r]`; if it's 0, `zeros += 1`. While `zeros > k`, drop `status[left]` (decrementing `zeros` if it was 0) and advance. Track the longest window."
+     "md": "Keep a window `[L, R]` and its zero count. Add `status[R]` (zero → count + 1). While the count exceeds\n`k`, remove `status[L]` (if it's a zero, count − 1) and advance `L`. Then `R − L + 1` is the longest\npatchable run ending at `R`.\n\n**Invariant.** After the loop, `[L, R]` has at most `k` zeros and `L` is the earliest start that allows\nit."
     }
    ],
    "build": [
-    "Zero count of the window.",
-    "Shrink when over `k`.",
-    "Track the longest."
+    "`L = 0`, `zeros = 0`, `best = 0`.",
+    "For each `R`: if `status[R] = 0`, `zeros += 1`.",
+    "While `zeros > k`: if `status[L] = 0`, `zeros −= 1`; `L += 1`.",
+    "`best = max(best, R − L + 1)`."
    ],
    "code": {
     "python": "class Solution:\n    def longestOnline(self, status: List[int], k: int) -> int:\n        left = zeros = best = 0\n        for i, v in enumerate(status):\n            if v == 0:\n                zeros += 1\n            while zeros > k:\n                if status[left] == 0:\n                    zeros -= 1\n                left += 1\n            best = max(best, i - left + 1)\n        return best\n",
@@ -684,7 +798,7 @@
    ],
    "complexity": [
     {
-     "md": "**Time O(n):** `left` and `i` each move at most `n` times. **Space O(1).**"
+     "md": "**Time O(n):** `R` and `L` each move at most `n` times. **Space O(1).**"
     }
    ],
    "walk": {
@@ -1190,7 +1304,7 @@
  ],
  "takeaways": [
   {
-   "md": "- **\"Flip at most k\" = window with at most k bad items.**\n- Both pointers only move forward: O(n) total.\n- Count the bad items; the good ones don't need tracking."
+   "md": "- **\"Flip/patch at most k\" = window with at most k bad items.**\n- Count only the bad items; the window length does the rest.\n- The choice of *which* items to change disappears once you pick the window."
   }
  ]
 }

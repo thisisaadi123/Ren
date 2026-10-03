@@ -4,31 +4,128 @@
  "question": [
   {
    "md": "Return the length of the longest run of consecutive tubs that uses at most two different flavours.\n\n- **n up to 10⁵**, flavours in `[0, n)`."
+  },
+  {
+   "md": "**Edge cases to keep in mind**\n\n- One or two flavours in total: the whole counter.\n- All tubs different: the answer is 2 (or 1 if there's a single tub).\n- The best stretch may be in the middle; starting from the first tub isn't required."
   }
  ],
  "think": [
   {
-   "md": "`flavours = [3, 3, 1, 2, 1, 1, 2, 4, 4, 2]` → **5** scoops.\n\n\"Walk from any tub and stop before a forbidden one\" is just \"pick a contiguous window\". A window with at most two\nflavours stays valid if you shrink it, so for each right end the best start only moves right. We need to know\nhow many distinct flavours are inside, which a count per flavour plus a distinct counter maintains in O(1)."
+   "md": "**Translating the story.** Starting anywhere and walking right until you can't continue means you take a\ncontiguous stretch of tubs. The cone allows two flavours, so the question is: the longest stretch with **at most\ntwo distinct values**."
   },
   {
-   "panels": [
-    {
-     "type": "row",
-     "cells": [
-      3,
-      3,
-      1,
-      2,
-      1,
-      1,
-      2,
-      4,
-      4,
-      2
+   "md": "**Why the left edge never goes back.** If the window `[L, R]` breaks the rule, then every longer window `[L, R']` with\n`R' > R` contains it and breaks the rule too. So once a start `L` fails for some `R`, it fails for all later `R`, and\nwe can throw it away forever. That's what lets the left pointer only move forward, and makes the whole scan O(n)."
+  },
+  {
+   "md": "**Trace** (last column = flavours in the window):"
+  },
+  {
+   "table": {
+    "head": [
+     "R",
+     "flavour",
+     "L",
+     "window",
+     "length",
+     "best",
+     "flavours"
+    ],
+    "rows": [
+     [
+      "0",
+      "3",
+      "0",
+      "3",
+      "1",
+      "1",
+      "3"
      ],
-     "label": "flavours"
-    }
-   ]
+     [
+      "1",
+      "3",
+      "0",
+      "3 3",
+      "2",
+      "2",
+      "3"
+     ],
+     [
+      "2",
+      "1",
+      "0",
+      "3 3 1",
+      "3",
+      "3",
+      "1, 3"
+     ],
+     [
+      "3",
+      "2",
+      "2",
+      "1 2",
+      "2",
+      "3",
+      "1, 2"
+     ],
+     [
+      "4",
+      "1",
+      "2",
+      "1 2 1",
+      "3",
+      "3",
+      "1, 2"
+     ],
+     [
+      "5",
+      "1",
+      "2",
+      "1 2 1 1",
+      "4",
+      "4",
+      "1, 2"
+     ],
+     [
+      "6",
+      "2",
+      "2",
+      "1 2 1 1 2",
+      "5",
+      "5",
+      "1, 2"
+     ],
+     [
+      "7",
+      "4",
+      "6",
+      "2 4",
+      "2",
+      "5",
+      "2, 4"
+     ],
+     [
+      "8",
+      "4",
+      "6",
+      "2 4 4",
+      "3",
+      "5",
+      "2, 4"
+     ],
+     [
+      "9",
+      "2",
+      "6",
+      "2 4 4 2",
+      "4",
+      "5",
+      "2, 4"
+     ]
+    ]
+   }
+  },
+  {
+   "md": "**Counting distinct values in O(1).** Keep a count per flavour and a separate number `distinct`. When a count goes\nfrom 0 to 1, a new flavour entered (`distinct + 1`); when a count drops from 1 to 0, a flavour left completely\n(`distinct − 1`). Other changes don't affect `distinct`.\n\nWhen a third flavour enters, `L` must move until one of the flavours disappears entirely; that might take several\nsteps, because the leftmost tub's flavour may appear again later in the window."
   }
  ],
  "approaches": [
@@ -39,7 +136,7 @@
    "space": "O(n)",
    "idea": [
     {
-     "md": "For each start, extend while the window holds at most two flavours (remember the two you've taken)."
+     "md": "From every tub, walk right remembering at most two flavours; stop at the first tub whose flavour would be a third. Correct, but each start re-walks the same tubs."
     }
    ],
    "build": [
@@ -207,7 +304,7 @@
    ],
    "complexity": [
     {
-     "md": "**Time O(n²)** (e.g. two alternating flavours). **Space O(1)** (O(1) set in Python too, at most two items)."
+     "md": "**Time O(n²)**, e.g. for two alternating flavours. **Space O(1).**"
     }
    ],
    "walk": {
@@ -488,13 +585,14 @@
    "space": "O(n)",
    "idea": [
     {
-     "md": "`count[f]` for the window and `distinct`. Add `flavours[r]` (a count going 0 → 1 adds a distinct). While `distinct > 2`, remove `flavours[left]` (a count going 1 → 0 removes one) and advance. Track the longest."
+     "md": "Sliding window with `count[f]` and `distinct`. Add `flavours[R]`; while `distinct > 2`, remove\n`flavours[L]` and advance `L`. Record `R − L + 1`.\n\nBecause flavours are below `n`, a plain array of counts replaces a hash map.\n\n**Generalises directly:** replace 2 by `k` for \"longest stretch with at most `k` distinct values\"."
     }
    ],
    "build": [
-    "Counts and distinct counter.",
-    "Shrink while three flavours.",
-    "Track the longest."
+    "`count` array of size `n`, `distinct = 0`, `L = 0`, `best = 0`.",
+    "Add tub `R`: if its count goes 0 → 1, `distinct += 1`.",
+    "While `distinct > 2`: decrement `count[flavours[L]]`; if it hits 0, `distinct −= 1`; `L += 1`.",
+    "`best = max(best, R − L + 1)`."
    ],
    "code": {
     "python": "class Solution:\n    def mostScoops(self, flavours: List[int]) -> int:\n        count = [0] * len(flavours)\n        left = distinct = best = 0\n        for i, f in enumerate(flavours):\n            count[f] += 1\n            if count[f] == 1:\n                distinct += 1\n            while distinct > 2:\n                g = flavours[left]\n                count[g] -= 1\n                if count[g] == 0:\n                    distinct -= 1\n                left += 1\n            best = max(best, i - left + 1)\n        return best\n",
@@ -651,7 +749,7 @@
    ],
    "complexity": [
     {
-     "md": "**Time O(n).** **Space O(n)** for the counts (a map would be O(1) extra: at most 3 keys)."
+     "md": "**Time O(n).** **Space O(n)** for the counts (a hash map would hold at most 3 keys)."
     }
    ],
    "walk": {
@@ -1065,7 +1163,7 @@
  ],
  "takeaways": [
   {
-   "md": "- **At most k distinct values in a window:** counts + a distinct counter, shrink while over k.\n- Update `distinct` only on 0 ↔ 1 transitions of a count.\n- The same code with `k` as a parameter solves \"at most k distinct\"."
+   "md": "- **\"At most k distinct values\" windows:** counts + a distinct counter, updated only on 0 ↔ 1 transitions.\n- Read the story carefully: \"walk until you can't\" means contiguous.\n- Same template as every other longest-valid-window problem."
   }
  ]
 }

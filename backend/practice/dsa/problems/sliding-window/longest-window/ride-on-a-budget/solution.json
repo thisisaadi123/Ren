@@ -4,46 +4,119 @@
  "question": [
   {
    "md": "Return the largest number of consecutive hops (contiguous fares) whose total is at most `budget` (0 if no single\nhop is affordable).\n\n- **n up to 10⁵**, fares positive, budget up to 10⁹."
+  },
+  {
+   "md": "**Edge cases to keep in mind**\n\n- Every fare above the budget: the answer is 0 (the window becomes empty).\n- Budget at least the total of all fares: the answer is `n`.\n- `budget = 0`: no hop is affordable, since fares are at least 1."
   }
  ],
  "think": [
   {
-   "md": "`fares = [4, 2, 6, 1, 1, 3, 5, 2, 2]`, `budget = 10` → **4** hops.\n\nPositivity is what makes a window work: if a ride fits the budget, every shorter ride inside it fits too, and\nfor each end the cheapest way to fix an over-budget ride is to drop hops from the start. Without positive\nfares (e.g. refunds), shrinking wouldn't necessarily lower the cost and this would break."
+   "md": "**Why positivity matters.** All fares are at least 1. So adding a hop always raises the cost, and dropping a hop\nalways lowers it. Two consequences:\n\n1. If a ride fits the budget, every shorter ride inside it fits too (shrinking is safe).\n2. If a ride is over budget, every longer ride containing it is over budget too.\n\nPoint 2 is exactly the property that lets the left edge only move forward."
   },
   {
-   "panels": [
-    {
-     "type": "row",
-     "cells": [
-      4,
-      2,
-      6,
-      1,
-      1,
-      3,
-      5,
-      2,
-      2
+   "md": "**Why the left edge never goes back.** If the window `[L, R]` breaks the rule, then every longer window `[L, R']` with\n`R' > R` contains it and breaks the rule too. So once a start `L` fails for some `R`, it fails for all later `R`, and\nwe can throw it away forever. That's what lets the left pointer only move forward, and makes the whole scan O(n)."
+  },
+  {
+   "md": "**Trace with `budget = 10`** (last column = cost of the window):"
+  },
+  {
+   "table": {
+    "head": [
+     "R",
+     "fare",
+     "L",
+     "window",
+     "length",
+     "best",
+     "cost"
+    ],
+    "rows": [
+     [
+      "0",
+      "4",
+      "0",
+      "4",
+      "1",
+      "1",
+      "4"
      ],
-     "label": "fares"
-    },
-    {
-     "type": "row",
-     "cells": [
-      0,
-      4,
-      6,
-      12,
-      13,
-      14,
-      17,
-      22,
-      24,
-      26
+     [
+      "1",
+      "2",
+      "0",
+      "4 2",
+      "2",
+      "2",
+      "6"
      ],
-     "label": "prefix sums"
-    }
-   ]
+     [
+      "2",
+      "6",
+      "1",
+      "2 6",
+      "2",
+      "2",
+      "8"
+     ],
+     [
+      "3",
+      "1",
+      "1",
+      "2 6 1",
+      "3",
+      "3",
+      "9"
+     ],
+     [
+      "4",
+      "1",
+      "1",
+      "2 6 1 1",
+      "4",
+      "4",
+      "10"
+     ],
+     [
+      "5",
+      "3",
+      "3",
+      "1 1 3",
+      "3",
+      "4",
+      "5"
+     ],
+     [
+      "6",
+      "5",
+      "3",
+      "1 1 3 5",
+      "4",
+      "4",
+      "10"
+     ],
+     [
+      "7",
+      "2",
+      "5",
+      "3 5 2",
+      "3",
+      "4",
+      "10"
+     ],
+     [
+      "8",
+      "2",
+      "6",
+      "5 2 2",
+      "3",
+      "4",
+      "9"
+     ]
+    ]
+   }
+  },
+  {
+   "md": "**What would break with refunds (negative fares)?** Then dropping a hop could *increase* the cost and adding one\ncould decrease it, so neither point holds, and the window method gives wrong answers. That variant needs prefix\nsums with a sorted structure instead."
   }
  ],
  "approaches": [
@@ -54,7 +127,7 @@
    "space": "O(1)",
    "idea": [
     {
-     "md": "For each start, add fares while the total stays within the budget."
+     "md": "From every stop, keep adding fares while the total stays within the budget; the number of hops taken is the best ride from that stop."
     }
    ],
    "build": [
@@ -217,7 +290,7 @@
    ],
    "complexity": [
     {
-     "md": "**Time O(n²)** with a big budget. **Space O(1).**"
+     "md": "**Time O(n²)** for a large budget. **Space O(1).**"
     }
    ],
    "walk": {
@@ -490,7 +563,7 @@
    "space": "O(n)",
    "idea": [
     {
-     "md": "`pre[j]` = total of the first `j` fares (strictly increasing). For each start `i`, the furthest end is the largest `j` with `pre[j] ≤ pre[i] + budget`: binary search."
+     "md": "Prefix sums `pre[j]` = cost of the first `j` hops. A ride over hops `i..j−1` costs `pre[j] − pre[i]`.\nBecause fares are positive, `pre` is strictly increasing, so for a start `i` the furthest affordable end\nis the **largest `j` with `pre[j] ≤ pre[i] + budget`**, found by binary search.\n\nThis uses positivity in a different way (sorted prefixes instead of a moving window). It's a useful\nfallback when only the prefixes are monotone."
     }
    ],
    "build": [
@@ -603,7 +676,7 @@
    ],
    "complexity": [
     {
-     "md": "**Time O(n log n).** **Space O(n).**"
+     "md": "**Time O(n log n):** one binary search per start. **Space O(n)** for the prefix sums."
     }
    ],
    "walk": {
@@ -854,13 +927,14 @@
    "space": "O(1)",
    "idea": [
     {
-     "md": "Add `fares[r]` to `total`. While `total > budget`, subtract `fares[left]` and advance. Track `r − left + 1`."
+     "md": "Grow the ride one hop at a time with `R`, keeping its cost. While the cost exceeds the budget, drop hops\nfrom the front with `L`. Then the ride `L..R` is the longest affordable ride ending at hop `R`.\n\n**Invariant.** After the while loop, `cost(L..R) ≤ budget`, and `L` is the smallest start with that\nproperty (all smaller starts were dropped because they were over budget for some earlier or equal `R`,\nand stay over budget).\n\nIf a single fare exceeds the budget, `L` moves to `R + 1` and the window is empty: length 0, which is\nexactly right."
     }
    ],
    "build": [
-    "Running total.",
-    "Shrink while over budget.",
-    "Track the longest."
+    "`L = 0`, `total = 0`, `best = 0`.",
+    "For each `R`: `total += fares[R]`.",
+    "While `total > budget`: `total −= fares[L]`; `L += 1`.",
+    "`best = max(best, R − L + 1)`."
    ],
    "code": {
     "python": "class Solution:\n    def longestRide(self, fares: List[int], budget: int) -> int:\n        left = total = best = 0\n        for i, f in enumerate(fares):\n            total += f\n            while total > budget:\n                total -= fares[left]\n                left += 1\n            best = max(best, i - left + 1)\n        return best\n",
@@ -1017,7 +1091,7 @@
    ],
    "complexity": [
     {
-     "md": "**Time O(n).** **Space O(1).**"
+     "md": "**Time O(n):** each hop enters once and leaves at most once. **Space O(1).**"
     }
    ],
    "walk": {
@@ -1357,7 +1431,7 @@
  ],
  "takeaways": [
   {
-   "md": "- **Positive values + \"sum ≤ budget\"** → shrinkable window, O(n).\n- Prefix sums + binary search is the fallback that also needs only monotone prefixes.\n- With negative values, neither works; use prefix sums with a monotonic structure instead."
+   "md": "- **Positive values + \"sum ≤ budget\"** → shrinkable window, O(n).\n- **Prefix sums + binary search** is the O(n log n) alternative that only needs monotone prefixes.\n- With negative values neither works; recognise that before reaching for a window."
   }
  ]
 }
