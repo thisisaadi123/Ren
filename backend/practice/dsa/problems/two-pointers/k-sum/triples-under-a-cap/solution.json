@@ -1,0 +1,665 @@
+{
+ "version": 1,
+ "summary": "Sort; fix the smallest value `a[i]` and squeeze `j`, `k` over the rest. When `a[i] + a[j] + a[k] < cap`, every\nthird value between `j` and `k` also works (they're smaller than `a[k]`), so add `k − j` in one go and move `j`.\nOtherwise move `k` down. O(n²), counting in 64 bits.",
+ "question": [
+  {
+   "md": "Count triples of positions `i < j < k` whose values sum to **less than** `cap`.\n\n- Positions, not values, are counted: equal values at different positions count separately.\n- **Up to 2000 values**: about 1.3 × 10⁹ triples, so the count needs 64 bits and the method must beat O(n³)."
+  }
+ ],
+ "think": [
+  {
+   "md": "`[3, -1, 5, 0, 2, -4]`, cap 2: **9** triples have a smaller sum.\n\nSorting doesn't change which sets of positions qualify, just their order, so sort freely. Then, with `a[i]` and\n`a[j]` fixed, the valid third values form a prefix (everything up to some `k`): count it in one step."
+  },
+  {
+   "panels": [
+    {
+     "type": "row",
+     "cells": [
+      3,
+      -1,
+      5,
+      0,
+      2,
+      -4
+     ],
+     "label": "values"
+    },
+    {
+     "type": "row",
+     "cells": [
+      -4,
+      -1,
+      0,
+      2,
+      3,
+      5
+     ],
+     "label": "sorted"
+    }
+   ]
+  }
+ ],
+ "approaches": [
+  {
+   "title": "Every triple",
+   "kind": "brute",
+   "time": "O(n³)",
+   "space": "O(1)",
+   "idea": [
+    {
+     "md": "Count every `i < j < k` with sum below the cap."
+    }
+   ],
+   "build": [
+    "Triple loop.",
+    "64-bit count."
+   ],
+   "code": {
+    "python": "class Solution:\n    def countTriplesBelow(self, values: List[int], cap: int) -> int:\n        n, count = len(values), 0\n        for i in range(n):\n            for j in range(i + 1, n):\n                for k in range(j + 1, n):\n                    if values[i] + values[j] + values[k] < cap:\n                        count += 1\n        return count\n",
+    "java": "class Solution {\n    public long countTriplesBelow(int[] values, int cap) {\n        int n = values.length;\n        long count = 0;\n        for (int i = 0; i < n; i++)\n            for (int j = i + 1; j < n; j++)\n                for (int k = j + 1; k < n; k++)\n                    if (values[i] + values[j] + values[k] < cap) count++;\n        return count;\n    }\n}\n",
+    "cpp": "class Solution {\npublic:\n    long long countTriplesBelow(vector<int>& values, int cap) {\n        int n = values.size();\n        long long count = 0;\n        for (int i = 0; i < n; i++)\n            for (int j = i + 1; j < n; j++)\n                for (int k = j + 1; k < n; k++)\n                    if (values[i] + values[j] + values[k] < cap) count++;\n        return count;\n    }\n};\n",
+    "c": "long long countTriplesBelow(int* values, int valuesSize, int cap) {\n    int n = valuesSize;\n    long long count = 0;\n    for (int i = 0; i < n; i++)\n        for (int j = i + 1; j < n; j++)\n            for (int k = j + 1; k < n; k++)\n                if (values[i] + values[j] + values[k] < cap) count++;\n    return count;\n}\n"
+   },
+   "lines": [
+    {
+     "text": "A 64-bit count.",
+     "at": {
+      "python": [
+       [
+        3,
+        3
+       ]
+      ],
+      "java": [
+       [
+        3,
+        4
+       ]
+      ],
+      "cpp": [
+       [
+        4,
+        5
+       ]
+      ],
+      "c": [
+       [
+        2,
+        3
+       ]
+      ]
+     }
+    },
+    {
+     "text": "Every triple of positions.",
+     "at": {
+      "python": [
+       [
+        4,
+        8
+       ]
+      ],
+      "java": [
+       [
+        5,
+        8
+       ]
+      ],
+      "cpp": [
+       [
+        6,
+        9
+       ]
+      ],
+      "c": [
+       [
+        4,
+        7
+       ]
+      ]
+     }
+    },
+    {
+     "text": "Total.",
+     "at": {
+      "python": [
+       [
+        9,
+        9
+       ]
+      ],
+      "java": [
+       [
+        9,
+        9
+       ]
+      ],
+      "cpp": [
+       [
+        10,
+        10
+       ]
+      ],
+      "c": [
+       [
+        8,
+        8
+       ]
+      ]
+     }
+    }
+   ],
+   "complexity": [
+    {
+     "md": "**Time O(n³).** **Space O(1).**"
+    }
+   ],
+   "limits": [
+    {
+     "md": "Visits each valid triple one at a time. After sorting, the valid third values form a contiguous range that can be counted in O(1)."
+    }
+   ],
+   "slow": true
+  },
+  {
+   "title": "Sort, fix one, count ranges",
+   "kind": "best",
+   "time": "O(n²)",
+   "space": "O(1)",
+   "idea": [
+    {
+     "md": "Sort. For each `i`: `j = i + 1`, `k = n − 1`; if the sum is below the cap, add `k − j` and `j++`; else `k−−`."
+    }
+   ],
+   "build": [
+    "Sort.",
+    "Fix `a[i]`.",
+    "Count whole ranges with the squeeze."
+   ],
+   "code": {
+    "python": "class Solution:\n    def countTriplesBelow(self, values: List[int], cap: int) -> int:\n        a, total = sorted(values), 0\n        for i in range(len(a) - 2):\n            j, k = i + 1, len(a) - 1\n            while j < k:\n                if a[i] + a[j] + a[k] < cap:\n                    total += k - j\n                    j += 1\n                else:\n                    k -= 1\n        return total\n",
+    "java": "class Solution {\n    public long countTriplesBelow(int[] values, int cap) {\n        int[] a = values.clone();\n        Arrays.sort(a);\n        long total = 0;\n        for (int i = 0; i + 2 < a.length; i++) {\n            int j = i + 1, k = a.length - 1;\n            while (j < k) {\n                if (a[i] + a[j] + a[k] < cap) { total += k - j; j++; }\n                else k--;\n            }\n        }\n        return total;\n    }\n}\n",
+    "cpp": "class Solution {\npublic:\n    long long countTriplesBelow(vector<int>& values, int cap) {\n        vector<int> a = values;\n        sort(a.begin(), a.end());\n        long long total = 0;\n        for (int i = 0; i + 2 < (int) a.size(); i++) {\n            int j = i + 1, k = (int) a.size() - 1;\n            while (j < k) {\n                if (a[i] + a[j] + a[k] < cap) { total += k - j; j++; }\n                else k--;\n            }\n        }\n        return total;\n    }\n};\n",
+    "c": "static int cmp_int(const void* x, const void* y) {\n    int a = *(const int*) x, b = *(const int*) y;\n    return (a > b) - (a < b);\n}\n\nlong long countTriplesBelow(int* values, int valuesSize, int cap) {\n    int n = valuesSize;\n    int* a = malloc(n * sizeof(int));\n    memcpy(a, values, n * sizeof(int));\n    qsort(a, n, sizeof(int), cmp_int);\n    long long total = 0;\n    for (int i = 0; i + 2 < n; i++) {\n        int j = i + 1, k = n - 1;\n        while (j < k) {\n            if (a[i] + a[j] + a[k] < cap) { total += k - j; j++; }\n            else k--;\n        }\n    }\n    free(a);\n    return total;\n}\n"
+   },
+   "lines": [
+    {
+     "text": "Sort a copy (the set of qualifying position-triples doesn't change); a 64-bit total.",
+     "at": {
+      "python": [
+       [
+        3,
+        3
+       ]
+      ],
+      "java": [
+       [
+        3,
+        5
+       ]
+      ],
+      "cpp": [
+       [
+        4,
+        6
+       ]
+      ],
+      "c": [
+       [
+        1,
+        4
+       ],
+       [
+        7,
+        11
+       ]
+      ]
+     }
+    },
+    {
+     "text": "Fix the smallest of the three.",
+     "at": {
+      "python": [
+       [
+        4,
+        5
+       ]
+      ],
+      "java": [
+       [
+        6,
+        7
+       ]
+      ],
+      "cpp": [
+       [
+        7,
+        8
+       ]
+      ],
+      "c": [
+       [
+        12,
+        13
+       ]
+      ]
+     }
+    },
+    {
+     "text": "Sum too big: the largest candidate `a[k]` can't work with this `j` or any bigger one: drop it.",
+     "at": {
+      "python": [
+       [
+        6,
+        6
+       ],
+       [
+        10,
+        11
+       ]
+      ],
+      "java": [
+       [
+        8,
+        8
+       ],
+       [
+        10,
+        10
+       ]
+      ],
+      "cpp": [
+       [
+        9,
+        9
+       ],
+       [
+        11,
+        11
+       ]
+      ],
+      "c": [
+       [
+        14,
+        14
+       ],
+       [
+        16,
+        16
+       ]
+      ]
+     }
+    },
+    {
+     "text": "Sum small enough: `a[j]` works with every third value in `j+1..k`, `k − j` of them. Then try the next `j`.",
+     "at": {
+      "python": [
+       [
+        7,
+        9
+       ]
+      ],
+      "java": [
+       [
+        9,
+        9
+       ]
+      ],
+      "cpp": [
+       [
+        10,
+        10
+       ]
+      ],
+      "c": [
+       [
+        15,
+        15
+       ]
+      ]
+     }
+    },
+    {
+     "text": "Total.",
+     "at": {
+      "python": [
+       [
+        12,
+        12
+       ]
+      ],
+      "java": [
+       [
+        13,
+        13
+       ]
+      ],
+      "cpp": [
+       [
+        14,
+        14
+       ]
+      ],
+      "c": [
+       [
+        19,
+        20
+       ]
+      ]
+     }
+    }
+   ],
+   "complexity": [
+    {
+     "md": "**Time O(n²).** **Space O(n)** for the sorted copy."
+    }
+   ],
+   "walk": {
+    "steps": [
+     {
+      "text": "Sorted: [-4, -1, 0, 2, 3, 5].",
+      "panels": [
+       {
+        "type": "row",
+        "cells": [
+         -4,
+         -1,
+         0,
+         2,
+         3,
+         5
+        ]
+       }
+      ]
+     },
+     {
+      "text": "-4 + -1 + 5 = 0 < 2: all 4 choices of the third value between j and k work. +4.",
+      "panels": [
+       {
+        "type": "row",
+        "cells": [
+         -4,
+         -1,
+         0,
+         2,
+         3,
+         5
+        ],
+        "states": {
+         "0": "active",
+         "1": "found",
+         "2": "found",
+         "3": "found",
+         "4": "found",
+         "5": "found"
+        }
+       },
+       {
+        "type": "vars",
+        "items": {
+         "count": 4
+        }
+       }
+      ]
+     },
+     {
+      "text": "-4 + 0 + 5 = 1 < 2: all 3 choices of the third value between j and k work. +3.",
+      "panels": [
+       {
+        "type": "row",
+        "cells": [
+         -4,
+         -1,
+         0,
+         2,
+         3,
+         5
+        ],
+        "states": {
+         "0": "active",
+         "2": "found",
+         "3": "found",
+         "4": "found",
+         "5": "found"
+        }
+       },
+       {
+        "type": "vars",
+        "items": {
+         "count": 7
+        }
+       }
+      ]
+     },
+     {
+      "text": "-4 + 2 + 5 = 3 ≥ 2: lower k.",
+      "panels": [
+       {
+        "type": "row",
+        "cells": [
+         -4,
+         -1,
+         0,
+         2,
+         3,
+         5
+        ],
+        "states": {
+         "0": "active",
+         "3": "mark",
+         "5": "mark"
+        }
+       },
+       {
+        "type": "vars",
+        "items": {
+         "count": 7
+        }
+       }
+      ]
+     },
+     {
+      "text": "-4 + 2 + 3 = 1 < 2: all 1 choices of the third value between j and k work. +1.",
+      "panels": [
+       {
+        "type": "row",
+        "cells": [
+         -4,
+         -1,
+         0,
+         2,
+         3,
+         5
+        ],
+        "states": {
+         "0": "active",
+         "3": "found",
+         "4": "found"
+        }
+       },
+       {
+        "type": "vars",
+        "items": {
+         "count": 8
+        }
+       }
+      ]
+     },
+     {
+      "text": "-1 + 0 + 5 = 4 ≥ 2: lower k.",
+      "panels": [
+       {
+        "type": "row",
+        "cells": [
+         -4,
+         -1,
+         0,
+         2,
+         3,
+         5
+        ],
+        "states": {
+         "1": "active",
+         "2": "mark",
+         "5": "mark"
+        }
+       },
+       {
+        "type": "vars",
+        "items": {
+         "count": 8
+        }
+       }
+      ]
+     },
+     {
+      "text": "-1 + 0 + 3 = 2 ≥ 2: lower k.",
+      "panels": [
+       {
+        "type": "row",
+        "cells": [
+         -4,
+         -1,
+         0,
+         2,
+         3,
+         5
+        ],
+        "states": {
+         "1": "active",
+         "2": "mark",
+         "4": "mark"
+        }
+       },
+       {
+        "type": "vars",
+        "items": {
+         "count": 8
+        }
+       }
+      ]
+     },
+     {
+      "text": "-1 + 0 + 2 = 1 < 2: all 1 choices of the third value between j and k work. +1.",
+      "panels": [
+       {
+        "type": "row",
+        "cells": [
+         -4,
+         -1,
+         0,
+         2,
+         3,
+         5
+        ],
+        "states": {
+         "1": "active",
+         "2": "found",
+         "3": "found"
+        }
+       },
+       {
+        "type": "vars",
+        "items": {
+         "count": 9
+        }
+       }
+      ]
+     },
+     {
+      "text": "0 + 2 + 5 = 7 ≥ 2: lower k.",
+      "panels": [
+       {
+        "type": "row",
+        "cells": [
+         -4,
+         -1,
+         0,
+         2,
+         3,
+         5
+        ],
+        "states": {
+         "2": "active",
+         "3": "mark",
+         "5": "mark"
+        }
+       },
+       {
+        "type": "vars",
+        "items": {
+         "count": 9
+        }
+       }
+      ]
+     },
+     {
+      "text": "0 + 2 + 3 = 5 ≥ 2: lower k.",
+      "panels": [
+       {
+        "type": "row",
+        "cells": [
+         -4,
+         -1,
+         0,
+         2,
+         3,
+         5
+        ],
+        "states": {
+         "2": "active",
+         "3": "mark",
+         "4": "mark"
+        }
+       },
+       {
+        "type": "vars",
+        "items": {
+         "count": 9
+        }
+       }
+      ]
+     },
+     {
+      "text": "2 + 3 + 5 = 10 ≥ 2: lower k.",
+      "panels": [
+       {
+        "type": "row",
+        "cells": [
+         -4,
+         -1,
+         0,
+         2,
+         3,
+         5
+        ],
+        "states": {
+         "3": "active",
+         "4": "mark",
+         "5": "mark"
+        }
+       },
+       {
+        "type": "vars",
+        "items": {
+         "count": 9
+        }
+       }
+      ]
+     },
+     {
+      "text": "Total: 9.",
+      "panels": [],
+      "result": "9"
+     }
+    ],
+    "title": "Sort. Fix a[i]. If a[i] + a[j] + a[k] < cap, then every k' between j and k also works with this j: count k − j at once and move j up. Otherwise move k down."
+   }
+  }
+ ],
+ "takeaways": [
+  {
+   "md": "- **Counting k-sum under a bound:** when the squeeze condition holds, a whole range qualifies: add `k − j`.\n- Sorting is safe when the question is about sets of positions, not their order.\n- Counts of triples can exceed 32 bits."
+  }
+ ]
+}
