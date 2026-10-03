@@ -4,34 +4,70 @@
  "question": [
   {
    "md": "Read a signed 32-bit integer from the front of `text`: leading spaces, an optional `+`/`-`, then digits where a\nsingle `_` between two digits is ignored. Stop at anything else. No digits means 0; out-of-range values clamp\nto `−2³¹` or `2³¹ − 1`.\n\n- **Text up to 200 characters**, so the digits can describe numbers far beyond 64 bits."
+  },
+  {
+   "md": "**Edge cases to keep in mind**\n\n- Only spaces are skipped at the start, not other characters.\n- At most one sign; `+-5` and `- 5` read as 0 (the sign must be followed directly by a digit).\n- An underscore needs a digit on **both** sides; anywhere else it stops the reading.\n- Values beyond 32 bits clamp to `−2³¹` or `2³¹ − 1`."
   }
  ],
  "think": [
   {
-   "md": "`\"  -12_405_kWh\"` → **-12405**, and `\"99_999_999_999\"` → 2147483647 (clamped).\n\nThe rules are a sequence of phases, each consuming characters until something tells it to stop. The only\nsubtle part is the underscore: it needs a digit on **both** sides, so `\"5_\"` and `\"_5\"` and `\"5__6\"` all stop at\nthe underscore.\n\nOverflow: as soon as the magnitude passes 2³¹, the final answer is already decided (it clamps), so keep the\nvalue capped at 2³¹ and it fits comfortably in 64 bits."
+   "md": "**How to approach any parsing task.** Write the format as a sequence of phases, each with a clear rule for which\ncharacters it consumes and what makes it stop. Then walk the text once with an index, handling one phase after\nanother. Most bugs come from the boundaries between phases, so list them explicitly as edge cases before coding."
   },
   {
-   "panels": [
-    {
-     "type": "row",
-     "cells": [
-      " ",
-      " ",
-      "-",
-      "1",
-      "2",
-      "_",
-      "4",
-      "0",
-      "5",
-      "_",
-      "k",
-      "W",
-      "h"
+   "md": "**The phases here:**\n\n1. **Spaces:** consume `' '` characters.\n2. **Sign:** consume one `+` or `−` if present.\n3. **Digits:** consume digits, and an underscore only if a digit was read before it and the next character is a\n   digit. Anything else stops.\n4. **Finish:** no digits means 0; otherwise apply the sign and clamp.\n\n**Overflow without big numbers.** Once the magnitude passes 2³¹ the final answer is already decided: it clamps.\nSo cap the running value at 2³¹ after every digit; it then always fits in 64 bits."
+  },
+  {
+   "md": "**Readings of tricky inputs:**"
+  },
+  {
+   "table": {
+    "head": [
+     "text",
+     "value"
+    ],
+    "rows": [
+     [
+      "\"  -12_405_kWh\"",
+      "-12405"
      ],
-     "label": "text"
-    }
-   ]
+     [
+      "\"+7\"",
+      "7"
+     ],
+     [
+      "\"5__6\"",
+      "5"
+     ],
+     [
+      "\"_42\"",
+      "0"
+     ],
+     [
+      "\"12_\"",
+      "12"
+     ],
+     [
+      "\"  - 3\"",
+      "0"
+     ],
+     [
+      "\"99_999_999_999\"",
+      "2147483647"
+     ],
+     [
+      "\"-99999999999\"",
+      "-2147483648"
+     ],
+     [
+      "\"abc\"",
+      "0"
+     ],
+     [
+      "\"\"",
+      "0"
+     ]
+    ]
+   }
   }
  ],
  "approaches": [
@@ -42,14 +78,14 @@
    "space": "O(1)",
    "idea": [
     {
-     "md": "Index `i` walks the text through three phases. Keep `value = min(2³¹, value · 10 + digit)`. Finally return `clamp(sign · value)`."
+     "md": "One index walks through the phases above. In the digit phase keep `value = min(2³¹, value · 10 + digit)`\nand a flag `seen` that turns on at the first digit. At the end return `clamp(sign · value)`.\n\n**Why capping at 2³¹ is safe.** Any magnitude of at least 2³¹ clamps to the same answer (`2³¹ − 1` for\npositive, `−2³¹` for negative, and `−2³¹` is exactly `−1 · 2³¹`). So replacing a larger value by 2³¹ never\nchanges the result."
     }
    ],
    "build": [
-    "Skip spaces.",
-    "Optional sign.",
-    "Digits and valid underscores, capped.",
-    "Apply sign and clamp."
+    "Skip leading spaces.",
+    "Read an optional sign.",
+    "Read digits and valid underscores, capping the value.",
+    "Apply the sign and clamp."
    ],
    "code": {
     "python": "class Solution:\n    def readMeter(self, text: str) -> int:\n        n, i = len(text), 0\n        while i < n and text[i] == \" \":\n            i += 1\n        sign = 1\n        if i < n and text[i] in \"+-\":\n            sign = -1 if text[i] == \"-\" else 1\n            i += 1\n        cap, value, seen = 1 << 31, 0, False\n        while i < n:\n            c = text[i]\n            if c.isdigit():\n                value = min(cap, value * 10 + int(c))\n                seen = True\n            elif not (c == \"_\" and seen and i + 1 < n and text[i + 1].isdigit()):\n                break\n            i += 1\n        return max(-cap, min(cap - 1, sign * value))\n",
@@ -59,7 +95,7 @@
    },
    "lines": [
     {
-     "text": "Phase 1: leading spaces only (not other whitespace).",
+     "text": "Phase 1: only the space character is skipped.",
      "at": {
       "python": [
        [
@@ -88,7 +124,7 @@
      }
     },
     {
-     "text": "Phase 2: at most one sign character.",
+     "text": "Phase 2: at most one sign character; it isn't required.",
      "at": {
       "python": [
        [
@@ -117,7 +153,7 @@
      }
     },
     {
-     "text": "Phase 3: accumulate digits. Capping at 2³¹ keeps the value small while still knowing it's out of range.",
+     "text": "Phase 3: each digit shifts the value left one decimal place. Capping at 2³¹ keeps it small while still remembering that it's out of range. `seen` records that a digit was read.",
      "at": {
       "python": [
        [
@@ -150,7 +186,7 @@
      }
     },
     {
-     "text": "A `_` is allowed only between digits: a digit already read and a digit next. Any other character ends the number.",
+     "text": "An underscore is skipped only between two digits (one already read, one next). Any other character, including a misplaced underscore, ends the number.",
      "at": {
       "python": [
        [
@@ -179,7 +215,7 @@
      }
     },
     {
-     "text": "Apply the sign and clamp into `[−2³¹, 2³¹ − 1]`. No digits leaves `value = 0`.",
+     "text": "Apply the sign and clamp into the 32-bit range. With no digits, `value` is 0.",
      "at": {
       "python": [
        [
@@ -517,7 +553,7 @@
  ],
  "takeaways": [
   {
-   "md": "- **Parsing = phases + a pointer:** each phase consumes characters until its stop condition.\n- **Avoid overflow by capping early** once the result is known to clamp.\n- Separators \"between two digits\" need a look-behind (a digit seen) and a look-ahead."
+   "md": "- **Parsing = phases + one index.** Write down each phase's stop condition.\n- **Cap early** when the result is known to clamp, instead of using big integers.\n- **Pitfalls:** treating a lone sign as a number; accepting underscores at the edges."
   }
  ]
 }

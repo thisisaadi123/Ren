@@ -4,17 +4,33 @@
  "question": [
   {
    "md": "Write `text` in a zigzag over `rows` rows (down from row 0 to the last row, back up, and so on), then read the\nrows top to bottom.\n\n- **One row** means the text is unchanged.\n- **n up to 10⁵**, rows up to 1000."
+  },
+  {
+   "md": "**Edge cases to keep in mind**\n\n- `rows = 1`: the text is unchanged (and the cycle length would be 0).\n- `rows ≥ n`: every character is on its own row going down, so the text is unchanged.\n- The top and bottom rows get one character per cycle; middle rows get two."
   }
  ],
  "think": [
   {
-   "md": "`\"SUMMERFAIR\"` over 4 rows → **SFURAMEIMR**.\n\nSimulating is easy: a buffer per row and a direction that flips at the top and bottom. But the pattern is\nperiodic: after `6` characters the zigzag is back at row 0 going down. So the positions on each row form\na simple arithmetic pattern and can be read directly from `text`."
+   "md": "**Draw it first.** `\"SUMMERFAIR\"` over 4 rows:"
   },
   {
-   "panels": [
-    {
-     "type": "row",
-     "cells": [
+   "table": {
+    "head": [
+     "row",
+     "0",
+     "1",
+     "2",
+     "3",
+     "4",
+     "5",
+     "6",
+     "7",
+     "8",
+     "9"
+    ],
+    "rows": [
+     [
+      "0",
       "S",
       "·",
       "·",
@@ -26,11 +42,8 @@
       "·",
       "·"
      ],
-     "label": "row 0"
-    },
-    {
-     "type": "row",
-     "cells": [
+     [
+      "1",
       "·",
       "U",
       "·",
@@ -42,11 +55,8 @@
       "·",
       "·"
      ],
-     "label": "row 1"
-    },
-    {
-     "type": "row",
-     "cells": [
+     [
+      "2",
       "·",
       "·",
       "M",
@@ -58,11 +68,8 @@
       "I",
       "·"
      ],
-     "label": "row 2"
-    },
-    {
-     "type": "row",
-     "cells": [
+     [
+      "3",
       "·",
       "·",
       "·",
@@ -73,10 +80,46 @@
       "·",
       "·",
       "R"
+     ]
+    ]
+   }
+  },
+  {
+   "md": "**The pattern repeats.** Going down takes `rows` steps and coming back up (not counting row 0 again) takes\n`rows − 2`, so a full cycle is `2·(rows − 1) = 6` characters. Within a cycle starting at position `k`:\n\n- the way down puts position `k + r` on row `r`;\n- the way up puts position `k + cycle − r` on row `r`, for the middle rows only.\n\n**Row by row:**"
+  },
+  {
+   "table": {
+    "head": [
+     "row",
+     "positions",
+     "characters"
+    ],
+    "rows": [
+     [
+      "0",
+      "[0, 6]",
+      "SF"
      ],
-     "label": "row 3"
-    }
-   ]
+     [
+      "1",
+      "[1, 5, 7]",
+      "URA"
+     ],
+     [
+      "2",
+      "[2, 4, 8]",
+      "MEI"
+     ],
+     [
+      "3",
+      "[3, 9]",
+      "MR"
+     ]
+    ]
+   }
+  },
+  {
+   "md": "Reading the rows in order gives **`SFURAMEIMR`**."
   }
  ],
  "approaches": [
@@ -87,13 +130,14 @@
    "space": "O(n)",
    "idea": [
     {
-     "md": "Keep `rows` buffers and a current row with direction ±1. Append each character to its row, flipping direction at the top and bottom. Join the buffers."
+     "md": "Simulate the drawing: keep a buffer per row, a current row and a direction. Append each character to its\nrow, flip the direction at the top and bottom rows, then concatenate the buffers.\n\nEasy to get right, and already O(n), but it builds an intermediate copy of the text."
     }
    ],
    "build": [
-    "Row buffers.",
-    "Bounce between the top and bottom rows.",
-    "Concatenate."
+    "One row: return the text.",
+    "Row buffers, current row 0, direction down.",
+    "Place each character and bounce at the ends.",
+    "Join the rows."
    ],
    "code": {
     "python": "class Solution:\n    def zigzagCode(self, text: str, rows: int) -> str:\n        if rows == 1:\n            return text\n        lines = [[] for _ in range(rows)]\n        r, step = 0, 1\n        for c in text:\n            lines[r].append(c)\n            if r == 0:\n                step = 1\n            elif r == rows - 1:\n                step = -1\n            r += step\n        return \"\".join(\"\".join(line) for line in lines)\n",
@@ -103,7 +147,7 @@
    },
    "lines": [
     {
-     "text": "With one row there's no zigzag (and the bounce below would never move).",
+     "text": "With one row there's nothing to zigzag, and the bounce below would never move.",
      "at": {
       "python": [
        [
@@ -132,7 +176,7 @@
      }
     },
     {
-     "text": "A buffer per row, starting at row 0 going down.",
+     "text": "A buffer per row, starting on row 0 heading down. C records each character's row instead of building buffers.",
      "at": {
       "python": [
        [
@@ -164,7 +208,7 @@
      }
     },
     {
-     "text": "Place the character, then move one row.",
+     "text": "Put the character on the current row, then move one row in the current direction.",
      "at": {
       "python": [
        [
@@ -209,7 +253,7 @@
      }
     },
     {
-     "text": "Turn around at the top and bottom rows.",
+     "text": "At the top row head down, at the bottom row head up.",
      "at": {
       "python": [
        [
@@ -238,7 +282,7 @@
      }
     },
     {
-     "text": "Rows top to bottom.",
+     "text": "Concatenate the rows from top to bottom. C gathers characters row by row, which costs O(n · rows).",
      "at": {
       "python": [
        [
@@ -272,7 +316,7 @@
    ],
    "complexity": [
     {
-     "md": "**Time O(n)** (O(n · rows) for the simple C version). **Space O(n)** for the buffers."
+     "md": "**Time O(n)** (C's simple gathering is O(n · rows)). **Space O(n)** for the buffers."
     }
    ],
    "walk": {
@@ -428,7 +472,7 @@
    },
    "limits": [
     {
-     "md": "Builds an intermediate copy of the text split into rows. The cycle positions give each row's characters directly."
+     "md": "It needs buffers for the whole text. The cycle positions say directly which characters belong to each row, so the answer can be written straight out."
     }
    ]
   },
@@ -439,13 +483,13 @@
    "space": "O(1)",
    "idea": [
     {
-     "md": "`cycle = 2·(rows − 1)`. For row `r`, for each cycle start `k`: take `k + r`, and for middle rows also `k + cycle − r`."
+     "md": "For each row `r`, loop over cycle starts `k = 0, cycle, 2·cycle, …` and emit `text[k + r]` and, for middle\nrows, `text[k + cycle − r]`, skipping positions past the end.\n\n**Why every character is emitted exactly once.** Within a cycle, offsets `0 … rows − 1` are the way down\nand offsets `rows … cycle − 1` are the way up, where offset `cycle − r` belongs to row `r`. These cover each\noffset once, so each position appears in exactly one row's list."
     }
    ],
    "build": [
-    "Handle one row (or rows ≥ n).",
-    "Loop rows, then cycles.",
-    "Up-slope character for middle rows."
+    "Handle `rows = 1` or `rows ≥ n`.",
+    "Compute the cycle length.",
+    "For each row, walk the cycles and emit the down and up positions."
    ],
    "code": {
     "python": "class Solution:\n    def zigzagCode(self, text: str, rows: int) -> str:\n        n = len(text)\n        if rows == 1 or rows >= n:\n            return text\n        cycle = 2 * (rows - 1)\n        out = []\n        for r in range(rows):\n            for start in range(0, n, cycle):\n                if start + r < n:\n                    out.append(text[start + r])\n                if 0 < r < rows - 1 and start + cycle - r < n:\n                    out.append(text[start + cycle - r])\n        return \"\".join(out)\n",
@@ -455,7 +499,7 @@
    },
    "lines": [
     {
-     "text": "One row, or at least as many rows as characters: everything goes straight down, so the text is unchanged.",
+     "text": "No zigzag happens with one row or with at least as many rows as characters.",
      "at": {
       "python": [
        [
@@ -484,7 +528,7 @@
      }
     },
     {
-     "text": "A full trip down and back up to (but not including) row 0.",
+     "text": "The length of one full down-and-up trip.",
      "at": {
       "python": [
        [
@@ -513,7 +557,7 @@
      }
     },
     {
-     "text": "Emit row by row; within a row, cycle by cycle (left to right).",
+     "text": "Build the answer row by row; within a row, cycle by cycle from left to right.",
      "at": {
       "python": [
        [
@@ -542,7 +586,7 @@
      }
     },
     {
-     "text": "On the way down, row `r` is hit at offset `r` of the cycle.",
+     "text": "On the way down, row `r` is reached at offset `r` of each cycle.",
      "at": {
       "python": [
        [
@@ -571,7 +615,7 @@
      }
     },
     {
-     "text": "On the way up, middle rows are hit again at offset `cycle − r`. The top and bottom rows are hit only once per cycle.",
+     "text": "On the way up, middle rows are reached again at offset `cycle − r`. The top and bottom rows aren't revisited.",
      "at": {
       "python": [
        [
@@ -631,7 +675,7 @@
    ],
    "complexity": [
     {
-     "md": "**Time O(n):** each character is emitted once (plus O(rows) loop overhead). **Space O(1)** besides the output."
+     "md": "**Time O(n):** each character is emitted once, plus O(rows) loop overhead. **Space O(1)** besides the output."
     }
    ],
    "walk": {
@@ -746,7 +790,7 @@
  ],
  "takeaways": [
   {
-   "md": "- **Periodic layouts → index arithmetic:** find the period, then each row is a formula.\n- Simulation is a fine first answer; it's O(n) too.\n- Edge cases: one row (period 0) and more rows than characters."
+   "md": "- **Periodic layouts → index arithmetic:** find the period, then write each row as a formula.\n- Simulation is a fine first answer when it's already linear.\n- **Pitfalls:** `rows = 1` (cycle 0, infinite loop); emitting the top or bottom row twice per cycle."
   }
  ]
 }

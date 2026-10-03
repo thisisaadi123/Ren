@@ -4,34 +4,68 @@
  "question": [
   {
    "md": "Release numbers are dot-separated revisions such as `2.10.0`, possibly with leading zeros. Missing revisions\ncount as 0. Return 1 if `a` is newer, −1 if `b` is, 0 if equal.\n\n- **Revisions up to 50 digits** (beyond 64-bit integers).\n- **Strings up to 10⁴ characters.**"
+  },
+  {
+   "md": "**Edge cases to keep in mind**\n\n- Leading zeros: `01` and `1` are the same revision; `000` is 0.\n- Missing revisions are 0: `1.0.0` equals `1`.\n- Revisions longer than 64-bit integers (up to 50 digits).\n- Text comparison alone is wrong: `\"9\" > \"10\"` as text."
   }
  ],
  "think": [
   {
-   "md": "`\"3.010.0.0\"` vs `\"3.9.000\"` → **1**: the first revisions tie, then `010` (ten) beats `9`.\n\nTwo pitfalls: comparing text directly says `\"9\" > \"10\"`, and converting to integers overflows. After stripping\nleading zeros, a number with more digits is larger; with the same digit count, text comparison is numeric\ncomparison. `\"0.0\"` and `\"0\"` are the same release, because the missing revisions are 0."
+   "md": "**How to approach any parsing task.** Write the format as a sequence of phases, each with a clear rule for which\ncharacters it consumes and what makes it stop. Then walk the text once with an index, handling one phase after\nanother. Most bugs come from the boundaries between phases, so list them explicitly as edge cases before coding."
   },
   {
-   "panels": [
-    {
-     "type": "row",
-     "cells": [
-      "3",
-      "010",
+   "md": "**Comparing huge numbers written as text.** Strip leading zeros. Then a number with more digits is larger; with\nthe same number of digits, comparing the digits from the left (text comparison) gives the numeric order. That\navoids any conversion to integers.\n\n**Comparing releases.** Walk revision by revision from the left; the first revision that differs decides. When\none release runs out, its missing revisions count as 0 (an empty revision after stripping zeros)."
+  },
+  {
+   "md": "**Examples:**"
+  },
+  {
+   "table": {
+    "head": [
+     "a",
+     "b",
+     "result",
+     "why"
+    ],
+    "rows": [
+     [
+      "3.010.0.0",
+      "3.9.000",
+      "1",
+      "revision 1: 010 vs 9 → 10 vs 9, more digits"
+     ],
+     [
+      "1.0",
+      "1",
       "0",
-      "0"
+      "every revision equal (missing ones count as 0)"
      ],
-     "label": "a"
-    },
-    {
-     "type": "row",
-     "cells": [
-      "3",
-      "9",
-      "000"
+     [
+      "1.01",
+      "1.001",
+      "0",
+      "every revision equal (missing ones count as 0)"
      ],
-     "label": "b"
-    }
-   ]
+     [
+      "2.5",
+      "2.10",
+      "-1",
+      "revision 1: 5 vs 10 → 5 vs 10, more digits"
+     ],
+     [
+      "0.1",
+      "0.0.1",
+      "1",
+      "revision 1: 1 vs 0 → 1 vs 0, larger digit"
+     ],
+     [
+      "10",
+      "9.99",
+      "1",
+      "revision 0: 10 vs 9 → 10 vs 9, more digits"
+     ]
+    ]
+   }
   }
  ],
  "approaches": [
@@ -42,13 +76,13 @@
    "space": "O(n + m)",
    "idea": [
     {
-     "md": "Split both strings into lists of revisions. For `k` up to the longer list, compare `a[k]` and `b[k]` (or `0` if missing) with the strip-then-length-then-text rule."
+     "md": "Split both strings at the dots. For `k` up to the longer list, compare `a[k]` and `b[k]` (or `\"0\"` if a\nlist is shorter) with the strip-then-length-then-digits rule. The first non-zero result is the answer."
     }
    ],
    "build": [
     "Split into revisions.",
-    "Compare as big numbers in text.",
-    "Missing revisions are 0."
+    "Pad the shorter list with `\"0\"`.",
+    "Compare revisions with the big-number rule."
    ],
    "code": {
     "python": "class Solution:\n    def compareReleases(self, a: str, b: str) -> int:\n        ra, rb = a.split(\".\"), b.split(\".\")\n        for k in range(max(len(ra), len(rb))):\n            x = ra[k].lstrip(\"0\") if k < len(ra) else \"\"\n            y = rb[k].lstrip(\"0\") if k < len(rb) else \"\"\n            if len(x) != len(y):\n                return 1 if len(x) > len(y) else -1\n            if x != y:\n                return 1 if x > y else -1\n        return 0\n",
@@ -58,7 +92,7 @@
    },
    "lines": [
     {
-     "text": "Cut both releases into their revisions.",
+     "text": "Cut both releases at the dots. C records each revision's start and length instead of copying it.",
      "at": {
       "python": [
        [
@@ -127,7 +161,7 @@
      }
     },
     {
-     "text": "A missing revision is 0.",
+     "text": "A release that has run out contributes `\"0\"`.",
      "at": {
       "python": [
        [
@@ -156,7 +190,7 @@
      }
     },
     {
-     "text": "Strip leading zeros. More digits means bigger; the same digit count compares as text. The first difference decides.",
+     "text": "Strip leading zeros; the longer number is bigger; equal lengths compare digit by digit. The first difference decides.",
      "at": {
       "python": [
        [
@@ -193,7 +227,7 @@
      }
     },
     {
-     "text": "Every revision equal: the same release.",
+     "text": "Every revision was equal: the same release.",
      "at": {
       "python": [
        [
@@ -299,7 +333,7 @@
    },
    "limits": [
     {
-     "md": "The split lists are an extra copy of the input. Two pointers can cut each revision on the fly."
+     "md": "Splitting copies the input. Two pointers can cut each revision on the fly and compare it in place."
     }
    ]
   },
@@ -310,13 +344,14 @@
    "space": "O(1)",
    "idea": [
     {
-     "md": "Pointers `i` and `j` each skip leading zeros of their next revision, then measure its digits up to the next dot. Compare by length, then by digits. A finished string supplies an empty revision (0)."
+     "md": "Two pointers `i` and `j` cut one revision at a time from `a` and `b`. For each pair: skip leading zeros,\nmeasure the digits up to the next dot, compare by length and then digit by digit, then step over the dots.\nA finished string keeps producing empty revisions (value 0) until both are done.\n\n**Why the zero-skip is enough.** After skipping zeros, the measured part has no leading zero (or is empty,\nmeaning 0), so length really does order the values."
     }
    ],
    "build": [
-    "Loop while either string has revisions left.",
-    "Skip zeros and measure each revision.",
-    "Compare and move past the dot."
+    "Pointers at the start of both strings.",
+    "Skip zeros, then measure each revision.",
+    "Compare lengths, then digits.",
+    "Step over the dots; stop when both are exhausted."
    ],
    "code": {
     "python": "class Solution:\n    def compareReleases(self, a: str, b: str) -> int:\n        i, j, n, m = 0, 0, len(a), len(b)\n        while i < n or j < m:\n            while i < n and a[i] == \"0\":\n                i += 1\n            while j < m and b[j] == \"0\":\n                j += 1\n            si, sj = i, j\n            while i < n and a[i] != \".\":\n                i += 1\n            while j < m and b[j] != \".\":\n                j += 1\n            x, y = a[si:i], b[sj:j]\n            if len(x) != len(y):\n                return 1 if len(x) > len(y) else -1\n            if x != y:\n                return 1 if x > y else -1\n            i, j = i + 1, j + 1\n        return 0\n",
@@ -355,7 +390,7 @@
      }
     },
     {
-     "text": "While either release has revisions left; a finished one keeps supplying empty revisions, which mean 0.",
+     "text": "Continue while either release has characters left.",
      "at": {
       "python": [
        [
@@ -384,7 +419,7 @@
      }
     },
     {
-     "text": "Skip leading zeros. A revision of only zeros becomes empty, i.e. 0.",
+     "text": "Leading zeros don't change a revision's value; skipping them leaves the significant digits (or nothing, meaning 0).",
      "at": {
       "python": [
        [
@@ -413,7 +448,7 @@
      }
     },
     {
-     "text": "Find the end of each revision (the next dot or the end of the string).",
+     "text": "Find where each revision ends: the next dot or the end of the string.",
      "at": {
       "python": [
        [
@@ -442,7 +477,7 @@
      }
     },
     {
-     "text": "More significant digits wins; with the same count, the first differing digit decides.",
+     "text": "More significant digits means a larger revision. With the same count, the first differing digit decides.",
      "at": {
       "python": [
        [
@@ -471,7 +506,7 @@
      }
     },
     {
-     "text": "Step over the dots (or past the end, which is harmless).",
+     "text": "Step over the dots. Stepping past the end is harmless: the loop condition checks both lengths.",
      "at": {
       "python": [
        [
@@ -500,7 +535,7 @@
      }
     },
     {
-     "text": "No revision differed.",
+     "text": "All revisions equal.",
      "at": {
       "python": [
        [
@@ -531,7 +566,7 @@
    ],
    "complexity": [
     {
-     "md": "**Time O(n + m).** **Space O(1)** (the Python slices are a convenience; the other languages compare in place)."
+     "md": "**Time O(n + m):** each character is visited once. **Space O(1).**"
     }
    ],
    "walk": {
@@ -624,7 +659,7 @@
  ],
  "takeaways": [
   {
-   "md": "- **Compare huge numbers as text:** strip leading zeros, compare lengths, then digits.\n- Missing parts default to 0, so `1.0` equals `1`.\n- Pointers that cut fields on the fly avoid splitting the whole string."
+   "md": "- **Big numbers as text:** strip leading zeros, compare lengths, then digits.\n- **Missing parts default to 0**, so `1.0` equals `1`.\n- **Pitfalls:** converting to integers (overflow); comparing text without stripping zeros."
   }
  ]
 }
