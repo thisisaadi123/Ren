@@ -4,45 +4,74 @@
  "question": [
   {
    "md": "`bookings` has n entries, each a room number from 1 to n, and no room appears more than twice. Return\nthe rooms that appear **exactly twice**, in increasing order.\n\n- **Values 1 … n and length n:** every value is a valid index after subtracting 1. That's the\n  property every clever approach here relies on.\n- **At most twice** means \"seen before\" is enough to identify a double booking: there's never a third\n  copy to worry about.\n- **Sorted output**, even though the bookings come in any order.\n- **The challenge:** O(n) time with O(1) extra space besides the answer. A count array would be O(n)\n  extra space."
+  },
+  {
+   "md": "**Edge cases to keep in mind**\n\n- No room booked twice: return an empty list.\n- Each room appears at most twice, so counts are 0, 1 or 2.\n- The answer must be in increasing order."
   }
  ],
  "think": [
   {
-   "md": "Take `bookings = [5, 1, 4, 5, 2, 1, 7]` (n = 7). Rooms 1 and 5 each appear twice: the answer is\n`[1, 5]`.\n\nThe easy way is a count array with one slot per room. But look at the input: it **is** an array with\none slot per room. Slot 0 can stand for room 1, slot 1 for room 2, and so on. We just need to record\ninformation in it **without destroying** the values still to be read."
+   "md": "**The array as its own checklist.** When the values are numbers `1 … n` and the array has `n` slots, slot `v − 1` can\nserve as the checkbox for value `v`. To tick it, change slot `v − 1` in a way that is **reversible** and that doesn't\ndestroy the value stored there:\n\n- **Flip its sign** (values are positive, so the original is `|x|`);\n- **Add `n`** (the original is `(x − 1) mod n + 1`, and the number of additions counts how often `v` appeared).\n\nReading a slot's value always uses the decoding (`abs`, or the `mod`), so earlier ticks never confuse later reads.\nThat's O(n) time with O(1) extra space, and a final pass can restore the input."
   },
   {
-   "panels": [
-    {
-     "type": "row",
-     "cells": [
-      5,
-      1,
-      4,
-      5,
-      2,
-      1,
-      7
-     ],
-     "slots": true
-    },
-    {
-     "type": "row",
-     "cells": [
-      "room 1",
-      "room 2",
-      "room 3",
-      "room 4",
-      "room 5",
-      "room 6",
-      "room 7"
-     ],
-     "label": "slot i stands for room i + 1"
-    }
-   ],
-   "caption": "Each slot keeps its own value and can also carry a mark for its room."
+   "md": "**Counting in place by adding `n`.** For each booking, decode the room `v = (x − 1) mod n + 1` (the original\nvalue, even if `n` has been added to this slot), then add `n` to slot `v − 1`. Each slot ends at\n`original + n · (times its room was booked)`. A room booked twice has gained `2n`, so its slot exceeds `2n`.\nFor `[5, 1, 4, 5, 2, 1, 7]` (n = 7):"
   },
   {
-   "md": "Two ways to keep both pieces of information in one slot:\n\n- **Sign:** values are positive, so making a slot negative can mean \"this room was seen\", and\n  `abs()` still recovers the value.\n- **Adding n:** values are at most n, so adding n once per booking stores a count in the \"tens place\";\n  `(x − 1) mod n + 1` recovers the original value and `(x − 1) div n` the count."
+   "table": {
+    "head": [
+     "i",
+     "room decoded",
+     "slot gets +n",
+     "array after"
+    ],
+    "rows": [
+     [
+      "0",
+      "5",
+      "4",
+      "5 1 4 5 9 1 7"
+     ],
+     [
+      "1",
+      "1",
+      "0",
+      "12 1 4 5 9 1 7"
+     ],
+     [
+      "2",
+      "4",
+      "3",
+      "12 1 4 12 9 1 7"
+     ],
+     [
+      "3",
+      "5",
+      "4",
+      "12 1 4 12 16 1 7"
+     ],
+     [
+      "4",
+      "2",
+      "1",
+      "12 8 4 12 16 1 7"
+     ],
+     [
+      "5",
+      "1",
+      "0",
+      "19 8 4 12 16 1 7"
+     ],
+     [
+      "6",
+      "7",
+      "6",
+      "19 8 4 12 16 1 14"
+     ]
+    ]
+   }
+  },
+  {
+   "md": "Slots above 14: rooms **[1, 5]**. Decoding each slot with `(x − 1) mod n + 1` restores the input."
   }
  ],
  "approaches": [
@@ -53,13 +82,12 @@
    "space": "O(1)",
    "idea": [
     {
-     "md": "For each room 1 … n, count its bookings with a full scan; rooms with count 2 go into the answer, which comes out sorted because rooms are checked in order."
+     "md": "For each room `1 … n`, count its bookings by scanning; keep rooms with count 2."
     }
    ],
    "build": [
-    "For each room `x` from 1 to n, count how many bookings equal `x`.",
-    "If the count is 2, append `x`.",
-    "Return the list."
+    "For each room, count by scanning.",
+    "Keep count-2 rooms."
    ],
    "code": {
     "python": "class Solution:\n    def findDoubleBooked(self, bookings: List[int]) -> List[int]:\n        n = len(bookings)\n        return [x for x in range(1, n + 1) if bookings.count(x) == 2]\n",
@@ -69,7 +97,7 @@
    },
    "lines": [
     {
-     "text": "Rooms in increasing order, each counted with a full scan. Count 2 means double-booked.",
+     "text": "Rooms whose count, found by scanning the whole list, is exactly 2.",
      "at": {
       "python": [
        [
@@ -101,7 +129,7 @@
      }
     },
     {
-     "text": "Already sorted, because rooms were checked from 1 upwards.",
+     "text": "Those rooms in order.",
      "at": {
       "java": [
        [
@@ -129,7 +157,7 @@
    ],
    "complexity": [
     {
-     "md": "**Time O(n²):** n scans of n bookings. **Space O(1)** besides the answer."
+     "md": "**Time O(n²).** **Space O(1)** besides the answer."
     }
    ],
    "walk": {
@@ -343,7 +371,7 @@
    },
    "limits": [
     {
-     "md": "Every room needs its own full scan. One pass that tallies all rooms at once replaces n passes."
+     "md": "Each count rescans the list. One pass can count every room at once."
     }
    ],
    "slow": true
@@ -355,13 +383,13 @@
    "space": "O(n)",
    "idea": [
     {
-     "md": "One pass fills `count[room]`. A second pass over rooms 1 … n collects those with count 2, in increasing order."
+     "md": "Count bookings per room in an array of size `n + 1`, then list rooms with count 2."
     }
    ],
    "build": [
-    "Make `count` with n + 1 zeros.",
-    "Add 1 to `count[v]` for each booking.",
-    "Collect every room `x` with `count[x] == 2`, from 1 to n."
+    "Count array.",
+    "Tally.",
+    "Read count-2 rooms."
    ],
    "code": {
     "python": "class Solution:\n    def findDoubleBooked(self, bookings: List[int]) -> List[int]:\n        n = len(bookings)\n        count = [0] * (n + 1)\n        for v in bookings:\n            count[v] += 1\n        return [x for x in range(1, n + 1) if count[x] == 2]\n",
@@ -371,7 +399,7 @@
    },
    "lines": [
     {
-     "text": "Rooms are 1 … n, so they index the count array directly (slot 0 unused).",
+     "text": "One pass counts every room's bookings.",
      "at": {
       "python": [
        [
@@ -400,7 +428,7 @@
      }
     },
     {
-     "text": "Walking rooms upward gives the answer already sorted.",
+     "text": "Rooms booked exactly twice, in increasing order.",
      "at": {
       "python": [
        [
@@ -726,7 +754,7 @@
    },
    "limits": [
     {
-     "md": "The count array duplicates something we already have: an array of n slots indexed by room. The problem asks for O(1) extra space, so the marks should go into the input itself."
+     "md": "Extra O(n) memory, while the input itself has one slot per room."
     }
    ]
   },
@@ -737,13 +765,13 @@
    "space": "O(1)",
    "idea": [
     {
-     "md": "Read each value `v` as `abs(v)` (it may have been negated already). Look at slot `v − 1`: if it's\nnegative, room `v` was seen before, so it's double-booked; otherwise negate it to mark room `v` as\nseen. Duplicates are discovered in input order, so sort them at the end, and flip the signs back so\nthe caller's array is unchanged."
+     "md": "Read rooms with `|x|`. If slot `v − 1` is already negative, room `v` was seen before: it's double-booked.\nOtherwise negate it. Restore the signs and sort the answer (rooms are found in input order)."
     }
    ],
    "build": [
-    "For each index i: `v = abs(bookings[i])`, `j = v − 1`.",
-    "If `bookings[j] < 0`, append `v` (second booking). Otherwise set `bookings[j] = −bookings[j]`.",
-    "Restore every slot with `abs`, sort the answer, return it."
+    "For each booking, check the sign of its room's slot.",
+    "Negative → second booking; positive → negate.",
+    "Restore and sort."
    ],
    "code": {
     "python": "class Solution:\n    def findDoubleBooked(self, bookings: List[int]) -> List[int]:\n        twice = []\n        for i in range(len(bookings)):\n            v = abs(bookings[i])\n            j = v - 1\n            if bookings[j] < 0:\n                twice.append(v)\n            else:\n                bookings[j] = -bookings[j]\n        for i in range(len(bookings)):\n            bookings[i] = abs(bookings[i])\n        return sorted(twice)\n",
@@ -753,7 +781,7 @@
    },
    "lines": [
     {
-     "text": "One pass over the bookings.",
+     "text": "Each booking once.",
      "at": {
       "python": [
        [
@@ -782,7 +810,7 @@
      }
     },
     {
-     "text": "The value here may already carry a mark (a minus sign put there by an earlier booking), so `abs` recovers the room number. Its flag lives in slot `room − 1`.",
+     "text": "The room number, ignoring any sign added by a mark.",
      "at": {
       "python": [
        [
@@ -811,7 +839,7 @@
      }
     },
     {
-     "text": "The flag is already set: this is the room's second booking (there's never a third).",
+     "text": "Its slot is already negative: this is the room's second booking.",
      "at": {
       "python": [
        [
@@ -840,7 +868,7 @@
      }
     },
     {
-     "text": "First time: set the flag by negating the slot. The slot's own value survives as its absolute value.",
+     "text": "First booking of this room: tick its slot by negating it.",
      "at": {
       "python": [
        [
@@ -869,7 +897,7 @@
      }
     },
     {
-     "text": "Undo the marks so the caller gets their array back unchanged.",
+     "text": "Undo all marks.",
      "at": {
       "python": [
        [
@@ -898,7 +926,7 @@
      }
     },
     {
-     "text": "Duplicates were found in input order, so sort them.",
+     "text": "The double-booked rooms, sorted.",
      "at": {
       "python": [
        [
@@ -936,7 +964,7 @@
    ],
    "complexity": [
     {
-     "md": "**Time O(n + d log d)** for d double-booked rooms (at most n/2): one pass plus sorting the answer. **Space O(1)** extra besides the answer."
+     "md": "**Time O(n log n)** because the answer is sorted (the marking itself is O(n)). **Space O(1)** besides the answer."
     }
    ],
    "walk": {
@@ -1178,7 +1206,7 @@
    },
    "limits": [
     {
-     "md": "The sign only says \"seen or not\", so duplicates are noticed in input order and must be sorted. Storing a small **count** in each slot instead lets a final left-to-right pass emit them already sorted."
+     "md": "Rooms are discovered in input order, so the answer needs a sort. Counting by adding `n` lets a final left-to-right read produce them already sorted."
     }
    ]
   },
@@ -1189,13 +1217,13 @@
    "space": "O(1)",
    "idea": [
     {
-     "md": "For every booking of room `v`, add n to slot `v − 1`. A slot's original value is between 1 and n,\nso after the pass slot `i` holds `original + n × (bookings of room i + 1)`:\n\n- the original value is `(x − 1) mod n + 1` (that's how each value is read during the pass,\n  even if n has already been added to it);\n- the room was booked twice exactly when `x > 2n`.\n\nA final pass over slots 0 … n − 1 lists double-booked rooms in increasing order and restores\nevery slot."
+     "md": "Add `n` to slot `v − 1` for each booking (decoding `v` with `(x − 1) mod n + 1`). Then a left-to-right pass\nreports every slot above `2n` and restores each value with the same decoding.\n\n**Why `> 2n` means twice.** A slot starts between 1 and `n`; after `k` additions it lies in\n`(k·n, (k + 1)·n]`. Only `k = 2` puts it above `2n`."
     }
    ],
    "build": [
-    "For each index i: `v = (bookings[i] − 1) mod n + 1`, then `bookings[v − 1] += n`.",
-    "For each slot i in order: if `bookings[i] > 2n`, append room `i + 1`.",
-    "Restore the slot: `bookings[i] = (bookings[i] − 1) mod n + 1`."
+    "Add `n` per booking.",
+    "Read slots above `2n` in index order.",
+    "Restore every slot."
    ],
    "code": {
     "python": "class Solution:\n    def findDoubleBooked(self, bookings: List[int]) -> List[int]:\n        n = len(bookings)\n        for i in range(n):\n            v = (bookings[i] - 1) % n + 1\n            bookings[v - 1] += n\n        twice = []\n        for i in range(n):\n            if bookings[i] > 2 * n:\n                twice.append(i + 1)\n            bookings[i] = (bookings[i] - 1) % n + 1\n        return twice\n",
@@ -1205,7 +1233,7 @@
    },
    "lines": [
     {
-     "text": "Recover the room stored at `i`, then add n to that room's slot: one \"tick\" per booking. A slot can reach n + 2n = 3n ≤ 3 × 10⁵, far from overflowing. `(x − 1) mod n + 1` peels the ticks off: the original value minus 1 is in 0 … n − 1, so the remainder is untouched by multiples of n.",
+     "text": "Decode the room even if this slot has already been increased, then count the booking in its room's slot.",
      "at": {
       "python": [
        [
@@ -1234,7 +1262,7 @@
      }
     },
     {
-     "text": "Two ticks push a slot above 2n (its original value is at least 1). Reading slots left to right lists the rooms in increasing order, with no sorting.",
+     "text": "A slot that gained `2n` belongs to a room booked twice; reading by index gives increasing order.",
      "at": {
       "python": [
        [
@@ -1263,7 +1291,7 @@
      }
     },
     {
-     "text": "Remove the ticks so the caller's array is exactly as it was.",
+     "text": "Decoding with `(x − 1) mod n + 1` removes the added multiples of `n`.",
      "at": {
       "python": [
        [
@@ -1323,7 +1351,7 @@
    ],
    "complexity": [
     {
-     "md": "**Time O(n):** two passes. **Space O(1)** extra besides the answer, and the input ends up unchanged."
+     "md": "**Time O(n).** **Space O(1)** besides the answer. Values reach at most `3n`, so there's no overflow."
     }
    ],
    "walk": {
@@ -1529,7 +1557,7 @@
  ],
  "takeaways": [
   {
-   "md": "- When values are `1 … n` in an array of length n, **value − 1 is an index**, so the array can be its\n  own lookup table.\n- Hide extra information in a slot without losing its value: flip the **sign** for a yes/no flag, or\n  add **multiples of n** for a small count (read back with `mod` and `div`).\n- Undo the marks afterwards if the caller might still use the array."
+   "md": "- **Count in place:** add `n` per occurrence; decode with `(x − 1) mod n + 1`.\n- Sign marks record \"seen\"; additions record \"how many\".\n- **Pitfall:** reading a slot without decoding it after it has been marked."
   }
  ]
 }
