@@ -1,0 +1,864 @@
+{
+ "version": 1,
+ "summary": "Use one stack for arrivals ('in') and one for departures ('out'). Pouring 'in' into 'out' reverses it, so the\noldest item ends up on top of 'out'. Pour only when 'out' is empty: each item is moved at most once, so every\noperation is amortised O(1).",
+ "question": [
+  {
+   "md": "Implement a queue (`push` to the back, `pop` / `peek` at the front, `empty`) using only stack operations: push,\ntop, pop, size, is-empty.\n\n- **A stack gives back the newest item; a queue must give back the oldest.** The orders are opposite.\n- **`pop` and `peek` are only called on a non-empty queue.**\n- **Up to 10⁵ calls**, so each should be cheap, at least on average."
+  }
+ ],
+ "think": [
+  {
+   "md": "Push 1, 2, 3. A stack holds them with 3 on top, but the queue's front is 1, at the bottom. Popping everything\nonto a second stack **reverses** the order: now 1 is on top. That's the whole trick; the question is how often\nto pay for the reversal."
+  },
+  {
+   "panels": [
+    {
+     "type": "row",
+     "cells": [
+      1,
+      2,
+      3
+     ],
+     "label": "in (bottom → top)"
+    },
+    {
+     "type": "row",
+     "cells": [
+      3,
+      2,
+      1
+     ],
+     "label": "after pouring into out"
+    }
+   ]
+  },
+  {
+   "md": "Once items are in 'out', they're already in queue order (oldest on top), and newer arrivals can't be older than\nthem. So leave them there. New arrivals go to 'in'. Only when 'out' is empty does the next-oldest item sit at\nthe bottom of 'in'; pour then, and not before."
+  }
+ ],
+ "approaches": [
+  {
+   "title": "Pour back and forth on every read",
+   "kind": "brute",
+   "time": "O(n) per pop/peek",
+   "space": "O(n)",
+   "idea": [
+    {
+     "md": "Keep the queue in one stack (front at the bottom). For `pop`/`peek`, pour everything into a spare stack so the front is on top, read or remove it, then pour everything back."
+    }
+   ],
+   "build": [
+    "`push`: push onto the main stack.",
+    "`pop`/`peek`: pour main → spare, take the top, pour spare → main.",
+    "`empty`: is the main stack empty?"
+   ],
+   "code": {
+    "python": "class TwoStackQueue:\n    def __init__(self):\n        self.main = []\n        self.spare = []\n\n    def push(self, x: int) -> None:\n        self.main.append(x)\n\n    def _front(self, remove):\n        while self.main:\n            self.spare.append(self.main.pop())\n        value = self.spare.pop() if remove else self.spare[-1]\n        while self.spare:\n            self.main.append(self.spare.pop())\n        return value\n\n    def pop(self) -> int:\n        return self._front(True)\n\n    def peek(self) -> int:\n        return self._front(False)\n\n    def empty(self) -> bool:\n        return not self.main\n",
+    "java": "class TwoStackQueue {\n    private final ArrayDeque<Integer> main = new ArrayDeque<>(), spare = new ArrayDeque<>();\n\n    public TwoStackQueue() {\n    }\n\n    public void push(int x) {\n        main.push(x);\n    }\n\n    private int front(boolean remove) {\n        while (!main.isEmpty()) spare.push(main.pop());\n        int value = remove ? spare.pop() : spare.peek();\n        while (!spare.isEmpty()) main.push(spare.pop());\n        return value;\n    }\n\n    public int pop() {\n        return front(true);\n    }\n\n    public int peek() {\n        return front(false);\n    }\n\n    public boolean empty() {\n        return main.isEmpty();\n    }\n}\n",
+    "cpp": "class TwoStackQueue {\n    stack<int> main, spare;\n\n    int front(bool remove) {\n        while (!main.empty()) { spare.push(main.top()); main.pop(); }\n        int value = spare.top();\n        if (remove) spare.pop();\n        while (!spare.empty()) { main.push(spare.top()); spare.pop(); }\n        return value;\n    }\n\npublic:\n    TwoStackQueue() {\n    }\n\n    void push(int x) {\n        main.push(x);\n    }\n\n    int pop() {\n        return front(true);\n    }\n\n    int peek() {\n        return front(false);\n    }\n\n    bool empty() {\n        return main.empty();\n    }\n};\n"
+   },
+   "lines": [
+    {
+     "text": "The queue lives in `main`, front at the bottom; `spare` is scratch space.",
+     "at": {
+      "python": [
+       [
+        3,
+        4
+       ]
+      ],
+      "java": [
+       [
+        2,
+        2
+       ]
+      ],
+      "cpp": [
+       [
+        2,
+        2
+       ]
+      ]
+     },
+     "notes": {
+      "java": "`ArrayDeque` used strictly as a stack: `push`, `pop`, `peek` and `isEmpty`."
+     }
+    },
+    {
+     "text": "New items go on top: the back of the queue.",
+     "at": {
+      "python": [
+       [
+        7,
+        7
+       ]
+      ],
+      "java": [
+       [
+        8,
+        8
+       ]
+      ],
+      "cpp": [
+       [
+        17,
+        17
+       ]
+      ]
+     }
+    },
+    {
+     "text": "Reverse the queue into `spare`: the front is now on top.",
+     "at": {
+      "python": [
+       [
+        10,
+        11
+       ]
+      ],
+      "java": [
+       [
+        12,
+        12
+       ]
+      ],
+      "cpp": [
+       [
+        5,
+        5
+       ]
+      ]
+     }
+    },
+    {
+     "text": "Read (and for `pop`, remove) the front.",
+     "at": {
+      "python": [
+       [
+        9,
+        9
+       ],
+       [
+        12,
+        12
+       ],
+       [
+        15,
+        15
+       ],
+       [
+        18,
+        18
+       ],
+       [
+        21,
+        21
+       ]
+      ],
+      "java": [
+       [
+        11,
+        11
+       ],
+       [
+        13,
+        13
+       ],
+       [
+        15,
+        16
+       ],
+       [
+        19,
+        19
+       ],
+       [
+        23,
+        23
+       ]
+      ],
+      "cpp": [
+       [
+        4,
+        4
+       ],
+       [
+        6,
+        7
+       ],
+       [
+        9,
+        10
+       ],
+       [
+        21,
+        21
+       ],
+       [
+        25,
+        25
+       ]
+      ]
+     }
+    },
+    {
+     "text": "Restore `main` so the next `push` lands at the back again.",
+     "at": {
+      "python": [
+       [
+        13,
+        14
+       ]
+      ],
+      "java": [
+       [
+        14,
+        14
+       ]
+      ],
+      "cpp": [
+       [
+        8,
+        8
+       ]
+      ]
+     }
+    },
+    {
+     "text": "The queue is empty when `main` is.",
+     "at": {
+      "python": [
+       [
+        24,
+        24
+       ]
+      ],
+      "java": [
+       [
+        27,
+        27
+       ]
+      ],
+      "cpp": [
+       [
+        29,
+        29
+       ]
+      ]
+     }
+    }
+   ],
+   "complexity": [
+    {
+     "md": "**Time O(n) per `pop`/`peek`** (two full pours), O(1) per `push`. **Space O(n).**"
+    }
+   ],
+   "walk": {
+    "steps": [
+     {
+      "text": "push(1): onto the top.",
+      "panels": [
+       {
+        "type": "row",
+        "cells": [
+         1
+        ],
+        "label": "stack (bottom → top)"
+       }
+      ]
+     },
+     {
+      "text": "push(2): onto the top.",
+      "panels": [
+       {
+        "type": "row",
+        "cells": [
+         1,
+         2
+        ],
+        "label": "stack (bottom → top)"
+       }
+      ]
+     },
+     {
+      "text": "push(3): onto the top.",
+      "panels": [
+       {
+        "type": "row",
+        "cells": [
+         1,
+         2,
+         3
+        ],
+        "label": "stack (bottom → top)"
+       }
+      ]
+     },
+     {
+      "text": "pop(): pour all 3 items into the spare stack; the front (1) is now on top.",
+      "panels": [
+       {
+        "type": "row",
+        "cells": [
+         "·"
+        ],
+        "label": "stack"
+       },
+       {
+        "type": "row",
+        "cells": [
+         3,
+         2,
+         1
+        ],
+        "states": {
+         "2": "found"
+        },
+        "label": "spare (bottom → top)"
+       }
+      ]
+     },
+     {
+      "text": "Remove it, then pour everything back. Returns 1.",
+      "panels": [
+       {
+        "type": "row",
+        "cells": [
+         2,
+         3
+        ],
+        "label": "stack (bottom → top)"
+       },
+       {
+        "type": "vars",
+        "items": {
+         "returned": 1
+        }
+       }
+      ]
+     },
+     {
+      "text": "push(4): onto the top.",
+      "panels": [
+       {
+        "type": "row",
+        "cells": [
+         2,
+         3,
+         4
+        ],
+        "label": "stack (bottom → top)"
+       }
+      ]
+     },
+     {
+      "text": "peek(): pour all 3 items into the spare stack; the front (2) is now on top.",
+      "panels": [
+       {
+        "type": "row",
+        "cells": [
+         "·"
+        ],
+        "label": "stack"
+       },
+       {
+        "type": "row",
+        "cells": [
+         4,
+         3,
+         2
+        ],
+        "states": {
+         "2": "found"
+        },
+        "label": "spare (bottom → top)"
+       }
+      ]
+     },
+     {
+      "text": "Pour everything back. Returns 2.",
+      "panels": [
+       {
+        "type": "row",
+        "cells": [
+         2,
+         3,
+         4
+        ],
+        "label": "stack (bottom → top)"
+       },
+       {
+        "type": "vars",
+        "items": {
+         "returned": 2
+        }
+       }
+      ]
+     },
+     {
+      "text": "pop(): pour all 3 items into the spare stack; the front (2) is now on top.",
+      "panels": [
+       {
+        "type": "row",
+        "cells": [
+         "·"
+        ],
+        "label": "stack"
+       },
+       {
+        "type": "row",
+        "cells": [
+         4,
+         3,
+         2
+        ],
+        "states": {
+         "2": "found"
+        },
+        "label": "spare (bottom → top)"
+       }
+      ]
+     },
+     {
+      "text": "Remove it, then pour everything back. Returns 2.",
+      "panels": [
+       {
+        "type": "row",
+        "cells": [
+         3,
+         4
+        ],
+        "label": "stack (bottom → top)"
+       },
+       {
+        "type": "vars",
+        "items": {
+         "returned": 2
+        }
+       }
+      ]
+     },
+     {
+      "text": "pop(): pour all 2 items into the spare stack; the front (3) is now on top.",
+      "panels": [
+       {
+        "type": "row",
+        "cells": [
+         "·"
+        ],
+        "label": "stack"
+       },
+       {
+        "type": "row",
+        "cells": [
+         4,
+         3
+        ],
+        "states": {
+         "1": "found"
+        },
+        "label": "spare (bottom → top)"
+       }
+      ]
+     },
+     {
+      "text": "Remove it, then pour everything back. Returns 3.",
+      "panels": [
+       {
+        "type": "row",
+        "cells": [
+         4
+        ],
+        "label": "stack (bottom → top)"
+       },
+       {
+        "type": "vars",
+        "items": {
+         "returned": 3
+        }
+       }
+      ]
+     },
+     {
+      "text": "empty(): False.",
+      "panels": [
+       {
+        "type": "row",
+        "cells": [
+         4
+        ],
+        "label": "stack"
+       },
+       {
+        "type": "vars",
+        "items": {
+         "returned": "false"
+        }
+       }
+      ]
+     },
+     {
+      "text": "Every pop and peek moved the whole queue twice.",
+      "panels": [],
+      "result": "done"
+     }
+    ],
+    "title": "One stack holds the queue with the front at the bottom. To reach the front, pour everything into a spare stack, use the top, then pour it all back."
+   },
+   "limits": [
+    {
+     "md": "Pouring back is wasted work: after the first pour, 'spare' already holds the queue in exactly the right order for the next reads. Keep it there, and send new items to the other stack."
+    }
+   ],
+   "slow": true
+  },
+  {
+   "title": "Inbox and outbox, pour only when empty",
+   "kind": "best",
+   "time": "O(1) amortised",
+   "space": "O(n)",
+   "idea": [
+    {
+     "md": "`push` goes onto `in`. `pop`/`peek` read from the top of `out`; if `out` is empty, first pour all of `in` into it. `empty` is true when both are empty."
+    }
+   ],
+   "build": [
+    "Two stacks, `in` and `out`.",
+    "`push`: onto `in`.",
+    "Before reading: if `out` is empty, pour `in` into it.",
+    "`pop`/`peek`: top of `out`. `empty`: both empty."
+   ],
+   "code": {
+    "python": "class TwoStackQueue:\n    def __init__(self):\n        self.inbox = []\n        self.outbox = []\n\n    def _turn(self):\n        if not self.outbox:\n            while self.inbox:\n                self.outbox.append(self.inbox.pop())\n\n    def push(self, x: int) -> None:\n        self.inbox.append(x)\n\n    def pop(self) -> int:\n        self._turn()\n        return self.outbox.pop()\n\n    def peek(self) -> int:\n        self._turn()\n        return self.outbox[-1]\n\n    def empty(self) -> bool:\n        return not self.inbox and not self.outbox\n",
+    "java": "class TwoStackQueue {\n    private final ArrayDeque<Integer> in = new ArrayDeque<>(), out = new ArrayDeque<>();\n\n    public TwoStackQueue() {\n    }\n\n    private void turn() {\n        if (out.isEmpty()) while (!in.isEmpty()) out.push(in.pop());\n    }\n\n    public void push(int x) {\n        in.push(x);\n    }\n\n    public int pop() {\n        turn();\n        return out.pop();\n    }\n\n    public int peek() {\n        turn();\n        return out.peek();\n    }\n\n    public boolean empty() {\n        return in.isEmpty() && out.isEmpty();\n    }\n}\n",
+    "cpp": "class TwoStackQueue {\n    stack<int> in, out;\n\n    void turn() {\n        if (out.empty())\n            while (!in.empty()) { out.push(in.top()); in.pop(); }\n    }\n\npublic:\n    TwoStackQueue() {\n    }\n\n    void push(int x) {\n        in.push(x);\n    }\n\n    int pop() {\n        turn();\n        int value = out.top();\n        out.pop();\n        return value;\n    }\n\n    int peek() {\n        turn();\n        return out.top();\n    }\n\n    bool empty() {\n        return in.empty() && out.empty();\n    }\n};\n"
+   },
+   "lines": [
+    {
+     "text": "`in` collects new arrivals (newest on top); `out` holds older items in queue order (oldest on top).",
+     "at": {
+      "python": [
+       [
+        3,
+        4
+       ]
+      ],
+      "java": [
+       [
+        2,
+        2
+       ]
+      ],
+      "cpp": [
+       [
+        2,
+        2
+       ]
+      ]
+     }
+    },
+    {
+     "text": "Only when `out` is empty: pour `in` into it. Pouring reverses the order, so the oldest arrival ends on top. If `out` still has items, they're older than everything in `in`, so they must go first anyway.",
+     "at": {
+      "python": [
+       [
+        6,
+        9
+       ]
+      ],
+      "java": [
+       [
+        7,
+        9
+       ]
+      ],
+      "cpp": [
+       [
+        4,
+        7
+       ]
+      ]
+     }
+    },
+    {
+     "text": "Arrivals always go to `in`, in O(1).",
+     "at": {
+      "python": [
+       [
+        12,
+        12
+       ]
+      ],
+      "java": [
+       [
+        12,
+        12
+       ]
+      ],
+      "cpp": [
+       [
+        14,
+        14
+       ]
+      ]
+     }
+    },
+    {
+     "text": "The front of the queue is the top of `out`.",
+     "at": {
+      "python": [
+       [
+        15,
+        16
+       ],
+       [
+        19,
+        20
+       ]
+      ],
+      "java": [
+       [
+        16,
+        17
+       ],
+       [
+        21,
+        22
+       ]
+      ],
+      "cpp": [
+       [
+        18,
+        21
+       ],
+       [
+        25,
+        26
+       ]
+      ]
+     }
+    },
+    {
+     "text": "Items can be in either stack.",
+     "at": {
+      "python": [
+       [
+        23,
+        23
+       ]
+      ],
+      "java": [
+       [
+        26,
+        26
+       ]
+      ],
+      "cpp": [
+       [
+        30,
+        30
+       ]
+      ]
+     }
+    }
+   ],
+   "complexity": [
+    {
+     "md": "**Time O(1) amortised per call:** each item is pushed onto `in` once, poured once, and popped from `out` once. A single `pop` can cost O(n) when it triggers a pour, but that pays for the next n reads. **Space O(n).**"
+    }
+   ],
+   "walk": {
+    "steps": [
+     {
+      "text": "push(1): onto 'in'.",
+      "panels": [
+       {
+        "type": "row",
+        "cells": [
+         1
+        ],
+        "label": "in (bottom → top)"
+       },
+       {
+        "type": "row",
+        "cells": [
+         "·"
+        ],
+        "label": "out (bottom → top)"
+       }
+      ]
+     },
+     {
+      "text": "push(2): onto 'in'.",
+      "panels": [
+       {
+        "type": "row",
+        "cells": [
+         1,
+         2
+        ],
+        "label": "in (bottom → top)"
+       },
+       {
+        "type": "row",
+        "cells": [
+         "·"
+        ],
+        "label": "out (bottom → top)"
+       }
+      ]
+     },
+     {
+      "text": "push(3): onto 'in'.",
+      "panels": [
+       {
+        "type": "row",
+        "cells": [
+         1,
+         2,
+         3
+        ],
+        "label": "in (bottom → top)"
+       },
+       {
+        "type": "row",
+        "cells": [
+         "·"
+        ],
+        "label": "out (bottom → top)"
+       }
+      ]
+     },
+     {
+      "text": "pop(): 'out' is empty, so pour 'in' into it (order reverses). The front is 1, removed.",
+      "panels": [
+       {
+        "type": "row",
+        "cells": [
+         "·"
+        ],
+        "label": "in (bottom → top)"
+       },
+       {
+        "type": "row",
+        "cells": [
+         3,
+         2
+        ],
+        "label": "out (bottom → top)"
+       }
+      ]
+     },
+     {
+      "text": "push(4): onto 'in'.",
+      "panels": [
+       {
+        "type": "row",
+        "cells": [
+         4
+        ],
+        "label": "in (bottom → top)"
+       },
+       {
+        "type": "row",
+        "cells": [
+         3,
+         2
+        ],
+        "label": "out (bottom → top)"
+       }
+      ]
+     },
+     {
+      "text": "peek(): 'out' still has items; no pouring. The front is 2.",
+      "panels": [
+       {
+        "type": "row",
+        "cells": [
+         4
+        ],
+        "label": "in (bottom → top)"
+       },
+       {
+        "type": "row",
+        "cells": [
+         3,
+         2
+        ],
+        "label": "out (bottom → top)"
+       }
+      ]
+     },
+     {
+      "text": "pop(): 'out' still has items; no pouring. The front is 2, removed.",
+      "panels": [
+       {
+        "type": "row",
+        "cells": [
+         4
+        ],
+        "label": "in (bottom → top)"
+       },
+       {
+        "type": "row",
+        "cells": [
+         3
+        ],
+        "label": "out (bottom → top)"
+       }
+      ]
+     },
+     {
+      "text": "pop(): 'out' still has items; no pouring. The front is 3, removed.",
+      "panels": [
+       {
+        "type": "row",
+        "cells": [
+         4
+        ],
+        "label": "in (bottom → top)"
+       },
+       {
+        "type": "row",
+        "cells": [
+         "·"
+        ],
+        "label": "out (bottom → top)"
+       }
+      ]
+     },
+     {
+      "text": "empty(): both stacks empty? false.",
+      "panels": [
+       {
+        "type": "row",
+        "cells": [
+         4
+        ],
+        "label": "in (bottom → top)"
+       },
+       {
+        "type": "row",
+        "cells": [
+         "·"
+        ],
+        "label": "out (bottom → top)"
+       }
+      ]
+     },
+     {
+      "text": "pop/peek returned [1, 2, 2, 3], in first-in, first-out order.",
+      "panels": [],
+      "result": "done"
+     }
+    ],
+    "title": "Two stacks: 'in' takes new items, 'out' serves the front. Only when 'out' runs dry, pour all of 'in' into it, which reverses the order so the oldest item lands on top."
+   }
+  }
+ ],
+ "takeaways": [
+  {
+   "md": "- **Two stacks make a queue:** pouring one into the other reverses the order.\n- Pour lazily (only when the output side is empty) for amortised O(1) per operation.\n- Amortised analysis: count how many times each item can be moved over its whole life."
+  }
+ ]
+}
