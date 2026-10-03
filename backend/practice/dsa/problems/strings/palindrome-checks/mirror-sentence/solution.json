@@ -4,37 +4,96 @@
  "question": [
   {
    "md": "Ignoring everything except letters and digits, and ignoring case, does `text` read the same both ways?\n\n- **No letters or digits at all** counts as a mirror.\n- **Up to 2 × 10⁵ characters.**"
+  },
+  {
+   "md": "**Edge cases to keep in mind**\n\n- Text with no letters or digits at all (`\"!? .\"`) counts as a mirror.\n- Digits count: `\"1a1\"` is a mirror, `\"12\"` is not.\n- Case is ignored: `A` matches `a`."
   }
  ],
  "think": [
   {
-   "md": "`\"Step on no pets!\"` → `steponnopets`, which reads the same backwards: **true**.\n\nBuilding the cleaned string costs memory; instead, let the pointers simply step over the characters that don't\ncount."
+   "md": "**Checking a palindrome from both ends.** Put `i` at the start and `j` at the end. If `s[i] ≠ s[j]`, it isn't a\npalindrome. If they match, that pair is settled forever, so move both inward. When the pointers meet or cross, every\nmirrored pair has matched. That's `n/2` comparisons and no extra memory, and it's the base of every problem in this\npattern."
   },
   {
-   "panels": [
-    {
-     "type": "row",
-     "cells": [
-      "S",
-      "t",
-      "e",
-      "p",
-      " ",
-      "o",
-      "n",
-      " ",
-      "n",
-      "o",
-      " ",
-      "p",
-      "e",
-      "t",
-      "s",
-      "!"
+   "md": "**Skipping instead of cleaning.** Only letters and digits matter. Rather than building a cleaned copy, let each\npointer step over characters that don't count. Trace on `\"Step on no pets!\"`:"
+  },
+  {
+   "table": {
+    "head": [
+     "i",
+     "j",
+     "s[i]",
+     "s[j]",
+     "action"
+    ],
+    "rows": [
+     [
+      "0",
+      "15",
+      "'S'",
+      "'!'",
+      "skip right (not a letter or digit)"
      ],
-     "label": "text"
-    }
-   ]
+     [
+      "0",
+      "14",
+      "'S'",
+      "'s'",
+      "match ignoring case"
+     ],
+     [
+      "1",
+      "13",
+      "'t'",
+      "'t'",
+      "match ignoring case"
+     ],
+     [
+      "2",
+      "12",
+      "'e'",
+      "'e'",
+      "match ignoring case"
+     ],
+     [
+      "3",
+      "11",
+      "'p'",
+      "'p'",
+      "match ignoring case"
+     ],
+     [
+      "4",
+      "10",
+      "' '",
+      "' '",
+      "skip left (not a letter or digit)"
+     ],
+     [
+      "5",
+      "10",
+      "'o'",
+      "' '",
+      "skip right (not a letter or digit)"
+     ],
+     [
+      "5",
+      "9",
+      "'o'",
+      "'o'",
+      "match ignoring case"
+     ],
+     [
+      "6",
+      "8",
+      "'n'",
+      "'n'",
+      "match ignoring case"
+     ]
+    ]
+   }
+  },
+  {
+   "md": "The pointers met with no mismatch: **true**."
   }
  ],
  "approaches": [
@@ -45,7 +104,7 @@
    "space": "O(n)",
    "idea": [
     {
-     "md": "Build the lowercase string of letters and digits; compare it with its reverse."
+     "md": "Build the cleaned string (letters and digits, lowercased) and compare it with its reverse. Simple and clearly correct."
     }
    ],
    "build": [
@@ -60,7 +119,7 @@
    },
    "lines": [
     {
-     "text": "Only letters and digits, lowercased.",
+     "text": "Keep only letters and digits, lowercased: the text the question actually compares.",
      "at": {
       "python": [
        [
@@ -89,7 +148,7 @@
      }
     },
     {
-     "text": "A palindrome equals its reverse.",
+     "text": "A palindrome equals its reverse. C compares the cleaned buffer's two ends instead of building a reversed copy.",
      "at": {
       "python": [
        [
@@ -193,7 +252,7 @@
    },
    "limits": [
     {
-     "md": "The cleaned copy is unnecessary: the pointers can skip ignored characters as they go."
+     "md": "The copy isn't needed: pointers can skip ignored characters as they go, using O(1) memory."
     }
    ]
   },
@@ -204,12 +263,14 @@
    "space": "O(1)",
    "idea": [
     {
-     "md": "`i` from the left, `j` from the right. Skip non-alphanumeric characters on either side; compare lowercase letters; move inward."
+     "md": "Two pointers. Each loop step does exactly one thing: skip an ignored character on the left, or on the\nright, or compare two counted characters case-insensitively and move both inward.\n\n**Why one action per step.** After a skip, the other side might also need skipping, and the loop handles\nthat naturally. A pointer never skips a counted character, so every mirrored pair of counted characters\nis compared exactly once."
     }
    ],
    "build": [
     "Pointers at both ends.",
-    "Skip, compare, move."
+    "Skip ignored characters one side at a time.",
+    "Compare counted characters ignoring case.",
+    "True when the pointers meet."
    ],
    "code": {
     "python": "class Solution:\n    def isMirror(self, text: str) -> bool:\n        i, j = 0, len(text) - 1\n        while i < j:\n            if not text[i].isalnum():\n                i += 1\n            elif not text[j].isalnum():\n                j -= 1\n            elif text[i].lower() != text[j].lower():\n                return False\n            else:\n                i += 1\n                j -= 1\n        return True\n",
@@ -219,7 +280,7 @@
    },
    "lines": [
     {
-     "text": "Pointers at both ends.",
+     "text": "Pointers at the two ends of the text.",
      "at": {
       "python": [
        [
@@ -248,7 +309,7 @@
      }
     },
     {
-     "text": "Until they meet.",
+     "text": "Continue while there are at least two characters between them.",
      "at": {
       "python": [
        [
@@ -277,7 +338,7 @@
      }
     },
     {
-     "text": "Characters that don't count are stepped over, one side at a time.",
+     "text": "A character that isn't a letter or digit doesn't take part; step past it on that side only.",
      "at": {
       "python": [
        [
@@ -306,7 +367,7 @@
      }
     },
     {
-     "text": "Two counted characters must match ignoring case.",
+     "text": "Two counted characters must match ignoring case; then both pointers move inward.",
      "at": {
       "python": [
        [
@@ -335,7 +396,7 @@
      }
     },
     {
-     "text": "No mismatch (including text with nothing to compare).",
+     "text": "Every pair matched, including the case with nothing to compare.",
      "at": {
       "python": [
        [
@@ -366,7 +427,7 @@
    ],
    "complexity": [
     {
-     "md": "**Time O(n).** **Space O(1).**"
+     "md": "**Time O(n):** each step moves a pointer. **Space O(1).**"
     }
    ],
    "walk": {
@@ -587,7 +648,7 @@
  ],
  "takeaways": [
   {
-   "md": "- **Filtered palindrome = two pointers that skip** ignored characters.\n- Normalise case at comparison time instead of building a copy.\n- Empty or all-ignored input is a palindrome."
+   "md": "- **Filtered palindrome checks: two pointers that skip.**\n- Normalise (case) at comparison time instead of copying.\n- **Pitfall:** skipping on both sides in one step and jumping past a character that should be compared."
   }
  ]
 }

@@ -4,29 +4,54 @@
  "question": [
   {
    "md": "Can `s` become a palindrome by deleting **at most one** character?\n\n- **Zero deletions** is fine if `s` is already a palindrome.\n- **Up to 10⁵ letters.**"
+  },
+  {
+   "md": "**Edge cases to keep in mind**\n\n- Already a palindrome: true with zero deletions.\n- Both branches must be tried at a mismatch: `\"abbca\"` works only by dropping the `c` near the end, and `\"acbba\"` only by dropping the `c` near the start.\n- After the one deletion, no further mismatch is allowed."
   }
  ],
  "think": [
   {
-   "md": "`\"racecxar\"`: deleting the `x` leaves `racecar`: **true**.\n\nMatching pairs from the outside in, the first mismatching pair `s[i] ≠ s[j]` can't both stay. Deleting a\ncharacter outside `[i, j]` would break a pair that already matched, so the deletion is `s[i]` or `s[j]`, and\nonly two checks are needed."
+   "md": "**Checking a palindrome from both ends.** Put `i` at the start and `j` at the end. If `s[i] ≠ s[j]`, it isn't a\npalindrome. If they match, that pair is settled forever, so move both inward. When the pointers meet or cross, every\nmirrored pair has matched. That's `n/2` comparisons and no extra memory, and it's the base of every problem in this\npattern."
   },
   {
-   "panels": [
-    {
-     "type": "row",
-     "cells": [
+   "md": "**Where can the deletion be?** Match pairs from the outside in. Pairs that match are fine and don't need a\ndeletion. At the **first** mismatching pair `s[i] ≠ s[j]`, one of these two characters has to go: deleting a\ncharacter outside `[i, j]` would shift the matched outer pairs out of alignment, and deleting one strictly inside\nleaves `s[i]` and `s[j]` still facing each other. So only two candidates remain: the middle without `s[i]`, or\nwithout `s[j]`, and each must be a palindrome on its own.\n\n**Trace on `\"racecxar\"`:**"
+  },
+  {
+   "table": {
+    "head": [
+     "i",
+     "j",
+     "s[i]",
+     "s[j]",
+     "result"
+    ],
+    "rows": [
+     [
+      "0",
+      "7",
       "r",
+      "r",
+      "match"
+     ],
+     [
+      "1",
+      "6",
       "a",
-      "c",
-      "e",
+      "a",
+      "match"
+     ],
+     [
+      "2",
+      "5",
       "c",
       "x",
-      "a",
-      "r"
-     ],
-     "label": "s"
-    }
-   ]
+      "mismatch: try 'ecx' (drop left) → False, 'cec' (drop right) → True"
+     ]
+    ]
+   }
+  },
+  {
+   "md": "One branch works, so the answer is **true**."
   }
  ],
  "approaches": [
@@ -37,12 +62,13 @@
    "space": "O(n)",
    "idea": [
     {
-     "md": "If `s` is a palindrome, true. Otherwise try removing each position and test the rest."
+     "md": "If `s` is already a palindrome, true. Otherwise try deleting each position and test whether the rest is a palindrome."
     }
    ],
    "build": [
-    "Palindrome check helper (skipping one index).",
-    "Try every index."
+    "Palindrome test that ignores one index.",
+    "Zero deletions first.",
+    "Then every single deletion."
    ],
    "code": {
     "python": "class Solution:\n    def oneSlip(self, s: str) -> bool:\n        def pal_without(skip):\n            t = s[:skip] + s[skip + 1:]\n            return t == t[::-1]\n        if s == s[::-1]:\n            return True\n        return any(pal_without(k) for k in range(len(s)))\n",
@@ -52,7 +78,7 @@
    },
    "lines": [
     {
-     "text": "Is `s` a palindrome when position `skip` is ignored?",
+     "text": "Is `s` a palindrome when position `skip` is ignored? Pointers jump over that index when they reach it.",
      "at": {
       "python": [
        [
@@ -93,7 +119,7 @@
      }
     },
     {
-     "text": "No deletion needed.",
+     "text": "Already a palindrome: no deletion needed.",
      "at": {
       "python": [
        [
@@ -122,7 +148,7 @@
      }
     },
     {
-     "text": "Every possible single deletion.",
+     "text": "Every possible deletion position, until one leaves a palindrome.",
      "at": {
       "python": [
        [
@@ -153,7 +179,7 @@
    ],
    "complexity": [
     {
-     "md": "**Time O(n²).** **Space O(1)** (O(n) in Python for the sliced copies)."
+     "md": "**Time O(n²):** `n` deletions, each with an O(n) test. **Space O(1)** (Python's slices cost O(n))."
     }
    ],
    "walk": {
@@ -294,7 +320,7 @@
    },
    "limits": [
     {
-     "md": "Tries n deletions, each with an O(n) check. Only the two characters at the first mismatch are real candidates."
+     "md": "Only two deletions can possibly help: the characters at the first mismatch. Testing all `n` is wasted work."
     }
    ],
    "slow": true
@@ -306,13 +332,13 @@
    "space": "O(1)",
    "idea": [
     {
-     "md": "Move `i`, `j` inward while they match. At the first mismatch, return whether `s[i+1..j]` or `s[i..j−1]` is a palindrome."
+     "md": "Match from both ends while the characters agree. At the first mismatch, return whether `s[i+1..j]` or\n`s[i..j−1]` is a palindrome (no further deletions). If the pointers meet without a mismatch, it's already a\npalindrome.\n\nEach branch is a single linear check, so at most three passes over the string in total."
     }
    ],
    "build": [
     "Range palindrome helper.",
-    "Match from both ends.",
-    "At the mismatch, try skipping either side."
+    "Match pairs from the outside in.",
+    "At the first mismatch, try both branches."
    ],
    "code": {
     "python": "class Solution:\n    def oneSlip(self, s: str) -> bool:\n        def mirror(i, j):\n            while i < j:\n                if s[i] != s[j]:\n                    return False\n                i, j = i + 1, j - 1\n            return True\n        i, j = 0, len(s) - 1\n        while i < j:\n            if s[i] != s[j]:\n                return mirror(i + 1, j) or mirror(i, j - 1)\n            i, j = i + 1, j - 1\n        return True\n",
@@ -322,7 +348,7 @@
    },
    "lines": [
     {
-     "text": "Is `s[i..j]` a palindrome?",
+     "text": "Is `s[i..j]` a palindrome? A plain two-pointer check on a range, with no deletions allowed.",
      "at": {
       "python": [
        [
@@ -351,7 +377,7 @@
      }
     },
     {
-     "text": "Matching outer pairs never need a deletion.",
+     "text": "Matching outer pairs never need a deletion; keep moving inward.",
      "at": {
       "python": [
        [
@@ -396,7 +422,7 @@
      }
     },
     {
-     "text": "First mismatch: one of these two characters is the slip. Each option is checked once, with no further deletions allowed.",
+     "text": "First mismatch: one of these two characters is the slip. Try dropping either one; the rest must then be a palindrome as is.",
      "at": {
       "python": [
        [
@@ -425,7 +451,7 @@
      }
     },
     {
-     "text": "Already a palindrome.",
+     "text": "No mismatch at all: already a palindrome.",
      "at": {
       "python": [
        [
@@ -456,7 +482,7 @@
    ],
    "complexity": [
     {
-     "md": "**Time O(n):** one pass plus at most two range checks. **Space O(1).**"
+     "md": "**Time O(n).** **Space O(1).**"
     }
    ],
    "walk": {
@@ -551,7 +577,7 @@
  ],
  "takeaways": [
   {
-   "md": "- **\"Palindrome with k deletions\":** two pointers, and branch only at a mismatch.\n- With one deletion allowed, only the two mismatched characters are candidates.\n- Larger k needs dynamic programming (longest palindromic subsequence)."
+   "md": "- **Palindrome with one deletion:** match from both ends, branch once at the first mismatch.\n- The argument \"only the mismatched pair can be the culprit\" is the whole speed-up.\n- **Pitfall:** trying only one of the two branches.\n- More deletions need dynamic programming (longest palindromic subsequence)."
   }
  ]
 }

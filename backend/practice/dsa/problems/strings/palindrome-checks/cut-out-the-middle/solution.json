@@ -4,39 +4,71 @@
  "question": [
   {
    "md": "Cut one contiguous block (possibly empty) out of `s` so the rest (a prefix plus a suffix) is a palindrome.\nReturn the shortest block length.\n\n- **The kept part is prefix + suffix** of `s`.\n- **Up to 10⁵ letters**: trying every block is ~5 × 10⁹ options."
+  },
+  {
+   "md": "**Edge cases to keep in mind**\n\n- Already a palindrome: cut nothing (0).\n- The kept text is a prefix plus a suffix of `s`; either may be empty.\n- Cutting everything always works, so the answer is at most `n`."
   }
  ],
  "think": [
   {
-   "md": "`\"abcxyzcba\"`: keep `abc` + `cba` around a cut of `xyz`... or better, keep a little more: the answer is **2**.\n\nThe outer letters that already match (`abc` with `cba`) can always be kept. In the middle\n`\"xyz\"`, the first and last letters differ, so we can't keep both: the kept text inside the middle is entirely\nat its start or entirely at its end, and it has to be a palindrome on its own. So the question becomes: the\nlongest palindromic prefix (or suffix) of the middle.\n\nA palindromic prefix of `t` is a prefix of `t` that equals a suffix of `reverse(t)`. Glue them with a separator,\n`t # reverse(t)`, and the longest prefix that is also a suffix of the whole thing is exactly the longest\npalindromic prefix. The KMP prefix function computes that in O(length)."
+   "md": "**Checking a palindrome from both ends.** Put `i` at the start and `j` at the end. If `s[i] ≠ s[j]`, it isn't a\npalindrome. If they match, that pair is settled forever, so move both inward. When the pointers meet or cross, every\nmirrored pair has matched. That's `n/2` comparisons and no extra memory, and it's the base of every problem in this\npattern."
   },
   {
-   "panels": [
-    {
-     "type": "row",
-     "cells": [
-      "a",
-      "b",
-      "c",
+   "md": "**Step 1: peel the matching ends.** Match `s[0]` with `s[n−1]`, `s[1]` with `s[n−2]`, and so on, as long as they\nagree. Those pairs can always be kept: they already mirror each other. What remains in the middle starts and ends\nwith **different** letters (or is tiny).\n\n**Step 2: the kept part of the middle is a prefix or a suffix of it.** The kept text is \"start of `s`\" + \"end of\n`s`\". If it kept letters from both sides of the middle, the first kept letter of the middle (its first letter)\nwould have to mirror the last kept letter (its last letter), but those differ. So everything we keep from the\nmiddle sits entirely at its start or entirely at its end, and that piece must be a palindrome by itself.\n\nSo: **answer = middle length − longest palindromic prefix-or-suffix of the middle.**"
+  },
+  {
+   "table": {
+    "head": [
+     "s",
+     "peeled pairs",
+     "middle",
+     "longest pal. prefix",
+     "longest pal. suffix",
+     "cut",
+     "check (brute force)"
+    ],
+    "rows": [
+     [
+      "abcxyzcba",
+      "abc",
+      "xyz",
       "x",
-      "y",
       "z",
+      "2",
+      "2"
+     ],
+     [
+      "abxyxcba",
+      "ab",
+      "xyxc",
+      "xyx",
       "c",
-      "b",
-      "a"
+      "1",
+      "1"
      ],
-     "label": "s"
-    },
-    {
-     "type": "row",
-     "cells": [
-      "x",
-      "y",
-      "z"
+     [
+      "racecar",
+      "rac",
+      "e",
+      "e",
+      "e",
+      "0",
+      "0"
      ],
-     "label": "middle after peeling"
-    }
-   ]
+     [
+      "abcd",
+      "—",
+      "abcd",
+      "a",
+      "d",
+      "3",
+      "3"
+     ]
+    ]
+   }
+  },
+  {
+   "md": "**Finding the longest palindromic prefix in linear time.** A palindromic prefix of `t` equals its reverse, which\nis a suffix of `reverse(t)`. In `t + \"#\" + reverse(t)` that's a border (a prefix that's also a suffix), and the\nprefix function's last value gives the longest one. For the middle `\"xyz\"`: `xyz#zyx` has prefix function\n[0, 0, 0, 0, 0, 0, 1], last value 1. Running the same on `reverse(t)` gives the longest\npalindromic suffix."
   }
  ],
  "approaches": [
@@ -47,12 +79,13 @@
    "space": "O(n)",
    "idea": [
     {
-     "md": "For every `i ≤ j`, check whether `s[:i] + s[j:]` is a palindrome; keep the smallest `j − i`."
+     "md": "Try every block `[i, j)` to cut, check whether `s[:i] + s[j:]` is a palindrome, and keep the shortest block that works. Only blocks shorter than the current best are checked."
     }
    ],
    "build": [
     "Two loops over the block's ends.",
-    "Palindrome check on the kept text without building it."
+    "Palindrome check on the kept text without building it.",
+    "Keep the shortest."
    ],
    "code": {
     "python": "class Solution:\n    def shortestCut(self, s: str) -> int:\n        n, best = len(s), len(s)\n        for i in range(n + 1):\n            for j in range(i, n + 1):\n                if j - i < best:\n                    kept = s[:i] + s[j:]\n                    if kept == kept[::-1]:\n                        best = j - i\n        return best\n",
@@ -62,7 +95,7 @@
    },
    "lines": [
     {
-     "text": "Cutting everything always works (the empty text is a palindrome).",
+     "text": "Cutting everything leaves the empty text, which is a palindrome, so `n` always works.",
      "at": {
       "python": [
        [
@@ -91,7 +124,7 @@
      }
     },
     {
-     "text": "Every block `[i, j)` to cut.",
+     "text": "Every block `[i, j)` that could be cut.",
      "at": {
       "python": [
        [
@@ -120,7 +153,7 @@
      }
     },
     {
-     "text": "Only blocks shorter than the best matter. Position `a` of the kept text is `s[a]` before the cut and `s[a + (j − i)]` after it.",
+     "text": "Only blocks shorter than the best matter. Position `a` of the kept text is `s[a]` before the cut and `s[a + (j − i)]` after it, so no copy is needed.",
      "at": {
       "python": [
        [
@@ -192,7 +225,7 @@
    ],
    "complexity": [
     {
-     "md": "**Time O(n³)** in the worst case. **Space O(1)** (O(n) in Python for the copies)."
+     "md": "**Time O(n³)** worst case: O(n²) blocks, each checked in O(n). **Space O(1).**"
     }
    ],
    "walk": {
@@ -230,7 +263,7 @@
    },
    "limits": [
     {
-     "md": "Billions of blocks for 10⁵ letters. Peeling the matching ends first shows the kept part of the middle is just a palindromic prefix or suffix, so only those need finding."
+     "md": "Billions of blocks for `n = 10⁵`. Peeling the matching ends reduces the question to a palindromic prefix or suffix of the middle."
     }
    ],
    "slow": true
@@ -242,12 +275,13 @@
    "space": "O(1)",
    "idea": [
     {
-     "md": "Peel matching end pairs. In the middle, find the longest palindromic prefix by testing lengths from longest down, and the same for suffixes. Cut the rest of the middle."
+     "md": "Peel matching ends to get the middle. Then find its longest palindromic prefix by testing lengths from the\nlongest down, and the same for suffixes. The answer is the middle length minus the larger."
     }
    ],
    "build": [
-    "Peel matching ends.",
-    "Longest palindromic prefix and suffix of the middle by direct checks.",
+    "Peel the matching ends.",
+    "Longest palindromic prefix of the middle (direct tests).",
+    "Longest palindromic suffix.",
     "Middle length minus the larger."
    ],
    "code": {
@@ -258,7 +292,7 @@
    },
    "lines": [
     {
-     "text": "Matching outer pairs are always kept; the middle `s[lo..hi]` starts and ends with different letters (or is tiny).",
+     "text": "Keep stepping inward while the outer letters match. These pairs are always kept; the middle that's left has mismatched ends.",
      "at": {
       "python": [
        [
@@ -328,7 +362,7 @@
      }
     },
     {
-     "text": "Keep the longer; cut the rest of the middle.",
+     "text": "Keep the longer palindrome; everything else in the middle is cut.",
      "at": {
       "python": [
        [
@@ -359,7 +393,7 @@
    ],
    "complexity": [
     {
-     "md": "**Time O(n²)** in the worst case (many lengths, each tested in O(n)). **Space O(1).**"
+     "md": "**Time O(n²)** worst case: up to `n` lengths, each tested in O(n). **Space O(1).**"
     }
    ],
    "walk": {
@@ -415,7 +449,7 @@
    },
    "limits": [
     {
-     "md": "Each length is tested from scratch. The KMP prefix function finds the longest palindromic prefix in one linear pass."
+     "md": "Every candidate length is tested from scratch. The prefix function finds the longest palindromic prefix in one linear pass."
     }
    ],
    "slow": true
@@ -427,13 +461,14 @@
    "space": "O(n)",
    "idea": [
     {
-     "md": "Peel matching ends to get the middle `t`. The longest palindromic prefix of `t` is the last value of the prefix function of `t + '#' + reverse(t)`; the longest palindromic suffix is the same for `reverse(t)`. Answer: `len(t) − max` of the two."
+     "md": "Peel the matching ends. For the middle `t`, compute the prefix function of `t + \"#\" + reverse(t)`: its last\nvalue is the longest palindromic prefix. Do the same for `reverse(t)` to get the longest palindromic suffix.\nThe answer is `len(t) − max(prefix, suffix)`.\n\n**Why the border is a palindrome.** A border of length `L ≤ |t|` is `t[0..L)` and also the last `L`\ncharacters of `reverse(t)`, which are `reverse(t[0..L))`. So `t[0..L)` equals its own reverse. The `#`\nguarantees `L ≤ |t|`."
     }
    ],
    "build": [
-    "Peel.",
-    "Prefix function helper.",
-    "Apply to `t` and its reverse."
+    "Peel the matching ends.",
+    "Prefix-function helper for `t # reverse(t)`.",
+    "Apply it to the middle and to its reverse.",
+    "Middle length minus the larger."
    ],
    "code": {
     "python": "class Solution:\n    def shortestCut(self, s: str) -> int:\n        n, l = len(s), 0\n        while l < n - 1 - l and s[l] == s[n - 1 - l]:\n            l += 1\n        mid = s[l:n - l]\n        if len(mid) <= 1:\n            return 0\n        def pal_prefix(t):\n            u = t + \"#\" + t[::-1]\n            pi = [0] * len(u)\n            for i in range(1, len(u)):\n                k = pi[i - 1]\n                while k and u[i] != u[k]:\n                    k = pi[k - 1]\n                if u[i] == u[k]:\n                    k += 1\n                pi[i] = k\n            return pi[-1]\n        return len(mid) - max(pal_prefix(mid), pal_prefix(mid[::-1]))\n",
@@ -443,7 +478,7 @@
    },
    "lines": [
     {
-     "text": "Keep matching outer pairs; a middle of length 0 or 1 is already a palindrome, so nothing needs cutting.",
+     "text": "Keep stepping inward while the outer letters match. A middle of length 0 or 1 is already a palindrome, so nothing is cut.",
      "at": {
       "python": [
        [
@@ -472,7 +507,7 @@
      }
     },
     {
-     "text": "Prefix function of `t # reverse(t)`: its last value is the longest prefix of `t` that equals a suffix of `reverse(t)`, which is the longest palindromic prefix of `t`. The `#` stops the match from running past `t`.",
+     "text": "The prefix function of `t # reverse(t)`: its last value is the longest palindromic prefix of `t`. C builds the glued string directly (from `t` or from `t` reversed).",
      "at": {
       "python": [
        [
@@ -520,7 +555,7 @@
      }
     },
     {
-     "text": "Run it on the middle (palindromic prefix) and its reverse (palindromic suffix); keep the longer and cut the rest.",
+     "text": "Run it on the middle (prefix) and its reverse (suffix), keep the longer, and cut the rest of the middle.",
      "at": {
       "python": [
        [
@@ -598,7 +633,7 @@
  ],
  "takeaways": [
   {
-   "md": "- **Longest palindromic prefix** = prefix function of `t + '#' + reverse(t)`, O(n).\n- Peel matching ends first: they can always stay, and what remains has mismatched ends.\n- Reducing a two-sided choice to \"prefix or suffix\" is the key insight."
+   "md": "- **Peel matching ends first:** they can always stay, and what's left has mismatched ends.\n- **Mismatched ends force a one-sided choice:** keep a palindromic prefix or a palindromic suffix.\n- **Longest palindromic prefix = prefix function of `t # reverse(t)`.**\n- **Pitfall:** keeping letters from both sides of the middle, which can't be mirrored."
   }
  ]
 }
