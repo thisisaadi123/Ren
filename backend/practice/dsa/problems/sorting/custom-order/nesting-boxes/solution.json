@@ -4,37 +4,65 @@
  "question": [
   {
    "md": "A box fits in another only if it's strictly smaller in **both** width and height (no rotating). Return the most\nboxes you can nest in one chain.\n\n- **Equal widths can't nest**, even if the heights differ.\n- **Up to 10⁵ boxes**, so O(n²) is too slow."
+  },
+  {
+   "md": "**Edge cases to keep in mind**\n\n- Equal widths (or equal heights) can't nest: \"strictly smaller in both\".\n- One box: the answer is 1.\n- Boxes can't be rotated."
   }
  ],
  "think": [
   {
-   "md": "Boxes `[[5, 4], [6, 4], [6, 7], [2, 3], [5, 6]]`. One best chain is 2×3 ⊂ 5×4 ⊂ 6×7: **3** boxes.\n\nWith two dimensions, fix one by sorting. After sorting by width, a chain must use increasing widths and\nincreasing heights, so it's an increasing subsequence of the heights. The catch is equal widths: 6×4 and 6×7\nwould look like an increasing pair. Sorting equal widths by height **descending** makes them a decreasing run,\nso an increasing subsequence can never take two of them."
+   "md": "**Every custom order is a sort with the right key.** Decide what makes one item come before another, and express it\neither as a **key** (a tuple compared element by element: first key, then the next to break ties) or as a\n**comparator** (a rule for two items). The sort then does the rest in O(n log n). The thinking is all in choosing a key\nor rule that really produces the required order."
   },
   {
-   "panels": [
-    {
-     "type": "row",
-     "cells": [
-      "5×4",
-      "6×4",
-      "6×7",
+   "md": "**Reduce two dimensions to one.** Sort by width. Then a nesting chain uses strictly increasing widths, and it must\nalso use strictly increasing heights: a chain is a **strictly increasing subsequence of heights**.\n\n**The tie trick.** Boxes with equal widths can't nest, but if they were sorted by increasing height, their heights\nwould look like a valid increasing run. Sorting equal widths by **decreasing** height makes their heights\nnon-increasing, so at most one of them can be in any strictly increasing subsequence.\n\n**Longest increasing subsequence in O(n log n).** Keep `tails[i]` = the smallest possible last height of an\nincreasing chain of length `i + 1`. For each height, binary-search the first tail `≥` it and replace it (or append\nif it's larger than all tails). `tails` stays sorted, and its length is the answer."
+  },
+  {
+   "md": "**Sorted by (width ↑, height ↓):** `[[2, 3], [5, 6], [5, 4], [6, 7], [6, 4]]`"
+  },
+  {
+   "table": {
+    "head": [
+     "box",
+     "height",
+     "what happens",
+     "tails"
+    ],
+    "rows": [
+     [
       "2×3",
-      "5×6"
+      "3",
+      "extends the longest chain (now 1)",
+      "[3]"
      ],
-     "label": "boxes"
-    },
-    {
-     "type": "row",
-     "cells": [
-      "2×3",
+     [
       "5×6",
-      "5×4",
-      "6×7",
-      "6×4"
+      "6",
+      "extends the longest chain (now 2)",
+      "[3, 6]"
      ],
-     "label": "sorted (w ↑, h ↓)"
-    }
-   ]
+     [
+      "5×4",
+      "4",
+      "replaces tails[1] (a chain of length 2 can end lower)",
+      "[3, 4]"
+     ],
+     [
+      "6×7",
+      "7",
+      "extends the longest chain (now 3)",
+      "[3, 4, 7]"
+     ],
+     [
+      "6×4",
+      "4",
+      "replaces tails[1] (a chain of length 2 can end lower)",
+      "[3, 4, 7]"
+     ]
+    ]
+   }
+  },
+  {
+   "md": "Longest chain: **3**."
   }
  ],
  "approaches": [
@@ -45,13 +73,13 @@
    "space": "O(n)",
    "idea": [
     {
-     "md": "Sort by width. `chain[i]` = the longest nesting ending with box `i` = 1 + the best `chain[j]` over earlier boxes strictly smaller in both dimensions."
+     "md": "Sort by width; `chain[i]` = longest nesting ending at box `i`, computed from every earlier box that fits strictly inside."
     }
    ],
    "build": [
-    "Sort by width.",
-    "For each `i`, scan all `j < i`.",
-    "Answer = max of `chain`."
+    "Sort.",
+    "For each box, check all earlier boxes.",
+    "Take the best chain."
    ],
    "code": {
     "python": "class Solution:\n    def maxNested(self, boxes: List[List[int]]) -> int:\n        a = sorted(boxes)\n        chain = [1] * len(a)\n        for i in range(len(a)):\n            for j in range(i):\n                if a[j][0] < a[i][0] and a[j][1] < a[i][1]:\n                    chain[i] = max(chain[i], chain[j] + 1)\n        return max(chain)\n",
@@ -198,7 +226,7 @@
    ],
    "complexity": [
     {
-     "md": "**Time O(n²):** up to 5 × 10⁹ pairs for 10⁵ boxes. **Space O(n).**"
+     "md": "**Time O(n²):** 10¹⁰ checks at the limit. **Space O(n).**"
     }
    ],
    "walk": {
@@ -364,7 +392,7 @@
    },
    "limits": [
     {
-     "md": "The inner scan looks at every earlier box. Once equal widths are ordered tallest first, the problem becomes a plain longest increasing subsequence of heights, which binary search solves in O(n log n)."
+     "md": "Quadratic. After the tie-aware sort, the question is a longest increasing subsequence, which binary search solves in O(n log n)."
     }
    ],
    "slow": true
@@ -376,14 +404,13 @@
    "space": "O(n)",
    "idea": [
     {
-     "md": "Sort by `(width ascending, height descending)`. Keep `tails[L]` = the smallest possible height that ends a chain of length `L + 1`. For each height `h`, find the first tail `≥ h` (binary search): replace it with `h`, or append `h` if there's none. The answer is the number of tails."
+     "md": "Sort by `(width, −height)`, then compute the longest strictly increasing subsequence of the heights with\nthe `tails` array and `bisect_left` (first tail `≥ h`), which enforces strict increase."
     }
    ],
    "build": [
-    "Sort with the tie rule.",
-    "For each height, lower-bound search in `tails`.",
-    "Replace or append.",
-    "Return `len(tails)`."
+    "Sort by width ascending, height descending.",
+    "LIS on heights with binary search.",
+    "Return the length."
    ],
    "code": {
     "python": "import bisect\n\nclass Solution:\n    def maxNested(self, boxes: List[List[int]]) -> int:\n        tails = []\n        for w, h in sorted(boxes, key=lambda b: (b[0], -b[1])):\n            i = bisect.bisect_left(tails, h)\n            if i == len(tails):\n                tails.append(h)\n            else:\n                tails[i] = h\n        return len(tails)\n",
@@ -556,7 +583,7 @@
    ],
    "complexity": [
     {
-     "md": "**Time O(n log n)**: the sort plus a binary search per box. **Space O(n)** for the tails."
+     "md": "**Time O(n log n).** **Space O(n).**"
     }
    ],
    "walk": {
@@ -654,7 +681,7 @@
  ],
  "takeaways": [
   {
-   "md": "- **2-D nesting = sort one dimension, longest increasing subsequence on the other.**\n- The tie rule (equal first key → second key descending) is what makes \"strictly smaller in both\" work.\n- Patience tails give LIS in O(n log n); `bisect_left` gives strict increase, `bisect_right` non-strict."
+   "md": "- **2-D nesting (envelopes):** sort by one dimension, LIS on the other; break ties so equal first coordinates can't chain.\n- `bisect_left` gives strictly increasing; `bisect_right` would allow equal heights.\n- **Pitfall:** sorting ties by increasing height."
   }
  ]
 }

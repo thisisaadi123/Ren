@@ -4,52 +4,62 @@
  "question": [
   {
    "md": "Order `items` so values that appear in `guide` come first, in guide order (copies together), and all other values\nfollow in increasing order.\n\n- **Guide values are distinct**; items can repeat.\n- **Up to 10⁵ items and guide entries**, values up to 10⁹."
+  },
+  {
+   "md": "**Edge cases to keep in mind**\n\n- Guide values that don't occur among the items contribute nothing.\n- Repeated items stay together (same key).\n- Items not in the guide go last, in increasing order."
   }
  ],
  "think": [
   {
-   "md": "Items `[5, 9, 2, 7, 9, 4, 5, 1]`, guide `[9, 5, 3]`. First both 9s, then both 5s; the guide's 3 isn't among the items, so it\ncontributes nothing. Then 1, 2, 4, 7 in order. Answer: `[9, 9, 5, 5, 1, 2, 4, 7]`.\n\nAny custom order is just a sort with the right **key**. Here the key is a pair: first the value's place in the\nguide (values not in the guide all share the place \"after the guide\"), then the value itself to order those\nleftovers."
+   "md": "**Every custom order is a sort with the right key.** Decide what makes one item come before another, and express it\neither as a **key** (a tuple compared element by element: first key, then the next to break ties) or as a\n**comparator** (a rule for two items). The sort then does the rest in O(n log n). The thinking is all in choosing a key\nor rule that really produces the required order."
   },
   {
-   "panels": [
-    {
-     "type": "row",
-     "cells": [
-      5,
-      9,
-      2,
-      7,
-      9,
-      4,
-      5,
-      1
+   "md": "**The key here.** Give each guide value its position in the guide; anything not in the guide gets\n`len(guide)` (after every guide value). Then break ties by the value itself, which orders the leftovers\nincreasingly. For items `[5, 9, 2, 7, 9, 4, 5, 1]` and guide `[9, 5, 3]`:"
+  },
+  {
+   "table": {
+    "head": [
+     "item",
+     "key (guide position, value)"
+    ],
+    "rows": [
+     [
+      "5",
+      "(1, 5)"
      ],
-     "label": "items"
-    },
-    {
-     "type": "row",
-     "cells": [
-      9,
-      5,
-      3
+     [
+      "9",
+      "(0, 9)"
      ],
-     "label": "guide"
-    },
-    {
-     "type": "row",
-     "cells": [
-      9,
-      9,
-      5,
-      5,
-      1,
-      2,
-      4,
-      7
+     [
+      "2",
+      "(3, 2)"
      ],
-     "label": "ordered"
-    }
-   ]
+     [
+      "7",
+      "(3, 7)"
+     ],
+     [
+      "9",
+      "(0, 9)"
+     ],
+     [
+      "4",
+      "(3, 4)"
+     ],
+     [
+      "5",
+      "(1, 5)"
+     ],
+     [
+      "1",
+      "(3, 1)"
+     ]
+    ]
+   }
+  },
+  {
+   "md": "Sorted by key: **[9, 9, 5, 5, 1, 2, 4, 7]**."
   }
  ],
  "approaches": [
@@ -60,13 +70,13 @@
    "space": "O(n)",
    "idea": [
     {
-     "md": "For each guide value in order, scan the items and move every match to the output. Sort what's left and append it."
+     "md": "For each guide value, scan the items and pull out its copies; finally sort the unused items and append them."
     }
    ],
    "build": [
-    "Mark items as used.",
-    "For each guide value, scan all items for matches.",
-    "Sort the unused items and append."
+    "For each guide value, collect matching items.",
+    "Sort the leftovers.",
+    "Concatenate."
    ],
    "code": {
     "python": "class Solution:\n    def orderByGuide(self, items: List[int], guide: List[int]) -> List[int]:\n        out, used = [], [False] * len(items)\n        for g in guide:\n            for i, x in enumerate(items):\n                if x == g:\n                    out.append(x)\n                    used[i] = True\n        rest = sorted(x for i, x in enumerate(items) if not used[i])\n        return out + rest\n",
@@ -198,7 +208,7 @@
    ],
    "complexity": [
     {
-     "md": "**Time O(n·g + n log n):** a full scan of the items for every guide value, up to 10¹⁰. **Space O(n).**"
+     "md": "**Time O(n · g + n log n)** for `n` items and `g` guide values. **Space O(n).**"
     }
    ],
    "walk": {
@@ -303,7 +313,7 @@
    },
    "limits": [
     {
-     "md": "Each guide value rescans every item. Instead, look up each item's guide position once (a hash map) and let a single sort place everything."
+     "md": "Scans all items once per guide value. A rank map and one sort handle everything together."
     }
    ],
    "slow": true
@@ -315,13 +325,12 @@
    "space": "O(n + g)",
    "idea": [
     {
-     "md": "Build `rank[value] = position in guide`. Sort items by `(rank.get(x, g), x)`: values not in the guide all get rank `g`, after every guide value, and are then ordered by value."
+     "md": "Map each guide value to its index. Sort the items by `(rank or len(guide), value)`.\n\n**Why the tie-breaker is safe for guide items.** Items with the same rank have the same value, so the\nsecond key changes nothing for them; it only orders the leftovers."
     }
    ],
    "build": [
-    "`rank` from the guide.",
-    "Sort with the pair key.",
-    "Return."
+    "Rank map from the guide.",
+    "Sort by (rank, value)."
    ],
    "code": {
     "python": "class Solution:\n    def orderByGuide(self, items: List[int], guide: List[int]) -> List[int]:\n        rank = {v: i for i, v in enumerate(guide)}\n        after = len(guide)\n        return sorted(items, key=lambda x: (rank.get(x, after), x))\n",
@@ -410,7 +419,7 @@
    ],
    "complexity": [
     {
-     "md": "**Time O(n log n + g).** **Space O(n + g).**"
+     "md": "**Time O(g + n log n).** **Space O(g + n).**"
     }
    ],
    "walk": {
@@ -475,7 +484,7 @@
  ],
  "takeaways": [
   {
-   "md": "- **Custom orders are sorts with a composite key.** Put the most important rule first in the tuple.\n- Give \"not in the list\" a single rank larger than every listed one.\n- In C, a sorted array plus `bsearch` stands in for a hash map lookup."
+   "md": "- **Order by a reference list:** rank map + tuple key.\n- Use a sentinel rank for \"not listed\" to push those items last.\n- **Pitfall:** a comparator that looks up ranks with a linear search (O(n · g) per comparison)."
   }
  ]
 }

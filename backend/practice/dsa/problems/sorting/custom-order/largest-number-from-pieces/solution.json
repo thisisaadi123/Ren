@@ -4,37 +4,61 @@
  "question": [
   {
    "md": "Arrange all the number pieces side by side to make the largest possible number, returned as a string with no\nleading zeros.\n\n- **Every piece is used**, each exactly once.\n- **Plain numeric order fails:** 30 is bigger than 3, but `330` beats `303`.\n- **All zeros** must give `\"0\"`, not `\"000\"`."
+  },
+  {
+   "md": "**Edge cases to keep in mind**\n\n- All pieces are 0: return `\"0\"`, not `\"000\"`.\n- Plain numeric or plain string order is wrong: `3` must come before `30` (`330 > 303`), although `\"30\" > \"3\"`.\n- Pieces up to 10⁹ and up to 10⁴ of them: the result has up to 10⁵ digits, so build a string."
   }
  ],
  "think": [
   {
-   "md": "Pieces `[30, 3, 34, 5, 9]`. The best is `9534330`.\n\nThink about just two pieces side by side, `a` then `b`. Swapping them only changes that stretch of digits,\n`a + b` versus `b + a`, which have the same length. So `a` belongs first exactly when `a + b > b + a`. This\npairwise rule turns out to be transitive (a proper ordering), so a sort with it arranges every pair correctly\nat once."
+   "md": "**Every custom order is a sort with the right key.** Decide what makes one item come before another, and express it\neither as a **key** (a tuple compared element by element: first key, then the next to break ties) or as a\n**comparator** (a rule for two items). The sort then does the rest in O(n log n). The thinking is all in choosing a key\nor rule that really produces the required order."
   },
   {
-   "panels": [
-    {
-     "type": "row",
-     "cells": [
-      30,
-      3,
-      34,
-      5,
-      9
+   "md": "**The glue rule.** Look at two neighbouring pieces `a` then `b`. Swapping them only changes that stretch of the\nnumber, `a + b` vs `b + a` (string concatenation), and both have the same length. So `a` should come first exactly\nwhen `a + b > b + a`."
+  },
+  {
+   "table": {
+    "head": [
+     "a",
+     "b",
+     "a + b",
+     "b + a",
+     "first"
+    ],
+    "rows": [
+     [
+      "3",
+      "30",
+      "330",
+      "303",
+      "3"
      ],
-     "label": "pieces"
-    },
-    {
-     "type": "row",
-     "cells": [
-      "9",
-      "5",
+     [
       "34",
       "3",
-      "30"
+      "343",
+      "334",
+      "34"
      ],
-     "label": "arranged"
-    }
-   ]
+     [
+      "9",
+      "5",
+      "95",
+      "59",
+      "9"
+     ],
+     [
+      "30",
+      "34",
+      "3034",
+      "3430",
+      "34"
+     ]
+    ]
+   }
+  },
+  {
+   "md": "**Why sorting by this rule is valid.** The rule is consistent (transitive): `a` before `b` and `b` before `c`\nimplies `a` before `c`, so it defines a proper order that a sort can use. And in the best arrangement no\nneighbouring pair can be improved by swapping, which is exactly what the sorted order guarantees (an exchange\nargument).\n\nFor `[30, 3, 34, 5, 9]`: `['9', '5', '34', '3', '30']` → **`9534330`**."
   }
  ],
  "approaches": [
@@ -45,13 +69,13 @@
    "space": "O(n · L)",
    "idea": [
     {
-     "md": "Turn pieces into strings. Keep passing over the list, swapping neighbours whenever `b + a > a + b`, until a pass makes no swap."
+     "md": "Bubble sort with the glue rule: repeatedly swap neighbouring pieces whenever `b + a > a + b`, until no swap happens."
     }
    ],
    "build": [
-    "Strings.",
-    "Repeat passes with neighbour swaps until stable.",
-    "Join; fix the all-zero case."
+    "Pieces as strings.",
+    "Bubble passes with the glue rule.",
+    "Join; fix all-zero output."
    ],
    "code": {
     "python": "class Solution:\n    def largestNumber(self, pieces: List[int]) -> str:\n        s = [str(p) for p in pieces]\n        changed = True\n        while changed:\n            changed = False\n            for i in range(len(s) - 1):\n                if s[i] + s[i + 1] < s[i + 1] + s[i]:\n                    s[i], s[i + 1] = s[i + 1], s[i]\n                    changed = True\n        out = \"\".join(s)\n        return \"0\" if out[0] == \"0\" else out\n",
@@ -182,7 +206,7 @@
    ],
    "complexity": [
     {
-     "md": "**Time O(n² · L)** comparisons of glued strings. **Space O(n · L).**"
+     "md": "**Time O(n² · L)** for pieces of length up to `L` (10 digits). **Space O(n · L).**"
     }
    ],
    "walk": {
@@ -413,7 +437,7 @@
    },
    "limits": [
     {
-     "md": "Bubble sort is quadratic: 10⁴ pieces means ~10⁸ string comparisons. The rule is a valid ordering, so any O(n log n) sort can use it."
+     "md": "Bubble sort is quadratic. The same rule plugged into an O(n log n) sort does the job."
     }
    ],
    "slow": true
@@ -425,13 +449,13 @@
    "space": "O(n · L)",
    "idea": [
     {
-     "md": "Sort the strings with the comparator `a before b ⟺ a + b > b + a`, join them, and return `\"0\"` if the result starts with 0."
+     "md": "Convert to strings, sort with the comparator \"`a` first if `a + b > b + a`\", join, and return `\"0\"` if the result starts with 0."
     }
    ],
    "build": [
     "Strings.",
-    "Sort with the comparator.",
-    "Join; all-zero fix."
+    "Sort with the glue comparator.",
+    "Join and handle the all-zero case."
    ],
    "code": {
     "python": "import functools\n\nclass Solution:\n    def largestNumber(self, pieces: List[int]) -> str:\n        s = [str(p) for p in pieces]\n        rule = lambda a, b: -1 if a + b > b + a else (1 if a + b < b + a else 0)\n        s.sort(key=functools.cmp_to_key(rule))\n        out = \"\".join(s)\n        return \"0\" if out[0] == \"0\" else out\n",
@@ -555,7 +579,7 @@
    ],
    "complexity": [
     {
-     "md": "**Time O(n log n · L)** with L ≤ 10 digits per piece. **Space O(n · L).**"
+     "md": "**Time O(n log n · L).** **Space O(n · L).**"
     }
    ],
    "walk": {
@@ -625,7 +649,7 @@
  ],
  "takeaways": [
   {
-   "md": "- When the best order depends on **how two items combine**, compare them by combining both ways.\n- Exchange argument: if swapping two neighbours never helps, the arrangement is optimal.\n- Watch the edge case where the \"number\" is all zeros."
+   "md": "- **Arrange pieces to make the largest concatenation:** compare `a + b` with `b + a`.\n- Pairwise \"which goes first\" rules work when they're transitive (exchange argument).\n- **Pitfall:** returning `\"00…0\"` instead of `\"0\"`."
   }
  ]
 }

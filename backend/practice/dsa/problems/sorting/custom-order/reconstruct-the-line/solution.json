@@ -4,39 +4,58 @@
  "question": [
   {
    "md": "Each person is `[height, ahead]`: `ahead` people at least as tall stood in front of them. Rebuild the line from\nfront to back.\n\n- **\"At least as tall\"** includes equal heights.\n- **A valid line always exists**, and at most 2000 people."
+  },
+  {
+   "md": "**Edge cases to keep in mind**\n\n- People of equal height count each other (\"at least as tall\").\n- A person with `ahead = 0` has nobody taller or equal in front.\n- The input always describes some valid line."
   }
  ],
  "think": [
   {
-   "md": "People `[[7, 0], [4, 4], [7, 1], [5, 0], [6, 1], [5, 2]]` rebuild to `[[5, 0], [7, 0], [5, 2], [6, 1], [4, 4], [7, 1]]`.\n\nShorter people are invisible to a taller person's count. So if we place the tallest people first, each new\nperson (shorter or equal) only cares about the people already placed, all of whom are at least as tall: put\nthem at index `ahead`. Later, shorter people can be inserted anywhere without breaking anyone's count. Equal\nheights must go in increasing `ahead` order, so the one with more equals in front is placed after them."
+   "md": "**Every custom order is a sort with the right key.** Decide what makes one item come before another, and express it\neither as a **key** (a tuple compared element by element: first key, then the next to break ties) or as a\n**comparator** (a rule for two items). The sort then does the rest in O(n log n). The thinking is all in choosing a key\nor rule that really produces the required order."
   },
   {
-   "panels": [
-    {
-     "type": "row",
-     "cells": [
-      "7,0",
-      "4,4",
-      "7,1",
-      "5,0",
-      "6,1",
-      "5,2"
+   "md": "**Tallest first.** A shorter person is invisible to a taller person's count. So if we place people from tallest\nto shortest, each new person is at most as tall as everyone already placed, and everyone placed so far counts\ntoward their `ahead`. Inserting them at index `ahead` gives them exactly `ahead` taller-or-equal people in front.\nPeople placed later are shorter, so they never change earlier people's counts. For equal heights, processing\nthem in increasing `ahead` order means a later equal-height person is inserted behind the earlier ones, so their\ncounts stay right too.\n\n**Trace** for `[[7, 0], [4, 4], [7, 1], [5, 0], [6, 1], [5, 2]]`, sorted by height ↓ then `ahead` ↑:"
+  },
+  {
+   "table": {
+    "head": [
+     "person",
+     "insert at",
+     "line after"
+    ],
+    "rows": [
+     [
+      "[7, 0]",
+      "0",
+      "[[7, 0]]"
      ],
-     "label": "given"
-    },
-    {
-     "type": "row",
-     "cells": [
-      "5,0",
-      "7,0",
-      "5,2",
-      "6,1",
-      "4,4",
-      "7,1"
+     [
+      "[7, 1]",
+      "1",
+      "[[7, 0], [7, 1]]"
      ],
-     "label": "line"
-    }
-   ]
+     [
+      "[6, 1]",
+      "1",
+      "[[7, 0], [6, 1], [7, 1]]"
+     ],
+     [
+      "[5, 0]",
+      "0",
+      "[[5, 0], [7, 0], [6, 1], [7, 1]]"
+     ],
+     [
+      "[5, 2]",
+      "2",
+      "[[5, 0], [7, 0], [5, 2], [6, 1], [7, 1]]"
+     ],
+     [
+      "[4, 4]",
+      "4",
+      "[[5, 0], [7, 0], [5, 2], [6, 1], [4, 4], [7, 1]]"
+     ]
+    ]
+   }
   }
  ],
  "approaches": [
@@ -47,13 +66,13 @@
    "space": "O(n)",
    "idea": [
     {
-     "md": "Sort by height ascending, equal heights by `ahead` descending. Each person goes to the `(ahead + 1)`-th still-empty spot: the empty spots before it will be filled by taller (or equal) people later, exactly `ahead` of them."
+     "md": "Shortest first: sort by height ascending (ties: `ahead` descending) and put each person into the\n`(ahead + 1)`-th **empty** slot from the front. Empty slots will later be filled by taller (or equal) people,\nso exactly `ahead` of them end up in front."
     }
    ],
    "build": [
-    "`n` empty slots.",
-    "Sort shortest first (ties: larger `ahead` first).",
-    "Count empty slots to find the `ahead`-th one (0-based); place there."
+    "Empty line of `n` slots.",
+    "Sort shortest first.",
+    "Place each person in the right empty slot."
    ],
    "code": {
     "python": "class Solution:\n    def rebuildLine(self, people: List[List[int]]) -> List[List[int]]:\n        n = len(people)\n        line = [None] * n\n        for h, k in sorted(people, key=lambda p: (p[0], -p[1])):\n            empty = -1\n            for i in range(n):\n                if line[i] is None:\n                    empty += 1\n                    if empty == k:\n                        line[i] = [h, k]\n                        break\n        return line\n",
@@ -188,7 +207,7 @@
    ],
    "complexity": [
     {
-     "md": "**Time O(n²):** a scan of the slots per person. **Space O(n).**"
+     "md": "**Time O(n²):** each placement scans for empty slots. **Space O(n).**"
     }
    ],
    "walk": {
@@ -317,7 +336,7 @@
    },
    "limits": [
     {
-     "md": "Correct, but the tie rule and slot counting are easy to get wrong. Placing the tallest first lets a plain list insertion at index `ahead` do the work."
+     "md": "Each placement scans the line. Inserting tallest first is shorter to write (still O(n²) with list inserts, fine for n ≤ 2000)."
     }
    ]
   },
@@ -328,13 +347,12 @@
    "space": "O(n)",
    "idea": [
     {
-     "md": "Sort by height descending, equal heights by `ahead` ascending. Insert each person into the line at index `ahead`."
+     "md": "Sort by height descending, ties by `ahead` ascending, and insert each person at index `ahead` of the growing\nline.\n\n**Why it's correct.** When a person is inserted, everyone already in the line is at least as tall, so\nindex `ahead` gives exactly `ahead` of them in front. Later insertions are of shorter people (who don't\ncount) or equal-height people with larger `ahead` (inserted behind them)."
     }
    ],
    "build": [
-    "Sort with the rule.",
-    "`line.insert(ahead, person)` for each.",
-    "Return the line."
+    "Sort by (−height, ahead).",
+    "Insert each at index `ahead`."
    ],
    "code": {
     "python": "class Solution:\n    def rebuildLine(self, people: List[List[int]]) -> List[List[int]]:\n        line = []\n        for h, k in sorted(people, key=lambda p: (-p[0], p[1])):\n            line.insert(k, [h, k])\n        return line\n",
@@ -476,7 +494,7 @@
    ],
    "complexity": [
     {
-     "md": "**Time O(n²):** each insertion shifts up to n entries (≈ 2 × 10⁶ moves for n = 2000). **Space O(n).**"
+     "md": "**Time O(n²)** for list insertions (n ≤ 2000). **Space O(n).**"
     }
    ],
    "walk": {
@@ -592,7 +610,7 @@
  ],
  "takeaways": [
   {
-   "md": "- Process items in the order where **later items can't disturb earlier decisions**: here, tallest first.\n- A greedy that inserts by position is easy to prove when the counted things are exactly the ones placed so far.\n- Tie rules matter: equal heights must go in increasing `ahead` order."
+   "md": "- **Queue reconstruction:** tallest first, insert at index `ahead`.\n- Process items in an order where later items don't disturb earlier ones.\n- **Pitfall:** sorting equal heights by `ahead` descending in the tallest-first approach."
   }
  ]
 }
