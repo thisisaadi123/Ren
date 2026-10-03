@@ -4,40 +4,59 @@
  "question": [
   {
    "md": "Can the sign be spelled from the tiles, each tile used at most once?\n\n- **Order is irrelevant.** Tiles can be rearranged freely; `sale` from `eslax` works.\n- **Multiplicity matters.** `boom` needs **two** `o` tiles; `bomx` has one, so it fails.\n- **Extra tiles are fine:** the `x` in `eslax` is simply left over.\n- **Only lowercase letters**, so there are just 26 kinds of tile, which means a fixed-size count\n  array works.\n- **Size:** both strings up to 10⁵ characters."
+  },
+  {
+   "md": "**Edge cases to keep in mind**\n\n- Repeated letters in the sign need that many tiles (`\"spoon\"` needs two `o`s).\n- Extra tiles are fine; only missing ones matter.\n- A letter that isn't among the tiles at all fails immediately."
   }
  ],
  "think": [
   {
-   "md": "Take sign `spoon` and tiles `nopxos`. By hand you'd lay the tiles out by letter: n×1, o×2, p×1,\ns×1, x×1. Then read the sign and take a tile per letter: s, p, o, o (the second o!), n. Every letter\nfound a tile, so it works."
+   "md": "**Counting is a lookup table.** Most \"how many times\" questions reduce to: walk the input once and keep a count per\nvalue. The only design choice is the table:\n\n- **A plain array** when the values are small and known in advance (26 letters, 128 characters, ids in a fixed range):\n  index directly by the value.\n- **A hash map (or hash set)** when values are large or unpredictable (up to 10⁹): expected O(1) per lookup.\n\nEither way, one pass builds the counts in O(n), which is what replaces repeated scanning."
   },
   {
-   "panels": [
-    {
-     "type": "row",
-     "cells": [
-      "n:1",
-      "o:2",
-      "p:1",
-      "s:1",
-      "x:1"
-     ],
-     "label": "tiles by letter"
-    },
-    {
-     "type": "row",
-     "cells": [
-      "n:1",
-      "o:2",
-      "p:1",
-      "s:1"
-     ],
-     "label": "sign needs"
-    }
-   ],
-   "caption": "For each letter, tiles available ≥ letters needed. That's the whole condition."
+   "md": "**Tiles as counts.** Order doesn't matter, only how many of each letter. Count the tiles once, then spend one\ntile per letter of the sign; if any count goes below zero, a tile is missing. For sign `\"spoon\"` and tiles\n`\"nopxos\"` (counts {'n': 1, 'o': 2, 'p': 1, 's': 1, 'x': 1}):"
   },
   {
-   "md": "So the question is \"for every letter, is `count in tiles ≥ count in sign`?\". Counting both and\ncomparing works; slightly simpler is to count the tiles and then **subtract** as you read the sign,\nfailing the moment a count goes negative."
+   "table": {
+    "head": [
+     "sign letter",
+     "tiles before",
+     "tiles after",
+     "result"
+    ],
+    "rows": [
+     [
+      "s",
+      "1",
+      "0",
+      "ok"
+     ],
+     [
+      "p",
+      "1",
+      "0",
+      "ok"
+     ],
+     [
+      "o",
+      "2",
+      "1",
+      "ok"
+     ],
+     [
+      "o",
+      "1",
+      "0",
+      "ok"
+     ],
+     [
+      "n",
+      "1",
+      "0",
+      "ok"
+     ]
+    ]
+   }
   }
  ],
  "approaches": [
@@ -48,13 +67,13 @@
    "space": "O(t)",
    "idea": [
     {
-     "md": "Copy the tiles into a pool. For each sign letter, scan the pool for that letter; if it's missing return false, otherwise remove that tile so it can't be used twice."
+     "md": "Put the tiles in a list. For each sign letter, find a matching tile and remove it; if none is left, the sign can't be spelled."
     }
    ],
    "build": [
-    "Copy the tiles into a mutable pool.",
-    "For each letter of the sign: find it in the pool; if absent return false; else remove it.",
-    "Return true."
+    "Copy the tiles into a pool.",
+    "For each letter, find and remove a tile.",
+    "Fail if a letter has no tile."
    ],
    "code": {
     "python": "class Solution:\n    def canSpell(self, sign: str, tiles: str) -> bool:\n        pool = list(tiles)\n        for ch in sign:\n            if ch not in pool:\n                return False\n            pool.remove(ch)\n        return True\n",
@@ -64,7 +83,7 @@
    },
    "lines": [
     {
-     "text": "A copy of the tiles we can use up.",
+     "text": "All tiles, available to be taken.",
      "at": {
       "python": [
        [
@@ -96,7 +115,7 @@
      }
     },
     {
-     "text": "Each letter of the sign, in order.",
+     "text": "Each letter of the sign.",
      "at": {
       "python": [
        [
@@ -125,7 +144,7 @@
      }
     },
     {
-     "text": "Look for a tile with this letter. None left means the sign can't be spelled.",
+     "text": "Is there still a tile with this letter?",
      "at": {
       "python": [
        [
@@ -158,7 +177,7 @@
      }
     },
     {
-     "text": "Use that tile up so it can't be reused.",
+     "text": "Use it up: remove it from the pool.",
      "at": {
       "python": [
        [
@@ -192,7 +211,7 @@
      }
     },
     {
-     "text": "Every letter got its own tile.",
+     "text": "Every letter found a tile.",
      "at": {
       "python": [
        [
@@ -226,7 +245,7 @@
    ],
    "complexity": [
     {
-     "md": "**Time O(s · t):** each sign letter scans up to t tiles (10¹⁰ at the limits). **Space O(t)** for the pool."
+     "md": "**Time O(|sign| · |tiles|):** each find and remove scans the pool. **Space O(|tiles|).**"
     }
    ],
    "walk": {
@@ -465,7 +484,7 @@
    },
    "limits": [
     {
-     "md": "Each lookup scans the tiles one by one, but we never care *which* `o` tile we take, only how many `o`s are left. Counting replaces the search."
+     "md": "Searching the pool is linear each time. Since only the number of each letter matters, 26 counters replace the pool."
     }
    ],
    "slow": true
@@ -477,14 +496,13 @@
    "space": "O(s + t)",
    "idea": [
     {
-     "md": "Sort both strings. Walk the sorted sign; for each letter move a tile pointer forward past smaller letters (unused tiles). If the pointer runs out or lands on a bigger letter, the needed tile doesn't exist. Otherwise use it and step past it."
+     "md": "Sort the sign and the tiles. Walk the sorted sign; for each letter, move a tile pointer past smaller tiles\nand check that the next tile is that letter. Each tile is used at most once because the pointer only moves\nforward."
     }
    ],
    "build": [
-    "Sort the sign and the tiles.",
-    "Keep `j` = 0 in the sorted tiles.",
-    "For each sign letter `ch`: skip tiles `< ch`; if no tile or tile `!= ch`, return false; else `j += 1`.",
-    "Return true."
+    "Sort both.",
+    "For each sign letter, skip smaller tiles.",
+    "The next tile must match; use it."
    ],
    "code": {
     "python": "class Solution:\n    def canSpell(self, sign: str, tiles: str) -> bool:\n        s, t = sorted(sign), sorted(tiles)\n        j = 0\n        for ch in s:\n            while j < len(t) and t[j] < ch:\n                j += 1\n            if j == len(t) or t[j] != ch:\n                return False\n            j += 1\n        return True\n",
@@ -505,7 +523,7 @@
      }
     },
     {
-     "text": "Sorted copies: equal letters are grouped, and both strings run a → z.",
+     "text": "Sorted letters let both lists be walked in step.",
      "at": {
       "python": [
        [
@@ -534,7 +552,7 @@
      }
     },
     {
-     "text": "`j` marks the first tile not yet used or skipped.",
+     "text": "Take the sign's letters in sorted order.",
      "at": {
       "python": [
        [
@@ -563,7 +581,7 @@
      }
     },
     {
-     "text": "Tiles smaller than the needed letter can never be used later either (later sign letters are only bigger or equal), so skip them for good.",
+     "text": "Tiles smaller than the needed letter are extras; pass over them.",
      "at": {
       "python": [
        [
@@ -592,7 +610,7 @@
      }
     },
     {
-     "text": "The next tile must be exactly this letter. If it's missing or bigger, no such tile is left. Otherwise use it.",
+     "text": "The next tile must be this letter; if not (or none is left), the sign can't be made. Using it moves the pointer on.",
      "at": {
       "python": [
        [
@@ -621,7 +639,7 @@
      }
     },
     {
-     "text": "All sign letters were matched.",
+     "text": "Every letter matched a tile.",
      "at": {
       "python": [
        [
@@ -655,7 +673,7 @@
    ],
    "complexity": [
     {
-     "md": "**Time O(s log s + t log t)** for sorting; the walk is linear. **Space O(s + t)** for the sorted copies."
+     "md": "**Time O(n log n)** for the sorts. **Space O(n)** for the sorted copies."
     }
    ],
    "walk": {
@@ -912,7 +930,7 @@
    },
    "limits": [
     {
-     "md": "Sorting is overkill with only 26 possible letters: 26 counters give the same information in one pass and constant space."
+     "md": "Sorting letters costs O(n log n) to learn what counting tells us in O(n)."
     }
    ]
   },
@@ -923,13 +941,13 @@
    "space": "O(1)",
    "idea": [
     {
-     "md": "Count each letter among the tiles in an array of 26. Then for each sign letter subtract one from its counter; if a counter drops below zero, the sign needs more of that letter than there are tiles."
+     "md": "Count the tiles into 26 counters. For each sign letter, decrease its counter; if it drops below zero, the\nsign needs more of that letter than there are tiles.\n\n**Why it's exact.** After processing the whole sign, counter `x` equals (tiles with `x`) − (sign letters\n`x`). The sign can be spelled exactly when no counter is negative, and checking during the loop catches\nthe first shortage early."
     }
    ],
    "build": [
-    "Make `have` with 26 zeros; add 1 for each tile letter (`letter − 'a'` is its index).",
-    "For each sign letter: subtract 1; if the counter is now negative, return false.",
-    "Return true."
+    "Count the tiles.",
+    "Spend one per sign letter.",
+    "Fail on a negative counter."
    ],
    "code": {
     "python": "class Solution:\n    def canSpell(self, sign: str, tiles: str) -> bool:\n        have = [0] * 26\n        for ch in tiles:\n            have[ord(ch) - ord('a')] += 1\n        for ch in sign:\n            k = ord(ch) - ord('a')\n            have[k] -= 1\n            if have[k] < 0:\n                return False\n        return True\n",
@@ -939,7 +957,7 @@
    },
    "lines": [
     {
-     "text": "One counter per letter. `ch − 'a'` maps 'a' → 0, …, 'z' → 25.",
+     "text": "How many tiles of each letter there are.",
      "at": {
       "python": [
        [
@@ -971,7 +989,7 @@
      }
     },
     {
-     "text": "Use up one tile of each letter the sign needs.",
+     "text": "Use one tile for each letter of the sign.",
      "at": {
       "python": [
        [
@@ -1000,7 +1018,7 @@
      }
     },
     {
-     "text": "Negative means this letter appears more often in the sign than among the tiles.",
+     "text": "A negative counter means the sign needs more of this letter than the tiles provide.",
      "at": {
       "python": [
        [
@@ -1065,7 +1083,7 @@
    ],
    "complexity": [
     {
-     "md": "**Time O(s + t):** one pass over each string. **Space O(1):** 26 counters regardless of input size."
+     "md": "**Time O(|sign| + |tiles|).** **Space O(1):** 26 counters."
     }
    ],
    "walk": {
@@ -1297,7 +1315,7 @@
  ],
  "takeaways": [
   {
-   "md": "- \"Can A be built from B?\" with reusable order is a **multiset** question: compare counts, not\n  positions.\n- A small fixed alphabet means a fixed-size array beats a hash map: O(1) space, no hashing.\n- Counting up one side and down the other, failing on a negative, avoids a second comparison\n  pass."
+   "md": "- **\"Can A be built from B?\"** → count B, spend for A, watch for negatives.\n- Small alphabets: a fixed array beats a hash map.\n- **Pitfall:** checking only that each letter exists, ignoring how many are needed."
   }
  ]
 }

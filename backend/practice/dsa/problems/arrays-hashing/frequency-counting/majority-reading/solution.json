@@ -4,77 +4,86 @@
  "question": [
   {
    "md": "One value appears in more than half of the readings. Return it.\n\n- **More than half** means strictly more than n/2: in 7 readings it appears at least 4 times; in 8,\n  at least 5. It's guaranteed to exist, so there's no \"no answer\" case to handle.\n- **Values can be negative** and as large as ±10⁹, so you can't index an array by value.\n- **Size:** up to 10⁵ readings.\n- The guarantee is what makes the clever O(1)-space method valid. Without it, you'd need a second\n  pass to confirm the candidate."
+  },
+  {
+   "md": "**Edge cases to keep in mind**\n\n- One reading: it's the majority.\n- \"More than half\" is strict: in `[1, 2]` there is none, but the problem guarantees one exists.\n- Values up to 10⁹ in size, so counting needs a hash map (or no table at all, with voting)."
   }
  ],
  "think": [
   {
-   "md": "Take `[2, 8, 8, 1, 8, 8, 3, 8, 2]`: 8 appears 5 times out of 9.\n\nCounting with a hash map clearly works. But here's a sharper observation: **pair up readings that\nare different and throw both away.** Each 8 can be paired with at most one non-8, and there are only\n4 non-8s. However you pair things, at least one 8 survives, and nothing else can survive more than 8\ndoes."
+   "md": "**Three observations, three methods.**\n\n1. **Counting:** a hash map of counts finds the value whose count exceeds `n/2`.\n2. **Sorting:** a value filling more than half of a sorted array must cover the middle position `n/2`, whatever\n   its range, so the middle element is the answer.\n3. **Cancelling:** pair up two **different** readings and throw both away. Each majority reading can be cancelled\n   by at most one other reading, and there are fewer others than majority readings, so the majority always\n   survives. Boyer–Moore voting does this cancellation in one pass with a candidate and a counter."
   },
   {
-   "panels": [
-    {
-     "type": "row",
-     "cells": [
-      2,
-      8
-     ],
-     "states": {
-      "0": "dim",
-      "1": "dim"
-     },
-     "label": "cancel"
-    },
-    {
-     "type": "row",
-     "cells": [
-      8,
-      1
-     ],
-     "states": {
-      "0": "dim",
-      "1": "dim"
-     },
-     "label": "cancel"
-    },
-    {
-     "type": "row",
-     "cells": [
-      8,
-      3
-     ],
-     "states": {
-      "0": "dim",
-      "1": "dim"
-     },
-     "label": "cancel"
-    },
-    {
-     "type": "row",
-     "cells": [
-      8,
-      2
-     ],
-     "states": {
-      "0": "dim",
-      "1": "dim"
-     },
-     "label": "cancel"
-    },
-    {
-     "type": "row",
-     "cells": [
-      8
-     ],
-     "states": {
-      "0": "answer"
-     },
-     "label": "left over"
-    }
-   ],
-   "caption": "Four non-8s can cancel at most four 8s. The fifth 8 survives."
+   "md": "**Voting on `[2, 8, 8, 1, 8, 8, 3, 8, 2]`:**"
   },
   {
-   "md": "Boyer–Moore turns that into a scan: keep a **candidate** and a **count**. A matching reading adds a\nvote; a different reading cancels one; when the count hits zero, the next reading becomes the new\ncandidate. Whatever is left at the end is the majority.\n\nAnother view, useful for the sorting approach: a value covering more than half the positions of a\n**sorted** list must cover the middle position."
+   "table": {
+    "head": [
+     "reading",
+     "candidate",
+     "count",
+     "what happens"
+    ],
+    "rows": [
+     [
+      "2",
+      "2",
+      "1",
+      "count was 0: new candidate. same as candidate: +1"
+     ],
+     [
+      "8",
+      "2",
+      "0",
+      "different: −1 (cancels one)"
+     ],
+     [
+      "8",
+      "8",
+      "1",
+      "count was 0: new candidate. same as candidate: +1"
+     ],
+     [
+      "1",
+      "8",
+      "0",
+      "different: −1 (cancels one)"
+     ],
+     [
+      "8",
+      "8",
+      "1",
+      "count was 0: new candidate. same as candidate: +1"
+     ],
+     [
+      "8",
+      "8",
+      "2",
+      "same as candidate: +1"
+     ],
+     [
+      "3",
+      "8",
+      "1",
+      "different: −1 (cancels one)"
+     ],
+     [
+      "8",
+      "8",
+      "2",
+      "same as candidate: +1"
+     ],
+     [
+      "2",
+      "8",
+      "1",
+      "different: −1 (cancels one)"
+     ]
+    ]
+   }
+  },
+  {
+   "md": "The surviving candidate is **8**."
   }
  ],
  "approaches": [
@@ -85,12 +94,12 @@
    "space": "O(1)",
    "idea": [
     {
-     "md": "For each reading, count its copies with a full scan. The first one whose count exceeds n/2 is the answer."
+     "md": "For each reading, count its occurrences by scanning the whole list; return the first with count above `n/2`."
     }
    ],
    "build": [
-    "For each reading `r`, count how many readings equal `r`.",
-    "If `count × 2 > n`, return `r`."
+    "For each reading, count it.",
+    "Return it if it's a majority."
    ],
    "code": {
     "python": "class Solution:\n    def majorityValue(self, readings: List[int]) -> int:\n        n = len(readings)\n        for r in readings:\n            if readings.count(r) * 2 > n:\n                return r\n        return readings[0]\n",
@@ -100,7 +109,7 @@
    },
    "lines": [
     {
-     "text": "Try each reading as the answer.",
+     "text": "Try each reading as the candidate.",
      "at": {
       "python": [
        [
@@ -129,7 +138,7 @@
      }
     },
     {
-     "text": "Count its copies. More than half (`c × 2 > n`, which avoids rounding issues with `n / 2`) means it's the majority.",
+     "text": "Count it by scanning the list; more than half means it's the answer.",
      "at": {
       "python": [
        [
@@ -158,7 +167,7 @@
      }
     },
     {
-     "text": "Unreachable: the majority is guaranteed.",
+     "text": "Unreachable when a majority is guaranteed.",
      "at": {
       "python": [
        [
@@ -189,7 +198,7 @@
    ],
    "complexity": [
     {
-     "md": "**Time O(n²):** each candidate costs a full scan. **Space O(1).**"
+     "md": "**Time O(n²).** **Space O(1).**"
     }
    ],
    "walk": {
@@ -257,7 +266,7 @@
    },
    "limits": [
     {
-     "md": "The same values get recounted over and over. Count each value once, or use the order a sort provides."
+     "md": "Counts the same values over and over. One pass with a table, or voting, is enough."
     }
    ],
    "slow": true
@@ -269,12 +278,12 @@
    "space": "O(n)",
    "idea": [
     {
-     "md": "In sorted order the majority's copies form one block longer than n/2. Any block that long must cover index `n // 2`, so the answer is simply `sorted[n // 2]`."
+     "md": "Sort and return the middle element `s[n // 2]`.\n\n**Why the middle.** The majority occupies more than `n/2` consecutive positions after sorting. Any block\nthat long, wherever it starts, must contain index `n // 2`."
     }
    ],
    "build": [
     "Sort a copy.",
-    "Return the element at index `n // 2`."
+    "Return the middle element."
    ],
    "code": {
     "python": "class Solution:\n    def majorityValue(self, readings: List[int]) -> int:\n        s = sorted(readings)\n        return s[len(s) // 2]\n",
@@ -295,7 +304,7 @@
      }
     },
     {
-     "text": "Sorted copy: each value's copies form one contiguous block.",
+     "text": "Group equal readings together.",
      "at": {
       "python": [
        [
@@ -324,7 +333,7 @@
      }
     },
     {
-     "text": "A block longer than half the list can't fit entirely left or right of the middle, so it covers index n / 2.",
+     "text": "The majority's block always covers the middle position.",
      "at": {
       "python": [
        [
@@ -433,7 +442,7 @@
    },
    "limits": [
     {
-     "md": "Sorting orders all values when we only need the one that dominates. Counting avoids the log factor."
+     "md": "Sorting costs O(n log n) to find one value."
     }
    ]
   },
@@ -444,12 +453,13 @@
    "space": "O(n)",
    "idea": [
     {
-     "md": "Count readings in a hash map as you go. As soon as some count exceeds n/2, return that value."
+     "md": "Count readings in a hash map; as soon as a count passes `n/2`, return that value."
     }
    ],
    "build": [
-    "Create an empty value → count map.",
-    "For each reading, add 1 to its count; if `count × 2 > n`, return it."
+    "Empty map.",
+    "Increment the count of each reading.",
+    "Return when a count exceeds half."
    ],
    "code": {
     "python": "class Solution:\n    def majorityValue(self, readings: List[int]) -> int:\n        n = len(readings)\n        count = {}\n        for r in readings:\n            count[r] = count.get(r, 0) + 1\n            if count[r] * 2 > n:\n                return r\n        return readings[0]\n",
@@ -474,7 +484,7 @@
      }
     },
     {
-     "text": "Counts per value, filled as we go.",
+     "text": "Value → how many times seen so far.",
      "at": {
       "python": [
        [
@@ -506,7 +516,7 @@
      }
     },
     {
-     "text": "Add one to this reading's count.",
+     "text": "Each reading once.",
      "at": {
       "python": [
        [
@@ -539,7 +549,7 @@
      }
     },
     {
-     "text": "The first count to pass half is the majority; stop right there.",
+     "text": "More than half of all readings: this is the majority.",
      "at": {
       "python": [
        [
@@ -571,7 +581,7 @@
      }
     },
     {
-     "text": "Unreachable with valid input.",
+     "text": "Unreachable when a majority is guaranteed.",
      "at": {
       "python": [
        [
@@ -605,7 +615,7 @@
    ],
    "complexity": [
     {
-     "md": "**Time O(n)** on average. **Space O(n)**: up to about n/2 distinct values can be stored."
+     "md": "**Time O(n)** expected. **Space O(n)** for the map."
     }
    ],
    "walk": {
@@ -922,7 +932,7 @@
    },
    "limits": [
     {
-     "md": "The map remembers every distinct value even though only one of them matters. Voting needs just one candidate and one counter."
+     "md": "The map can hold up to `n/2` distinct values. Voting needs only two variables."
     }
    ]
   },
@@ -933,14 +943,14 @@
    "space": "O(1)",
    "idea": [
     {
-     "md": "Keep `candidate` and `count`, starting at count 0. For each reading:\n\n- count 0 → this reading becomes the candidate with count 1;\n- same as the candidate → count + 1;\n- different → count − 1 (it cancels one vote).\n\n**Why it works:** every decrement pairs one candidate copy with one different reading and\ndiscards both. Discarding two *different* values from a list keeps the majority a majority of\nwhat remains (it loses at most one of its copies, while the list shrinks by two). At the end,\nwhat's left uncancelled can only be the majority."
+     "md": "Keep a `candidate` and a `count`. For each reading: if `count` is 0, take the reading as the new candidate.\nThen add 1 if the reading equals the candidate, else subtract 1.\n\n**Why the majority survives.** Every decrement pairs one reading with one reading of a different value and\ndiscards both. The majority has more readings than all others combined, so it can't be fully cancelled; the\ncandidate left at the end must be it."
     }
    ],
    "build": [
-    "`candidate = 0`, `count = 0`.",
-    "For each reading: if `count == 0`, set `candidate` to it.",
-    "Then `count += 1` if it equals the candidate, else `count −= 1`.",
-    "Return `candidate`."
+    "`candidate`, `count = 0`.",
+    "On `count = 0`, adopt the current reading.",
+    "+1 for a match, −1 otherwise.",
+    "Return the candidate."
    ],
    "code": {
     "python": "class Solution:\n    def majorityValue(self, readings: List[int]) -> int:\n        candidate, count = 0, 0\n        for r in readings:\n            if count == 0:\n                candidate = r\n            count += 1 if r == candidate else -1\n        return candidate\n",
@@ -950,7 +960,7 @@
    },
    "lines": [
     {
-     "text": "No candidate yet: a count of 0 means \"the next reading takes over\".",
+     "text": "No candidate yet; count 0.",
      "at": {
       "python": [
        [
@@ -979,7 +989,7 @@
      }
     },
     {
-     "text": "One pass, left to right.",
+     "text": "Each reading once.",
      "at": {
       "python": [
        [
@@ -1008,7 +1018,7 @@
      }
     },
     {
-     "text": "All earlier readings have cancelled each other out, so start fresh with this one.",
+     "text": "Everything so far has cancelled out: start fresh with this reading.",
      "at": {
       "python": [
        [
@@ -1037,7 +1047,7 @@
      }
     },
     {
-     "text": "A match strengthens the candidate; a different value cancels one of its votes (both are discarded as a pair).",
+     "text": "A matching reading supports the candidate; a different one cancels one supporting reading.",
      "at": {
       "python": [
        [
@@ -1066,7 +1076,7 @@
      }
     },
     {
-     "text": "With a guaranteed majority, the survivor is it. (Without the guarantee you'd recount the candidate in a second pass to confirm.)",
+     "text": "The survivor is the majority (guaranteed to exist).",
      "at": {
       "python": [
        [
@@ -1097,7 +1107,7 @@
    ],
    "complexity": [
     {
-     "md": "**Time O(n):** one pass. **Space O(1):** two variables."
+     "md": "**Time O(n).** **Space O(1).**"
     }
    ],
    "walk": {
@@ -1443,7 +1453,7 @@
  ],
  "takeaways": [
   {
-   "md": "- A strict majority can't be cancelled out: pairing it against everything else leaves copies over.\n  That's **Boyer–Moore voting**, O(1) space.\n- The guarantee matters. If a majority might not exist, verify the candidate with a second count.\n- The sorting trick (majority covers the middle index) is a handy one-liner when O(n log n) is fine.\n- The idea generalises: at most two values can exceed n/3 (see **Strong Candidates**), with two\n  candidate slots."
+   "md": "- **Majority (> n/2):** Boyer–Moore voting, O(n) time and O(1) space.\n- If a majority isn't guaranteed, verify the candidate with a second counting pass.\n- **Pitfall:** using voting for \"most frequent\" (plurality); it only works for a strict majority."
   }
  ]
 }

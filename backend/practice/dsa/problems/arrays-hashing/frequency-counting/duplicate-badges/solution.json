@@ -4,32 +4,53 @@
  "question": [
   {
    "md": "Return `true` if any number appears **at least twice** in the list, otherwise `false`.\n\n- **Any repeat counts**, anywhere in the list, not just next to each other.\n- **One badge** can't repeat: `[5]` is `false`.\n- **Negative numbers** are allowed, so tricks that use the numbers as array indices don't work\n  directly (values go from −10⁹ to 10⁹).\n- **Size:** up to 10⁵ badges. Comparing every pair is ~5 × 10⁹ comparisons.\n- You can **stop at the first repeat**: the answer is just yes or no."
+  },
+  {
+   "md": "**Edge cases to keep in mind**\n\n- One badge: no duplicate.\n- The duplicate may be the very last element; the scan must reach it.\n- Negative numbers and huge values are fine for hashing and sorting, but rule out indexing an array directly."
   }
  ],
  "think": [
   {
-   "md": "Take `[12, 5, 9, 2, 5, 8]`. Reading it left to right as a person would, you keep a mental list of\nnumbers you've passed: 12, 5, 9, 2… then another 5. \"I've seen 5.\" Done.\n\nThat mental list is the whole algorithm. The question is only how quickly you can check \"have I\nseen this?\":\n\n- scanning everything before it costs O(n) per check, O(n²) in total;\n- sorting first puts equal numbers next to each other, so a single neighbour check finds them;\n- a hash set answers \"seen it?\" in O(1) on average."
+   "md": "**Restating it.** Is there a pair of positions with equal values?\n\n**Three ways to answer \"have I seen this before?\"**\n\n1. Compare with everything earlier: O(n) per element, O(n²) total.\n2. Sort, so equal values become neighbours, and compare each element with the next: O(n log n).\n3. Keep a hash set of values seen: O(1) expected per element, O(n) total, and you can stop at the first repeat."
   },
   {
-   "panels": [
-    {
-     "type": "row",
-     "cells": [
-      12,
-      5,
-      9,
-      2,
-      5,
-      8
+   "md": "**Hash-set trace on `[12, 5, 9, 2, 5, 8]`:**"
+  },
+  {
+   "table": {
+    "head": [
+     "badge",
+     "seen before it",
+     "result"
+    ],
+    "rows": [
+     [
+      "12",
+      "{}",
+      "new: add it"
      ],
-     "states": {
-      "1": "answer",
-      "4": "answer"
-     },
-     "slots": true
-    }
-   ],
-   "caption": "The repeat is at indices 1 and 4, three places apart."
+     [
+      "5",
+      "{12}",
+      "new: add it"
+     ],
+     [
+      "9",
+      "{12, 5}",
+      "new: add it"
+     ],
+     [
+      "2",
+      "{12, 5, 9}",
+      "new: add it"
+     ],
+     [
+      "5",
+      "{12, 5, 9, 2}",
+      "already seen → true"
+     ]
+    ]
+   }
   }
  ],
  "approaches": [
@@ -40,13 +61,12 @@
    "space": "O(1)",
    "idea": [
     {
-     "md": "Check every pair `i < j`. If any two are equal, return true. If no pair matches, return false."
+     "md": "Compare every pair of positions `i < j`; any equal pair means a duplicate."
     }
    ],
    "build": [
-    "Loop `i` over indices and `j` from `i + 1` to the end.",
-    "If `badges[i] == badges[j]`, return true.",
-    "After the loops, return false."
+    "Two nested loops over `i < j`.",
+    "Return true on an equal pair."
    ],
    "code": {
     "python": "class Solution:\n    def hasDuplicate(self, badges: List[int]) -> bool:\n        n = len(badges)\n        for i in range(n):\n            for j in range(i + 1, n):\n                if badges[i] == badges[j]:\n                    return True\n        return False\n",
@@ -56,7 +76,7 @@
    },
    "lines": [
     {
-     "text": "Every pair of different positions, each pair once.",
+     "text": "Every pair of different positions, each once.",
      "at": {
       "python": [
        [
@@ -85,7 +105,7 @@
      }
     },
     {
-     "text": "Two equal badges: that's a duplicate, and nothing else needs checking.",
+     "text": "Two equal badges: a duplicate exists.",
      "at": {
       "python": [
        [
@@ -114,7 +134,7 @@
      }
     },
     {
-     "text": "No pair matched, so every number is different.",
+     "text": "No pair was equal.",
      "at": {
       "python": [
        [
@@ -145,7 +165,7 @@
    ],
    "complexity": [
     {
-     "md": "**Time O(n²):** n(n − 1)/2 comparisons. **Space O(1).**"
+     "md": "**Time O(n²):** 5 × 10⁹ comparisons for `n = 10⁵`. **Space O(1).**"
     }
    ],
    "walk": {
@@ -212,7 +232,7 @@
    },
    "limits": [
     {
-     "md": "The \"have I seen this?\" question is answered by re-reading the list. Sorting or a hash set answers it far faster."
+     "md": "Each badge is compared with all others. Sorting brings equal values together; a hash set remembers what's been seen."
     }
    ],
    "slow": true
@@ -224,12 +244,12 @@
    "space": "O(n)",
    "idea": [
     {
-     "md": "After sorting, equal numbers are adjacent, so a duplicate exists exactly when some neighbouring pair is equal."
+     "md": "Sort a copy. Equal values are then adjacent, so it's enough to compare each element with the next one.\n\n**Why neighbours are enough.** If `x` appears twice, all its copies form one consecutive block after\nsorting, and any block of size ≥ 2 contains an adjacent equal pair."
     }
    ],
    "build": [
-    "Sort a copy of the badges.",
-    "Return true if any `s[i] == s[i + 1]`, else false."
+    "Sort a copy.",
+    "Compare each element with the next."
    ],
    "code": {
     "python": "class Solution:\n    def hasDuplicate(self, badges: List[int]) -> bool:\n        s = sorted(badges)\n        for i in range(len(s) - 1):\n            if s[i] == s[i + 1]:\n                return True\n        return False\n",
@@ -250,7 +270,7 @@
      }
     },
     {
-     "text": "Sort a copy so equal numbers become neighbours, leaving the input untouched.",
+     "text": "Equal badges become neighbours.",
      "at": {
       "python": [
        [
@@ -279,7 +299,7 @@
      }
     },
     {
-     "text": "Only neighbours need comparing now: if a number repeats, one of its copies sits right next to another.",
+     "text": "Compare each badge with the next one.",
      "at": {
       "python": [
        [
@@ -308,7 +328,7 @@
      }
     },
     {
-     "text": "No equal neighbours means no repeats.",
+     "text": "No neighbours were equal, so no value repeats.",
      "at": {
       "python": [
        [
@@ -342,7 +362,7 @@
    ],
    "complexity": [
     {
-     "md": "**Time O(n log n)** for the sort. **Space O(n)** for the copy (O(1) extra if sorting the input in place is allowed)."
+     "md": "**Time O(n log n).** **Space O(n)** for the copy (O(1) if sorting in place is allowed)."
     }
    ],
    "walk": {
@@ -425,7 +445,7 @@
    },
    "limits": [
     {
-     "md": "Sorting orders every number, which is more than \"is anything repeated?\" needs. A hash set skips the ordering and can stop at the first repeat without reading the rest."
+     "md": "Sorting does more work than needed: we only ask whether a value repeats, not where it goes. A hash set answers that in O(n)."
     }
    ]
   },
@@ -436,13 +456,13 @@
    "space": "O(n)",
    "idea": [
     {
-     "md": "Walk left to right with a hash set. If the current badge is already in the set, return true; otherwise add it. If the walk ends, every badge was new."
+     "md": "Walk the badges, keeping a set of numbers seen so far. If the current number is already in the set, return\ntrue; otherwise add it. If the walk ends, there's no duplicate.\n\n**Invariant.** Before processing badge `i`, the set holds exactly the distinct values among the first `i`\nbadges. So \"in the set\" means \"appeared earlier\"."
     }
    ],
    "build": [
-    "Create an empty hash set.",
-    "For each badge: if it's in the set, return true; else add it.",
-    "Return false."
+    "Empty set.",
+    "For each badge: check, then add.",
+    "False if the loop finishes."
    ],
    "code": {
     "python": "class Solution:\n    def hasDuplicate(self, badges: List[int]) -> bool:\n        seen = set()\n        for b in badges:\n            if b in seen:\n                return True\n            seen.add(b)\n        return False\n",
@@ -467,7 +487,7 @@
      }
     },
     {
-     "text": "An empty set of numbers seen so far.",
+     "text": "The set of numbers seen so far.",
      "at": {
       "python": [
        [
@@ -499,7 +519,7 @@
      }
     },
     {
-     "text": "One pass over the badges.",
+     "text": "Each badge once.",
      "at": {
       "python": [
        [
@@ -528,7 +548,7 @@
      }
     },
     {
-     "text": "Seen before? Then it's a duplicate.",
+     "text": "Seen before: this is the second copy, stop immediately.",
      "at": {
       "python": [
        [
@@ -562,7 +582,7 @@
      }
     },
     {
-     "text": "First time: remember it.",
+     "text": "Remember it for later badges.",
      "at": {
       "python": [
        [
@@ -616,7 +636,7 @@
    ],
    "complexity": [
     {
-     "md": "**Time O(n)** on average: one O(1) check and insert per badge, and it stops early at the first repeat. **Space O(n)** for the set."
+     "md": "**Time O(n)** expected. **Space O(n)** for the set."
     }
    ],
    "walk": {
@@ -798,7 +818,7 @@
  ],
  "takeaways": [
   {
-   "md": "- \"Have I seen this before?\" is a hash-set question: O(1) per check.\n- Sorting turns \"equal somewhere\" into \"equal neighbours\", a good fallback when extra memory is\n  tight.\n- Stop as soon as the answer is known; a yes/no question rarely needs the whole input."
+   "md": "- **\"Any repeats?\"** → hash set, O(n); stop at the first hit.\n- Sorting is the O(1)-extra-space alternative (in place) at O(n log n).\n- **Pitfall:** adding before checking, which makes every value look like a repeat."
   }
  ]
 }
