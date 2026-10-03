@@ -4,96 +4,105 @@
  "question": [
   {
    "md": "Every pixel that is 0 in the **original** grid blacks out its entire row and entire column. Return the\nresulting grid.\n\n- **Only original zeros count.** A pixel that becomes 0 because of a blackout must not trigger another\n  blackout; otherwise one zero would wipe out the whole grid.\n- **Values can be negative or large,** so there's no spare \"special\" value to use as a marker except\n  0 itself.\n- **Size:** up to 300 × 300."
+  },
+  {
+   "md": "**Edge cases to keep in mind**\n\n- Only **original** zeros cause blackouts; zeros created by the blackout must not spread further.\n- A zero in the first row or column, which the O(1)-space method uses as storage.\n- A grid with no zeros is unchanged."
   }
  ],
  "think": [
   {
-   "md": "Take this 4 × 4 grid with zeros at (1, 1) and (2, 3). Rows 1 and 2, and columns 1 and 3, go dark."
+   "md": "**The trap.** Painting rows and columns as soon as a zero is found creates new zeros, which then look like dead\npixels and black out everything. So first *find* which rows and columns are dark, then paint."
   },
   {
-   "panels": [
-    {
-     "type": "grid",
-     "cells": [
-      [
-       5,
-       2,
-       7,
-       1
-      ],
-      [
-       3,
-       0,
-       4,
-       6
-      ],
-      [
-       8,
-       9,
-       2,
-       0
-      ],
-      [
-       1,
-       4,
-       6,
-       3
-      ]
-     ],
-     "states": {
-      "1,1": "active",
-      "2,3": "active"
-     },
-     "label": "original"
-    },
-    {
-     "type": "grid",
-     "cells": [
-      [
-       5,
-       0,
-       7,
-       0
-      ],
-      [
-       0,
-       0,
-       0,
-       0
-      ],
-      [
-       0,
-       0,
-       0,
-       0
-      ],
-      [
-       1,
-       0,
-       6,
-       0
-      ]
-     ],
-     "states": {
-      "0,1": "mark",
-      "0,3": "mark",
-      "1,0": "mark",
-      "1,1": "mark",
-      "1,2": "mark",
-      "1,3": "mark",
-      "2,0": "mark",
-      "2,1": "mark",
-      "2,2": "mark",
-      "2,3": "mark",
-      "3,1": "mark",
-      "3,3": "mark"
-     },
-     "label": "after blackout"
-    }
-   ]
+   "md": "**The grid:**"
   },
   {
-   "md": "The trap: if you zero row 1 as soon as you find (1, 1), then cell (1, 2) becomes 0, and when the scan\nreaches it, it looks like an original zero and blacks out column 2 too. Wrong.\n\nSo separate **deciding** from **painting**. All you need to decide is *which rows* and *which columns*\ncontain an original 0: that's m + n yes/no answers, not m × n."
+   "table": {
+    "head": [
+     "r \\ c",
+     "0",
+     "1",
+     "2",
+     "3"
+    ],
+    "rows": [
+     [
+      "0",
+      "5",
+      "2",
+      "7",
+      "1"
+     ],
+     [
+      "1",
+      "3",
+      "0",
+      "4",
+      "6"
+     ],
+     [
+      "2",
+      "8",
+      "9",
+      "2",
+      "0"
+     ],
+     [
+      "3",
+      "1",
+      "4",
+      "6",
+      "3"
+     ]
+    ]
+   }
+  },
+  {
+   "md": "Dead pixels in rows [1, 2] and columns [1, 3]. **Result:**"
+  },
+  {
+   "table": {
+    "head": [
+     "r \\ c",
+     "0",
+     "1",
+     "2",
+     "3"
+    ],
+    "rows": [
+     [
+      "0",
+      "5",
+      "0",
+      "7",
+      "0"
+     ],
+     [
+      "1",
+      "0",
+      "0",
+      "0",
+      "0"
+     ],
+     [
+      "2",
+      "0",
+      "0",
+      "0",
+      "0"
+     ],
+     [
+      "3",
+      "1",
+      "0",
+      "6",
+      "0"
+     ]
+    ]
+   }
+  },
+  {
+   "md": "**Storing the marks inside the grid.** The flags \"row r is dark\" and \"column c is dark\" can live in the grid's\nown first column and first row: for an inner zero at `(r, c)`, set `grid[r][0] = 0` and `grid[0][c] = 0`. Those\ncells will be painted anyway. The first row and column themselves need two extra booleans, recorded *before* any\nmarks are written, and they're painted last so their marks are read first."
   }
  ],
  "approaches": [
@@ -104,13 +113,12 @@
    "space": "O(m · n)",
    "idea": [
     {
-     "md": "Copy the grid. Scan the **original**; for each 0 found, set its whole row and column to 0 **in the copy**. Since decisions come from the untouched original, painted zeros never spread."
+     "md": "Copy the grid. For every original zero, paint its row and column in the copy. Reading from the original keeps new zeros from spreading."
     }
    ],
    "build": [
-    "Copy the grid.",
-    "For every original cell equal to 0: zero row r and column c in the copy.",
-    "Return the copy."
+    "Copy.",
+    "For each original zero, paint its row and column in the copy."
    ],
    "code": {
     "python": "class Solution:\n    def blackout(self, grid: List[List[int]]) -> List[List[int]]:\n        m, n = len(grid), len(grid[0])\n        out = [row[:] for row in grid]\n        for r in range(m):\n            for c in range(n):\n                if grid[r][c] == 0:\n                    for k in range(n):\n                        out[r][k] = 0\n                    for k in range(m):\n                        out[k][c] = 0\n        return out\n",
@@ -241,7 +249,7 @@
    ],
    "complexity": [
     {
-     "md": "**Time O(m · n · (m + n))**: up to m · n zeros, each painting m + n cells. **Space O(m · n)** for the copy."
+     "md": "**Time O(m · n · (m + n))** in the worst case (many zeros). **Space O(m · n)** for the copy."
     }
    ],
    "walk": {
@@ -375,7 +383,7 @@
    },
    "limits": [
     {
-     "md": "Rows and columns get painted over and over (a row with 50 zeros is blacked out 50 times), and the copy costs a whole grid. Only *which* rows and columns are affected matters."
+     "md": "Repaints the same lines for every zero on them, and keeps a whole copy. Recording which lines are dark is enough."
     }
    ],
    "slow": true
@@ -387,14 +395,13 @@
    "space": "O(m + n)",
    "idea": [
     {
-     "md": "One pass fills `zeroRow[r]` and `zeroCol[c]` for every original 0. A second pass sets a cell to 0 if its row or its column is flagged. Deciding happens entirely before painting."
+     "md": "Two boolean arrays: `zero_row[r]` and `zero_col[c]`. One pass records them, a second paints every cell whose row or column is flagged."
     }
    ],
    "build": [
-    "Make `zeroRow` (size m) and `zeroCol` (size n).",
-    "First pass: for every 0 at (r, c), set both flags.",
-    "Second pass: zero every cell with `zeroRow[r] or zeroCol[c]`.",
-    "Return the grid."
+    "Flag arrays.",
+    "Record original zeros.",
+    "Paint flagged rows and columns."
    ],
    "code": {
     "python": "class Solution:\n    def blackout(self, grid: List[List[int]]) -> List[List[int]]:\n        m, n = len(grid), len(grid[0])\n        zero_row, zero_col = [False] * m, [False] * n\n        for r in range(m):\n            for c in range(n):\n                if grid[r][c] == 0:\n                    zero_row[r] = zero_col[c] = True\n        for r in range(m):\n            for c in range(n):\n                if zero_row[r] or zero_col[c]:\n                    grid[r][c] = 0\n        return grid\n",
@@ -525,7 +532,7 @@
    ],
    "complexity": [
     {
-     "md": "**Time O(m · n):** two passes. **Space O(m + n)** for the flags."
+     "md": "**Time O(m · n).** **Space O(m + n).**"
     }
    ],
    "walk": {
@@ -642,7 +649,7 @@
    },
    "limits": [
     {
-     "md": "m + n extra booleans. The grid's own first row and first column can hold the same flags."
+     "md": "The flags use O(m + n) memory; the grid's own first row and column can hold them."
     }
    ]
   },
@@ -653,14 +660,14 @@
    "space": "O(1)",
    "idea": [
     {
-     "md": "Cell `(r, 0)` can act as row r's flag and `(0, c)` as column c's flag: setting them to 0 is\nharmless, because a flagged row or column will be zeroed anyway. The only catch is that row 0 and\ncolumn 0 are themselves real data, so first save two booleans: \"row 0 had a zero\" and \"column 0\nhad a zero\".\n\n1. Save the two booleans.\n2. For each inner 0 at (r, c) with r, c ≥ 1, set `grid[r][0] = 0` and `grid[0][c] = 0`.\n3. Zero every inner cell whose row flag or column flag is 0.\n4. Zero row 0 and column 0 if their booleans say so. (They're done last, because their cells were\n   the flags.)"
+     "md": "1. Remember whether the first row and first column originally contain a zero (`row0`, `col0`).\n2. For each zero in the inner grid, mark `grid[r][0]` and `grid[0][c]`.\n3. Paint inner cells whose row mark or column mark is 0.\n4. Finally paint the first row if `row0`, and the first column if `col0`.\n\n**Why the order matters.** The marks are read in step 3, so the first row and column must not be painted\nbefore then; and `row0`/`col0` must be saved before step 2 overwrites those cells."
     }
    ],
    "build": [
-    "`row0` = row 0 contains a 0; `col0` = column 0 contains a 0.",
-    "Mark inner zeros into row 0 / column 0.",
-    "Zero inner cells using the marks.",
-    "Zero row 0 if `row0`, column 0 if `col0`."
+    "Save whether the first row/column had zeros.",
+    "Mark inner zeros on the edges.",
+    "Paint the inner grid from the marks.",
+    "Paint the edges last."
    ],
    "code": {
     "python": "class Solution:\n    def blackout(self, grid: List[List[int]]) -> List[List[int]]:\n        m, n = len(grid), len(grid[0])\n        row0 = any(grid[0][c] == 0 for c in range(n))\n        col0 = any(grid[r][0] == 0 for r in range(m))\n        for r in range(1, m):\n            for c in range(1, n):\n                if grid[r][c] == 0:\n                    grid[r][0] = grid[0][c] = 0\n        for r in range(1, m):\n            for c in range(1, n):\n                if grid[r][0] == 0 or grid[0][c] == 0:\n                    grid[r][c] = 0\n        if row0:\n            for c in range(n):\n                grid[0][c] = 0\n        if col0:\n            for r in range(m):\n                grid[r][0] = 0\n        return grid\n",
@@ -670,7 +677,7 @@
    },
    "lines": [
     {
-     "text": "Row 0 and column 0 are about to be used as flag storage, so first remember whether they had original zeros of their own.",
+     "text": "Record whether the first row and first column contained a zero before they're used as storage.",
      "at": {
       "python": [
        [
@@ -699,7 +706,7 @@
      }
     },
     {
-     "text": "An inner zero flags its row (in column 0) and its column (in row 0). Overwriting those cells with 0 loses nothing: that row and column will be zeroed anyway.",
+     "text": "An inner zero marks its row in column 0 and its column in row 0; those cells would be painted anyway.",
      "at": {
       "python": [
        [
@@ -728,7 +735,7 @@
      }
     },
     {
-     "text": "Inner cells read their two flags. Row 0 and column 0 aren't touched yet, because they're still being read as flags.",
+     "text": "Paint every inner cell whose row or column is marked.",
      "at": {
       "python": [
        [
@@ -757,7 +764,7 @@
      }
     },
     {
-     "text": "Last, zero row 0 and/or column 0 if they had their own zeros. Doing this earlier would corrupt the flags.",
+     "text": "Paint the first row and column last, from the saved booleans, so their marks were read first.",
      "at": {
       "python": [
        [
@@ -786,7 +793,7 @@
      }
     },
     {
-     "text": "The grid, in place.",
+     "text": "The grid after the blackout.",
      "at": {
       "python": [
        [
@@ -820,7 +827,7 @@
    ],
    "complexity": [
     {
-     "md": "**Time O(m · n).** **Space O(1):** two booleans."
+     "md": "**Time O(m · n).** **Space O(1).**"
     }
    ],
    "walk": {
@@ -991,7 +998,7 @@
  ],
  "takeaways": [
   {
-   "md": "- Never let the effects of an update trigger more updates: **decide first, then paint**.\n- What you need to remember is often much smaller than the grid: here m + n flags.\n- To get O(1) space, store flags inside the data itself (first row/column), saving whatever those cells\n  originally meant, and process the flag cells **last**."
+   "md": "- **Find first, then modify**, when changes would trigger more changes.\n- **O(1)-space flags:** store row/column marks in the grid's first row and column; save their own state first.\n- **Pitfall:** painting the first row before reading the marks stored in it."
   }
  ]
 }

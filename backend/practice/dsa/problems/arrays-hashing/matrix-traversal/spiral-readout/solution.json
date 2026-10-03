@@ -4,54 +4,111 @@
  "question": [
   {
    "md": "Read all values clockwise in a spiral, starting at the top-left: right along the top, down the right\nside, left along the bottom, up the left side, then repeat on the inner part.\n\n- **The grid needn't be square.** A 3 × 4 grid's last lap is a single row; a 3 × 1 grid is read straight\n  down.\n- **Every value exactly once.** Double-reading the middle row or column of a thin grid is the classic bug.\n- **Size:** up to 500 × 500."
+  },
+  {
+   "md": "**Edge cases to keep in mind**\n\n- A single row or a single column: the spiral is just a straight line.\n- Non-square grids end with a leftover row or column in the middle.\n- Every value must be read exactly once."
   }
  ],
  "think": [
   {
-   "md": "Take the 3 × 4 grid numbered 1 to 12. Outer lap: top row 1, 2, 3, 4; right column 8, 12; bottom row\nbackwards 11, 10, 9; left column upwards 5. Inner part: just the row 6, 7."
+   "md": "**Four shrinking borders.** Keep `top`, `bottom`, `left` and `right`, the rows and columns not yet read. One lap\nreads the top row left to right (then `top` moves down), the right column downwards (`right` moves in), the\nbottom row right to left (`bottom` moves up) and the left column upwards (`left` moves in).\n\n**The two guards.** After reading the top row and right column, the remaining part may have run out of rows or\ncolumns (a single middle row or column). Reading the bottom row then would re-read the row we just read, so check\n`top ≤ bottom` before it and `left ≤ right` before the left column."
   },
   {
-   "panels": [
-    {
-     "type": "grid",
-     "cells": [
-      [
-       1,
-       2,
-       3,
-       4
-      ],
-      [
-       5,
-       6,
-       7,
-       8
-      ],
-      [
-       9,
-       10,
-       11,
-       12
-      ]
+   "md": "**The grid:**"
+  },
+  {
+   "table": {
+    "head": [
+     "r \\ c",
+     "0",
+     "1",
+     "2",
+     "3"
+    ],
+    "rows": [
+     [
+      "0",
+      "1",
+      "2",
+      "3",
+      "4"
      ],
-     "states": {
-      "0,0": "active",
-      "0,1": "active",
-      "0,2": "active",
-      "0,3": "active",
-      "1,3": "found",
-      "2,3": "found",
-      "2,0": "mark",
-      "2,1": "mark",
-      "2,2": "mark",
-      "1,0": "new"
-     }
-    }
-   ],
-   "caption": "Outer lap: top, right, bottom (backwards), left (upwards). The cells 6 and 7 remain."
+     [
+      "1",
+      "5",
+      "6",
+      "7",
+      "8"
+     ],
+     [
+      "2",
+      "9",
+      "10",
+      "11",
+      "12"
+     ]
+    ]
+   }
   },
   {
-   "md": "After reading a side, that side is used up, so its border moves inward: after the top row, `top` goes\ndown by one; after the right column, `right` goes left; and so on. The unread part is always the\nrectangle `top … bottom × left … right`.\n\nWhen the rectangle shrinks to **one row**, reading its top row uses it up completely, so there's no\nbottom row left to read backwards. The check `top <= bottom` before the bottom side (and `left <= right`\nbefore the left side) prevents reading the same cells twice."
+   "md": "**The walks:**"
+  },
+  {
+   "table": {
+    "head": [
+     "walk",
+     "row/column",
+     "values read",
+     "border update"
+    ],
+    "rows": [
+     [
+      "top row →",
+      "0",
+      "[1, 2, 3, 4]",
+      "top = 1"
+     ],
+     [
+      "right column ↓",
+      "3",
+      "[8, 12]",
+      "right = 2"
+     ],
+     [
+      "bottom row ←",
+      "2",
+      "[11, 10, 9]",
+      "bottom = 1"
+     ],
+     [
+      "left column ↑",
+      "0",
+      "[5]",
+      "left = 1"
+     ],
+     [
+      "top row →",
+      "1",
+      "[6, 7]",
+      "top = 2"
+     ],
+     [
+      "right column ↓",
+      "2",
+      "—",
+      "right = 1"
+     ],
+     [
+      "left column ↑",
+      "1",
+      "—",
+      "left = 2"
+     ]
+    ]
+   }
+  },
+  {
+   "md": "Spiral order: **[1, 2, 3, 4, 8, 12, 11, 10, 9, 5, 6, 7]**."
   }
  ],
  "approaches": [
@@ -62,14 +119,14 @@
    "space": "O(m · n)",
    "idea": [
     {
-     "md": "Simulate a walker: start at (0, 0) heading right. After reading a cell, if the next cell ahead is outside the grid or already visited, turn right (right → down → left → up). Mark visited cells in an m × n boolean grid. Stop after reading m · n cells."
+     "md": "Walk like a robot: move in the current direction (right, down, left, up), and turn clockwise whenever the\nnext cell would leave the grid or was already visited. A visited grid records which cells are done."
     }
    ],
    "build": [
-    "Directions in clockwise order: right, down, left, up.",
-    "Repeat m · n times: read the cell, mark it visited.",
-    "Look ahead; if blocked, turn clockwise.",
-    "Step forward."
+    "Visited grid and four direction vectors.",
+    "Read the current cell and mark it.",
+    "Turn if the next cell is blocked.",
+    "Step."
    ],
    "code": {
     "python": "class Solution:\n    def spiralOrder(self, grid: List[List[int]]) -> List[int]:\n        m, n = len(grid), len(grid[0])\n        seen = [[False] * n for _ in range(m)]\n        dr, dc = [0, 1, 0, -1], [1, 0, -1, 0]\n        r = c = d = 0\n        out = []\n        for _ in range(m * n):\n            out.append(grid[r][c])\n            seen[r][c] = True\n            nr, nc = r + dr[d], c + dc[d]\n            if not (0 <= nr < m and 0 <= nc < n) or seen[nr][nc]:\n                d = (d + 1) % 4\n            r, c = r + dr[d], c + dc[d]\n        return out\n",
@@ -530,7 +587,7 @@
    },
    "limits": [
     {
-     "md": "The visited grid only answers \"where does the unread part end?\", and that's always a rectangle described by four numbers."
+     "md": "The visited grid is extra memory. Four border variables carry the same information."
     }
    ]
   },
@@ -541,13 +598,13 @@
    "space": "O(1)",
    "idea": [
     {
-     "md": "Keep `top`, `bottom`, `left`, `right` around the unread rectangle. While it's non-empty:\n\n1. read row `top` from `left` to `right`, then `top += 1`;\n2. read column `right` from `top` to `bottom`, then `right −= 1`;\n3. if `top ≤ bottom`, read row `bottom` from `right` down to `left`, then `bottom −= 1`;\n4. if `left ≤ right`, read column `left` from `bottom` up to `top`, then `left += 1`.\n\nChecks 3 and 4 matter when only one row or one column remains: steps 1 and 2 already used it up."
+     "md": "Read the four sides of the current border, shrinking it after each side, until the borders cross.\n\n**Why every cell is read once.** Each side reads cells strictly inside the current borders and then moves\nthat border inward past them, so no cell is in range twice."
     }
    ],
    "build": [
-    "Set the four borders to the grid's edges.",
-    "Loop while `top ≤ bottom` and `left ≤ right`, doing the four sides in order and moving each border after its side.",
-    "Guard the bottom and left sides with `top ≤ bottom` and `left ≤ right`."
+    "Four borders.",
+    "Top row, right column, then (guarded) bottom row and left column.",
+    "Shrink after each side."
    ],
    "code": {
     "python": "class Solution:\n    def spiralOrder(self, grid: List[List[int]]) -> List[int]:\n        top, bottom, left, right = 0, len(grid) - 1, 0, len(grid[0]) - 1\n        out = []\n        while top <= bottom and left <= right:\n            for c in range(left, right + 1):\n                out.append(grid[top][c])\n            top += 1\n            for r in range(top, bottom + 1):\n                out.append(grid[r][right])\n            right -= 1\n            if top <= bottom:\n                for c in range(right, left - 1, -1):\n                    out.append(grid[bottom][c])\n                bottom -= 1\n            if left <= right:\n                for r in range(bottom, top - 1, -1):\n                    out.append(grid[r][left])\n                left += 1\n        return out\n",
@@ -557,7 +614,7 @@
    },
    "lines": [
     {
-     "text": "The unread rectangle starts as the whole grid.",
+     "text": "The rows and columns that haven't been read yet.",
      "at": {
       "python": [
        [
@@ -586,7 +643,7 @@
      }
     },
     {
-     "text": "Keep going while the rectangle has at least one cell.",
+     "text": "While at least one row and one column remain.",
      "at": {
       "python": [
        [
@@ -615,7 +672,7 @@
      }
     },
     {
-     "text": "Top row, left to right; then that row is used up.",
+     "text": "Read the top row left to right; that row is done.",
      "at": {
       "python": [
        [
@@ -644,7 +701,7 @@
      }
     },
     {
-     "text": "Right column, from the new top down; then that column is used up.",
+     "text": "Read the right column downwards (below the old top row); that column is done.",
      "at": {
       "python": [
        [
@@ -673,7 +730,7 @@
      }
     },
     {
-     "text": "Bottom row, right to left, only if a row is still left (a single-row rectangle was fully read by the top step).",
+     "text": "Only if a row remains: read the bottom row right to left.",
      "at": {
       "python": [
        [
@@ -702,7 +759,7 @@
      }
     },
     {
-     "text": "Left column, bottom to top, only if a column is still left.",
+     "text": "Only if a column remains: read the left column upwards.",
      "at": {
       "python": [
        [
@@ -731,7 +788,7 @@
      }
     },
     {
-     "text": "Every value read once.",
+     "text": "Every value, in spiral order.",
      "at": {
       "python": [
        [
@@ -1013,7 +1070,7 @@
  ],
  "takeaways": [
   {
-   "md": "- For layer-by-layer grid walks, keep **four borders** and shrink the one you just consumed.\n- Re-check the borders before the third and fourth sides; thin rectangles break naive loops.\n- The \"walk and turn when blocked\" simulation is a general fallback for any path that hugs walls."
+   "md": "- **Spiral traversal:** four shrinking borders, with guards for a leftover middle row or column.\n- **Pitfall:** reading the last middle row twice when `top > bottom` after the first two sides.\n- The same border bookkeeping generates a spiral (filling a grid in spiral order)."
   }
  ]
 }
