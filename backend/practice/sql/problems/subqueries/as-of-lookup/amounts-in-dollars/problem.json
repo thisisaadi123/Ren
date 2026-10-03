@@ -1,0 +1,56 @@
+{
+  "id": "amounts-in-dollars",
+  "title": "Amounts in Dollars",
+  "topic": "subqueries",
+  "pattern": "as-of-lookup",
+  "difficulty": "hard",
+  "statement": "`rates` gives each currency's dollar rate from `valid_from` onward, until its next row. Convert every order to dollars\nusing the rate in force on `ordered_on` (a rate starting that very day counts). An order placed before its currency's\nfirst rate can't be converted: NULL.\n\nReturn `id` and `usd` (`amount × rate`, rounded to 2 decimal places), in any order.",
+  "notes": "",
+  "tables": [
+    {
+      "name": "rates",
+      "columns": [
+        [
+          "currency",
+          "TEXT"
+        ],
+        [
+          "valid_from",
+          "TEXT"
+        ],
+        [
+          "rate",
+          "REAL"
+        ]
+      ]
+    },
+    {
+      "name": "fx_orders",
+      "columns": [
+        [
+          "id",
+          "INTEGER",
+          "pk"
+        ],
+        [
+          "currency",
+          "TEXT"
+        ],
+        [
+          "ordered_on",
+          "TEXT"
+        ],
+        [
+          "amount",
+          "REAL"
+        ]
+      ]
+    }
+  ],
+  "ordered": false,
+  "reference": "SELECT o.id,\n       ROUND(o.amount * (SELECT r.rate FROM rates r\n                         WHERE r.currency = o.currency AND r.valid_from <= o.ordered_on\n                         ORDER BY r.valid_from DESC LIMIT 1), 2) AS usd\nFROM fx_orders o",
+  "wrong": [
+    "SELECT o.id, ROUND(o.amount * (SELECT r.rate FROM rates r WHERE r.currency = o.currency ORDER BY r.valid_from DESC LIMIT 1), 2) AS usd FROM fx_orders o",
+    "SELECT o.id, ROUND(o.amount * (SELECT r.rate FROM rates r WHERE r.currency = o.currency AND r.valid_from < o.ordered_on ORDER BY r.valid_from DESC LIMIT 1), 2) AS usd FROM fx_orders o"
+  ]
+}

@@ -1,0 +1,39 @@
+{
+  "id": "open-and-close",
+  "title": "Open and Close",
+  "topic": "window-aggregates",
+  "pattern": "first-last-value",
+  "difficulty": "hard",
+  "statement": "`trades` records each trade's `symbol`, time `at` (`YYYY-MM-DD HH:MM`) and `price`; no symbol trades twice in the same\nminute. For each symbol and day, the **open** is the day's first trade price and the **close** is its last.\n\nReturn `symbol`, `day` (`YYYY-MM-DD`), `open` and `close`, ordered by `symbol`, then `day`.",
+  "notes": "With `ORDER BY`, a window's frame ends at the current row by default, so `LAST_VALUE` just returns the current row. Widen the frame to `UNBOUNDED FOLLOWING`.",
+  "tables": [
+    {
+      "name": "trades",
+      "columns": [
+        [
+          "id",
+          "INTEGER",
+          "pk"
+        ],
+        [
+          "symbol",
+          "TEXT"
+        ],
+        [
+          "at",
+          "TEXT"
+        ],
+        [
+          "price",
+          "REAL"
+        ]
+      ]
+    }
+  ],
+  "ordered": true,
+  "reference": "SELECT DISTINCT symbol, date(at) AS day,\n       FIRST_VALUE(price) OVER w AS open,\n       LAST_VALUE(price) OVER w AS close\nFROM trades\nWINDOW w AS (PARTITION BY symbol, date(at) ORDER BY at ROWS BETWEEN UNBOUNDED PRECEDING AND UNBOUNDED FOLLOWING)\nORDER BY symbol, day",
+  "wrong": [
+    "SELECT DISTINCT symbol, date(at) AS day, FIRST_VALUE(price) OVER (PARTITION BY symbol, date(at) ORDER BY at) AS open, LAST_VALUE(price) OVER (PARTITION BY symbol, date(at) ORDER BY at) AS close FROM trades ORDER BY symbol, day",
+    "SELECT symbol, date(at) AS day, MIN(price) AS open, MAX(price) AS close FROM trades GROUP BY symbol, day ORDER BY symbol, day"
+  ]
+}

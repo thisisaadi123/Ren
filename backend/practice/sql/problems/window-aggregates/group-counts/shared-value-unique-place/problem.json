@@ -1,0 +1,43 @@
+{
+  "id": "shared-value-unique-place",
+  "title": "Shared Value, Unique Place",
+  "topic": "window-aggregates",
+  "pattern": "group-counts",
+  "difficulty": "hard",
+  "statement": "An insurer wants the total 2024 value (`tiv_2024`) of the policies that meet **both** conditions:\n\n- their `tiv_2023` is the same as **at least one other** policy's, and\n- their location (`lat`, `lon`) is **not shared** with any other policy.\n\nReturn one row: `total`, rounded to 2 decimal places.",
+  "notes": "",
+  "tables": [
+    {
+      "name": "policies",
+      "columns": [
+        [
+          "id",
+          "INTEGER",
+          "pk"
+        ],
+        [
+          "tiv_2023",
+          "REAL"
+        ],
+        [
+          "tiv_2024",
+          "REAL"
+        ],
+        [
+          "lat",
+          "REAL"
+        ],
+        [
+          "lon",
+          "REAL"
+        ]
+      ]
+    }
+  ],
+  "ordered": false,
+  "reference": "SELECT ROUND(SUM(tiv_2024), 2) AS total\nFROM (\n  SELECT tiv_2024,\n         COUNT(*) OVER (PARTITION BY tiv_2023) AS same_value,\n         COUNT(*) OVER (PARTITION BY lat, lon) AS same_place\n  FROM policies\n)\nWHERE same_value > 1 AND same_place = 1",
+  "wrong": [
+    "SELECT ROUND(SUM(tiv_2024), 2) AS total FROM (SELECT tiv_2024, COUNT(*) OVER (PARTITION BY tiv_2023) AS same_value, COUNT(*) OVER (PARTITION BY lat) AS same_place FROM policies) WHERE same_value > 1 AND same_place = 1",
+    "SELECT ROUND(SUM(tiv_2024), 2) AS total FROM (SELECT tiv_2024, COUNT(*) OVER (PARTITION BY tiv_2023) AS same_value, COUNT(*) OVER (PARTITION BY lat, lon) AS same_place FROM policies) WHERE same_value >= 1 AND same_place = 1"
+  ]
+}
