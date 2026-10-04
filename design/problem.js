@@ -382,6 +382,7 @@
     input.value = store.get(codeKey(lang), l.starter);
     savedNote.textContent = store.get(codeKey(lang)) ? "Saved in this browser" : "";
     render();
+    if (!SQL) renPane.language(lang);
     if (focus) caretToBody();
   }
 
@@ -979,6 +980,10 @@
       },
       shown() {
         if (current === "solution" && solution) solution.open();
+      },
+      // Keep the Solution tab's code in the editor's language.
+      language(next) {
+        if (solution) solution.language(next);
       },
     };
   })();
