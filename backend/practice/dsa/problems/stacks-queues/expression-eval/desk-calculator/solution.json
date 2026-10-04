@@ -4,37 +4,68 @@
  "question": [
   {
    "md": "Evaluate an expression of non-negative integers with `+ - * /` and spaces: `*` and `/` before `+` and `-`, left to\nright otherwise. Division truncates toward zero.\n\n- **No parentheses, no leading minus.**\n- **Spaces can appear anywhere between tokens**, never inside a number.\n- **Truncation toward zero:** 1 − 7 / 2 = 1 − 3 = −2. Since only non-negative numbers are divided directly, but\n  terms can be negative (`−8/3`), the truncation rule matters.\n- **Everything fits in 32 bits.**"
+  },
+  {
+   "md": "**Edge cases to keep in mind**\n\n- Spaces anywhere between tokens.\n- Multi-digit numbers.\n- Division truncates toward zero, even when the current term is negative."
   }
  ],
  "think": [
   {
-   "md": "Take `14 - 3*4/5 + 2*3`. Group it into terms: `14`, `−3*4/5`, `+2*3`. Evaluate each: 14, −(12/5) = −2, 6. Sum: 18."
+   "md": "**Why stacks fit expressions.** In an expression, an operator can't be applied until both of its operands are\ncomplete, and a later operator may bind tighter (`*` before `+`) or a parenthesis may open a whole sub-expression. A\nstack holds the parts that are **finished but not yet combined**, in exactly the order they'll be needed: the most\nrecent part is combined first.\n\n**Truncating division.** \"Toward zero\" means `−7 / 2 = −3`, not −4. Python's `//` rounds down, so the solutions divide\nthe absolute values and then put the sign back."
   },
   {
-   "panels": [
-    {
-     "type": "row",
-     "cells": [
-      "14",
-      "−3*4/5",
-      "+2*3"
+   "md": "**Think in terms.** Without parentheses, the expression is a sum of **signed terms**, where each term is a chain\nof `*` and `/`. A `+` or `−` starts a new term; `*` and `/` modify the current one. So keep the running `total` of\nfinished terms and the `last` (current) term. When an operator (or the end) arrives, apply the **previous**\noperator to the number just read. For `14 - 3*4/5 + 2*3`:"
+  },
+  {
+   "table": {
+    "head": [
+     "operator and number",
+     "action",
+     "total",
+     "current term"
+    ],
+    "rows": [
+     [
+      "+ 14",
+      "'+14' starts a new term; the previous term is added to the total",
+      "0",
+      "14"
      ],
-     "label": "terms"
-    },
-    {
-     "type": "row",
-     "cells": [
+     [
+      "- 3",
+      "'-3' starts a new term; the previous term is added to the total",
       "14",
-      "−2",
+      "-3"
+     ],
+     [
+      "* 4",
+      "multiply the current term by 4",
+      "14",
+      "-12"
+     ],
+     [
+      "/ 5",
+      "divide the current term by 5 (toward zero)",
+      "14",
+      "-2"
+     ],
+     [
+      "+ 2",
+      "'+2' starts a new term; the previous term is added to the total",
+      "12",
+      "2"
+     ],
+     [
+      "* 3",
+      "multiply the current term by 3",
+      "12",
       "6"
-     ],
-     "label": "values"
-    }
-   ],
-   "caption": "Sum: 18."
+     ]
+    ]
+   }
   },
   {
-   "md": "While reading, only the **current term** can still change (a following `*` or `/` modifies it); any earlier\nterm is final as soon as a `+` or `−` arrives. So keep the finished terms (a stack, or just their running sum)\nplus the current term. Treat the sign as part of the term: `−3*4/5` is the term −3, then ×4, then /5,\ntruncated toward zero."
+   "md": "Result: total + current term = **18**."
   }
  ],
  "approaches": [
@@ -45,14 +76,13 @@
    "space": "O(n)",
    "idea": [
     {
-     "md": "Split into numbers and operators. Repeatedly replace the leftmost `*` or `/` with its result; then repeatedly replace the leftmost `+` or `-`. Each replacement rebuilds the token list."
+     "md": "Tokenise into numbers and operators; first reduce all `*` and `/` left to right, then all `+` and `−`."
     }
    ],
    "build": [
-    "Tokenise (skip spaces, read whole numbers).",
-    "Pass 1: reduce `*` and `/` from the left.",
-    "Pass 2: reduce `+` and `-` from the left.",
-    "Return the last token."
+    "Tokenise.",
+    "Reduce multiplicative operators.",
+    "Reduce additive operators."
    ],
    "code": {
     "python": "class Solution:\n    def calculate(self, expr: str) -> int:\n        toks, num = [], None\n        for c in expr:\n            if c.isdigit():\n                num = (num or 0) * 10 + int(c)\n            elif c != \" \":\n                toks += [num, c]\n                num = None\n        toks.append(num)\n        for ops in (\"*/\", \"+-\"):\n            i = 1\n            while i < len(toks):\n                if toks[i] in ops:\n                    a, op, b = toks[i - 1], toks[i], toks[i + 1]\n                    if op == \"*\": r = a * b\n                    elif op == \"/\": r = abs(a) // b * (1 if a >= 0 else -1)\n                    elif op == \"+\": r = a + b\n                    else: r = a - b\n                    toks[i - 1:i + 2] = [r]\n                else:\n                    i += 2\n        return toks[0]\n",
@@ -183,7 +213,7 @@
    ],
    "complexity": [
     {
-     "md": "**Time O(n²):** each reduction shifts the list. **Space O(n).**"
+     "md": "**Time O(n²)** because each reduction splices the token list. **Space O(n).**"
     }
    ],
    "walk": {
@@ -336,7 +366,7 @@
    },
    "limits": [
     {
-     "md": "Shifting lists after every operator costs O(n) each time. The expression's shape (a sum of products) can be evaluated in a single left-to-right pass."
+     "md": "Two passes with list splicing. Handling terms as they're read needs a single pass."
     }
    ],
    "slow": true
@@ -348,13 +378,13 @@
    "space": "O(n)",
    "idea": [
     {
-     "md": "Remember the operator before the current number. When the number ends: after `+` push it; after `−` push its negative; after `*` or `/` combine it with the top of the stack. The answer is the sum of the stack."
+     "md": "Stack of signed terms: `+` pushes `num`, `−` pushes `−num`, `*` and `/` modify the top. The answer is the sum of the stack."
     }
    ],
    "build": [
-    "`op = '+'`, `num = 0`, empty stack.",
-    "Read digits into num; at each operator (and at the end), apply the previous op to num, then remember the new op.",
-    "Return the stack's sum."
+    "Read numbers digit by digit.",
+    "Apply the previous operator when a new one (or the end) arrives.",
+    "Sum the stack."
    ],
    "code": {
     "python": "class Solution:\n    def calculate(self, expr: str) -> int:\n        stack, num, op = [], 0, \"+\"\n        for c in expr + \"+\":\n            if c == \" \":\n                continue\n            if c.isdigit():\n                num = num * 10 + int(c)\n                continue\n            if op == \"+\":\n                stack.append(num)\n            elif op == \"-\":\n                stack.append(-num)\n            elif op == \"*\":\n                stack[-1] *= num\n            else:\n                q = abs(stack[-1]) // num\n                stack[-1] = q if stack[-1] >= 0 else -q\n            op, num = c, 0\n        return sum(stack)\n",
@@ -647,7 +677,7 @@
    },
    "limits": [
     {
-     "md": "Terms below the top of the stack never change again, so storing them is unnecessary: a running sum holds them just as well."
+     "md": "Only the top term ever changes, so the stack can be replaced by a running total plus the current term."
     }
    ]
   },
@@ -658,12 +688,13 @@
    "space": "O(1)",
    "idea": [
     {
-     "md": "Keep `total` (sum of finished terms) and `last` (the current term). When a number ends: after `+`/`−`, add `last` to total and start a new term `±num`; after `*`/`/`, update `last`. At the end, return `total + last`."
+     "md": "Keep `total` (finished terms) and `last` (the current term). On `+`/`−`, add `last` to `total` and start a\nnew term; on `*`/`/`, modify `last`. A sentinel `+` at the end flushes the final term."
     }
    ],
    "build": [
-    "`total = last = 0`, `op = '+'`.",
-    "At each operator (and the end sentinel), apply the previous op to the finished number.",
+    "`total = last = 0`, previous operator `+`.",
+    "Build numbers digit by digit.",
+    "Apply the previous operator.",
     "Return `total + last`."
    ],
    "code": {
@@ -975,7 +1006,7 @@
  ],
  "takeaways": [
   {
-   "md": "- Precedence without parentheses: the expression is a **sum of products**. `+`/`−` close a term; `*`/`/` extend it.\n- Apply each number with the operator **before** it, and add a sentinel at the end to flush the last number.\n- Only the current term can still change, so a running total replaces the stack."
+   "md": "- **`+ − * /` without parentheses:** sum of signed terms; only the current term changes.\n- Apply the **previous** operator when the next one arrives; add a sentinel to flush the end.\n- **Pitfall:** truncating with floor division when the term is negative."
   }
  ]
 }

@@ -4,43 +4,94 @@
  "question": [
   {
    "md": "Evaluate an expression with non-negative integers, `+ - * /`, parentheses and spaces. Parentheses first, then\n`*` `/`, then `+` `−`, each left to right; division truncates toward zero.\n\n- **A unary `−` may appear only at the start or right after `(`**, and negates the term after it: `−2*3 = −6`,\n  `(−4)*5 = −20`.\n- **Parenthesised results can be negative**, so `/` may divide a negative number: truncate toward zero\n  (`−7/2 = −3`).\n- **Up to 10⁵ characters**, with possibly deep nesting."
+  },
+  {
+   "md": "**Edge cases to keep in mind**\n\n- A leading `-`, or a `-` right after `(`, is a sign: `-(2+3)` is −5. It works like `0 − …`.\n- Nested parentheses, possibly deep.\n- Division truncates toward zero, including negative results from inside parentheses."
   }
  ],
  "think": [
   {
-   "md": "Take `-(6-2*4)/2 + 3*(1+2)`. Inside the first parentheses: 6 − 2×4 = −2. Divide by 2: −1. The leading `−` negates that term: 1.\nThe second term is 3 × (1 + 2) = 9. Total: 10."
+   "md": "**Why stacks fit expressions.** In an expression, an operator can't be applied until both of its operands are\ncomplete, and a later operator may bind tighter (`*` before `+`) or a parenthesis may open a whole sub-expression. A\nstack holds the parts that are **finished but not yet combined**, in exactly the order they'll be needed: the most\nrecent part is combined first.\n\n**Truncating division.** \"Toward zero\" means `−7 / 2 = −3`, not −4. Python's `//` rounds down, so the solutions divide\nthe absolute values and then put the sign back."
   },
   {
-   "panels": [
-    {
-     "type": "row",
-     "cells": [
+   "md": "**Parentheses as fresh levels.** Inside a pair of parentheses, the expression is evaluated exactly like a whole\nexpression (signed terms). So on `(`, **save** the current level's terms and pending operator on a stack of frames\nand start a new level. On `)`, the new level's value (the sum of its terms) becomes a plain number for the outer\nlevel, which is restored from the stack.\n\n**The sign.** A `-` at the start of a level arrives with no number read yet, so it applies to `num = 0`: the term\n`0` is pushed and the next term is negated. That's exactly `0 − (…)`."
+  },
+  {
+   "md": "**Trace on `-(6-2*4)/2 + 3*(1+2)`:**"
+  },
+  {
+   "table": {
+    "head": [
+     "character",
+     "action",
+     "open levels"
+    ],
+    "rows": [
+     [
       "-",
-      "(",
-      "6",
-      "-",
-      "2",
-      "*",
-      "4",
-      ")",
-      "/",
-      "2",
-      "+",
-      "3",
-      "*",
-      "(",
-      "1",
-      "+",
-      "2",
-      ")"
+      "apply the previous operator; terms now [0]",
+      "0"
      ],
-     "slots": true
-    }
-   ],
-   "caption": "Each parenthesised part is evaluated on its own and becomes a single number."
+     [
+      "(",
+      "save terms [0] and pending operator '-'; start a fresh level",
+      "1"
+     ],
+     [
+      "-",
+      "apply the previous operator; terms now [6]",
+      "1"
+     ],
+     [
+      "*",
+      "apply the previous operator; terms now [6, -2]",
+      "1"
+     ],
+     [
+      ")",
+      "the level sums to -2; restore the outer level and treat -2 as a number",
+      "0"
+     ],
+     [
+      "/",
+      "apply the previous operator; terms now [0, 2]",
+      "0"
+     ],
+     [
+      "+",
+      "apply the previous operator; terms now [0, 1]",
+      "0"
+     ],
+     [
+      "*",
+      "apply the previous operator; terms now [0, 1, 3]",
+      "0"
+     ],
+     [
+      "(",
+      "save terms [0, 1, 3] and pending operator '*'; start a fresh level",
+      "1"
+     ],
+     [
+      "+",
+      "apply the previous operator; terms now [1]",
+      "1"
+     ],
+     [
+      ")",
+      "the level sums to 3; restore the outer level and treat 3 as a number",
+      "0"
+     ],
+     [
+      "#",
+      "apply the previous operator; terms now [0, 1, 9]",
+      "0"
+     ]
+    ]
+   }
   },
   {
-   "md": "Without parentheses this is the desk calculator: a sum of signed terms. Parentheses just mean \"evaluate this\nsub-expression first and use its value as a number\". So when a `(` arrives, pause the current level (its terms\nand the operator waiting for the next number) and start a fresh one; when the matching `)` arrives, the fresh\nlevel's sum is the number the paused operator was waiting for. Pausing and resuming in nested order is a stack.\n\nThe unary minus fits in for free: at the start of a level, the pending operator is `+` with number 0, so a `−`\nthere pushes 0 and makes the next term negative."
+   "md": "Result **10**."
   }
  ],
  "approaches": [
@@ -51,14 +102,13 @@
    "space": "O(depth)",
    "idea": [
     {
-     "md": "Write one function per precedence level, each reading from a shared position:\n\n- `expr()`: an optional leading `−`, then a term, then any number of `+ term` / `− term`.\n- `term()`: a factor, then any number of `* factor` / `/ factor`.\n- `factor()`: a number, or `(` `expr()` `)`.\n\nEach function returns the value of what it read. Nesting in the input becomes nesting of calls."
+     "md": "Recursive descent: `expression` reads terms separated by `+`/`−` (with an optional leading sign), `term` reads factors separated by `*`/`/`, and `factor` reads a number or a parenthesised expression."
     }
    ],
    "build": [
-    "Remove spaces (or skip them as you read).",
-    "Implement `expr`, `term`, `factor` with a shared index.",
-    "`expr` handles the leading unary minus by negating its first term.",
-    "Return `expr()` on the whole input."
+    "Strip spaces.",
+    "Three mutually recursive functions, one per precedence level.",
+    "Parentheses recurse into `expression`."
    ],
    "code": {
     "python": "import sys\n\nclass Solution:\n    def evaluate(self, expr: str) -> int:\n        sys.setrecursionlimit(100000)\n        s = expr.replace(\" \", \"\")\n        i = 0\n        def expression():\n            nonlocal i\n            sign = 1\n            if i < len(s) and s[i] == \"-\":\n                sign, i = -1, i + 1\n            total = sign * term()\n            while i < len(s) and s[i] in \"+-\":\n                op = s[i]\n                i += 1\n                total = total + term() if op == \"+\" else total - term()\n            return total\n        def term():\n            nonlocal i\n            value = factor()\n            while i < len(s) and s[i] in \"*/\":\n                op = s[i]\n                i += 1\n                rhs = factor()\n                if op == \"*\":\n                    value *= rhs\n                else:\n                    q = abs(value) // abs(rhs)\n                    value = q if (value < 0) == (rhs < 0) else -q\n            return value\n        def factor():\n            nonlocal i\n            if s[i] == \"(\":\n                i += 1\n                value = expression()\n                i += 1\n                return value\n            value = 0\n            while i < len(s) and s[i].isdigit():\n                value = value * 10 + int(s[i])\n                i += 1\n            return value\n        return expression()\n",
@@ -225,7 +275,7 @@
    ],
    "complexity": [
     {
-     "md": "**Time O(n).** **Space O(depth)** on the call stack."
+     "md": "**Time O(n).** **Space O(depth)** for recursion: deep nesting can hit recursion limits."
     }
    ],
    "walk": {
@@ -280,7 +330,7 @@
    },
    "limits": [
     {
-     "md": "Correct and elegant, but each level of parentheses adds call frames. With ~5 × 10⁴ nested parentheses, the call stack overflows in most languages (Python's default limit is 1000). An explicit stack of frames does the same work on the heap."
+     "md": "Recursion depth equals the nesting depth, which can be huge. An explicit stack of frames handles any depth."
     }
    ],
    "slow": true
@@ -292,15 +342,14 @@
    "space": "O(n)",
    "idea": [
     {
-     "md": "Run the desk-calculator loop (terms list, pending `op`, current `num`). On `(`, push `(terms, op)` and start a fresh frame. On `)`, first apply the pending op to num, then set `num = sum(terms)` and pop the saved frame; the restored `op` will apply this num when the next operator (or `)`/end) arrives."
+     "md": "One pass with a stack of frames. Each level keeps signed terms and its pending operator. `(` pushes the\ncurrent level and starts a new one; `)` closes the level, turning its sum into the current number of the\nrestored outer level. A sentinel at the end flushes the last term."
     }
    ],
    "build": [
-    "Process characters plus an end sentinel; skip spaces; build numbers.",
-    "`(` → push frame, reset.",
-    "Any operator, `)` or end → apply the pending op to num.",
-    "`)` → num = sum of the frame's terms; restore the outer frame. Otherwise remember the new operator.",
-    "Return the sum of the outermost terms."
+    "Frames stack, current terms and operator.",
+    "`(` saves and resets.",
+    "Operators apply the pending one.",
+    "`)` sums the level and restores the outer one."
    ],
    "code": {
     "python": "class Solution:\n    def evaluate(self, expr: str) -> int:\n        frames = []\n        terms, op, num = [], \"+\", 0\n        for c in expr + \"#\":\n            if c == \" \":\n                continue\n            if c.isdigit():\n                num = num * 10 + int(c)\n                continue\n            if c == \"(\":\n                frames.append((terms, op))\n                terms, op, num = [], \"+\", 0\n                continue\n            if op == \"+\":\n                terms.append(num)\n            elif op == \"-\":\n                terms.append(-num)\n            elif op == \"*\":\n                terms[-1] *= num\n            else:\n                q = abs(terms[-1]) // abs(num)\n                terms[-1] = q if (terms[-1] < 0) == (num < 0) else -q\n            if c == \")\":\n                num = sum(terms)\n                terms, op = frames.pop()\n            else:\n                op, num = c, 0\n        return sum(terms)\n",
@@ -552,7 +601,7 @@
    ],
    "complexity": [
     {
-     "md": "**Time O(n):** each character is handled once and each term is summed once when its level closes. **Space O(n)** for terms and frames."
+     "md": "**Time O(n).** **Space O(n)** for the frames and terms."
     }
    ],
    "walk": {
@@ -828,7 +877,7 @@
  ],
  "takeaways": [
   {
-   "md": "- Parentheses = **save the current state on a stack, evaluate the inside, resume**.\n- Recursive descent is the textbook parser; an explicit stack is the same thing without call-stack limits.\n- A pending `+` with number 0 at the start of each level makes a unary minus work without special cases."
+   "md": "- **Full calculator:** signed terms per level, plus a stack of saved levels for parentheses.\n- A unary minus is `0 − …`, which falls out of the term logic.\n- **Pitfall:** applying the pending operator after `)` before restoring the outer level."
   }
  ]
 }
