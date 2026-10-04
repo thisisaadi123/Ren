@@ -1,0 +1,1516 @@
+{
+ "version": 1,
+ "id": "matrix-in-place",
+ "topic": "arrays-hashing",
+ "summary": "Updating a grid in place is hard when each new value depends on old values you may already have overwritten. The\nfix is to hide the extra information inside the grid itself: in its first row and column, or in spare bits of each\ncell. Then the update needs no second grid, only O(1) extra space.",
+ "minutes": 13,
+ "sections": [
+  {
+   "id": "idea",
+   "title": "The idea",
+   "blocks": [
+    {
+     "md": "Think of a teacher marking a big wall chart of student results. Every time they find a problem in a row,\nthe whole row should be crossed out, and the same for every column. If they cross things out as they go,\nthe crossings themselves look like new problems, and soon the whole chart is crossed out.\n\nThe fix is to make notes first and cross out later. The teacher could keep a separate list of bad rows and\nbad columns, but there's no paper. So they write the notes on the chart itself, in the margin: the first\ncell of each row and the top cell of each column. Once every note is written, they go back and cross out\nusing the notes.\n\nThat's the whole pattern. The grid has spare room somewhere (its first row and column, unused bits, values\nthat can't occur) and you use it to hold \"what I still need to know\" while you work."
+    },
+    {
+     "panels": [
+      {
+       "type": "grid",
+       "cells": [
+        [
+         1,
+         2,
+         3,
+         4
+        ],
+        [
+         5,
+         0,
+         7,
+         8
+        ],
+        [
+         9,
+         10,
+         11,
+         0
+        ],
+        [
+         13,
+         14,
+         15,
+         16
+        ]
+       ],
+       "states": {
+        "1,1": "answer",
+        "2,3": "answer"
+       },
+       "label": "the zeros"
+      },
+      {
+       "type": "grid",
+       "cells": [
+        [
+         1,
+         0,
+         0,
+         0
+        ],
+        [
+         0,
+         0,
+         0,
+         0
+        ],
+        [
+         0,
+         0,
+         0,
+         0
+        ],
+        [
+         0,
+         0,
+         0,
+         0
+        ]
+       ],
+       "states": {
+        "0,1": "dim",
+        "0,2": "dim",
+        "0,3": "dim",
+        "1,0": "dim",
+        "1,1": "dim",
+        "1,2": "dim",
+        "1,3": "dim",
+        "2,0": "dim",
+        "2,1": "dim",
+        "2,2": "dim",
+        "2,3": "dim",
+        "3,0": "dim",
+        "3,1": "dim",
+        "3,2": "dim",
+        "3,3": "dim"
+       },
+       "label": "wiping as you go"
+      },
+      {
+       "type": "grid",
+       "cells": [
+        [
+         1,
+         0,
+         3,
+         0
+        ],
+        [
+         0,
+         0,
+         0,
+         0
+        ],
+        [
+         0,
+         0,
+         0,
+         0
+        ],
+        [
+         13,
+         0,
+         15,
+         0
+        ]
+       ],
+       "states": {
+        "0,1": "dim",
+        "0,3": "dim",
+        "1,0": "dim",
+        "1,1": "dim",
+        "1,2": "dim",
+        "1,3": "dim",
+        "2,0": "dim",
+        "2,1": "dim",
+        "2,2": "dim",
+        "2,3": "dim",
+        "3,1": "dim",
+        "3,3": "dim"
+       },
+       "label": "the right answer"
+      }
+     ],
+     "caption": "Wiping rows and columns the moment you see a 0 creates new zeros, which wipe more. Only 1 cells survive instead of 4."
+    },
+    {
+     "key": "Never let a new value be read as an old one. Either note what to change in spare room (the first row and\ncolumn, saved with two flags) and change it afterwards, or keep both versions in one cell: the old in the\nlow bits, the new in the high bits, then shift."
+    }
+   ]
+  },
+  {
+   "id": "signals",
+   "title": "When to reach for it",
+   "blocks": [
+    {
+     "md": "A grid update where \"every cell changes at the same moment, based on the board as it was\", and the question\nsays \"in place\", \"without a second grid\" or \"O(1) extra space\". Typical cases: wipe rows and columns that\ncontain something, apply a neighbour rule to every cell at once (cellular automata, blurring, spreading),\nmark cells for a second pass.\n\nAsk two questions. Is there information I'd normally keep in a separate array (one flag per row, one per\ncolumn)? Then maybe the first row and column can hold it. Does each cell have room for more than its own\nvalue (0/1 cells in an `int`, small values with lots of headroom)? Then the cell can hold old and new\ntogether.\n\nNot a fit:\n\n- Extra memory is allowed. A copy of the grid is simpler and just as fast; use it.\n- Cells already use their full range (any `int` at all). There are no spare bits to borrow.\n- The update is naturally in order (each cell depends only on cells you haven't touched yet). Then a plain\n  loop in the right direction is enough."
+    }
+   ]
+  },
+  {
+   "id": "theory",
+   "title": "Why it works",
+   "blocks": [
+    {
+     "md": "### The problem: reading what you just wrote\n\nIn a \"simultaneous\" update, every new value is computed from old values. Loop through the grid writing new\nvalues, and by the time you reach a cell, some of its neighbours already hold new ones. Use them by mistake\nand the change leaks across the grid, as in the picture above. Every in-place trick is a way to keep the old\nvalues readable until nobody needs them any more.\n\n### Notes in the first row and column\n\nWiping rows and columns needs `m + n` facts: \"does row `r` contain a 0?\" and \"does column `c`?\". The first\ncolumn has a cell for every row, and the first row has a cell for every column, so they can hold those facts.\nThe catch is that they hold real data too, including facts about themselves. So:\n\n1. Save two booleans first: does the first row contain a 0? Does the first column?\n2. Scan the rest of the grid. For each 0 at `(r, c)`, write 0 into `(r, 0)` and `(0, c)`.\n3. Fill the rest of the grid from the notes.\n4. Only now wipe the first row and column, if the two booleans say so.\n\nThe order matters. Wiping the first row in step 2 would put a 0 at the top of every column, and every\ncolumn would look like it needs wiping. Writing a note can't do damage, because a cell only gets a note when\nits row (or column) is going to be wiped anyway."
+    },
+    {
+     "table": {
+      "head": [
+       "step",
+       "reads",
+       "writes"
+      ],
+      "rows": [
+       [
+        "save two flags",
+        "first row, first column",
+        "two booleans"
+       ],
+       [
+        "write notes",
+        "the rest of the grid",
+        "first row, first column"
+       ],
+       [
+        "fill from notes",
+        "first row, first column",
+        "the rest of the grid"
+       ],
+       [
+        "finish the edges",
+        "two booleans",
+        "first row, first column"
+       ]
+      ]
+     }
+    },
+    {
+     "md": "### Two states in one cell\n\nFor cells that are 0 or 1, an `int` has plenty of spare bits. Keep *now* in bit 0 and write *next* into\nbit 1. Reading `cell & 1` always gives *now*, whether or not that cell has been updated yet. When every cell\nhas its *next*, shift everything right by one: `cell >>= 1`."
+    },
+    {
+     "table": {
+      "head": [
+       "cell",
+       "bits",
+       "meaning"
+      ],
+      "rows": [
+       [
+        "0",
+        "00",
+        "off now, off next"
+       ],
+       [
+        "1",
+        "01",
+        "on now, off next"
+       ],
+       [
+        "2",
+        "10",
+        "off now, on next"
+       ],
+       [
+        "3",
+        "11",
+        "on now, on next"
+       ]
+      ]
+     }
+    },
+    {
+     "md": "You can use any encoding that keeps the old value readable, such as the numbers 2 and 3 meaning \"was on, will\nbe off\" and \"was off, will be on\". Bits are just the tidiest: the old value is always `& 1`.\n\n### Two numbers in one cell\n\nThe same idea works for bigger values if they have a known limit. If every value is below 256, store the new\nvalue as `cell + 256 · new`. The old value is `cell % 256` and the new one is `cell // 256`. For example, old\n200 and new 137 pack into 35272: `35272 % 256 = 200` and `35272 // 256 = 137`. The base just has to\nbe bigger than any old value, and the packed number has to fit in the type."
+    }
+   ]
+  },
+  {
+   "id": "template",
+   "title": "The template",
+   "blocks": [
+    {
+     "md": "Wipe every row and every column that contains a 0, using only O(1) extra space."
+    },
+    {
+     "code": {
+      "python": "def set_zeroes(g):\n    m, n = len(g), len(g[0])\n    row0 = any(g[0][c] == 0 for c in range(n))\n    col0 = any(g[r][0] == 0 for r in range(m))\n    for r in range(1, m):\n        for c in range(1, n):\n            if g[r][c] == 0:\n                g[r][0] = 0\n                g[0][c] = 0\n    for r in range(1, m):\n        for c in range(1, n):\n            if g[r][0] == 0 or g[0][c] == 0:\n                g[r][c] = 0\n    if row0:\n        for c in range(n):\n            g[0][c] = 0\n    if col0:\n        for r in range(m):\n            g[r][0] = 0\n    return g\n",
+      "java": "static int[][] setZeroes(int[][] g) {\n    int m = g.length, n = g[0].length;\n    boolean row0 = false, col0 = false;\n    for (int c = 0; c < n; c++) if (g[0][c] == 0) row0 = true;\n    for (int r = 0; r < m; r++) if (g[r][0] == 0) col0 = true;\n    for (int r = 1; r < m; r++)\n        for (int c = 1; c < n; c++)\n            if (g[r][c] == 0) {\n                g[r][0] = 0;\n                g[0][c] = 0;\n            }\n    for (int r = 1; r < m; r++)\n        for (int c = 1; c < n; c++)\n            if (g[r][0] == 0 || g[0][c] == 0) g[r][c] = 0;\n    if (row0) for (int c = 0; c < n; c++) g[0][c] = 0;\n    if (col0) for (int r = 0; r < m; r++) g[r][0] = 0;\n    return g;\n}\n",
+      "cpp": "vector<vector<int>>& setZeroes(vector<vector<int>>& g) {\n    int m = g.size(), n = g[0].size();\n    bool row0 = false, col0 = false;\n    for (int c = 0; c < n; c++) if (g[0][c] == 0) row0 = true;\n    for (int r = 0; r < m; r++) if (g[r][0] == 0) col0 = true;\n    for (int r = 1; r < m; r++)\n        for (int c = 1; c < n; c++)\n            if (g[r][c] == 0) {\n                g[r][0] = 0;\n                g[0][c] = 0;\n            }\n    for (int r = 1; r < m; r++)\n        for (int c = 1; c < n; c++)\n            if (g[r][0] == 0 || g[0][c] == 0) g[r][c] = 0;\n    if (row0) for (int c = 0; c < n; c++) g[0][c] = 0;\n    if (col0) for (int r = 0; r < m; r++) g[r][0] = 0;\n    return g;\n}\n",
+      "c": "void setZeroes(int m, int n, int g[m][n]) {\n    bool row0 = false, col0 = false;\n    for (int c = 0; c < n; c++) if (g[0][c] == 0) row0 = true;\n    for (int r = 0; r < m; r++) if (g[r][0] == 0) col0 = true;\n    for (int r = 1; r < m; r++)\n        for (int c = 1; c < n; c++)\n            if (g[r][c] == 0) {\n                g[r][0] = 0;\n                g[0][c] = 0;\n            }\n    for (int r = 1; r < m; r++)\n        for (int c = 1; c < n; c++)\n            if (g[r][0] == 0 || g[0][c] == 0) g[r][c] = 0;\n    if (row0) for (int c = 0; c < n; c++) g[0][c] = 0;\n    if (col0) for (int r = 0; r < m; r++) g[r][0] = 0;\n}\n"
+     },
+     "title": "Set rows and columns to zero with first-row and first-column notes",
+     "lines": [
+      {
+       "text": "Rows and columns.",
+       "at": {
+        "python": [
+         [
+          2,
+          2
+         ]
+        ],
+        "java": [
+         [
+          2,
+          2
+         ]
+        ],
+        "cpp": [
+         [
+          2,
+          2
+         ]
+        ]
+       }
+      },
+      {
+       "text": "Before the first row and column become notepads, save whether they contain a 0 themselves.",
+       "at": {
+        "python": [
+         [
+          3,
+          4
+         ]
+        ],
+        "java": [
+         [
+          3,
+          5
+         ]
+        ],
+        "cpp": [
+         [
+          3,
+          5
+         ]
+        ],
+        "c": [
+         [
+          2,
+          4
+         ]
+        ]
+       },
+       "notes": {
+        "c": "C gets the sizes from the caller, and the grid as a variable-length 2D array so `g[r][c]` works."
+       }
+      },
+      {
+       "text": "Scan everything except the first row and column. Each 0 leaves a note at the start of its row and the top of its column.",
+       "at": {
+        "python": [
+         [
+          5,
+          9
+         ]
+        ],
+        "java": [
+         [
+          6,
+          10
+         ]
+        ],
+        "cpp": [
+         [
+          6,
+          10
+         ]
+        ],
+        "c": [
+         [
+          5,
+          9
+         ]
+        ]
+       }
+      },
+      {
+       "text": "Wipe each inner cell whose row or column has a note. The notes themselves aren't touched.",
+       "at": {
+        "python": [
+         [
+          10,
+          13
+         ]
+        ],
+        "java": [
+         [
+          12,
+          14
+         ]
+        ],
+        "cpp": [
+         [
+          12,
+          14
+         ]
+        ],
+        "c": [
+         [
+          11,
+          13
+         ]
+        ]
+       }
+      },
+      {
+       "text": "The first row is wiped only if it held a 0 to begin with.",
+       "at": {
+        "python": [
+         [
+          14,
+          16
+         ]
+        ],
+        "java": [
+         [
+          15,
+          15
+         ]
+        ],
+        "cpp": [
+         [
+          15,
+          15
+         ]
+        ],
+        "c": [
+         [
+          14,
+          14
+         ]
+        ]
+       }
+      },
+      {
+       "text": "Same for the first column. These two come last, so no note is destroyed before it's read.",
+       "at": {
+        "python": [
+         [
+          17,
+          19
+         ]
+        ],
+        "java": [
+         [
+          16,
+          16
+         ]
+        ],
+        "cpp": [
+         [
+          16,
+          16
+         ]
+        ],
+        "c": [
+         [
+          15,
+          15
+         ]
+        ]
+       }
+      },
+      {
+       "text": "The same grid, changed in place.",
+       "at": {
+        "python": [
+         [
+          20,
+          20
+         ]
+        ],
+        "java": [
+         [
+          17,
+          17
+         ]
+        ],
+        "cpp": [
+         [
+          17,
+          17
+         ]
+        ]
+       },
+       "notes": {
+        "python": "Returning the grid is a convenience; the caller's list of lists has already changed."
+       }
+      }
+     ],
+     "run": {
+      "call": "set_zeroes on a 4 × 4 grid with zeros at (1, 1) and (2, 3); then on a grid with a 0 in its corner",
+      "output": "1 0 3 0\n0 0 0 0\n0 0 0 0\n13 0 15 0\n-\n0 0 0\n0 4 5\n0 7 8\n-"
+     }
+    },
+    {
+     "md": "The second grid has its only 0 in the corner, so both flags are true: the first row and first column are\nwiped and nothing else is. Without the flags, the corner 0 would look like a note for both the first row and\nthe first column, and there'd be no way to tell a note from a real 0."
+    }
+   ]
+  },
+  {
+   "id": "trace",
+   "title": "Trace it by hand",
+   "blocks": [
+    {
+     "md": "Notes first, wiping second, edges last:"
+    },
+    {
+     "walk": {
+      "steps": [
+       {
+        "text": "The zeros are at (1, 1) and (2, 3). So rows 1, 2 and columns 1, 3 must be wiped.",
+        "panels": [
+         {
+          "type": "grid",
+          "cells": [
+           [
+            1,
+            2,
+            3,
+            4
+           ],
+           [
+            5,
+            0,
+            7,
+            8
+           ],
+           [
+            9,
+            10,
+            11,
+            0
+           ],
+           [
+            13,
+            14,
+            15,
+            16
+           ]
+          ],
+          "states": {
+           "1,1": "answer",
+           "2,3": "answer"
+          }
+         }
+        ]
+       },
+       {
+        "text": "Before using the first row and column as notepads, save what they say about themselves: does row 0 hold a 0? No. Does column 0? No.",
+        "panels": [
+         {
+          "type": "grid",
+          "cells": [
+           [
+            1,
+            2,
+            3,
+            4
+           ],
+           [
+            5,
+            0,
+            7,
+            8
+           ],
+           [
+            9,
+            10,
+            11,
+            0
+           ],
+           [
+            13,
+            14,
+            15,
+            16
+           ]
+          ],
+          "states": {
+           "0,0": "dim",
+           "0,1": "dim",
+           "0,2": "dim",
+           "0,3": "dim",
+           "1,0": "dim",
+           "2,0": "dim",
+           "3,0": "dim"
+          }
+         },
+         {
+          "type": "vars",
+          "items": {
+           "row 0 had a 0:": "false",
+           "column 0 had a 0:": "false"
+          }
+         }
+        ]
+       },
+       {
+        "text": "Scanning the inside: (1, 1) is 0. Write a 0 at the start of its row, (1, 0), and at the top of its column, (0, 1). Those two cells are now notes.",
+        "panels": [
+         {
+          "type": "grid",
+          "cells": [
+           [
+            1,
+            0,
+            3,
+            4
+           ],
+           [
+            0,
+            0,
+            7,
+            8
+           ],
+           [
+            9,
+            10,
+            11,
+            0
+           ],
+           [
+            13,
+            14,
+            15,
+            16
+           ]
+          ],
+          "states": {
+           "1,1": "answer",
+           "1,0": "mark",
+           "0,1": "mark"
+          }
+         },
+         {
+          "type": "vars",
+          "items": {
+           "row 0 had a 0:": "false",
+           "column 0 had a 0:": "false"
+          }
+         }
+        ]
+       },
+       {
+        "text": "Scanning the inside: (2, 3) is 0. Write a 0 at the start of its row, (2, 0), and at the top of its column, (0, 3). Those two cells are now notes.",
+        "panels": [
+         {
+          "type": "grid",
+          "cells": [
+           [
+            1,
+            0,
+            3,
+            0
+           ],
+           [
+            0,
+            0,
+            7,
+            8
+           ],
+           [
+            0,
+            10,
+            11,
+            0
+           ],
+           [
+            13,
+            14,
+            15,
+            16
+           ]
+          ],
+          "states": {
+           "2,3": "answer",
+           "2,0": "mark",
+           "0,3": "mark"
+          }
+         },
+         {
+          "type": "vars",
+          "items": {
+           "row 0 had a 0:": "false",
+           "column 0 had a 0:": "false"
+          }
+         }
+        ]
+       },
+       {
+        "text": "Now fill the inside: a cell becomes 0 if the note at the start of its row or the top of its column says 0.",
+        "panels": [
+         {
+          "type": "grid",
+          "cells": [
+           [
+            1,
+            0,
+            3,
+            0
+           ],
+           [
+            0,
+            0,
+            0,
+            0
+           ],
+           [
+            0,
+            0,
+            0,
+            0
+           ],
+           [
+            13,
+            0,
+            15,
+            0
+           ]
+          ],
+          "states": {
+           "1,0": "mark",
+           "2,0": "mark",
+           "0,1": "mark",
+           "0,3": "mark",
+           "1,2": "new",
+           "1,3": "new",
+           "2,1": "new",
+           "2,2": "new",
+           "3,1": "new",
+           "3,3": "new"
+          }
+         }
+        ]
+       },
+       {
+        "text": "Last, the first row and column themselves, using the two saved answers. Neither held a 0 to begin with, so the notes we wrote there are already the right result for them.",
+        "panels": [
+         {
+          "type": "grid",
+          "cells": [
+           [
+            1,
+            0,
+            3,
+            0
+           ],
+           [
+            0,
+            0,
+            0,
+            0
+           ],
+           [
+            0,
+            0,
+            0,
+            0
+           ],
+           [
+            13,
+            0,
+            15,
+            0
+           ]
+          ],
+          "states": {
+           "0,0": "found",
+           "0,2": "found",
+           "3,0": "found",
+           "3,2": "found"
+          }
+         }
+        ],
+        "result": "done"
+       }
+      ],
+      "title": "`set_zeroes` on a 4 × 4 grid: every row and column holding a 0 becomes all 0s."
+     }
+    }
+   ]
+  },
+  {
+   "id": "examples",
+   "title": "More examples",
+   "blocks": [
+    {
+     "md": "### Spreading one step\n\nLit cells light up their neighbours: after one step, a cell is lit if it or any cell directly above, below,\nleft or right of it was lit. Every cell changes at once. If you light cells as you go, a light you just\nswitched on lights the next cell, and so on, and the light races across the grid in one step. With two bits\nper cell, it can't:"
+    },
+    {
+     "walk": {
+      "steps": [
+       {
+        "text": "Each cell is written as two bits. The right bit is *now*. The left bit will hold *next*, and starts as 0.",
+        "panels": [
+         {
+          "type": "grid",
+          "cells": [
+           [
+            "00",
+            "00",
+            "00",
+            "00",
+            "00"
+           ],
+           [
+            "00",
+            "01",
+            "00",
+            "00",
+            "00"
+           ],
+           [
+            "00",
+            "00",
+            "00",
+            "00",
+            "01"
+           ],
+           [
+            "00",
+            "00",
+            "00",
+            "00",
+            "00"
+           ]
+          ]
+         }
+        ]
+       },
+       {
+        "text": "Row 0: for each cell, look only at the right bits (`& 1`), which still say *now* even for cells already updated. Cells (0, 1) get a 1 in the left bit.",
+        "panels": [
+         {
+          "type": "grid",
+          "cells": [
+           [
+            "00",
+            "10",
+            "00",
+            "00",
+            "00"
+           ],
+           [
+            "00",
+            "01",
+            "00",
+            "00",
+            "00"
+           ],
+           [
+            "00",
+            "00",
+            "00",
+            "00",
+            "01"
+           ],
+           [
+            "00",
+            "00",
+            "00",
+            "00",
+            "00"
+           ]
+          ],
+          "states": {
+           "0,0": "active",
+           "0,1": "new",
+           "0,2": "active",
+           "0,3": "active",
+           "0,4": "active"
+          }
+         }
+        ]
+       },
+       {
+        "text": "Row 1: for each cell, look only at the right bits (`& 1`), which still say *now* even for cells already updated. Cells (1, 0), (1, 1), (1, 2), (1, 4) get a 1 in the left bit.",
+        "panels": [
+         {
+          "type": "grid",
+          "cells": [
+           [
+            "00",
+            "10",
+            "00",
+            "00",
+            "00"
+           ],
+           [
+            "10",
+            "11",
+            "10",
+            "00",
+            "10"
+           ],
+           [
+            "00",
+            "00",
+            "00",
+            "00",
+            "01"
+           ],
+           [
+            "00",
+            "00",
+            "00",
+            "00",
+            "00"
+           ]
+          ],
+          "states": {
+           "1,0": "new",
+           "1,1": "new",
+           "1,2": "new",
+           "1,3": "active",
+           "1,4": "new"
+          }
+         }
+        ]
+       },
+       {
+        "text": "Row 2: for each cell, look only at the right bits (`& 1`), which still say *now* even for cells already updated. Cells (2, 1), (2, 3), (2, 4) get a 1 in the left bit.",
+        "panels": [
+         {
+          "type": "grid",
+          "cells": [
+           [
+            "00",
+            "10",
+            "00",
+            "00",
+            "00"
+           ],
+           [
+            "10",
+            "11",
+            "10",
+            "00",
+            "10"
+           ],
+           [
+            "00",
+            "10",
+            "00",
+            "10",
+            "11"
+           ],
+           [
+            "00",
+            "00",
+            "00",
+            "00",
+            "00"
+           ]
+          ],
+          "states": {
+           "2,0": "active",
+           "2,1": "new",
+           "2,2": "active",
+           "2,3": "new",
+           "2,4": "new"
+          }
+         }
+        ]
+       },
+       {
+        "text": "Row 3: for each cell, look only at the right bits (`& 1`), which still say *now* even for cells already updated. Cells (3, 4) get a 1 in the left bit.",
+        "panels": [
+         {
+          "type": "grid",
+          "cells": [
+           [
+            "00",
+            "10",
+            "00",
+            "00",
+            "00"
+           ],
+           [
+            "10",
+            "11",
+            "10",
+            "00",
+            "10"
+           ],
+           [
+            "00",
+            "10",
+            "00",
+            "10",
+            "11"
+           ],
+           [
+            "00",
+            "00",
+            "00",
+            "00",
+            "10"
+           ]
+          ],
+          "states": {
+           "3,0": "active",
+           "3,1": "active",
+           "3,2": "active",
+           "3,3": "active",
+           "3,4": "new"
+          }
+         }
+        ]
+       },
+       {
+        "text": "Every cell has its next state in the left bit. Shift right by one: the left bit becomes the value, and the old one falls away.",
+        "panels": [
+         {
+          "type": "grid",
+          "cells": [
+           [
+            0,
+            1,
+            0,
+            0,
+            0
+           ],
+           [
+            1,
+            1,
+            1,
+            0,
+            1
+           ],
+           [
+            0,
+            1,
+            0,
+            1,
+            1
+           ],
+           [
+            0,
+            0,
+            0,
+            0,
+            1
+           ]
+          ],
+          "states": {
+           "0,1": "found",
+           "1,0": "found",
+           "1,1": "found",
+           "1,2": "found",
+           "1,4": "found",
+           "2,1": "found",
+           "2,3": "found",
+           "2,4": "found",
+           "3,4": "found"
+          }
+         }
+        ]
+       }
+      ],
+      "title": "`spread`: a cell is lit next if it, or a neighbour above, below, left or right, is lit now. Every cell changes at once."
+     }
+    },
+    {
+     "panels": [
+      {
+       "type": "grid",
+       "cells": [
+        [
+         0,
+         0,
+         0,
+         0,
+         0
+        ],
+        [
+         0,
+         1,
+         0,
+         0,
+         0
+        ],
+        [
+         0,
+         0,
+         0,
+         0,
+         1
+        ],
+        [
+         0,
+         0,
+         0,
+         0,
+         0
+        ]
+       ],
+       "states": {
+        "1,1": "found",
+        "2,4": "found"
+       },
+       "label": "before"
+      },
+      {
+       "type": "grid",
+       "cells": [
+        [
+         0,
+         1,
+         0,
+         0,
+         0
+        ],
+        [
+         1,
+         1,
+         1,
+         0,
+         1
+        ],
+        [
+         0,
+         1,
+         0,
+         1,
+         1
+        ],
+        [
+         0,
+         0,
+         0,
+         0,
+         1
+        ]
+       ],
+       "states": {
+        "0,1": "found",
+        "1,0": "found",
+        "1,1": "found",
+        "1,2": "found",
+        "1,4": "found",
+        "2,1": "found",
+        "2,3": "found",
+        "2,4": "found",
+        "3,4": "found"
+       },
+       "label": "after one step (right)"
+      },
+      {
+       "type": "grid",
+       "cells": [
+        [
+         0,
+         1,
+         1,
+         1,
+         1
+        ],
+        [
+         1,
+         1,
+         1,
+         1,
+         1
+        ],
+        [
+         1,
+         1,
+         1,
+         1,
+         1
+        ],
+        [
+         1,
+         1,
+         1,
+         1,
+         1
+        ]
+       ],
+       "states": {
+        "0,1": "dim",
+        "0,2": "dim",
+        "0,3": "dim",
+        "0,4": "dim",
+        "1,0": "dim",
+        "1,1": "dim",
+        "1,2": "dim",
+        "1,3": "dim",
+        "1,4": "dim",
+        "2,0": "dim",
+        "2,1": "dim",
+        "2,2": "dim",
+        "2,3": "dim",
+        "2,4": "dim",
+        "3,0": "dim",
+        "3,1": "dim",
+        "3,2": "dim",
+        "3,3": "dim",
+        "3,4": "dim"
+       },
+       "label": "lighting as you go (wrong)"
+      }
+     ],
+     "caption": "Done in place without the extra bit, 19 cells end up lit instead of 9: new lights were read as old ones."
+    },
+    {
+     "md": "### Rules with counts\n\nMany rules count neighbours (\"lit if exactly two neighbours are lit\"). The count is computed from the old\nvalues (`& 1`) and the decision goes in bit 1, exactly as above. The rule changes; the bookkeeping doesn't.\n\n### Marking cells for later\n\nSometimes the first pass only *finds* cells (say, every cell to be removed) and a second pass acts on them.\nIf the values have a range that can't occur, such as negatives in a grid of counts, a negative copy of the\nvalue is a mark that keeps the original recoverable, just like *In-place index marking*."
+    }
+   ]
+  },
+  {
+   "id": "variations",
+   "title": "Variations",
+   "blocks": [
+    {
+     "md": "### Old in bit 0, new in bit 1\n\nThe spreading rule as code. The structure is the same for any rule on a 0/1 grid: compute from `& 1`,\nstore with `|= next << 1`, then shift."
+    },
+    {
+     "code": {
+      "python": "def spread(g):\n    m, n = len(g), len(g[0])\n    for r in range(m):\n        for c in range(n):\n            lit = g[r][c] & 1\n            for dr, dc in ((1, 0), (-1, 0), (0, 1), (0, -1)):\n                rr, cc = r + dr, c + dc\n                if 0 <= rr < m and 0 <= cc < n and g[rr][cc] & 1:\n                    lit = 1\n            g[r][c] |= lit << 1\n    for r in range(m):\n        for c in range(n):\n            g[r][c] >>= 1\n    return g\n",
+      "java": "static final int[] DR = {1, -1, 0, 0}, DC = {0, 0, 1, -1};\n\nstatic int[][] spread(int[][] g) {\n    int m = g.length, n = g[0].length;\n    for (int r = 0; r < m; r++)\n        for (int c = 0; c < n; c++) {\n            int lit = g[r][c] & 1;\n            for (int d = 0; d < 4; d++) {\n                int rr = r + DR[d], cc = c + DC[d];\n                if (rr >= 0 && rr < m && cc >= 0 && cc < n && (g[rr][cc] & 1) == 1) lit = 1;\n            }\n            g[r][c] |= lit << 1;\n        }\n    for (int r = 0; r < m; r++)\n        for (int c = 0; c < n; c++) g[r][c] >>= 1;\n    return g;\n}\n",
+      "cpp": "vector<vector<int>>& spread(vector<vector<int>>& g) {\n    const int DR[] = {1, -1, 0, 0}, DC[] = {0, 0, 1, -1};\n    int m = g.size(), n = g[0].size();\n    for (int r = 0; r < m; r++)\n        for (int c = 0; c < n; c++) {\n            int lit = g[r][c] & 1;\n            for (int d = 0; d < 4; d++) {\n                int rr = r + DR[d], cc = c + DC[d];\n                if (rr >= 0 && rr < m && cc >= 0 && cc < n && (g[rr][cc] & 1)) lit = 1;\n            }\n            g[r][c] |= lit << 1;\n        }\n    for (auto& row : g)\n        for (int& x : row) x >>= 1;\n    return g;\n}\n",
+      "c": "void spread(int m, int n, int g[m][n]) {\n    const int DR[] = {1, -1, 0, 0}, DC[] = {0, 0, 1, -1};\n    for (int r = 0; r < m; r++)\n        for (int c = 0; c < n; c++) {\n            int lit = g[r][c] & 1;\n            for (int d = 0; d < 4; d++) {\n                int rr = r + DR[d], cc = c + DC[d];\n                if (rr >= 0 && rr < m && cc >= 0 && cc < n && (g[rr][cc] & 1)) lit = 1;\n            }\n            g[r][c] |= lit << 1;\n        }\n    for (int r = 0; r < m; r++)\n        for (int c = 0; c < n; c++) g[r][c] >>= 1;\n}\n"
+     },
+     "title": "Spread lit cells one step, in place",
+     "lines": [
+      {
+       "text": "Rows and columns.",
+       "at": {
+        "python": [
+         [
+          2,
+          2
+         ]
+        ],
+        "java": [
+         [
+          4,
+          4
+         ]
+        ],
+        "cpp": [
+         [
+          3,
+          3
+         ]
+        ]
+       }
+      },
+      {
+       "text": "Visit every cell once.",
+       "at": {
+        "python": [
+         [
+          3,
+          4
+         ]
+        ],
+        "java": [
+         [
+          5,
+          6
+         ]
+        ],
+        "cpp": [
+         [
+          4,
+          5
+         ]
+        ],
+        "c": [
+         [
+          3,
+          4
+         ]
+        ]
+       }
+      },
+      {
+       "text": "This cell's *current* state. Bit 0 hasn't changed, even if bit 1 has been written.",
+       "at": {
+        "python": [
+         [
+          5,
+          5
+         ]
+        ],
+        "java": [
+         [
+          7,
+          7
+         ]
+        ],
+        "cpp": [
+         [
+          6,
+          6
+         ]
+        ],
+        "c": [
+         [
+          5,
+          5
+         ]
+        ]
+       }
+      },
+      {
+       "text": "Look at the four neighbours that are inside the grid, reading only their bit 0.",
+       "at": {
+        "python": [
+         [
+          6,
+          9
+         ]
+        ],
+        "java": [
+         [
+          8,
+          10
+         ]
+        ],
+        "cpp": [
+         [
+          7,
+          9
+         ]
+        ],
+        "c": [
+         [
+          6,
+          8
+         ]
+        ]
+       },
+       "notes": {
+        "java": "`(g[rr][cc] & 1) == 1`: Java won't treat an `int` as a condition.",
+        "cpp": "The direction arrays are declared once at the top; `& 1` is already a usable condition in C++."
+       }
+      },
+      {
+       "text": "Store the next state in bit 1. `|=` leaves bit 0 alone.",
+       "at": {
+        "python": [
+         [
+          10,
+          10
+         ]
+        ],
+        "java": [
+         [
+          12,
+          12
+         ]
+        ],
+        "cpp": [
+         [
+          11,
+          11
+         ]
+        ],
+        "c": [
+         [
+          10,
+          10
+         ]
+        ]
+       }
+      },
+      {
+       "text": "Every next state is ready. Shift right: bit 1 becomes the value and bit 0 is dropped.",
+       "at": {
+        "python": [
+         [
+          11,
+          13
+         ]
+        ],
+        "java": [
+         [
+          14,
+          15
+         ]
+        ],
+        "cpp": [
+         [
+          13,
+          14
+         ]
+        ],
+        "c": [
+         [
+          12,
+          13
+         ]
+        ]
+       }
+      },
+      {
+       "text": "The grid one step later.",
+       "at": {
+        "python": [
+         [
+          14,
+          14
+         ]
+        ],
+        "java": [
+         [
+          16,
+          16
+         ]
+        ],
+        "cpp": [
+         [
+          15,
+          15
+         ]
+        ]
+       }
+      }
+     ],
+     "run": {
+      "call": "spread on a 4 × 5 grid with lit cells at (1, 1) and (2, 4)",
+      "output": "0 1 0 0 0\n1 1 1 0 1\n0 1 0 1 1\n0 0 0 0 1"
+     }
+    },
+    {
+     "md": "### Rotating or transposing a square grid\n\nNot every in-place grid job needs notes. Rotating a square grid by 90° moves values along cycles of four\npositions, so a single temporary per cycle is enough (or a transpose followed by mirroring each row). See\n*Matrix traversal* for the index maps. Markers are for the jobs where the new value of a cell depends on\n*other* cells' old values.\n\n### Choosing where to keep the notes\n\nUse whatever spare room the problem gives you: the first row and column when cells are arbitrary, spare bits\nwhen cells are small, impossible values (negatives, a value above the maximum) when the range is known. If\nnone of those exist, O(1) space probably isn't possible, and a copy is the honest answer."
+    }
+   ]
+  },
+  {
+   "id": "complexity",
+   "title": "What it costs",
+   "blocks": [
+    {
+     "md": "Each method reads and writes every cell a constant number of times: O(m·n) time. The extra memory is two\nbooleans, or nothing at all, so O(1). Compare that with a second grid (O(m·n) extra) or separate row and\ncolumn flag arrays (O(m + n) extra).\n\nWith the neighbour rule, each cell looks at a fixed number of neighbours (4 here, 8 with diagonals), so it's\nstill O(m·n)."
+    },
+    {
+     "table": {
+      "head": [
+       "Approach",
+       "Time",
+       "Extra space"
+      ],
+      "rows": [
+       [
+        "Copy the grid, update from the copy",
+        "O(m·n)",
+        "O(m·n)"
+       ],
+       [
+        "Row and column flag arrays",
+        "O(m·n)",
+        "O(m + n)"
+       ],
+       [
+        "Notes in the first row and column",
+        "O(m·n)",
+        "O(1)"
+       ],
+       [
+        "Old and new in one cell (bits or a base)",
+        "O(m·n)",
+        "O(1)"
+       ]
+      ]
+     }
+    }
+   ]
+  },
+  {
+   "id": "languages",
+   "title": "In your language",
+   "blocks": [
+    {
+     "md": "### Python\n\n`g[r][c] & 1`, `|=` and `>>=` work on ints as you'd expect. A grid made with `[[0] * n] * m` shares the same row\n`m` times, so one write changes every row; build it with `[[0] * n for _ in range(m)]`. `any(...)` makes the\ntwo flags one line each.\n\n### Java\n\n`int[][]` is an array of row arrays, so `g[r][c]` updates the caller's grid. Bit tests need a comparison:\n`(x & 1) == 1`. Be careful with operator precedence: `x & 1 == 1` parses as `x & (1 == 1)` and doesn't compile.\n\n### C++\n\nTake the grid by reference (`vector<vector<int>>&`), or your changes vanish with the copy. `x & 1` is a fine\ncondition. Mind precedence here too: `x & 1 == 1` means `x & (1 == 1)`, which compiles and is wrong.\n\n### C\n\nPass the sizes and the grid as `int g[m][n]` (a variable-length array parameter), or as a flat `int*` with\n`g[r * n + c]`. Shifting negative numbers right is implementation-defined, so keep the bit tricks for values\nthat are never negative."
+    }
+   ]
+  },
+  {
+   "id": "pitfalls",
+   "title": "Pitfalls and edge cases",
+   "blocks": [
+    {
+     "md": "- Wiping the first row or column before the notes are read. Edges always go last.\n- Forgetting the two flags, so a real 0 in the first row is confused with a note.\n- Starting the note scan at row 0 or column 0. The notepad cells are handled by the flags.\n- Reading a neighbour's full value instead of `& 1` after some cells have bit 1 set.\n- Forgetting the final shift, so cells hold 2s and 3s.\n- Packing values with a base that's too small, or a packed number that overflows the type.\n- A 1 × n or m × 1 grid: the \"inside\" is empty and only the flags do any work. Check that this still works."
+    }
+   ]
+  },
+  {
+   "id": "check",
+   "title": "Check yourself",
+   "blocks": [
+    {
+     "quiz": [
+      {
+       "q": "Why does wiping rows and columns as soon as you see a 0 give the wrong answer?",
+       "a": "The wiped cells become new zeros, and when the scan reaches them they wipe their own rows and columns. Zeros that weren't in the original grid spread."
+      },
+      {
+       "q": "Why must the first row and column be wiped last?",
+       "a": "They hold the notes. Wiping the first row early would put a 0 at the top of every column, and every column would then look like it needs wiping."
+      },
+      {
+       "q": "What are the two flags for?",
+       "a": "The first row and column are used for notes, so a 0 written there can't tell you whether that row or column held a 0 originally. The flags save that before any notes are written."
+      },
+      {
+       "q": "In the two-bit method, why is it safe to read a neighbour that has already been updated?",
+       "a": "Only bit 1 was written. Bit 0 still holds its current state, and the rule only reads `& 1`."
+      },
+      {
+       "q": "Values are 0 to 999 and new values are too. How could one int hold both?",
+       "a": "Store cell + 1000 · new. The old value is cell % 1000 and the new one is cell // 1000 (as long as 1000 · 999 + 999 fits in the type)."
+      }
+     ]
+    }
+   ]
+  }
+ ],
+ "leetcode": [
+  {
+   "id": 661,
+   "title": "Image Smoother",
+   "url": "https://leetcode.com/problems/image-smoother/",
+   "difficulty": "easy"
+  },
+  {
+   "id": 73,
+   "title": "Set Matrix Zeroes",
+   "url": "https://leetcode.com/problems/set-matrix-zeroes/",
+   "difficulty": "medium"
+  },
+  {
+   "id": 289,
+   "title": "Game of Life",
+   "url": "https://leetcode.com/problems/game-of-life/",
+   "difficulty": "medium"
+  },
+  {
+   "id": 48,
+   "title": "Rotate Image",
+   "url": "https://leetcode.com/problems/rotate-image/",
+   "difficulty": "medium"
+  },
+  {
+   "id": 723,
+   "title": "Candy Crush",
+   "url": "https://leetcode.com/problems/candy-crush/",
+   "difficulty": "medium",
+   "premium": true
+  }
+ ]
+}

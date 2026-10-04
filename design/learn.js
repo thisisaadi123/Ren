@@ -209,12 +209,36 @@
       </section>`;
   }
 
+  // More practice on LeetCode: problems picked for this pattern, opening in a new tab.
+  function leetcodeHTML() {
+    const list = data.leetcode || [];
+    if (!list.length) return "";
+    const rows = list.map(
+      (x) => `
+        <li>
+          <a class="learn-prob" href="${esc(x.url)}" target="_blank" rel="noopener">
+            <span class="learn-prob-title"><span class="learn-lc-n">${x.id}.</span> ${esc(x.title)}</span>
+            <span class="learn-prob-diff ${esc(x.difficulty)}">${DIFF[x.difficulty] || esc(x.difficulty)}</span>
+            <span class="learn-prob-type">${x.premium ? "Premium" : ""}</span>
+            <svg class="learn-prob-go" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M6 3h7v7M13 3 4 12"/></svg>
+          </a>
+        </li>`
+    );
+    return `
+      <section class="learn-sec" id="${sectionId("leetcode")}" data-sec="leetcode">
+        <h2 class="learn-h2">On LeetCode</h2>
+        <div class="learn-text"><p>Want more? Each of these ${list.length} LeetCode problems is a good fit for ${esc(data.pattern.name.toLowerCase())}, easiest first. They open on LeetCode in a new tab; the ones marked Premium need a LeetCode subscription.</p></div>
+        <ul class="learn-probs">${rows.join("")}</ul>
+      </section>`;
+  }
+
   function nearHTML() {
     const link = (x, dir) =>
       x
         ? `<a class="learn-near ${dir}" href="learn.html?id=${encodeURIComponent(x.id)}">
              <span>${dir === "prev" ? "Previous lesson" : "Next lesson"}</span>
              <b>${esc(x.name)}</b>
+             ${x.minutes ? `<span>${x.minutes} min read</span>` : ""}
            </a>`
         : "<span></span>";
     if (!data.prev && !data.next) return "";
@@ -228,7 +252,10 @@
     const topic = main.querySelector("[data-topic]");
     topic.textContent = data.topic.name;
     topic.href = `dsa.html?q=${encodeURIComponent(data.topic.name)}`;
-    main.querySelector("[data-meta]").textContent = `${data.minutes} min read · ${plural(data.problems.length, "problem")} to practise`;
+    const lc = (data.leetcode || []).length;
+    main.querySelector("[data-meta]").innerHTML = `
+      <span class="learn-time"><svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" aria-hidden="true"><circle cx="8" cy="8" r="6.25"/><path d="M8 4.75V8l2.25 1.5"/></svg>${data.minutes} min read</span>
+      <span>${plural(data.problems.length, "problem")} to practise${lc ? ` · ${lc} more on LeetCode` : ""}</span>`;
 
     codeBlocks = [];
     walks = [];
@@ -248,10 +275,12 @@
       </details>
       ${sections}
       ${practiceHTML()}
+      ${leetcodeHTML()}
       ${nearHTML()}`;
     body.querySelectorAll("[data-walk]").forEach((el) => window.renVisual && renVisual.walkthrough(el, walks[Number(el.dataset.walk)]));
 
     const items = [...data.sections.map((s) => ({ id: s.id, title: s.title })), { id: "practice", title: "Practice" }];
+    if ((data.leetcode || []).length) items.push({ id: "leetcode", title: "On LeetCode" });
     const links = items
       .map(
         (s, i) =>
@@ -275,8 +304,8 @@
       for (const s of secs) if (s.getBoundingClientRect().top <= line) current = s.dataset.sec;
       if (innerHeight + scrollY >= document.documentElement.scrollHeight - 4) current = secs[secs.length - 1].dataset.sec;
       toc.querySelectorAll("[data-go]").forEach((a) => a.setAttribute("aria-current", a.dataset.go === current ? "true" : "false"));
-      // Reaching the practice list counts as having read the lesson.
-      if (current === "practice") store.set(`ren:learned:${data.id}`, true);
+      // Reaching the practice list (or the LeetCode list after it) counts as having read the lesson.
+      if (current === "practice" || current === "leetcode") store.set(`ren:learned:${data.id}`, true);
     };
     addEventListener("scroll", () => (raf = raf || requestAnimationFrame(mark)), { passive: true });
     addEventListener("resize", mark);

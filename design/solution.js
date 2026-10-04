@@ -4,7 +4,9 @@
 // approach from slowest to best, then takeaways. Every approach has its idea,
 // a step-by-step walkthrough, how to build it, the code in Python, Java, C++
 // and C, a line-by-line breakdown, and its time and space.
-//   renSolution.mount(el, { id, problem, highlight, lang })
+//   renSolution.mount(el, { id, problem, highlight, lang, source })
+//   source: optional () => Promise<{ ok, status, data }>, in place of the API
+//   (the landing page reads a saved copy of one solution).
 (() => {
   const esc = (s) =>
     String(s).replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" })[c]);
@@ -93,7 +95,7 @@
 
   /* Mount ---------------------------------------------------------------------- */
 
-  function mount(el, { id, problem, highlight, lang: editorLang }) {
+  function mount(el, { id, problem, highlight, lang: editorLang, source }) {
     const key = `ren:sol:${id}`;
     let data = null;
     let loading = null;
@@ -123,7 +125,8 @@
 
     async function load() {
       if (data) return data;
-      loading = loading || renApi(`/api/dsa/solution?id=${encodeURIComponent(id)}`).catch(() => ({ ok: false, status: 0 }));
+      const get = source || (() => renApi(`/api/dsa/solution?id=${encodeURIComponent(id)}`));
+      loading = loading || get().catch(() => ({ ok: false, status: 0 }));
       const res = await loading;
       loading = null;
       if (res.ok) data = res.data;

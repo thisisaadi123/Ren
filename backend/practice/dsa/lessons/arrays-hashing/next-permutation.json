@@ -1,0 +1,1416 @@
+{
+ "version": 1,
+ "id": "next-permutation",
+ "topic": "arrays-hashing",
+ "summary": "List every arrangement of some values in dictionary order. Which one comes right after the one you have? Find the\nrightmost place where the values go up, bump that value to the next bigger one from its right, and put everything\nafter it in increasing order. Three short scans, O(n), in place.",
+ "minutes": 13,
+ "sections": [
+  {
+   "id": "idea",
+   "title": "The idea",
+   "blocks": [
+    {
+     "md": "Think of a car's odometer, but one that can only use the digits it already has. It reads `1 3 5 4 2` and you\nwant the next reading: the smallest arrangement of these digits that's bigger than the current one.\n\nTo make a number a little bigger, you change it as far to the right as you can. Changing the last digits\nis a small step; changing the first digit is a huge one. So look at the end first. `4 2` can't be made bigger\non its own: it already runs downhill, which is its biggest arrangement. Neither can `5 4 2`. But `3 5 4 2`\ncan, because the 3 has something bigger to its right.\n\nSo the 3 has to go up, by as little as possible: the smallest value to its right that beats it is 4. Swap\nthem to get `1 4 _ _ _`, with 5, 3, 2 left over. Everything after the 4 should now be as *small* as\npossible, so put it in increasing order: `1 4 2 3 5`."
+    },
+    {
+     "panels": [
+      {
+       "type": "bars",
+       "values": [
+        1,
+        3,
+        5,
+        4,
+        2
+       ],
+       "states": {
+        "2": "mark",
+        "3": "found",
+        "4": "mark",
+        "1": "active"
+       },
+       "label": "before: a downhill tail",
+       "max": 5
+      },
+      {
+       "type": "bars",
+       "values": [
+        1,
+        4,
+        2,
+        3,
+        5
+       ],
+       "states": {
+        "1": "answer",
+        "2": "found",
+        "3": "found",
+        "4": "found"
+       },
+       "label": "after: pivot bumped, tail uphill",
+       "max": 5
+      }
+     ],
+     "caption": "The tail that slopes downhill is already at its maximum. The value just before it (the pivot) is the one to bump."
+    },
+    {
+     "key": "From the right, find the first `i` with `a[i] < a[i + 1]` (the pivot). If there's none, this is the last\narrangement. Otherwise, from the right, find the first `a[j] > a[i]`, swap `a[i]` and `a[j]`, and reverse\neverything after `i`."
+    }
+   ]
+  },
+  {
+   "id": "signals",
+   "title": "When to reach for it",
+   "blocks": [
+    {
+     "md": "\"The next arrangement\", \"the next bigger number with the same digits\", \"the next string in dictionary order\nusing these letters\", \"list all permutations in order without repeats\", \"the k-th permutation\". Anything that\ntreats arrangements as a sorted list and asks you to move one step (or `k` steps) along it.\n\nSigns it's this rather than backtracking: you're asked for *one* neighbouring arrangement, or the\narrangements in order, and the input can be long (backtracking through `n!` arrangements is hopeless beyond\nabout 10 values, while one step here is O(n)).\n\nNot a fit:\n\n- Arrangements with a rule attached (no two equal neighbours, must stay a palindrome, …). The basic step\n  ignores rules; you'll need to adapt it to the structure (for example, work on half of the values) or\n  search.\n- \"All subsets\" or \"all combinations\": different objects. Backtracking or bitmasks."
+    }
+   ]
+  },
+  {
+   "id": "theory",
+   "title": "Why it works",
+   "blocks": [
+    {
+     "md": "### Dictionary order\n\nArrangements compare like words: look at the first position where they differ, and the smaller value there\nwins. `1 3 5 4 2` comes before `1 4 2 3 5` because at index 1, 3 < 4, and nothing after that matters. So the\n*next* arrangement is the smallest one that's bigger.\n\nHere are all six arrangements of `[1, 2, 3]`, each with the pivot and the swap that produced the next one:"
+    },
+    {
+     "table": {
+      "head": [
+       "arrangement",
+       "pivot",
+       "swap",
+       "next"
+      ],
+      "rows": [
+       [
+        "1 2 3",
+        "index 1 (2)",
+        "2 ↔ 3",
+        "1 3 2"
+       ],
+       [
+        "1 3 2",
+        "index 0 (1)",
+        "1 ↔ 2",
+        "2 1 3"
+       ],
+       [
+        "2 1 3",
+        "index 1 (1)",
+        "1 ↔ 3",
+        "2 3 1"
+       ],
+       [
+        "2 3 1",
+        "index 0 (2)",
+        "2 ↔ 3",
+        "3 1 2"
+       ],
+       [
+        "3 1 2",
+        "index 1 (1)",
+        "1 ↔ 2",
+        "3 2 1"
+       ],
+       [
+        "3 2 1",
+        "none: it's the last",
+        "",
+        ""
+       ]
+      ]
+     }
+    },
+    {
+     "md": "### A downhill tail is already at its maximum\n\nCall the longest stretch at the end that never goes up (each value ≥ the next) the **tail**. Any arrangement\nof the tail's values that runs downhill is the biggest one possible. So you can't get a bigger arrangement by\nonly shuffling the tail: the change has to reach at least one position further left.\n\nThe position just left of the tail is the **pivot**, and by definition `a[pivot] < a[pivot + 1]`. Changing\nanything further left than the pivot would be a bigger jump than changing the pivot, so the next arrangement\nkeeps everything before the pivot and changes the pivot itself.\n\n### Bump the pivot by as little as possible\n\nThe pivot must get a bigger value, and it can only come from the tail. To keep the step small, take the\n*smallest* tail value that's bigger than `a[pivot]`. The tail runs downhill, so scanning from the right, the\nfirst value bigger than the pivot is that one. (With duplicates, this also picks the rightmost of equal\ncandidates, which matters below.)\n\n### Then make the tail as small as possible\n\nAfter the swap, the pivot position is settled. The rest should be the smallest arrangement of what's left,\nwhich is increasing order. And the swap kept the tail downhill: the value placed into the tail (the old\npivot) is smaller than everything left of where it lands and at least as big as everything right of it.\nA downhill stretch reversed is an uphill one, so reversing the tail sorts it in O(n), no sort needed.\n\n### Duplicates take care of themselves\n\nThe scans use `>=` and `<=`, so equal neighbours count as \"not going up\", and equal values never get swapped\nwith each other. Starting from the sorted order and stepping repeatedly, you visit each *distinct*\narrangement exactly once. For `[1, 1, 2]` that's 3 arrangements, not 6.\n\n### How many are there?\n\n`n` different values have `n!` arrangements. With repeats, divide by the factorial of each count:\n`[3, 2, 2, 1]` has `4! / 2! = 12`."
+    }
+   ]
+  },
+  {
+   "id": "template",
+   "title": "The template",
+   "blocks": [
+    {
+     "md": "Change `a` into the next arrangement in place and return true, or return false if `a` is already the last\none (fully downhill), leaving it unchanged."
+    },
+    {
+     "code": {
+      "python": "def next_permutation(a):\n    i = len(a) - 2\n    while i >= 0 and a[i] >= a[i + 1]:\n        i -= 1\n    if i < 0:\n        return False\n    j = len(a) - 1\n    while a[j] <= a[i]:\n        j -= 1\n    a[i], a[j] = a[j], a[i]\n    lo, hi = i + 1, len(a) - 1\n    while lo < hi:\n        a[lo], a[hi] = a[hi], a[lo]\n        lo, hi = lo + 1, hi - 1\n    return True\n",
+      "java": "static boolean nextPermutation(int[] a) {\n    int i = a.length - 2;\n    while (i >= 0 && a[i] >= a[i + 1]) i--;\n    if (i < 0) return false;\n    int j = a.length - 1;\n    while (a[j] <= a[i]) j--;\n    int t = a[i]; a[i] = a[j]; a[j] = t;\n    for (int lo = i + 1, hi = a.length - 1; lo < hi; lo++, hi--) {\n        t = a[lo]; a[lo] = a[hi]; a[hi] = t;\n    }\n    return true;\n}\n",
+      "cpp": "bool nextPermutation(vector<int>& a) {\n    int i = (int)a.size() - 2;\n    while (i >= 0 && a[i] >= a[i + 1]) i--;\n    if (i < 0) return false;\n    int j = (int)a.size() - 1;\n    while (a[j] <= a[i]) j--;\n    swap(a[i], a[j]);\n    reverse(a.begin() + i + 1, a.end());\n    return true;\n}\n",
+      "c": "bool nextPermutation(int* a, int n) {\n    int i = n - 2;\n    while (i >= 0 && a[i] >= a[i + 1]) i--;\n    if (i < 0) return false;\n    int j = n - 1;\n    while (a[j] <= a[i]) j--;\n    int t = a[i]; a[i] = a[j]; a[j] = t;\n    for (int lo = i + 1, hi = n - 1; lo < hi; lo++, hi--) {\n        t = a[lo]; a[lo] = a[hi]; a[hi] = t;\n    }\n    return true;\n}\n"
+     },
+     "title": "Next permutation",
+     "lines": [
+      {
+       "text": "Walk left from the second-to-last index while the values don't go up. Where it stops is the pivot: the rightmost `i` with `a[i] < a[i + 1]`.",
+       "at": {
+        "python": [
+         [
+          2,
+          4
+         ]
+        ],
+        "java": [
+         [
+          2,
+          3
+         ]
+        ],
+        "cpp": [
+         [
+          2,
+          3
+         ]
+        ],
+        "c": [
+         [
+          2,
+          3
+         ]
+        ]
+       }
+      },
+      {
+       "text": "No pivot: the whole array runs downhill, so this is the last arrangement.",
+       "at": {
+        "python": [
+         [
+          5,
+          6
+         ]
+        ],
+        "java": [
+         [
+          4,
+          4
+         ]
+        ],
+        "cpp": [
+         [
+          4,
+          4
+         ]
+        ],
+        "c": [
+         [
+          4,
+          4
+         ]
+        ]
+       }
+      },
+      {
+       "text": "Walk left from the end to the first value strictly bigger than the pivot. The tail runs downhill, so that's the smallest value in it that beats the pivot. There's always one: `a[i + 1]` is bigger.",
+       "at": {
+        "python": [
+         [
+          7,
+          9
+         ]
+        ],
+        "java": [
+         [
+          5,
+          6
+         ]
+        ],
+        "cpp": [
+         [
+          5,
+          6
+         ]
+        ],
+        "c": [
+         [
+          5,
+          6
+         ]
+        ]
+       }
+      },
+      {
+       "text": "Bump the pivot up to it.",
+       "at": {
+        "python": [
+         [
+          10,
+          10
+         ]
+        ],
+        "java": [
+         [
+          7,
+          7
+         ]
+        ],
+        "cpp": [
+         [
+          7,
+          7
+         ]
+        ],
+        "c": [
+         [
+          7,
+          7
+         ]
+        ]
+       }
+      },
+      {
+       "text": "The tail is still downhill. Reverse it so it runs uphill: the smallest possible ending.",
+       "at": {
+        "python": [
+         [
+          11,
+          14
+         ]
+        ],
+        "java": [
+         [
+          8,
+          9
+         ]
+        ],
+        "cpp": [
+         [
+          8,
+          8
+         ]
+        ],
+        "c": [
+         [
+          8,
+          9
+         ]
+        ]
+       },
+       "notes": {
+        "cpp": "`reverse` on the half-open range from just after the pivot to the end."
+       }
+      },
+      {
+       "text": "A next arrangement existed.",
+       "at": {
+        "python": [
+         [
+          15,
+          15
+         ]
+        ],
+        "java": [
+         [
+          11,
+          11
+         ]
+        ],
+        "cpp": [
+         [
+          9,
+          9
+         ]
+        ],
+        "c": [
+         [
+          11,
+          11
+         ]
+        ]
+       }
+      }
+     ],
+     "run": {
+      "call": "next_permutation([1, 3, 5, 4, 2]); ([3, 2, 1]); ([1, 1, 2])",
+      "output": "true 1 4 2 3 5\nfalse 3 2 1\ntrue 1 2 1"
+     }
+    },
+    {
+     "md": "`[3, 2, 1]` is the last arrangement, so it comes back false and unchanged. Some libraries (C++'s\n`std::next_permutation`) instead wrap round to the first arrangement and return false; that's the same as\nreversing the whole array when there's no pivot."
+    }
+   ]
+  },
+  {
+   "id": "trace",
+   "title": "Trace it by hand",
+   "blocks": [
+    {
+     "md": "The heights make the downhill tail easy to see:"
+    },
+    {
+     "walk": {
+      "steps": [
+       {
+        "text": "Drawn as heights. We want the arrangement that comes right after this one in dictionary order: bigger, but by as little as possible.",
+        "panels": [
+         {
+          "type": "bars",
+          "values": [
+           1,
+           3,
+           5,
+           4,
+           2
+          ],
+          "max": 5
+         },
+         {
+          "type": "row",
+          "cells": [
+           1,
+           3,
+           5,
+           4,
+           2
+          ],
+          "slots": true
+         }
+        ]
+       },
+       {
+        "text": "Walk left from the end. a[3] = 4 ≥ a[4] = 2: still going downhill towards the end, so keep walking.",
+        "panels": [
+         {
+          "type": "bars",
+          "values": [
+           1,
+           3,
+           5,
+           4,
+           2
+          ],
+          "states": {
+           "3": "mark",
+           "4": "mark"
+          },
+          "max": 5
+         },
+         {
+          "type": "row",
+          "cells": [
+           1,
+           3,
+           5,
+           4,
+           2
+          ],
+          "states": {
+           "4": "mark"
+          },
+          "pointers": {
+           "i": 3
+          },
+          "slots": true
+         }
+        ]
+       },
+       {
+        "text": "Walk left from the end. a[2] = 5 ≥ a[3] = 4: still going downhill towards the end, so keep walking.",
+        "panels": [
+         {
+          "type": "bars",
+          "values": [
+           1,
+           3,
+           5,
+           4,
+           2
+          ],
+          "states": {
+           "2": "mark",
+           "3": "mark",
+           "4": "mark"
+          },
+          "max": 5
+         },
+         {
+          "type": "row",
+          "cells": [
+           1,
+           3,
+           5,
+           4,
+           2
+          ],
+          "states": {
+           "3": "mark",
+           "4": "mark"
+          },
+          "pointers": {
+           "i": 2
+          },
+          "slots": true
+         }
+        ]
+       },
+       {
+        "text": "a[1] = 3 < a[2] = 5. Found the pivot at index 1. Everything right of it (5, 4, 2) slopes downhill, so that part is already as big as it can be on its own.",
+        "panels": [
+         {
+          "type": "bars",
+          "values": [
+           1,
+           3,
+           5,
+           4,
+           2
+          ],
+          "states": {
+           "2": "mark",
+           "3": "mark",
+           "4": "mark",
+           "1": "active"
+          },
+          "max": 5
+         },
+         {
+          "type": "row",
+          "cells": [
+           1,
+           3,
+           5,
+           4,
+           2
+          ],
+          "states": {
+           "2": "mark",
+           "3": "mark",
+           "4": "mark",
+           "1": "active"
+          },
+          "pointers": {
+           "pivot": 1
+          },
+          "slots": true
+         }
+        ]
+       },
+       {
+        "text": "Find the pivot's successor: walk left from the end. a[4] = 2 isn't bigger than 3.",
+        "panels": [
+         {
+          "type": "bars",
+          "values": [
+           1,
+           3,
+           5,
+           4,
+           2
+          ],
+          "states": {
+           "1": "active",
+           "4": "dim"
+          },
+          "max": 5
+         },
+         {
+          "type": "row",
+          "cells": [
+           1,
+           3,
+           5,
+           4,
+           2
+          ],
+          "states": {
+           "1": "active",
+           "4": "dim"
+          },
+          "pointers": {
+           "pivot": 1,
+           "j": 4
+          },
+          "slots": true
+         }
+        ]
+       },
+       {
+        "text": "a[3] = 4 is the first value bigger than 3 from the right, so it's the smallest one in the suffix that's bigger than 3.",
+        "panels": [
+         {
+          "type": "bars",
+          "values": [
+           1,
+           3,
+           5,
+           4,
+           2
+          ],
+          "states": {
+           "1": "active",
+           "3": "found"
+          },
+          "max": 5
+         },
+         {
+          "type": "row",
+          "cells": [
+           1,
+           3,
+           5,
+           4,
+           2
+          ],
+          "states": {
+           "1": "active",
+           "3": "found"
+          },
+          "pointers": {
+           "pivot": 1,
+           "j": 3
+          },
+          "slots": true
+         }
+        ]
+       },
+       {
+        "text": "Swap them. Index 1 now holds 4: the smallest step up at that position. The suffix is still downhill.",
+        "panels": [
+         {
+          "type": "bars",
+          "values": [
+           1,
+           4,
+           5,
+           3,
+           2
+          ],
+          "states": {
+           "1": "answer",
+           "2": "mark",
+           "3": "mark",
+           "4": "mark"
+          },
+          "max": 5
+         },
+         {
+          "type": "row",
+          "cells": [
+           1,
+           4,
+           5,
+           3,
+           2
+          ],
+          "states": {
+           "1": "answer",
+           "3": "new"
+          },
+          "slots": true
+         }
+        ]
+       },
+       {
+        "text": "Reverse the suffix so it runs uphill: the smallest it can be. Result: 1 4 2 3 5.",
+        "panels": [
+         {
+          "type": "bars",
+          "values": [
+           1,
+           4,
+           2,
+           3,
+           5
+          ],
+          "states": {
+           "1": "answer",
+           "2": "found",
+           "3": "found",
+           "4": "found"
+          },
+          "max": 5
+         },
+         {
+          "type": "row",
+          "cells": [
+           1,
+           4,
+           2,
+           3,
+           5
+          ],
+          "states": {
+           "1": "answer",
+           "2": "found",
+           "3": "found",
+           "4": "found"
+          },
+          "slots": true
+         }
+        ],
+        "result": "1 4 2 3 5"
+       }
+      ],
+      "title": "`next_permutation([1, 3, 5, 4, 2])`. Find the pivot, swap it with its successor, then reverse the suffix."
+     }
+    }
+   ]
+  },
+  {
+   "id": "examples",
+   "title": "More examples",
+   "blocks": [
+    {
+     "md": "### Letters work the same way\n\nCharacters compare by their codes, so the same steps give the next word made of the same letters. For\n`dkhc`: the tail is `k h c` (downhill), the pivot is `d`, the smallest tail letter bigger than `d` is `h`.\nSwap to get `h k d c`, reverse the tail to get `hcdk`.\n\n### Every arrangement, in order, with repeats\n\nSort the values (that's the first arrangement), then step until there's no next one. For `[2, 1, 1]` that's\n`1 1 2`, `1 2 1`, `2 1 1`. Each distinct arrangement once, in order.\n\n### Jumping straight to the k-th\n\nStepping `k` times costs O(n·k). For distinct values you can jump: with `n` values left, each choice of the\nfirst value starts a block of `(n - 1)!` arrangements. So divide to find which block you're in, which tells\nyou the first value, and repeat with the rest."
+    },
+    {
+     "walk": {
+      "steps": [
+       {
+        "text": "Count from 0: we want the arrangement with 8 arrangements before it. There are 24 in all.",
+        "panels": [
+         {
+          "type": "row",
+          "cells": [
+           1,
+           2,
+           3,
+           4
+          ],
+          "label": "still to place"
+         },
+         {
+          "type": "vars",
+          "items": {
+           "before it:": "8"
+          }
+         }
+        ]
+       },
+       {
+        "text": "4 values left, so each choice of the next value leads to a block of 3! = 6 arrangements. 8 before it means skipping 1 whole block: the next value is the one at position 1 of [1, 2, 3, 4], which is 2. 2 still to skip inside that block.",
+        "panels": [
+         {
+          "type": "row",
+          "cells": [
+           1,
+           3,
+           4
+          ],
+          "label": "still to place"
+         },
+         {
+          "type": "row",
+          "cells": [
+           2
+          ],
+          "states": {
+           "0": "new"
+          },
+          "label": "placed"
+         },
+         {
+          "type": "vars",
+          "items": {
+           "before it:": "2"
+          }
+         }
+        ]
+       },
+       {
+        "text": "3 values left, so each choice of the next value leads to a block of 2! = 2 arrangements. 2 before it means skipping 1 whole block: the next value is the one at position 1 of [1, 3, 4], which is 3. 0 still to skip inside that block.",
+        "panels": [
+         {
+          "type": "row",
+          "cells": [
+           1,
+           4
+          ],
+          "label": "still to place"
+         },
+         {
+          "type": "row",
+          "cells": [
+           2,
+           3
+          ],
+          "states": {
+           "1": "new"
+          },
+          "label": "placed"
+         },
+         {
+          "type": "vars",
+          "items": {
+           "before it:": "0"
+          }
+         }
+        ]
+       },
+       {
+        "text": "2 values left, so each choice of the next value leads to a block of 1! = 1 arrangement. 0 before it means skipping 0 whole blocks: the next value is the one at position 0 of [1, 4], which is 1. 0 still to skip inside that block.",
+        "panels": [
+         {
+          "type": "row",
+          "cells": [
+           4
+          ],
+          "label": "still to place"
+         },
+         {
+          "type": "row",
+          "cells": [
+           2,
+           3,
+           1
+          ],
+          "states": {
+           "2": "new"
+          },
+          "label": "placed"
+         },
+         {
+          "type": "vars",
+          "items": {
+           "before it:": "0"
+          }
+         }
+        ]
+       },
+       {
+        "text": "One value left: 4. The 9th arrangement is 2 3 1 4.",
+        "panels": [
+         {
+          "type": "row",
+          "cells": [],
+          "label": "still to place"
+         },
+         {
+          "type": "row",
+          "cells": [
+           2,
+           3,
+           1,
+           4
+          ],
+          "states": {
+           "3": "new"
+          },
+          "label": "placed"
+         },
+         {
+          "type": "vars",
+          "items": {
+           "before it:": "0"
+          }
+         }
+        ]
+       }
+      ],
+      "title": "`kth_permutation(4, 9)`: the 9th arrangement of 1 to 4 in dictionary order, without listing the first 8."
+     }
+    },
+    {
+     "md": "### The other way: where does an arrangement sit?\n\nRunning that backwards gives the **rank** of an arrangement: how many come before it. For each position,\ncount the unused values smaller than the one there, and multiply by the size of the block that follows. For\n`2 3 1 4`:"
+    },
+    {
+     "table": {
+      "head": [
+       "value",
+       "smaller ones not yet used",
+       "arrangements skipped"
+      ],
+      "rows": [
+       [
+        "2",
+        "1 smaller still unused",
+        "1 × 6 = 6"
+       ],
+       [
+        "3",
+        "1 smaller still unused",
+        "1 × 2 = 2"
+       ],
+       [
+        "1",
+        "0 smaller still unused",
+        "0 × 1 = 0"
+       ],
+       [
+        "4",
+        "0 smaller still unused",
+        "0 × 1 = 0"
+       ]
+      ]
+     }
+    },
+    {
+     "md": "So 8 arrangements come before it, and it's number 9, matching the walk above."
+    }
+   ]
+  },
+  {
+   "id": "variations",
+   "title": "Variations",
+   "blocks": [
+    {
+     "md": "### Listing every distinct arrangement\n\nSorting and then stepping lists the arrangements in order and skips duplicates for free. It's also\niterative: no recursion, and you can stop early. On average a step costs O(1) (most steps only touch the\nlast couple of positions), so the whole listing is O(n!) arrangements' worth of output plus a little."
+    },
+    {
+     "code": {
+      "python": "def next_permutation(a):\n    i = len(a) - 2\n    while i >= 0 and a[i] >= a[i + 1]:\n        i -= 1\n    if i < 0:\n        return False\n    j = len(a) - 1\n    while a[j] <= a[i]:\n        j -= 1\n    a[i], a[j] = a[j], a[i]\n    a[i + 1:] = reversed(a[i + 1:])\n    return True\n\n\ndef all_arrangements(a):\n    a = sorted(a)\n    out = [list(a)]\n    while next_permutation(a):\n        out.append(list(a))\n    return out\n",
+      "java": "static boolean nextPermutation(int[] a) {\n    int i = a.length - 2;\n    while (i >= 0 && a[i] >= a[i + 1]) i--;\n    if (i < 0) return false;\n    int j = a.length - 1;\n    while (a[j] <= a[i]) j--;\n    int t = a[i]; a[i] = a[j]; a[j] = t;\n    for (int lo = i + 1, hi = a.length - 1; lo < hi; lo++, hi--) {\n        t = a[lo]; a[lo] = a[hi]; a[hi] = t;\n    }\n    return true;\n}\n\nstatic List<int[]> allArrangements(int[] input) {\n    int[] a = input.clone();\n    Arrays.sort(a);\n    List<int[]> out = new ArrayList<>();\n    out.add(a.clone());\n    while (nextPermutation(a)) out.add(a.clone());\n    return out;\n}\n",
+      "cpp": "vector<vector<int>> allArrangements(vector<int> a) {\n    sort(a.begin(), a.end());\n    vector<vector<int>> out = {a};\n    while (next_permutation(a.begin(), a.end())) out.push_back(a);\n    return out;\n}\n",
+      "c": "static bool nextPermutation(int* a, int n) {\n    int i = n - 2;\n    while (i >= 0 && a[i] >= a[i + 1]) i--;\n    if (i < 0) return false;\n    int j = n - 1;\n    while (a[j] <= a[i]) j--;\n    int t = a[i]; a[i] = a[j]; a[j] = t;\n    for (int lo = i + 1, hi = n - 1; lo < hi; lo++, hi--) {\n        t = a[lo]; a[lo] = a[hi]; a[hi] = t;\n    }\n    return true;\n}\n\nstatic int cmp_int(const void* x, const void* y) {\n    int p = *(const int*)x, q = *(const int*)y;\n    return (p > q) - (p < q);\n}\n\n// Calls visit(a, n) for every distinct arrangement, in order; returns how many.\nint allArrangements(int* a, int n, void (*visit)(const int*, int)) {\n    qsort(a, n, sizeof(int), cmp_int);\n    int count = 0;\n    do {\n        if (visit) visit(a, n);\n        count++;\n    } while (nextPermutation(a, n));\n    return count;\n}\n"
+     },
+     "title": "Every distinct arrangement, in dictionary order",
+     "lines": [
+      {
+       "text": "The template's `next_permutation`, unchanged.",
+       "at": {
+        "python": [
+         [
+          2,
+          12
+         ]
+        ],
+        "java": [
+         [
+          2,
+          9
+         ],
+         [
+          11,
+          11
+         ]
+        ],
+        "c": [
+         [
+          2,
+          9
+         ],
+         [
+          11,
+          11
+         ]
+        ]
+       },
+       "notes": {
+        "python": "`a[i + 1:] = reversed(a[i + 1:])` is the tail reversal written as a slice assignment."
+       }
+      },
+      {
+       "text": "The smallest arrangement is the sorted one. Work on a copy so the caller's array is left alone.",
+       "at": {
+        "python": [
+         [
+          16,
+          16
+         ]
+        ],
+        "java": [
+         [
+          15,
+          16
+         ]
+        ],
+        "cpp": [
+         [
+          2,
+          2
+         ]
+        ],
+        "c": [
+         [
+          15,
+          16
+         ],
+         [
+          21,
+          21
+         ]
+        ]
+       },
+       "notes": {
+        "c": "`qsort` with a comparator that returns -1, 0 or 1 without subtracting (subtracting can overflow)."
+       }
+      },
+      {
+       "text": "Start the list with it.",
+       "at": {
+        "python": [
+         [
+          17,
+          17
+         ]
+        ],
+        "java": [
+         [
+          17,
+          18
+         ]
+        ],
+        "cpp": [
+         [
+          3,
+          3
+         ]
+        ],
+        "c": [
+         [
+          22,
+          22
+         ]
+        ]
+       }
+      },
+      {
+       "text": "Step until there's no next arrangement, keeping each one.",
+       "at": {
+        "python": [
+         [
+          18,
+          19
+         ]
+        ],
+        "java": [
+         [
+          19,
+          19
+         ]
+        ],
+        "cpp": [
+         [
+          4,
+          4
+         ]
+        ],
+        "c": [
+         [
+          23,
+          26
+         ]
+        ]
+       },
+       "notes": {
+        "cpp": "`std::next_permutation` does exactly what our template does, and returns false after the last one.",
+        "c": "Instead of building a list of arrays, C hands each arrangement to a callback and counts them."
+       }
+      },
+      {
+       "text": "All of them, in order.",
+       "at": {
+        "python": [
+         [
+          20,
+          20
+         ]
+        ],
+        "java": [
+         [
+          20,
+          20
+         ]
+        ],
+        "cpp": [
+         [
+          5,
+          5
+         ]
+        ],
+        "c": [
+         [
+          27,
+          27
+         ]
+        ]
+       }
+      }
+     ],
+     "run": {
+      "call": "all_arrangements([2, 1, 1]); then the count for [3, 2, 2, 1]",
+      "output": "1 1 2\n1 2 1\n2 1 1\n12"
+     }
+    },
+    {
+     "md": "### The k-th arrangement of 1 to n\n\nThe jumping idea from *More examples*, written out. It picks one value per position, and removing it from\nthe list of unused values is O(n), so it's O(n²) overall, fine for the small `n` where `n!` still fits in a\n64-bit integer (`n ≤ 20`)."
+    },
+    {
+     "code": {
+      "python": "def kth_permutation(n, k):\n    fact = [1] * (n + 1)\n    for i in range(1, n + 1):\n        fact[i] = fact[i - 1] * i\n    left = list(range(1, n + 1))\n    k -= 1\n    out = []\n    for slots in range(n, 0, -1):\n        block = fact[slots - 1]\n        out.append(left.pop(k // block))\n        k %= block\n    return out\n",
+      "java": "static int[] kthPermutation(int n, long k) {\n    long[] fact = new long[n + 1];\n    fact[0] = 1;\n    for (int i = 1; i <= n; i++) fact[i] = fact[i - 1] * i;\n    List<Integer> left = new ArrayList<>();\n    for (int v = 1; v <= n; v++) left.add(v);\n    k--;\n    int[] out = new int[n];\n    for (int slots = n; slots >= 1; slots--) {\n        long block = fact[slots - 1];\n        out[n - slots] = left.remove((int) (k / block));\n        k %= block;\n    }\n    return out;\n}\n",
+      "cpp": "vector<int> kthPermutation(int n, long long k) {\n    vector<long long> fact(n + 1, 1);\n    for (int i = 1; i <= n; i++) fact[i] = fact[i - 1] * i;\n    vector<int> left(n);\n    iota(left.begin(), left.end(), 1);\n    k--;\n    vector<int> out;\n    for (int slots = n; slots >= 1; slots--) {\n        long long block = fact[slots - 1];\n        auto it = left.begin() + k / block;\n        out.push_back(*it);\n        left.erase(it);\n        k %= block;\n    }\n    return out;\n}\n",
+      "c": "void kthPermutation(int n, long long k, int* out) {\n    long long fact[21] = {1};\n    for (int i = 1; i <= n; i++) fact[i] = fact[i - 1] * i;\n    int left[20];\n    for (int v = 0; v < n; v++) left[v] = v + 1;\n    k--;\n    for (int slots = n; slots >= 1; slots--) {\n        long long block = fact[slots - 1];\n        int idx = (int)(k / block);\n        out[n - slots] = left[idx];\n        for (int t = idx; t < slots - 1; t++) left[t] = left[t + 1];\n        k %= block;\n    }\n}\n"
+     },
+     "title": "The k-th permutation of 1 to n",
+     "lines": [
+      {
+       "text": "Factorials: `fact[m]` is how many arrangements `m` values have.",
+       "at": {
+        "python": [
+         [
+          2,
+          4
+         ]
+        ],
+        "java": [
+         [
+          2,
+          4
+         ]
+        ],
+        "cpp": [
+         [
+          2,
+          3
+         ]
+        ],
+        "c": [
+         [
+          2,
+          3
+         ]
+        ]
+       },
+       "notes": {
+        "c": "`fact[21] = {1}` sets `fact[0] = 1` and the rest to 0 before they're filled in."
+       }
+      },
+      {
+       "text": "The values not placed yet, in increasing order.",
+       "at": {
+        "python": [
+         [
+          5,
+          5
+         ]
+        ],
+        "java": [
+         [
+          5,
+          6
+         ]
+        ],
+        "cpp": [
+         [
+          4,
+          5
+         ]
+        ],
+        "c": [
+         [
+          4,
+          5
+         ]
+        ]
+       }
+      },
+      {
+       "text": "Count from 0: `k` is now how many arrangements come before the one we want.",
+       "at": {
+        "python": [
+         [
+          6,
+          7
+         ]
+        ],
+        "java": [
+         [
+          7,
+          8
+         ]
+        ],
+        "cpp": [
+         [
+          6,
+          7
+         ]
+        ],
+        "c": [
+         [
+          6,
+          6
+         ]
+        ]
+       }
+      },
+      {
+       "text": "Fill the positions left to right.",
+       "at": {
+        "python": [
+         [
+          8,
+          8
+         ]
+        ],
+        "java": [
+         [
+          9,
+          9
+         ]
+        ],
+        "cpp": [
+         [
+          8,
+          8
+         ]
+        ],
+        "c": [
+         [
+          7,
+          7
+         ]
+        ]
+       }
+      },
+      {
+       "text": "With `slots` values left, each choice for this position leads to `(slots - 1)!` arrangements.",
+       "at": {
+        "python": [
+         [
+          9,
+          9
+         ]
+        ],
+        "java": [
+         [
+          10,
+          10
+         ]
+        ],
+        "cpp": [
+         [
+          9,
+          9
+         ]
+        ],
+        "c": [
+         [
+          8,
+          8
+         ]
+        ]
+       }
+      },
+      {
+       "text": "Skip `k // block` whole blocks; the value that starts the block we land in goes here, and leaves the pool.",
+       "at": {
+        "python": [
+         [
+          10,
+          10
+         ]
+        ],
+        "java": [
+         [
+          11,
+          11
+         ]
+        ],
+        "cpp": [
+         [
+          10,
+          12
+         ]
+        ],
+        "c": [
+         [
+          9,
+          11
+         ]
+        ]
+       },
+       "notes": {
+        "java": "`remove(int index)` removes by position and returns the value. The cast matters: `remove(Integer)` would remove by value.",
+        "c": "Shift the rest of the pool down by one to close the gap."
+       }
+      },
+      {
+       "text": "What's left of `k` is the position inside that block.",
+       "at": {
+        "python": [
+         [
+          11,
+          11
+         ]
+        ],
+        "java": [
+         [
+          12,
+          12
+         ]
+        ],
+        "cpp": [
+         [
+          13,
+          13
+         ]
+        ],
+        "c": [
+         [
+          12,
+          12
+         ]
+        ]
+       }
+      },
+      {
+       "text": "The arrangement.",
+       "at": {
+        "python": [
+         [
+          12,
+          12
+         ]
+        ],
+        "java": [
+         [
+          14,
+          14
+         ]
+        ],
+        "cpp": [
+         [
+          15,
+          15
+         ]
+        ]
+       }
+      }
+     ],
+     "run": {
+      "call": "kth_permutation(4, 9); (3, 1); (3, 6)",
+      "output": "2 3 1 4\n1 2 3\n3 2 1"
+     }
+    },
+    {
+     "md": "### Going the other way\n\nThere's a mirror-image *previous* arrangement too: the largest one that's smaller. It has the same shape (a\nscan for a pivot, a swap, a reversal), and working out exactly which comparisons change is a good way to\ncheck you understand why each step of the template is there."
+    }
+   ]
+  },
+  {
+   "id": "complexity",
+   "title": "What it costs",
+   "blocks": [
+    {
+     "md": "One step is three scans over at most the whole array: O(n) time, O(1) extra space. In the worst case (a step\nlike `1 5 4 3 2 → 2 1 3 4 5`) it touches every position; usually it only touches a short tail.\n\nListing all arrangements with repeated steps costs O(1) per step on average, so it's dominated by the number\nof arrangements. Jumping to the k-th is O(n²) with a plain list for the pool, independent of `k`."
+    },
+    {
+     "table": {
+      "head": [
+       "Approach",
+       "Time",
+       "Extra space"
+      ],
+      "rows": [
+       [
+        "Generate all arrangements, sort, find the next",
+        "O(n! · n log n)",
+        "O(n! · n)"
+       ],
+       [
+        "Next permutation",
+        "O(n)",
+        "O(1)"
+       ],
+       [
+        "k steps of next permutation",
+        "O(n·k) worst case",
+        "O(1)"
+       ],
+       [
+        "k-th permutation by factorial blocks",
+        "O(n²)",
+        "O(n)"
+       ]
+      ]
+     }
+    }
+   ]
+  },
+  {
+   "id": "languages",
+   "title": "In your language",
+   "blocks": [
+    {
+     "md": "### Python\n\nThere's no built-in next permutation. `itertools.permutations` lists arrangements by *position*, so with\nrepeated values it repeats arrangements, and it only comes out in dictionary order if the input was sorted.\nStrings are immutable: work on `list(s)` and `\"\".join` at the end.\n\n### Java\n\nNo library version; write the template. For a `String`, use `toCharArray()` and `new String(chars)`. When\nremoving from a `List<Integer>` by position, make sure the argument is an `int`, not an `Integer`.\n\n### C++\n\n`std::next_permutation(first, last)` and `std::prev_permutation` are built in. Both return false when they\nwrap round (and leave the range at the first or last arrangement). They work on strings too:\n`next_permutation(s.begin(), s.end())`.\n\n### C\n\nWrite the template with an explicit length. For the k-th permutation, keep `k` and the factorials in\n`long long`; `13!` already overflows a 32-bit `int`."
+    }
+   ]
+  },
+  {
+   "id": "pitfalls",
+   "title": "Pitfalls and edge cases",
+   "blocks": [
+    {
+     "md": "- Using `>` instead of `>=` in the pivot scan (or `<` instead of `<=` in the successor scan). With repeated\n  values that either swaps equal values or picks the wrong successor.\n- Sorting the tail instead of reversing it. It works, but it's O(n log n), and it hides the fact that the\n  tail is already sorted the other way.\n- Forgetting the \"no pivot\" case: an array that runs downhill all the way, including a single value.\n- Picking the *largest* tail value bigger than the pivot rather than the smallest.\n- Treating k as 1-based in some places and 0-based in others in the k-th permutation.\n- Overflowing factorials for `n ≥ 13` in 32-bit integers."
+    }
+   ]
+  },
+  {
+   "id": "check",
+   "title": "Check yourself",
+   "blocks": [
+    {
+     "quiz": [
+      {
+       "q": "Why does the change have to happen at the pivot, and not further right?",
+       "a": "Everything right of the pivot runs downhill, which is already the largest arrangement of those values. No rearrangement of them alone can make the whole thing bigger."
+      },
+      {
+       "q": "Why scan from the right for the successor?",
+       "a": "The tail runs downhill, so the values get smaller as you go right. The first value bigger than the pivot that you meet from the right is the smallest such value."
+      },
+      {
+       "q": "Why can you reverse the tail instead of sorting it?",
+       "a": "The swap keeps the tail running downhill, and a downhill run reversed is sorted in increasing order."
+      },
+      {
+       "q": "What is the next arrangement of 2 4 3 1?",
+       "a": "The pivot is 2 (index 0); the smallest bigger value to its right is 3. Swap to get 3 4 2 1, then reverse the tail: 3 1 2 4."
+      },
+      {
+       "q": "How many distinct arrangements does [1, 1, 2, 2] have?",
+       "a": "4! / (2! · 2!) = 6."
+      }
+     ]
+    }
+   ]
+  }
+ ],
+ "leetcode": [
+  {
+   "id": 31,
+   "title": "Next Permutation",
+   "url": "https://leetcode.com/problems/next-permutation/",
+   "difficulty": "medium"
+  },
+  {
+   "id": 1053,
+   "title": "Previous Permutation With One Swap",
+   "url": "https://leetcode.com/problems/previous-permutation-with-one-swap/",
+   "difficulty": "medium"
+  },
+  {
+   "id": 556,
+   "title": "Next Greater Element III",
+   "url": "https://leetcode.com/problems/next-greater-element-iii/",
+   "difficulty": "medium"
+  },
+  {
+   "id": 47,
+   "title": "Permutations II",
+   "url": "https://leetcode.com/problems/permutations-ii/",
+   "difficulty": "medium"
+  },
+  {
+   "id": 1850,
+   "title": "Minimum Adjacent Swaps to Reach the Kth Smallest Number",
+   "url": "https://leetcode.com/problems/minimum-adjacent-swaps-to-reach-the-kth-smallest-number/",
+   "difficulty": "medium"
+  },
+  {
+   "id": 60,
+   "title": "Permutation Sequence",
+   "url": "https://leetcode.com/problems/permutation-sequence/",
+   "difficulty": "hard"
+  },
+  {
+   "id": 1842,
+   "title": "Next Palindrome Using Same Digits",
+   "url": "https://leetcode.com/problems/next-palindrome-using-same-digits/",
+   "difficulty": "hard",
+   "premium": true
+  }
+ ]
+}

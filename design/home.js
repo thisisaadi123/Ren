@@ -156,17 +156,21 @@ const createChat = (msgs, form, { reply }) => {
   return { play };
 };
 
-// A Ren panel with Hint / Nudge / Explain / Solve conversations.
-const mountRev = ({ msgs, form, levelEl, tabs, conv, reply }) => {
+// A Ren panel with the app's tabs: Chat, plus Solution where the app has one
+// (DSA). The Solution tab is the app's own, read only, with no chat box.
+const mountRev = ({ msgs, form, tabs, conv, reply, chatPanel, solution }) => {
   const chat = createChat(msgs, form, { reply });
-  let level = "nudge";
-  const show = (key = level) => {
-    level = key;
-    const c = conv(key);
-    levelEl.textContent = `Level ${c.level} of 4`;
-    chat.play(c.msgs);
+  let tab = "chat";
+  const show = (key = tab) => {
+    tab = key;
+    if (solution) {
+      chatPanel.hidden = key === "solution";
+      solution.panel.hidden = key !== "solution";
+      if (key === "solution") return solution.open();
+    }
+    chat.play(conv());
   };
-  tabs.forEach((t) => t.addEventListener("click", () => show(t.dataset.level)));
+  tabs.forEach((t) => t.addEventListener("click", () => show(t.dataset.tab)));
   return { show };
 };
 
@@ -194,46 +198,41 @@ const REV_REPLY = (what) => (q) => {
   const editor = document.getElementById("editor");
   if (!editor) return;
 
-  // Each language: starter code with one blank to fill, and the filled answer.
+  // Each language: the solution with one blank left to fill (Biggest Water
+  // Tank from the DSA sheet; the full solution is in the Solution tab).
   const LANGS = {
     python: {
       file: "solution.py",
       comment: "#",
-      blank: "merged[-1][1] = ",
-      fill: "max(merged[-1][1], end)",
+      blank: "best = max(best, ",
       code: [
-        "def merge(intervals):",
-        "    intervals.sort(key=lambda x: x[0])",
-        "    merged = []",
-        "",
-        "    for start, end in intervals:",
-        "        if merged and start <= merged[-1][1]:",
-        "            merged[-1][1] = ",
-        "        else:",
-        "            merged.append([start, end])",
-        "",
-        "    return merged",
+        "class Solution:",
+        "    def biggestTank(self, posts: List[int]) -> int:",
+        "        i, j, best = 0, len(posts) - 1, 0",
+        "        while i < j:",
+        "            best = max(best, ",
+        "            if posts[i] < posts[j]:",
+        "                i += 1",
+        "            else:",
+        "                j -= 1",
+        "        return best",
       ],
     },
     java: {
       file: "Solution.java",
       comment: "//",
-      blank: "last[1] = ",
-      fill: "Math.max(last[1], cur[1]);",
+      blank: "best = Math.max(best, ",
       code: [
         "class Solution {",
-        "    public int[][] merge(int[][] intervals) {",
-        "        Arrays.sort(intervals, (a, b) -> a[0] - b[0]);",
-        "        List<int[]> merged = new ArrayList<>();",
-        "        for (int[] cur : intervals) {",
-        "            int[] last = merged.isEmpty() ? null : merged.get(merged.size() - 1);",
-        "            if (last != null && cur[0] <= last[1]) {",
-        "                last[1] = ",
-        "            } else {",
-        "                merged.add(cur);",
-        "            }",
+        "    public long biggestTank(int[] posts) {",
+        "        int i = 0, j = posts.length - 1;",
+        "        long best = 0;",
+        "        while (i < j) {",
+        "            best = Math.max(best, ",
+        "            if (posts[i] < posts[j]) i++;",
+        "            else j--;",
         "        }",
-        "        return merged.toArray(new int[0][]);",
+        "        return best;",
         "    }",
         "}",
       ],
@@ -241,21 +240,19 @@ const REV_REPLY = (what) => (q) => {
     cpp: {
       file: "solution.cpp",
       comment: "//",
-      blank: "merged.back()[1] = ",
-      fill: "max(merged.back()[1], cur[1]);",
+      blank: "best = max(best, ",
       code: [
         "class Solution {",
         "public:",
-        "    vector<vector<int>> merge(vector<vector<int>>& intervals) {",
-        "        sort(intervals.begin(), intervals.end());",
-        "        vector<vector<int>> merged;",
-        "        for (auto& cur : intervals) {",
-        "            if (!merged.empty() && cur[0] <= merged.back()[1])",
-        "                merged.back()[1] = ",
-        "            else",
-        "                merged.push_back(cur);",
+        "    long long biggestTank(vector<int>& posts) {",
+        "        int i = 0, j = (int) posts.size() - 1;",
+        "        long long best = 0;",
+        "        while (i < j) {",
+        "            best = max(best, ",
+        "            if (posts[i] < posts[j]) i++;",
+        "            else j--;",
         "        }",
-        "        return merged;",
+        "        return best;",
         "    }",
         "};",
       ],
@@ -263,31 +260,18 @@ const REV_REPLY = (what) => (q) => {
     c: {
       file: "solution.c",
       comment: "//",
-      blank: "merged[n - 1][1] = ",
-      fill: "MAX(merged[n - 1][1], cur[1]);",
+      blank: "if ((long long) (j - i) * h > best) best = ",
       code: [
-        "#define MAX(a, b) ((a) > (b) ? (a) : (b))",
-        "",
-        "int byStart(const void* a, const void* b) {",
-        "    return (*(int**)a)[0] - (*(int**)b)[0];",
-        "}",
-        "",
-        "int** merge(int** intervals, int intervalsSize, int* intervalsColSize,",
-        "            int* returnSize, int** returnColumnSizes) {",
-        "    qsort(intervals, intervalsSize, sizeof(int*), byStart);",
-        "    int** merged = malloc(sizeof(int*) * intervalsSize);",
-        "    int n = 0;",
-        "    for (int i = 0; i < intervalsSize; i++) {",
-        "        int* cur = intervals[i];",
-        "        if (n > 0 && cur[0] <= merged[n - 1][1])",
-        "            merged[n - 1][1] = ",
-        "        else",
-        "            merged[n++] = cur;",
+        "long long biggestTank(int* posts, int postsSize) {",
+        "    int i = 0, j = postsSize - 1;",
+        "    long long best = 0;",
+        "    while (i < j) {",
+        "        int h = posts[i] < posts[j] ? posts[i] : posts[j];",
+        "        if ((long long) (j - i) * h > best) best = ",
+        "        if (posts[i] < posts[j]) i++;",
+        "        else j--;",
         "    }",
-        "    *returnSize = n;",
-        "    *returnColumnSizes = malloc(sizeof(int) * n);",
-        "    for (int i = 0; i < n; i++) (*returnColumnSizes)[i] = 2;",
-        "    return merged;",
+        "    return best;",
         "}",
       ],
     },
@@ -391,41 +375,33 @@ const REV_REPLY = (what) => (q) => {
 
   document.getElementById("editor-reset").addEventListener("click", () => setCode(starter(), caretAfterBlank()));
 
-  // Ren: each help level has its own conversation.
-  const conv = (key) => {
+  // Ren: a chat about your code, and the app's Solution tab (no chat there).
+  const chatAbout = () => {
     const n = blankLine();
-    return {
-      hint: { level: 1, msgs: [
-        ai(`<span class="msg-label">Hint</span><p>What does sorting by start give you? Once the intervals are in order, where can an overlap show up?</p>`),
-        me("Only between neighbours?"),
-        ai(`<p>Exactly. So you only ever need to compare with the last interval you merged.</p>`),
-      ] },
-      nudge: { level: 2, msgs: [
-        ai(`<span class="msg-label">Read your code · line ${n}</span><p>Sorting by start was the right call. On line ${n}, when the next interval overlaps the last merged one, which end should survive?</p>`),
-        me("The bigger one?"),
-        ai(`<p>Right. Take the max there, then check it against <code>[[1,10],[2,3]]</code>.</p>`),
-      ] },
-      explain: { level: 3, msgs: [
-        ai(`<span class="msg-label">From an empty editor</span><ol><li><b>Sort by start.</b> Overlaps end up next to each other.</li><li><b>Walk once,</b> keeping a list of merged intervals.</li><li><b>Compare with the last one.</b> If the current interval starts before it ends, extend it. Otherwise, start a new one.</li></ol>`),
-        ai(`<p>Example: <code>[1,3]</code> and <code>[2,6]</code> overlap, so they become <code>[1,6]</code>. <code>[8,10]</code> starts after 6, so it stands alone.</p>`),
-        me("Why sort first?"),
-        ai(`<p>Unsorted, an overlap could hide anywhere, so you'd compare every pair: O(n²). Sorted, it's one pass after an O(n log n) sort.</p>`),
-      ] },
-      solve: { level: 4, msgs: [
-        ai(`<span class="msg-label">Full solution</span><p>Line ${n} is the key: keep the larger end, so a short interval inside a longer one can't shrink it.</p><pre>${escapeHtml(LANGS[lang].blank.trim() + " " + LANGS[lang].fill)}</pre>`),
-        me(`Why the max on line ${n}?`),
-        ai(`<p>Take <code>[1,10]</code> then <code>[2,3]</code>. Without it, the end drops to 3 and you lose everything from 4 to 10.</p>`),
-      ] },
-    }[key];
+    return [
+      ai(`<span class="msg-label">Read your code · line ${n}</span><p>Line ${n} keeps the best tank so far. What's the area of the tank between posts <code>i</code> and <code>j</code>?</p>`),
+      me("The width times the shorter post?"),
+      ai(`<p>Right: <code>(j - i)</code> times the smaller of the two heights. Check it on <code>[1,8,6,2,5,4,8,3,7]</code>, the answer is 49.</p>`),
+    ];
   };
+
+  const solution = renSolution.mount(document.getElementById("coach-sol"), {
+    id: "biggest-water-tank",
+    problem: { solution: true },
+    highlight: renCode.as,
+    lang,
+    source: () =>
+      fetch("demo/biggest-water-tank.json").then(async (r) => ({ ok: r.ok, status: r.status, data: r.ok ? await r.json() : null })),
+  });
 
   const rev = mountRev({
     msgs: document.getElementById("coach-msgs"),
     form: document.getElementById("coach-form"),
-    levelEl: document.getElementById("coach-level"),
-    tabs: document.querySelectorAll("#coach-tabs [data-level]"),
-    conv,
+    tabs: document.querySelectorAll("#coach-tabs [data-tab]"),
+    conv: chatAbout,
     reply: REV_REPLY("your code and this exact problem"),
+    chatPanel: document.getElementById("coach-chat"),
+    solution: { panel: document.getElementById("coach-sol"), open: () => solution.open() },
   });
 
   langSelect.addEventListener("change", () => {
@@ -433,6 +409,7 @@ const REV_REPLY = (what) => (q) => {
     tokens = tokensFor(LANGS[lang].comment);
     fileLabel.textContent = LANGS[lang].file;
     setCode(starter(), caretAfterBlank(), false);
+    solution.language(lang);
     rev.show();
   });
 
@@ -443,7 +420,7 @@ const REV_REPLY = (what) => (q) => {
   // Timer and Ren's first conversation start once the window is on screen.
   whenVisible(editor, () => {
     startTimer(document.getElementById("practice-timer"));
-    rev.show("nudge");
+    rev.show("chat");
   });
 })();
 
@@ -636,41 +613,23 @@ const onSlide = (index, el, fn) => {
   render();
   document.fonts?.ready.then(render);
 
-  const conv = (key) => ({
-    hint: { level: 1, msgs: [
-      ai(`<span class="msg-label">Hint</span><p>Does each employee need the company's average, or their own department's?</p>`),
-      me("Their own department's."),
-      ai(`<p>Right. So the average has to be worked out per department, not once for the whole table.</p>`),
-    ] },
-    nudge: { level: 2, msgs: [
-      ai(`<span class="msg-label">Read your query · line 9</span><p>Line 9 ties the subquery to each employee's department. What would you get without it?</p>`),
-      me("Everyone above the company average."),
-      ai(`<p>Exactly, so your query is right. Next, think about how many times that subquery runs.</p>`),
-    ] },
-    explain: { level: 3, msgs: [
-      ai(`<span class="msg-label">From an empty editor</span><ol><li><b>Average per department.</b> Group salaries by <code>department_id</code>.</li><li><b>Compare.</b> Keep employees above their own department's number.</li><li><b>Present.</b> Join departments for the name, then sort.</li></ol>`),
-      me("Subquery or a join?"),
-      ai(`<p>Both work. A CTE with <code>GROUP BY</code> works out each average once, which holds up better on big tables.</p>`),
-    ] },
-    solve: { level: 4, msgs: [
-      ai(`<span class="msg-label">Full solution</span><p>This version works out each average once, then joins.</p><pre>${escapeHtml(SOLUTION)}</pre>`),
-      me("Why is that faster?"),
-      ai(`<p>The correlated subquery can run once per employee. The CTE runs once per department, then it's a plain join.</p>`),
-    ] },
-  }[key]);
+  const conv = () => [
+    ai(`<span class="msg-label">Read your query · line 9</span><p>Line 9 ties the subquery to each employee's department. What would you get without it?</p>`),
+    me("Everyone above the company average."),
+    ai(`<p>Exactly, so your query is right. Next, think about how many times that subquery runs.</p>`),
+  ];
 
   const rev = mountRev({
     msgs: document.getElementById("sql-rev-msgs"),
     form: document.getElementById("sql-rev-form"),
-    levelEl: document.getElementById("sql-rev-level"),
-    tabs: document.querySelectorAll("#sql-rev-tabs [data-level]"),
+    tabs: document.querySelectorAll("#sql-rev-tabs [data-tab]"),
     conv,
     reply: REV_REPLY("your query and this exact schema"),
   });
 
   onSlide(1, document.getElementById("sql-demo"), () => {
     startTimer(document.querySelector("#sql-demo .timer[data-count]"));
-    rev.show("nudge");
+    rev.show("chat");
   });
 })();
 
@@ -1076,41 +1035,23 @@ const onSlide = (index, el, fn) => {
   setTool("select");
   build();
 
-  const conv = (key) => ({
-    hint: { level: 1, msgs: [
-      ai(`<span class="msg-label">Hint</span><p>Start with the numbers. 100M links a month is about 40 writes a second. What about reads?</p>`),
-      me("Ten times that, so around 400 a second."),
-      ai(`<p>Right, so it's read-heavy. That tells you where the cache pays off.</p>`),
-    ] },
-    nudge: { level: 2, msgs: [
-      ai(`<span class="msg-label">Looked at your board</span><p>You have a cache next to the API servers. What's the key, and what happens on a miss?</p>`),
-      me("The key is the short code. On a miss, read Postgres and fill the cache."),
-      ai(`<p>Good. Next: how do you generate short codes without collisions?</p>`),
-    ] },
-    explain: { level: 3, msgs: [
-      ai(`<span class="msg-label">From a blank board</span><ol><li><b>Estimate load.</b> About 40 writes and 400 reads a second.</li><li><b>Write path.</b> The API stores code → URL in Postgres.</li><li><b>Read path.</b> Redis first; misses fall back to Postgres.</li><li><b>Short codes.</b> A counter encoded in base62, or random codes with a retry.</li></ol>`),
-      me("Why base62?"),
-      ai(`<p>Seven base62 characters give about 3.5 trillion codes, enough for decades at this rate.</p>`),
-    ] },
-    solve: { level: 4, msgs: [
-      ai(`<span class="msg-label">Reference design</span><p>Your board is close. The missing piece is how short codes get made: an ID generator behind the API servers, handing out base62 codes.</p>`),
-      me("What if the generator goes down?"),
-      ai(`<p>Give each API server a block of IDs up front. It keeps working through a short outage.</p>`),
-    ] },
-  }[key]);
+  const conv = () => [
+    ai(`<span class="msg-label">Looked at your board</span><p>You have a cache next to the API servers. What's the key, and what happens on a miss?</p>`),
+    me("The key is the short code. On a miss, read Postgres and fill the cache."),
+    ai(`<p>Good. Next: how do you generate short codes without collisions?</p>`),
+  ];
 
   const rev = mountRev({
     msgs: document.getElementById("sd-rev-msgs"),
     form: document.getElementById("sd-rev-form"),
-    levelEl: document.getElementById("sd-rev-level"),
-    tabs: document.querySelectorAll("#sd-rev-tabs [data-level]"),
+    tabs: document.querySelectorAll("#sd-rev-tabs [data-tab]"),
     conv,
     reply: REV_REPLY("your board and this exact prompt"),
   });
 
   onSlide(2, document.getElementById("design-demo"), () => {
     startTimer(document.querySelector("#design-demo .timer[data-count]"));
-    rev.show("nudge");
+    rev.show("chat");
   });
 })();
 
