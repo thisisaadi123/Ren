@@ -71,6 +71,13 @@
   const sum = (list, fn) => list.reduce((n, x) => n + fn(x), 0);
   const ready = (p) => Math.min(p.problems.length, p.count);
   const missing = (p) => Math.max(0, p.count - p.problems.length);
+  const learned = (id) => {
+    try {
+      return localStorage.getItem(`ren:learned:${id}`) === "true";
+    } catch {
+      return false;
+    }
+  };
 
   /* What to show ------------------------------------------------------------ */
 
@@ -164,6 +171,19 @@
           </a>
         </li>`
     );
+    // The pattern's lesson comes first: read it, then solve.
+    if (p.lesson && !state.difficulty && !state.type && state.status !== "locked") {
+      rows.unshift(`
+        <li>
+          <a class="prob lesson" href="learn.html?id=${encodeURIComponent(p.id)}">
+            <span class="prob-title">Learn the pattern</span>
+            <span class="prob-meta">${
+              learned(p.id) ? '<span class="prob-read">Read</span>' : `<span class="prob-type">${p.lesson} min read</span>`
+            }</span>
+            ${ICON.go}
+          </a>
+        </li>`);
+    }
     if (p.soon) {
       const text = locked ? "Coming soon" : `${p.soon} more coming soon`;
       rows.push(`<li class="prob soon">${ICON.lock}<span>${text}</span></li>`);

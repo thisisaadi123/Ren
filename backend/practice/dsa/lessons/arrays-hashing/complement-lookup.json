@@ -1,0 +1,1258 @@
+{
+ "version": 1,
+ "id": "complement-lookup",
+ "topic": "arrays-hashing",
+ "summary": "When you need two items that fit together (sum to a target, differ by `k`, XOR to `t`), don't search for the\npartner. Work out exactly what the partner must be, and ask a table of everything seen so far whether it's there.",
+ "minutes": 14,
+ "sections": [
+  {
+   "id": "idea",
+   "title": "The idea",
+   "blocks": [
+    {
+     "md": "You're doing a jigsaw. You pick up a piece with a particular tab on its edge. You could try it against\nevery loose piece on the table, one by one. Or you could look at it, say \"I need a piece with *this* exact\nhole\", and go straight to the spot where such pieces are kept.\n\nComplement lookup is the second way. In a pair problem, one side of the pair usually **determines** the\nother:\n\n- if `x + y = target`, then `y` must be `target - x`;\n- if `y - x = k`, then `y = x + k` (or `x = y - k`);\n- if `x XOR y = t`, then `y = x XOR t`.\n\nSo for each `x`, you don't search for a partner; you **compute** it. The only question left is \"have I seen\nthat value already?\", and a hash table answers that in O(1)."
+    },
+    {
+     "key": "Scan once. At each element, compute the partner it needs, look it up in a table of the elements **before**\nit, and only then add the element itself to the table."
+    },
+    {
+     "md": "**Why \"before it\" is the key detail.** Every pair `(i, j)` with `i < j` gets discovered exactly once: when\nthe scan reaches `j`, element `i` is already in the table. Because the current element is added *after* the\nlookup, it can never pair with itself, and no pair is counted twice. This \"look up, then insert\" order is\nthe heart of the pattern."
+    },
+    {
+     "panels": [
+      {
+       "type": "row",
+       "cells": [
+        2,
+        7,
+        4,
+        5,
+        2,
+        5
+       ],
+       "states": {
+        "0": "found",
+        "1": "active"
+       },
+       "pointers": {
+        "x": 1
+       },
+       "label": "target 9",
+       "slots": true
+      },
+      {
+       "type": "vars",
+       "items": {
+        "need:": "9 - 7 = 2",
+        "in the table?:": "yes, index 0"
+       }
+      }
+     ],
+     "caption": "At `7`, the partner must be `2`. One lookup finds it among the earlier values."
+    }
+   ]
+  },
+  {
+   "id": "signals",
+   "title": "When to reach for it",
+   "blocks": [
+    {
+     "table": {
+      "head": [
+       "The problem says…",
+       "Partner of x",
+       "Table stores"
+      ],
+      "rows": [
+       [
+        "two values that add up to `t`",
+        "`t - x`",
+        "value → index or count"
+       ],
+       [
+        "pairs with difference `k`",
+        "`x - k` and `x + k`",
+        "value → count, or a set"
+       ],
+       [
+        "pairs whose XOR is `t`",
+        "`x ^ t`",
+        "value → count"
+       ],
+       [
+        "pair sum divisible by `k`",
+        "remainder `(k - x % k) % k`",
+        "remainder → count"
+       ],
+       [
+        "`a[i] + b[j] = t` across two lists",
+        "`t - b[j]`",
+        "all of list `a`, counted"
+       ],
+       [
+        "4 lists, `a + b + c + d = 0`",
+        "`-(c + d)`",
+        "every `a + b` sum, counted"
+       ]
+      ]
+     }
+    },
+    {
+     "md": "**The recognisable shape:** \"find / count pairs `(i, j)` such that `f(a[i], a[j]) = something`\", where\nknowing one side pins down the other exactly.\n\n**When it is the wrong tool**\n\n- **Inequalities.** \"Pairs with sum *less than* `t`\" has a whole range of valid partners. A hash table\n  answers \"is this exact value here?\", not \"how many values are below this?\". Sort, then use two pointers or\n  binary search.\n- **The input is already sorted and memory is tight.** Two pointers from both ends finds a pair with a given\n  sum in O(n) time and O(1) space.\n- **You must list every pair.** If the answer has O(n²) pairs, no trick makes it faster than its own size.\n  Counting them, though, is still O(n).\n- **Triples and beyond.** Three-sum fixes one element and runs a two-sum on the rest, O(n²). Hashing helps\n  the inner step, but the outer loop stays."
+    }
+   ]
+  },
+  {
+   "id": "theory",
+   "title": "Why it works",
+   "blocks": [
+    {
+     "md": "### Inverting the equation\n\nComplement lookup works whenever the pair condition can be **solved for one side**. Write the condition as\n`x ⊕ y = t`. If the operation `⊕` has an inverse, then `y = t ⊖ x` has exactly one solution, and you can\ncompute it:"
+    },
+    {
+     "table": {
+      "head": [
+       "Condition",
+       "Solve for the partner",
+       "Works because"
+      ],
+      "rows": [
+       [
+        "`x + y = t`",
+        "`y = t - x`",
+        "subtraction undoes addition"
+       ],
+       [
+        "`y - x = k`",
+        "`y = x + k`",
+        "addition undoes subtraction"
+       ],
+       [
+        "`x ^ y = t`",
+        "`y = x ^ t`",
+        "XOR is its own inverse: `x ^ x = 0`"
+       ],
+       [
+        "`(x + y) % k = 0`",
+        "`y % k = (k - x % k) % k`",
+        "remainders add like numbers, mod k"
+       ],
+       [
+        "`x · y = t`",
+        "`y = t / x` if `x` divides `t`",
+        "only for non-zero `x` dividing `t`"
+       ]
+      ]
+     }
+    },
+    {
+     "md": "When the inverse isn't unique (`x · y = 0` is satisfied by any `y` when `x = 0`), handle those values\nseparately.\n\n### The one-pass invariant\n\nHere's the precise statement that makes the loop correct:\n\n> **Invariant:** just before the scan processes index `j`, the table holds exactly the elements at\n> indices `0 .. j-1`.\n\n- It holds at the start (`j = 0`, empty table).\n- Each iteration looks up first and inserts `a[j]` last, so it holds again for `j + 1`.\n\nSo the lookup at `j` sees every possible left partner `i < j` and nothing else. Summing over all `j` counts\nevery pair `i < j` exactly once. That's the whole proof, and it's why we never compare two elements\ndirectly.\n\n### What to store\n\nThe table's values depend on what the question asks for:\n\n- **\"Is there a pair?\"**: a set of values seen.\n- **\"Which pair?\"** (return positions): value → index. Decide whether you want the first or the latest\n  index of a repeated value and write that on purpose.\n- **\"How many pairs?\"**: value → count, since every earlier copy of the partner forms its own pair.\n\n### Duplicates are handled for free\n\nTake `target = 6` and `nums = [3, 3]`. At index 0 the table is empty: no pair. Then `3` goes in. At index 1,\nthe partner is `6 - 3 = 3`, which is in the table: one pair, `(0, 1)`. A value pairing with a different copy\nof itself works naturally, while pairing with *itself* is impossible because it isn't in the table yet.\n\n### Two collections: meet in the middle\n\nWith two lists, `a[i] + b[j] = t`, put all of `a` in the table (as counts), then scan `b` and look up\n`t - b[j]`. Here there's no \"before\" rule to worry about: the pairs are always one from each list.\n\nThe same idea scales. For four lists with `a + b + c + d = 0`, trying every quadruple is O(n⁴). Instead,\ncount every sum `a[i] + b[j]` in a table (n² entries), then for every `c[k] + d[l]` look up its negation.\nThat's O(n²): you've split one O(n⁴) search into two O(n²) halves that **meet in the middle** at the table."
+    }
+   ]
+  },
+  {
+   "id": "template",
+   "title": "The template",
+   "blocks": [
+    {
+     "md": "Count the pairs `i < j` with `nums[i] + nums[j] == target`. Values may repeat, and every pair of positions\ncounts. Assume `|values|` and `|target|` are at most 10⁹ (that bound matters; see *Pitfalls*)."
+    },
+    {
+     "code": {
+      "python": "def count_pairs(nums, target):\n    seen = {}\n    pairs = 0\n    for x in nums:\n        need = target - x\n        pairs += seen.get(need, 0)\n        seen[x] = seen.get(x, 0) + 1\n    return pairs\n",
+      "java": "static long countPairs(int[] nums, int target) {\n    Map<Integer, Integer> seen = new HashMap<>();\n    long pairs = 0;\n    for (int x : nums) {\n        int need = target - x;\n        pairs += seen.getOrDefault(need, 0);\n        seen.merge(x, 1, Integer::sum);\n    }\n    return pairs;\n}\n",
+      "cpp": "long long countPairs(const vector<int>& nums, int target) {\n    unordered_map<int, int> seen;\n    seen.reserve(nums.size() * 2);\n    long long pairs = 0;\n    for (int x : nums) {\n        int need = target - x;\n        auto it = seen.find(need);\n        if (it != seen.end()) pairs += it->second;\n        seen[x]++;\n    }\n    return pairs;\n}\n",
+      "c": "typedef struct {\n    int *keys, *counts;\n    bool *used;\n    size_t mask;\n} CountMap;\n\nstatic size_t cm_slot(const CountMap* m, int key) {\n    size_t i = ((uint32_t)key * 2654435761u) & m->mask;\n    while (m->used[i] && m->keys[i] != key) i = (i + 1) & m->mask;\n    return i;\n}\n\nlong long countPairs(const int* nums, int n, int target) {\n    size_t cap = 16;\n    while (cap < 2 * (size_t)n) cap <<= 1;\n    CountMap seen = {malloc(cap * sizeof(int)), calloc(cap, sizeof(int)), calloc(cap, sizeof(bool)), cap - 1};\n    long long pairs = 0;\n    for (int j = 0; j < n; j++) {\n        int need = target - nums[j];\n        size_t i = cm_slot(&seen, need);\n        if (seen.used[i]) pairs += seen.counts[i];\n        i = cm_slot(&seen, nums[j]);\n        seen.used[i] = true;\n        seen.keys[i] = nums[j];\n        seen.counts[i]++;\n    }\n    free(seen.keys); free(seen.counts); free(seen.used);\n    return pairs;\n}\n"
+     },
+     "title": "Count pairs with a given sum",
+     "lines": [
+      {
+       "text": "An empty table of `value → how many times seen so far`, and a 64-bit total. With many equal values the number of pairs grows like n²/2, beyond 32 bits.",
+       "at": {
+        "python": [
+         [
+          2,
+          3
+         ]
+        ],
+        "java": [
+         [
+          2,
+          3
+         ]
+        ],
+        "cpp": [
+         [
+          2,
+          4
+         ]
+        ],
+        "c": [
+         [
+          14,
+          17
+         ]
+        ]
+       }
+      },
+      {
+       "text": "One pass, left to right. The current position is the **right** end of every pair we count here.",
+       "at": {
+        "python": [
+         [
+          4,
+          4
+         ]
+        ],
+        "java": [
+         [
+          4,
+          4
+         ]
+        ],
+        "cpp": [
+         [
+          5,
+          5
+         ]
+        ],
+        "c": [
+         [
+          18,
+          18
+         ]
+        ]
+       }
+      },
+      {
+       "text": "Solve `x + need = target` for the partner. With values and target within ±10⁹, the difference stays within ±2·10⁹, which still fits in a 32-bit `int`.",
+       "at": {
+        "python": [
+         [
+          5,
+          5
+         ]
+        ],
+        "java": [
+         [
+          5,
+          5
+         ]
+        ],
+        "cpp": [
+         [
+          6,
+          6
+         ]
+        ],
+        "c": [
+         [
+          19,
+          19
+         ]
+        ]
+       }
+      },
+      {
+       "text": "Every earlier copy of `need` makes one pair with this `x`. A missing key counts as 0.",
+       "at": {
+        "python": [
+         [
+          6,
+          6
+         ]
+        ],
+        "java": [
+         [
+          6,
+          6
+         ]
+        ],
+        "cpp": [
+         [
+          7,
+          8
+         ]
+        ],
+        "c": [
+         [
+          20,
+          21
+         ]
+        ]
+       },
+       "notes": {
+        "cpp": "`find` looks without inserting. `seen[need]` would insert `need` with a 0 count, growing the table with values that never occurred."
+       }
+      },
+      {
+       "text": "Only now does `x` join the table, so it can pair with later elements but never with itself.",
+       "at": {
+        "python": [
+         [
+          7,
+          7
+         ]
+        ],
+        "java": [
+         [
+          7,
+          7
+         ]
+        ],
+        "cpp": [
+         [
+          9,
+          9
+         ]
+        ],
+        "c": [
+         [
+          22,
+          25
+         ]
+        ]
+       }
+      },
+      {
+       "text": "Each pair was counted once, at its right end.",
+       "at": {
+        "python": [
+         [
+          8,
+          8
+         ]
+        ],
+        "java": [
+         [
+          9,
+          9
+         ]
+        ],
+        "cpp": [
+         [
+          11,
+          11
+         ]
+        ],
+        "c": [
+         [
+          28,
+          28
+         ]
+        ]
+       }
+      },
+      {
+       "text": "The same open-addressing table as in *Frequency counting*: a power-of-two array of slots, a multiplicative hash, and linear probing to the key or the first empty slot.",
+       "at": {
+        "c": [
+         [
+          5,
+          5
+         ],
+         [
+          8,
+          9
+         ]
+        ]
+       }
+      },
+      {
+       "text": "Give the table's memory back.",
+       "at": {
+        "c": [
+         [
+          27,
+          27
+         ]
+        ]
+       }
+      }
+     ],
+     "run": {
+      "call": "count_pairs([2, 7, 4, 5, 2, 5], 9); count_pairs([3, 3, 3, 3], 6); count_pairs([1, 2, 3], 100)",
+      "output": "4\n6\n0"
+     }
+    },
+    {
+     "md": "The second run shows duplicates working: four `3`s with target `6` make every pair of positions valid,\n4 · 3 / 2 = 6 pairs, and none of them is a `3` paired with itself."
+    }
+   ]
+  },
+  {
+   "id": "trace",
+   "title": "Trace it by hand",
+   "blocks": [
+    {
+     "walk": {
+      "steps": [
+       {
+        "text": "The table starts empty: no earlier values, so no partners yet. Target 9.",
+        "panels": [
+         {
+          "type": "row",
+          "cells": [
+           2,
+           7,
+           4,
+           5,
+           2,
+           5
+          ],
+          "slots": true
+         },
+         {
+          "type": "vars",
+          "items": {
+           "seen:": "{ }",
+           "pairs:": "0"
+          }
+         }
+        ]
+       },
+       {
+        "text": "x = 2, so we need 9 - 2 = 7. Not in the table yet: no pair ends here. Add 2.",
+        "panels": [
+         {
+          "type": "row",
+          "cells": [
+           2,
+           7,
+           4,
+           5,
+           2,
+           5
+          ],
+          "states": {
+           "0": "active"
+          },
+          "pointers": {
+           "x": 0
+          },
+          "slots": true
+         },
+         {
+          "type": "vars",
+          "items": {
+           "seen[2]:": "1",
+           "pairs:": "0"
+          }
+         }
+        ]
+       },
+       {
+        "text": "x = 7, so we need 9 - 7 = 2. The table has 1 of them (index 0): 1 new pair. Then add 7.",
+        "panels": [
+         {
+          "type": "row",
+          "cells": [
+           2,
+           7,
+           4,
+           5,
+           2,
+           5
+          ],
+          "states": {
+           "0": "found",
+           "1": "active"
+          },
+          "pointers": {
+           "x": 1
+          },
+          "slots": true
+         },
+         {
+          "type": "vars",
+          "items": {
+           "seen[2]:": "1",
+           "seen[7]:": "1",
+           "pairs:": "1"
+          }
+         }
+        ]
+       },
+       {
+        "text": "x = 4, so we need 9 - 4 = 5. Not in the table yet: no pair ends here. Add 4.",
+        "panels": [
+         {
+          "type": "row",
+          "cells": [
+           2,
+           7,
+           4,
+           5,
+           2,
+           5
+          ],
+          "states": {
+           "2": "active"
+          },
+          "pointers": {
+           "x": 2
+          },
+          "slots": true
+         },
+         {
+          "type": "vars",
+          "items": {
+           "seen[2]:": "1",
+           "seen[7]:": "1",
+           "seen[4]:": "1",
+           "pairs:": "1"
+          }
+         }
+        ]
+       },
+       {
+        "text": "x = 5, so we need 9 - 5 = 4. The table has 1 of them (index 2): 1 new pair. Then add 5.",
+        "panels": [
+         {
+          "type": "row",
+          "cells": [
+           2,
+           7,
+           4,
+           5,
+           2,
+           5
+          ],
+          "states": {
+           "2": "found",
+           "3": "active"
+          },
+          "pointers": {
+           "x": 3
+          },
+          "slots": true
+         },
+         {
+          "type": "vars",
+          "items": {
+           "seen[2]:": "1",
+           "seen[7]:": "1",
+           "seen[4]:": "1",
+           "seen[5]:": "1",
+           "pairs:": "2"
+          }
+         }
+        ]
+       },
+       {
+        "text": "x = 2, so we need 9 - 2 = 7. The table has 1 of them (index 1): 1 new pair. Then add 2.",
+        "panels": [
+         {
+          "type": "row",
+          "cells": [
+           2,
+           7,
+           4,
+           5,
+           2,
+           5
+          ],
+          "states": {
+           "1": "found",
+           "4": "active"
+          },
+          "pointers": {
+           "x": 4
+          },
+          "slots": true
+         },
+         {
+          "type": "vars",
+          "items": {
+           "seen[2]:": "2",
+           "seen[7]:": "1",
+           "seen[4]:": "1",
+           "seen[5]:": "1",
+           "pairs:": "3"
+          }
+         }
+        ]
+       },
+       {
+        "text": "x = 5, so we need 9 - 5 = 4. The table has 1 of them (index 2): 1 new pair. Then add 5.",
+        "panels": [
+         {
+          "type": "row",
+          "cells": [
+           2,
+           7,
+           4,
+           5,
+           2,
+           5
+          ],
+          "states": {
+           "2": "found",
+           "5": "active"
+          },
+          "pointers": {
+           "x": 5
+          },
+          "slots": true
+         },
+         {
+          "type": "vars",
+          "items": {
+           "seen[2]:": "2",
+           "seen[7]:": "1",
+           "seen[4]:": "1",
+           "seen[5]:": "2",
+           "pairs:": "4"
+          }
+         }
+        ]
+       },
+       {
+        "text": "Every pair was counted exactly once, at its right end. Total: 4.",
+        "panels": [
+         {
+          "type": "row",
+          "cells": [
+           2,
+           7,
+           4,
+           5,
+           2,
+           5
+          ],
+          "slots": true
+         },
+         {
+          "type": "vars",
+          "items": {
+           "pairs:": "4"
+          }
+         }
+        ],
+        "result": "4"
+       }
+      ],
+      "title": "`count_pairs([2, 7, 4, 5, 2, 5], 9)`: at each value, ask the table for its partner, then add the value."
+     }
+    },
+    {
+     "table": {
+      "head": [
+       "j",
+       "x",
+       "need",
+       "partners in table",
+       "pairs so far",
+       "table after"
+      ],
+      "rows": [
+       [
+        "0",
+        "2",
+        "7",
+        "0",
+        "0",
+        "{2: 1}"
+       ],
+       [
+        "1",
+        "7",
+        "2",
+        "1",
+        "1",
+        "{2: 1, 7: 1}"
+       ],
+       [
+        "2",
+        "4",
+        "5",
+        "0",
+        "1",
+        "{2: 1, 7: 1, 4: 1}"
+       ],
+       [
+        "3",
+        "5",
+        "4",
+        "1",
+        "2",
+        "{2: 1, 7: 1, 4: 1, 5: 1}"
+       ],
+       [
+        "4",
+        "2",
+        "7",
+        "1",
+        "3",
+        "{2: 2, 7: 1, 4: 1, 5: 1}"
+       ],
+       [
+        "5",
+        "5",
+        "4",
+        "1",
+        "4",
+        "{2: 2, 7: 1, 4: 1, 5: 2}"
+       ]
+      ]
+     }
+    },
+    {
+     "md": "Checking every pair directly gives the same 4: (0, 1), (1, 4), (2, 3), (2, 5). The\nscan found each one at its right end, with 6 lookups instead of 15\npair checks."
+    }
+   ]
+  },
+  {
+   "id": "variations",
+   "title": "Variations",
+   "blocks": [
+    {
+     "md": "### Return positions instead of counting\n\nStore `value → index` instead of `value → count`. The question is now *which* index to keep for a repeated\nvalue. Keeping the **first** index (insert only if absent) means the pair you return uses the earliest\npossible left partner. The function below returns the pair whose right end comes first, and among those,\nthe earliest left end."
+    },
+    {
+     "code": {
+      "python": "def first_pair(nums, target):\n    where = {}\n    for j, x in enumerate(nums):\n        need = target - x\n        if need in where:\n            return [where[need], j]\n        if x not in where:\n            where[x] = j\n    return [-1, -1]\n",
+      "java": "static int[] firstPair(int[] nums, int target) {\n    Map<Integer, Integer> where = new HashMap<>();\n    for (int j = 0; j < nums.length; j++) {\n        int need = target - nums[j];\n        Integer i = where.get(need);\n        if (i != null) return new int[] {i, j};\n        where.putIfAbsent(nums[j], j);\n    }\n    return new int[] {-1, -1};\n}\n",
+      "cpp": "pair<int, int> firstPair(const vector<int>& nums, int target) {\n    unordered_map<int, int> where;\n    for (int j = 0; j < (int)nums.size(); j++) {\n        int need = target - nums[j];\n        auto it = where.find(need);\n        if (it != where.end()) return {it->second, j};\n        where.emplace(nums[j], j);\n    }\n    return {-1, -1};\n}\n",
+      "c": "typedef struct {\n    int *keys, *idx;\n    bool *used;\n    size_t mask;\n} IndexMap;\n\nstatic size_t im_slot(const IndexMap* m, int key) {\n    size_t i = ((uint32_t)key * 2654435761u) & m->mask;\n    while (m->used[i] && m->keys[i] != key) i = (i + 1) & m->mask;\n    return i;\n}\n\nvoid firstPair(const int* nums, int n, int target, int out[2]) {\n    size_t cap = 16;\n    while (cap < 2 * (size_t)n) cap <<= 1;\n    IndexMap where = {malloc(cap * sizeof(int)), malloc(cap * sizeof(int)), calloc(cap, sizeof(bool)), cap - 1};\n    out[0] = out[1] = -1;\n    for (int j = 0; j < n; j++) {\n        int need = target - nums[j];\n        size_t i = im_slot(&where, need);\n        if (where.used[i]) {\n            out[0] = where.idx[i];\n            out[1] = j;\n            break;\n        }\n        i = im_slot(&where, nums[j]);\n        if (!where.used[i]) {\n            where.used[i] = true;\n            where.keys[i] = nums[j];\n            where.idx[i] = j;\n        }\n    }\n    free(where.keys); free(where.idx); free(where.used);\n}\n"
+     },
+     "title": "First pair with a given sum",
+     "lines": [
+      {
+       "text": "`value → index of its first occurrence`.",
+       "at": {
+        "python": [
+         [
+          2,
+          2
+         ]
+        ],
+        "java": [
+         [
+          2,
+          2
+         ]
+        ],
+        "cpp": [
+         [
+          2,
+          2
+         ]
+        ],
+        "c": [
+         [
+          14,
+          16
+         ]
+        ]
+       }
+      },
+      {
+       "text": "Scan left to right; `j` is the candidate right end.",
+       "at": {
+        "python": [
+         [
+          3,
+          3
+         ]
+        ],
+        "java": [
+         [
+          3,
+          3
+         ]
+        ],
+        "cpp": [
+         [
+          3,
+          3
+         ]
+        ],
+        "c": [
+         [
+          18,
+          18
+         ]
+        ]
+       }
+      },
+      {
+       "text": "The partner this element needs.",
+       "at": {
+        "python": [
+         [
+          4,
+          4
+         ]
+        ],
+        "java": [
+         [
+          4,
+          4
+         ]
+        ],
+        "cpp": [
+         [
+          4,
+          4
+         ]
+        ],
+        "c": [
+         [
+          19,
+          19
+         ]
+        ]
+       }
+      },
+      {
+       "text": "If the partner appeared earlier, `[where[need], j]` is the answer, and it's the first right end that has any partner at all, because we stop the moment one exists.",
+       "at": {
+        "python": [
+         [
+          5,
+          6
+         ]
+        ],
+        "java": [
+         [
+          5,
+          6
+         ]
+        ],
+        "cpp": [
+         [
+          5,
+          6
+         ]
+        ],
+        "c": [
+         [
+          20,
+          24
+         ]
+        ]
+       }
+      },
+      {
+       "text": "Record `x` only if it's new, so the table keeps the earliest index of every value.",
+       "at": {
+        "python": [
+         [
+          7,
+          8
+         ]
+        ],
+        "java": [
+         [
+          7,
+          7
+         ]
+        ],
+        "cpp": [
+         [
+          7,
+          7
+         ]
+        ],
+        "c": [
+         [
+          26,
+          30
+         ]
+        ]
+       },
+       "notes": {
+        "java": "`putIfAbsent` leaves an existing entry alone.",
+        "cpp": "`emplace` does nothing if the key already exists."
+       }
+      },
+      {
+       "text": "No two elements add up to the target.",
+       "at": {
+        "python": [
+         [
+          9,
+          9
+         ]
+        ],
+        "java": [
+         [
+          9,
+          9
+         ]
+        ],
+        "cpp": [
+         [
+          9,
+          9
+         ]
+        ],
+        "c": [
+         [
+          17,
+          17
+         ]
+        ]
+       }
+      },
+      {
+       "text": "The open-addressing table again, storing an index per key instead of a count.",
+       "at": {
+        "c": [
+         [
+          5,
+          5
+         ],
+         [
+          8,
+          9
+         ]
+        ]
+       }
+      },
+      {
+       "text": "Free the table before returning; the answer is already in `out`.",
+       "at": {
+        "c": [
+         [
+          33,
+          33
+         ]
+        ]
+       }
+      }
+     ],
+     "run": {
+      "call": "first_pair([8, 3, 5, 3, 6], 6); first_pair([1, 4, 2, 4], 8); first_pair([5, 1], 7)",
+      "output": "1 3\n1 3\n-1 -1"
+     }
+    },
+    {
+     "table": {
+      "head": [
+       "nums",
+       "target",
+       "answer"
+      ],
+      "rows": [
+       [
+        "[8, 3, 5, 3, 6]",
+        "6",
+        "[1, 3]"
+       ],
+       [
+        "[1, 4, 2, 4]",
+        "8",
+        "[1, 3]"
+       ],
+       [
+        "[5, 1]",
+        "7",
+        "[-1, -1]"
+       ]
+      ]
+     }
+    },
+    {
+     "md": "In the first case, `3 + 3 = 6` uses two different positions (1 and 3), found at `j = 3`. In the second,\n`4 + 4 = 8` likewise; the single `4` at index 1 could not pair with itself.\n\n### XOR partners\n\nXOR is its own inverse (`x ^ x = 0`, so `x ^ y = t` means `y = x ^ t`). With values below 1024 the table\ncan be a plain array."
+    },
+    {
+     "code": {
+      "python": "def xor_pairs(nums, t):\n    seen = [0] * 1024\n    pairs = 0\n    for x in nums:\n        pairs += seen[x ^ t]\n        seen[x] += 1\n    return pairs\n",
+      "java": "static long xorPairs(int[] nums, int t) {\n    int[] seen = new int[1024];\n    long pairs = 0;\n    for (int x : nums) {\n        pairs += seen[x ^ t];\n        seen[x]++;\n    }\n    return pairs;\n}\n",
+      "cpp": "long long xorPairs(const vector<int>& nums, int t) {\n    vector<int> seen(1024, 0);\n    long long pairs = 0;\n    for (int x : nums) {\n        pairs += seen[x ^ t];\n        seen[x]++;\n    }\n    return pairs;\n}\n",
+      "c": "long long xorPairs(const int* nums, int n, int t) {\n    int seen[1024] = {0};\n    long long pairs = 0;\n    for (int i = 0; i < n; i++) {\n        pairs += seen[nums[i] ^ t];\n        seen[nums[i]]++;\n    }\n    return pairs;\n}\n"
+     },
+     "title": "Count pairs with a given XOR (values below 1024)",
+     "lines": [
+      {
+       "text": "Values are below 1024, so `x ^ t` is too (both fit in 10 bits): 1024 counters cover every partner.",
+       "at": {
+        "python": [
+         [
+          2,
+          3
+         ]
+        ],
+        "java": [
+         [
+          2,
+          3
+         ]
+        ],
+        "cpp": [
+         [
+          2,
+          3
+         ]
+        ],
+        "c": [
+         [
+          2,
+          3
+         ]
+        ]
+       }
+      },
+      {
+       "text": "One pass.",
+       "at": {
+        "python": [
+         [
+          4,
+          4
+         ]
+        ],
+        "java": [
+         [
+          4,
+          4
+         ]
+        ],
+        "cpp": [
+         [
+          4,
+          4
+         ]
+        ],
+        "c": [
+         [
+          4,
+          4
+         ]
+        ]
+       }
+      },
+      {
+       "text": "The partner of `x` is `x ^ t`; every earlier copy is one pair.",
+       "at": {
+        "python": [
+         [
+          5,
+          5
+         ]
+        ],
+        "java": [
+         [
+          5,
+          5
+         ]
+        ],
+        "cpp": [
+         [
+          5,
+          5
+         ]
+        ],
+        "c": [
+         [
+          5,
+          5
+         ]
+        ]
+       }
+      },
+      {
+       "text": "Then count `x` itself.",
+       "at": {
+        "python": [
+         [
+          6,
+          6
+         ]
+        ],
+        "java": [
+         [
+          6,
+          6
+         ]
+        ],
+        "cpp": [
+         [
+          6,
+          6
+         ]
+        ],
+        "c": [
+         [
+          6,
+          6
+         ]
+        ]
+       }
+      },
+      {
+       "text": "Pairs `i < j` with `nums[i] ^ nums[j] == t`.",
+       "at": {
+        "python": [
+         [
+          7,
+          7
+         ]
+        ],
+        "java": [
+         [
+          8,
+          8
+         ]
+        ],
+        "cpp": [
+         [
+          8,
+          8
+         ]
+        ],
+        "c": [
+         [
+          8,
+          8
+         ]
+        ]
+       }
+      }
+     ],
+     "run": {
+      "call": "xor_pairs([5, 1, 4, 0, 5], 5); xor_pairs([9, 9, 9], 0)",
+      "output": "3\n3"
+     }
+    },
+    {
+     "md": "For `[5, 1, 4, 0, 5]` and `t = 5`: the pairs are `5 ^ 0` (twice, once per `5`) and `1 ^ 4`, so 3. With\n`t = 0` the partner of `x` is `x` itself: three `9`s make 3 pairs.\n\n### Difference `k`\n\nFor ordered pairs (`y - x = k` with the `x` anywhere earlier or later), look up both `x - k` and `x + k` in\nthe table of earlier values. If the problem asks for **distinct value pairs** rather than index pairs, build a\nset or count map first and check each distinct value once: `k > 0` needs `x + k` present, and `k = 0` needs\n`x` to appear at least twice.\n\n### Remainders: sums divisible by `k`\n\n`x + y` is divisible by `k` exactly when their remainders add up to 0 or `k`. Count remainders seen so far,\nand look up the complementary remainder:"
+    },
+    {
+     "table": {
+      "head": [
+       "x (k = 5)",
+       "x % k",
+       "partner remainder (k - x % k) % k"
+      ],
+      "rows": [
+       [
+        "7",
+        "2",
+        "3"
+       ],
+       [
+        "3",
+        "3",
+        "2"
+       ],
+       [
+        "12",
+        "2",
+        "3"
+       ],
+       [
+        "8",
+        "3",
+        "2"
+       ],
+       [
+        "10",
+        "0",
+        "0"
+       ],
+       [
+        "15",
+        "0",
+        "0"
+       ]
+      ]
+     }
+    },
+    {
+     "md": "The outer `% k` turns a partner of `k` into `0`, so a remainder of `0` pairs with another `0`. The table has\nonly `k` possible keys, so it can be an array of size `k`.\n\n### Sorted input: two pointers instead\n\nIf the array is sorted, start pointers at both ends. If the sum is too small, move the left one right; too\nbig, move the right one left. That finds a pair in O(n) with O(1) memory. It's the right choice when the\ninput is already sorted or you can't afford the table, and it also handles *less than* questions."
+    }
+   ]
+  },
+  {
+   "id": "complexity",
+   "title": "What it costs",
+   "blocks": [
+    {
+     "md": "**Brute force** checks every pair: `n(n - 1)/2` checks, so O(n²). For n = 10⁵ that's\n4,999,950,000 checks.\n\n**Complement lookup** does one lookup and one insert per element: O(n) expected time (each hash operation is\nO(1) expected) and O(n) extra space for the table. With an array table (XOR below 1024, remainders mod `k`)\nit's O(n) worst case and O(R) space.\n\n**Meet in the middle** for four lists of length n: O(n²) time and O(n²) space instead of O(n⁴) time."
+    },
+    {
+     "table": {
+      "head": [
+       "Approach",
+       "Time",
+       "Extra space"
+      ],
+      "rows": [
+       [
+        "Check every pair",
+        "O(n²)",
+        "O(1)"
+       ],
+       [
+        "Sort + two pointers",
+        "O(n log n)",
+        "O(1) to O(n)"
+       ],
+       [
+        "Complement lookup (hash table)",
+        "O(n) expected",
+        "O(n)"
+       ],
+       [
+        "Complement lookup (array, range R)",
+        "O(n + R)",
+        "O(R)"
+       ]
+      ]
+     }
+    }
+   ]
+  },
+  {
+   "id": "languages",
+   "title": "In your language",
+   "blocks": [
+    {
+     "md": "**Python:** `seen.get(need, 0)` for counts; `need in where` for existence. Integers never overflow, so `t - x`\nis always exact.\n\n**Java:** `getOrDefault(need, 0)`, `merge(x, 1, Integer::sum)`, `putIfAbsent`. `map.get` returns `null` for\na missing key; unboxing that `null` into an `int` throws `NullPointerException`, so read into an `Integer`\nfirst (as `firstPair` does). If values span the full `int` range, compute `long need = (long) t - x` and\nskip the lookup when it falls outside `int`.\n\n**C++:** use `find` (or `count`) to look up; `seen[need]` would insert. `emplace` keeps the first index.\nFor untrusted inputs, `unordered_map<int, int>` can be slowed by keys chosen to collide; `reserve` helps\nwith rehashing, and a salted hash helps against adversarial keys.\n\n**C:** a small open-addressing table (shown in the template) or, when values are bounded, a plain array.\nAnother route is to sort a copy of the values with their indices and use two pointers."
+    }
+   ]
+  },
+  {
+   "id": "pitfalls",
+   "title": "Pitfalls and edge cases",
+   "blocks": [
+    {
+     "md": "- **Inserting before looking up.** The element pairs with itself: `[3]` with target `6` would report a pair.\n- **Filling the whole table first, then scanning.** Every pair is found twice (once from each end) and every\n  `x` with `2x = t` pairs with itself. If you must build first, correct for both, or switch to the one-pass\n  form.\n- **Overflow in `t - x`.** With values near ±2³¹, `t - x` overflows a 32-bit `int` and wraps to a wrong but\n  valid-looking key. Use 64-bit arithmetic for the partner when the bounds allow it.\n- **Negative remainders.** In Java, C and C++, `-7 % 5` is `-2`, not `3`. Normalise with `((x % k) + k) % k`.\n- **A set when duplicates matter.** A set says \"there's a 5\"; it can't say \"there are three 5s\". Counting\n  pairs needs counts.\n- **First vs latest index.** Overwriting `where[x] = j` on every occurrence keeps the latest index. That's\n  right for some questions (\"closest pair\") and wrong for others (\"earliest pair\"). Choose deliberately.\n- **`k = 0` in difference problems.** The partner is the value itself; it only counts if it appears at least\n  twice."
+    }
+   ]
+  },
+  {
+   "id": "check",
+   "title": "Check yourself",
+   "blocks": [
+    {
+     "quiz": [
+      {
+       "q": "Why must the lookup come before inserting the current element?",
+       "a": "So the table holds only earlier elements. Then each pair `i < j` is found exactly once, at `j`, and no element can pair with itself."
+      },
+      {
+       "q": "`nums = [4, 4, 4]`, `target = 8`. What does `count_pairs` return, and how does it get there?",
+       "a": "3. At index 0 nothing is in the table; at index 1 one `4` is (1 pair); at index 2 two `4`s are (2 more pairs). That's every pair of positions: 3 · 2 / 2 = 3."
+      },
+      {
+       "q": "You need the number of pairs with `nums[i] + nums[j] < target`. Does complement lookup work?",
+       "a": "Not directly: a hash table answers exact-match questions, and here a whole range of partners qualifies. Sort and use two pointers (or binary search for each element)."
+      },
+      {
+       "q": "How do you count tuples with `a[i] + b[j] + c[k] + d[l] = 0` faster than O(n⁴)?",
+       "a": "Count every `a[i] + b[j]` in a table (O(n²) sums). Then for every `c[k] + d[l]`, add the count of `-(c[k] + d[l])`. That's O(n²) time and space."
+      },
+      {
+       "q": "In Java, why might `target - x` give a wrong partner, and how do you avoid it?",
+       "a": "If values are near the limits of `int`, the subtraction overflows and wraps around. Compute it as a `long` and skip the lookup when it's out of `int` range."
+      }
+     ]
+    }
+   ]
+  }
+ ]
+}

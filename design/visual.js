@@ -11,7 +11,7 @@
 //   { type: "row",   label, cells, states, pointers, slots }
 //   { type: "grid",  label, cells: [[...]], states: { "r,c": state } }
 //   { type: "ntree", label, nodes: [{ id, label, parent }], states: { id: state }, notes }
-//   { type: "vars",  items: { name: value } }
+//   { type: "vars",  label, items: { name: value } }
 // Tree states are keyed by the node's position in level order, counting real nodes only.
 // States: active (being looked at), found (has reported), mark (named in the question),
 // answer, dim (ruled out), new (just changed).
@@ -303,10 +303,12 @@
         return figure(rowSvg(p.cells || [], p), p.label);
       case "grid":
         return figure(gridSvg(p.cells || [], p), p.label);
-      case "vars":
-        return `<dl class="vz-vars">${Object.entries(p.items || {})
+      case "vars": {
+        const dl = `<dl class="vz-vars">${Object.entries(p.items || {})
           .map(([k, v]) => `<div><dt>${esc(k)}</dt><dd>${esc(typeof v === "string" ? v : JSON.stringify(v))}</dd></div>`)
           .join("")}</dl>`;
+        return p.label ? figure(dl, p.label) : dl;
+      }
       default:
         return "";
     }

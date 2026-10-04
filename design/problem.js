@@ -121,7 +121,10 @@
     $("[data-meta]").innerHTML = [
       `<span class="diff ${esc(problem.difficulty)}">${DIFF[problem.difficulty] || esc(problem.difficulty)}</span>`,
       problem.topic && esc(problem.topic.name),
-      problem.pattern && esc(problem.pattern.name),
+      problem.pattern &&
+        (problem.pattern.lesson
+          ? `<a class="meta-lesson" href="learn.html?id=${encodeURIComponent(problem.pattern.id)}" title="Read the ${esc(problem.pattern.name.toLowerCase())} lesson">${esc(problem.pattern.name)}</a>`
+          : esc(problem.pattern.name)),
     ]
       .filter(Boolean)
       .join(" · ");
@@ -207,64 +210,14 @@
   const fileLabel = $("[data-file]");
   const savedNote = $("[data-saved]");
 
-  const KEYWORDS = [
-    "def", "return", "if", "elif", "else", "for", "while", "in", "and", "or", "not", "is", "lambda", "class",
-    "import", "from", "as", "with", "try", "except", "finally", "raise", "pass", "break", "continue", "yield",
-    "None", "True", "False", "self", "function", "const", "let", "var", "of", "new", "this", "typeof",
-    "public", "private", "protected", "static", "final", "int", "long", "double", "float", "char", "boolean",
-    "void", "auto", "bool", "string", "vector", "unordered_map", "unordered_set", "map", "set", "pair",
-    "null", "nullptr", "true", "false", "func", "range", "package", "struct", "switch", "case", "default",
-    "do", "using", "namespace", "template", "typename", "include", "sizeof", "unsigned", "typedef", "enum",
-    "extends", "implements", "interface", "throw", "throws", "assert", "del", "nonlocal", "global",
-  ].join("|");
-
-  const tokensFor = (comment) =>
-    new RegExp(
-      [
-        `(${comment === "#" ? "#" : "//"}[^\\n]*)`, // 1 comment
-        "(\"(?:[^\"\\\\\\n]|\\\\.)*\"|'(?:[^'\\\\\\n]|\\\\.)*')", // 2 string
-        `\\b(${KEYWORDS})\\b`, // 3 keyword
-        "\\b(\\d+(?:\\.\\d+)?)\\b", // 4 number
-        "\\b([A-Za-z_]\\w*)(?=\\()", // 5 function call
-      ].join("|"),
-      "g"
-    );
-  const SQL_KEYWORDS = [
-    "select", "from", "where", "and", "or", "not", "in", "is", "null", "as", "on", "join", "left", "right", "full",
-    "inner", "outer", "cross", "natural", "using", "group", "by", "order", "having", "limit", "offset", "distinct",
-    "union", "all", "intersect", "except", "case", "when", "then", "else", "end", "with", "recursive", "over",
-    "partition", "rows", "range", "between", "preceding", "following", "current", "row", "unbounded", "asc", "desc",
-    "like", "glob", "exists", "values", "cast", "filter", "window", "nulls", "first", "last", "true", "false",
-  ].join("|");
-  const SQL_TOKENS = new RegExp(
-    [
-      "(--[^\\n]*)", // 1 comment
-      "('(?:[^']|'')*')", // 2 string
-      `\\b(${SQL_KEYWORDS})\\b`, // 3 keyword
-      "\\b(\\d+(?:\\.\\d+)?)\\b", // 4 number
-      "\\b([A-Za-z_]\\w*)(?=\\()", // 5 function call
-    ].join("|"),
-    "gi"
-  );
-  const CLASS = [null, "tk-c", "tk-s", "tk-k", "tk-n", "tk-f"];
+  const { tokensFor, SQL_TOKENS } = renCode;
   let tokens = tokensFor("#");
   let lang;
 
-  const highlight = (src, re = tokens) => {
-    let out = "";
-    let last = 0;
-    for (const m of src.matchAll(re)) {
-      out += esc(src.slice(last, m.index));
-      const group = m.findIndex((g, i) => i > 0 && g !== undefined);
-      out += `<span class="${CLASS[group]}">${esc(m[0])}</span>`;
-      last = m.index + m[0].length;
-    }
-    return out + esc(src.slice(last));
-  };
+  const highlight = (src, re = tokens) => renCode.highlight(src, re);
 
   // Any language's code, highlighted (the Solution tab's code blocks).
-  const LANG_TOKENS = { python: tokensFor("#"), other: tokensFor("//") };
-  const highlightAs = (src, l) => highlight(src, l === "python" ? LANG_TOKENS.python : LANG_TOKENS.other);
+  const highlightAs = renCode.as;
 
   const render = () => {
     const src = input.value;
