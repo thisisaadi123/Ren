@@ -154,17 +154,6 @@
       )
       .join("");
 
-    const walk = $("[data-walk]");
-    const spec = problem.visual && problem.visual.walkthrough;
-    if (!walk) {
-      // The SQL page has no walkthrough.
-    } else if (spec && window.renVisual) {
-      walk.innerHTML = `<h2 class="prob-label">Walkthrough</h2>${spec.title ? `<p class="walk-intro">${inline(spec.title)}</p>` : ""}<div data-walk-player></div>`;
-      renVisual.walkthrough($("[data-walk-player]"), spec);
-    } else {
-      walk.innerHTML = "";
-    }
-
     document.querySelector("[data-crumb-title]").textContent = problem.title;
     const topicLink = document.querySelector("[data-topic-link]");
     if (problem.topic) {
