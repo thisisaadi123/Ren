@@ -4,32 +4,83 @@
  "question": [
   {
    "md": "Implement a bounded FIFO buffer of capacity `k` with `enqueue`, `dequeue`, `front`, `rear`, `isEmpty` and\n`isFull`. Failed operations report `false` (or −1 for reading an empty buffer) and change nothing.\n\n- **Full and empty must be told apart**, even though in both cases the front and back 'meet' in a circular\n  layout.\n- **`rear` is the most recently added item still in the buffer.**\n- **Up to 10⁵ calls with `k ≤ 1000`.**"
+  },
+  {
+   "md": "**Edge cases to keep in mind**\n\n- Enqueue on a full buffer fails and changes nothing; dequeue on an empty one fails.\n- `front`/`rear` return −1 when empty.\n- Capacity 1: front and rear are the same slot."
   }
  ],
  "think": [
   {
-   "md": "Capacity 3: enqueue 1, 2, 3; a fourth enqueue fails. Dequeue removes 1. Now 4 fits, and it can go into the\nslot 0 just vacated. The items are 2, 3, 4 in queue order, but in the array they sit as `[4, 2, 3]` with the\nfront at index 1. That's the 'ring': the array's end wraps to its start."
+   "md": "**Wrap around instead of shifting.** A plain list that removes from the front shifts every item: O(n) per\ndequeue. A fixed array of size `k` with a `head` index and a `size` avoids that: the front is `buf[head]`, the\nnext free slot is `(head + size) mod k`, and dequeuing just moves `head` forward. When an index passes the end,\n`mod k` wraps it to the start, so the array behaves like a ring.\n\n**Why store `size` rather than a tail index.** With only `head` and `tail`, an empty buffer and a full one look\nthe same (`head == tail`); the size tells them apart."
   },
   {
-   "panels": [
-    {
-     "type": "row",
-     "cells": [
-      4,
-      2,
-      3
+   "table": {
+    "head": [
+     "operation",
+     "returns",
+     "array",
+     "head",
+     "size"
+    ],
+    "rows": [
+     [
+      "enqueue(1)",
+      "true",
+      "[1, None, None]",
+      "0",
+      "1"
      ],
-     "states": {
-      "1": "active",
-      "0": "found"
-     },
-     "label": "slots"
-    }
-   ],
-   "caption": "Front at slot 1 (2), back at slot 0 (4)."
-  },
-  {
-   "md": "With `head` and `size`, every position is arithmetic: the i-th item of the queue is at `(head + i) mod k`.\nKeeping `size` (instead of a separate tail index) also settles full vs empty: `size == k` versus `size == 0`."
+     [
+      "enqueue(2)",
+      "true",
+      "[1, 2, None]",
+      "0",
+      "2"
+     ],
+     [
+      "enqueue(3)",
+      "true",
+      "[1, 2, 3]",
+      "0",
+      "3"
+     ],
+     [
+      "enqueue(9)",
+      "false (full)",
+      "[1, 2, 3]",
+      "0",
+      "3"
+     ],
+     [
+      "dequeue()",
+      "true",
+      "[1, 2, 3]",
+      "1",
+      "2"
+     ],
+     [
+      "enqueue(4)",
+      "true",
+      "[4, 2, 3]",
+      "1",
+      "3"
+     ],
+     [
+      "front()",
+      "2",
+      "[4, 2, 3]",
+      "1",
+      "3"
+     ],
+     [
+      "rear()",
+      "4",
+      "[4, 2, 3]",
+      "1",
+      "3"
+     ]
+    ]
+   }
   }
  ],
  "approaches": [
@@ -40,14 +91,13 @@
    "space": "O(k)",
    "idea": [
     {
-     "md": "Keep the items in a list in queue order. Enqueue appends (if fewer than `k`); dequeue removes index 0, shifting everything left."
+     "md": "Use a list: append to enqueue, remove index 0 to dequeue, and check the length against `k`."
     }
    ],
    "build": [
-    "A list and the capacity.",
-    "`enqueue`: append unless full.",
-    "`dequeue`: remove the first element unless empty.",
-    "`front` / `rear`: first / last element, or −1."
+    "List and capacity.",
+    "Append / pop(0).",
+    "Length checks for full and empty."
    ],
    "code": {
     "python": "class RingBuffer:\n    def __init__(self, k: int):\n        self.items = []\n        self.k = k\n\n    def enqueue(self, x: int) -> bool:\n        if len(self.items) == self.k:\n            return False\n        self.items.append(x)\n        return True\n\n    def dequeue(self) -> bool:\n        if not self.items:\n            return False\n        self.items.pop(0)\n        return True\n\n    def front(self) -> int:\n        return self.items[0] if self.items else -1\n\n    def rear(self) -> int:\n        return self.items[-1] if self.items else -1\n\n    def isEmpty(self) -> bool:\n        return not self.items\n\n    def isFull(self) -> bool:\n        return len(self.items) == self.k\n",
@@ -205,7 +255,7 @@
    ],
    "complexity": [
     {
-     "md": "**Time:** `dequeue` O(k) for the shift; everything else O(1). **Space O(k).**"
+     "md": "**Time O(n)** per dequeue (shifting). **Space O(k).**"
     }
    ],
    "walk": {
@@ -356,7 +406,7 @@
    },
    "limits": [
     {
-     "md": "A real ring buffer exists to avoid moving data: audio samples stream in and out constantly. Shifting on every dequeue (and growing the list) defeats the purpose. Fixed slots with a moving head index make every operation O(1)."
+     "md": "Removing from the front shifts every item. A ring buffer moves an index instead."
     }
    ]
   },
@@ -367,14 +417,13 @@
    "space": "O(k)",
    "idea": [
     {
-     "md": "Allocate `k` slots. Track `head` (the front item's slot) and `size`. Enqueue writes at `(head + size) % k`; dequeue sets `head = (head + 1) % k`; rear reads `(head + size − 1) % k`. Empty is `size == 0`, full is `size == k`."
+     "md": "Fixed array of size `k`, `head` and `size`. Enqueue writes at `(head + size) mod k`; dequeue advances `head`; rear is at `(head + size − 1) mod k`."
     }
    ],
    "build": [
-    "Array of `k` slots, `head = 0`, `size = 0`.",
-    "`enqueue`: if not full, write the next free slot and grow `size`.",
-    "`dequeue`: if not empty, advance `head` and shrink `size`.",
-    "`front`/`rear`: read by index, or −1."
+    "Array, head, size.",
+    "Index arithmetic with `mod k`.",
+    "Full/empty from `size`."
    ],
    "code": {
     "python": "class RingBuffer:\n    def __init__(self, k: int):\n        self.buf = [0] * k\n        self.k = k\n        self.head = 0\n        self.size = 0\n\n    def enqueue(self, x: int) -> bool:\n        if self.size == self.k:\n            return False\n        self.buf[(self.head + self.size) % self.k] = x\n        self.size += 1\n        return True\n\n    def dequeue(self) -> bool:\n        if self.size == 0:\n            return False\n        self.head = (self.head + 1) % self.k\n        self.size -= 1\n        return True\n\n    def front(self) -> int:\n        return self.buf[self.head] if self.size else -1\n\n    def rear(self) -> int:\n        return self.buf[(self.head + self.size - 1) % self.k] if self.size else -1\n\n    def isEmpty(self) -> bool:\n        return self.size == 0\n\n    def isFull(self) -> bool:\n        return self.size == self.k\n",
@@ -543,7 +592,7 @@
    ],
    "complexity": [
     {
-     "md": "**Time O(1)** for every operation. **Space O(k)**, allocated once."
+     "md": "**Time O(1)** per operation. **Space O(k).**"
     }
    ],
    "walk": {
@@ -809,7 +858,7 @@
  ],
  "takeaways": [
   {
-   "md": "- **Circular buffer = fixed array + head + size**, with `% k` for wrap-around.\n- Store the size (or waste one slot) to tell full from empty.\n- Dequeuing moves an index, never the data."
+   "md": "- **Circular queue:** fixed array, `head` and `size`, indices taken `mod k`.\n- Track the size to tell full from empty.\n- **Pitfall:** computing the rear as `head + size` (one past the last item)."
   }
  ]
 }

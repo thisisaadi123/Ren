@@ -4,36 +4,71 @@
  "question": [
   {
    "md": "Implement a stack (`push`, `pop`, `top`, `empty`) with a single queue and only queue operations: add to the back,\nlook at or remove the front, size, is-empty.\n\n- **A queue gives back the oldest item; a stack must give back the newest.**\n- **One queue only**, no second container.\n- **At most 3000 calls**, so O(n) per call is acceptable."
+  },
+  {
+   "md": "**Edge cases to keep in mind**\n\n- Only queue operations are allowed: add to the back, read/remove the front.\n- Interleaved pushes and pops.\n- `pop`/`top` only on a non-empty stack."
   }
  ],
  "think": [
   {
-   "md": "Push 1, 2, 3 into a queue: front 1, back 3. The stack's top is 3, at the back, out of reach. But a queue can\n**rotate**: removing the front and adding it to the back keeps the cyclic order. Rotate twice and the queue\nreads 3, 1, 2, with 3 at the front."
+   "md": "**Amortised cost.** Some operations occasionally do a lot of work (pouring a whole stack, rotating a whole queue). What\nmatters is the total over many operations: if each item can only be moved a constant number of times overall, the\naverage per operation is O(1), even if one particular call is slow."
   },
   {
-   "panels": [
-    {
-     "type": "row",
-     "cells": [
-      1,
-      2,
-      3
-     ],
-     "label": "queue"
-    },
-    {
-     "type": "row",
-     "cells": [
-      3,
-      1,
-      2
-     ],
-     "label": "after 2 rotations"
-    }
-   ]
+   "md": "**Rotation.** Removing the front and adding it to the back keeps the cyclic order of a queue. So after adding a\nnew item at the back, rotating `size − 1` times brings it to the front, while everything else keeps its order\nbehind it. If every push does that, the front is always the newest item: the stack's top."
   },
   {
-   "md": "We can pay for the rotation when reading (every `pop`/`top`) or when writing (every `push`). If we rotate right\nafter each push, the queue is always in exact stack order (newest first), so reads cost nothing."
+   "table": {
+    "head": [
+     "operation",
+     "returns",
+     "what happens",
+     "queue (front→back)"
+    ],
+    "rows": [
+     [
+      "push(1)",
+      "—",
+      "add to back, rotate 0 time(s)",
+      "[1]"
+     ],
+     [
+      "push(2)",
+      "—",
+      "add to back, rotate 1 time(s)",
+      "[2, 1]"
+     ],
+     [
+      "push(3)",
+      "—",
+      "add to back, rotate 2 time(s)",
+      "[3, 2, 1]"
+     ],
+     [
+      "top()",
+      "3",
+      "front is the top",
+      "[3, 2, 1]"
+     ],
+     [
+      "pop()",
+      "3",
+      "front is the top",
+      "[2, 1]"
+     ],
+     [
+      "push(4)",
+      "—",
+      "add to back, rotate 2 time(s)",
+      "[4, 2, 1]"
+     ],
+     [
+      "pop()",
+      "4",
+      "front is the top",
+      "[2, 1]"
+     ]
+    ]
+   }
   }
  ],
  "approaches": [
@@ -44,14 +79,13 @@
    "space": "O(n)",
    "idea": [
     {
-     "md": "`push` adds to the back (O(1)). `pop`/`top` rotate `size − 1` items to the back so the newest is at the front; `pop` removes it, `top` reads it and rotates it to the back as well, restoring the original order."
+     "md": "Push to the back. For `pop`/`top`, rotate `size − 1` times so the newest item reaches the front, read it (and for `top`, put it back at the end)."
     }
    ],
    "build": [
-    "`push`: add to the back.",
-    "`pop`: rotate `size − 1` times, remove the front.",
-    "`top`: rotate `size − 1` times, read the front, rotate once more.",
-    "`empty`: queue empty."
+    "Push to the back.",
+    "Rotate the newest to the front on reads.",
+    "Read it."
    ],
    "code": {
     "python": "from collections import deque\n\nclass QueueStack:\n    def __init__(self):\n        self.q = deque()\n\n    def push(self, x: int) -> None:\n        self.q.append(x)\n\n    def _bring_newest_forward(self):\n        for _ in range(len(self.q) - 1):\n            self.q.append(self.q.popleft())\n\n    def pop(self) -> int:\n        self._bring_newest_forward()\n        return self.q.popleft()\n\n    def top(self) -> int:\n        self._bring_newest_forward()\n        value = self.q.popleft()\n        self.q.append(value)\n        return value\n\n    def empty(self) -> bool:\n        return not self.q\n",
@@ -204,7 +238,7 @@
    ],
    "complexity": [
     {
-     "md": "**Time:** `push` O(1); `pop` and `top` O(n). **Space O(n).**"
+     "md": "**Time O(1)** push, **O(n)** pop and top. **Space O(n).**"
     }
    ],
    "walk": {
@@ -349,7 +383,7 @@
    },
    "limits": [
     {
-     "md": "Every read pays a full rotation, and `top` is usually called more often than `push`. Rotating once per push instead keeps the queue permanently in stack order, so both reads become O(1)."
+     "md": "Every read rotates the whole queue. Rotating once per push keeps the queue in stack order, so reads are O(1)."
     }
    ]
   },
@@ -360,14 +394,13 @@
    "space": "O(n)",
    "idea": [
     {
-     "md": "`push(x)`: add `x` at the back, then move the `size − 1` older items from the front to the back. Now the queue's front is the newest item and the order behind it is newest-to-oldest. `pop` removes the front; `top` reads it."
+     "md": "On `push`, add the item to the back and rotate `size − 1` times so it's at the front. Then `pop` and `top`\nread the front.\n\n**Invariant.** The queue, front to back, lists the items from newest to oldest."
     }
    ],
    "build": [
-    "`push`: add at the back, rotate `size − 1` times.",
-    "`pop`: remove and return the front.",
-    "`top`: return the front.",
-    "`empty`: queue empty."
+    "One queue.",
+    "Push: add, then rotate the rest behind it.",
+    "Pop/top: the front."
    ],
    "code": {
     "python": "from collections import deque\n\nclass QueueStack:\n    def __init__(self):\n        self.q = deque()\n\n    def push(self, x: int) -> None:\n        self.q.append(x)\n        for _ in range(len(self.q) - 1):\n            self.q.append(self.q.popleft())\n\n    def pop(self) -> int:\n        return self.q.popleft()\n\n    def top(self) -> int:\n        return self.q[0]\n\n    def empty(self) -> bool:\n        return not self.q\n",
@@ -509,7 +542,7 @@
    ],
    "complexity": [
     {
-     "md": "**Time:** `push` O(n); `pop`, `top`, `empty` O(1). With at most 3000 calls, that's at most ~4.5 × 10⁶ rotations. **Space O(n).**"
+     "md": "**Time O(n)** push, **O(1)** pop and top. **Space O(n).**"
     }
    ],
    "walk": {
@@ -674,7 +707,7 @@
  ],
  "takeaways": [
   {
-   "md": "- A queue can **rotate** (front to back) without changing its cyclic order; that's enough to reach any item.\n- Decide where to pay: on writes or on reads. Pay where calls are rarer.\n- Unlike two stacks → queue, one queue → stack can't be amortised O(1): every push really reorders everything."
+   "md": "- **Stack from a queue:** rotate after each push so the newest item is at the front.\n- Choose which operation pays: here pushes are O(n), reads O(1).\n- **Pitfall:** rotating `size` times (the new item ends up at the back again)."
   }
  ]
 }

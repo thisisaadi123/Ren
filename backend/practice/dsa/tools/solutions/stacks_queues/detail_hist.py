@@ -185,7 +185,7 @@ EXTRA["largest-clear-plot"] = {
         that row in column `c` (0 if the cell is rocky). Any clear rectangle has a bottom row; seen from that row, it's a
         rectangle under the histogram `h`. So run the largest-rectangle-in-a-histogram method once per row.
         """,
-        f"**The field {land}, row by row:**",
+        f"**The field {' / '.join(land)}, row by row:**",
         table(["row", "cells", "histogram h", "best rectangle with this bottom row", "best so far"], *lrows),
         f"Largest clear plot: **{best_l}**.",
     ],

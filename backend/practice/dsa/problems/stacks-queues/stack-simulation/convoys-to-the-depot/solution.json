@@ -4,50 +4,68 @@
  "question": [
   {
    "md": "Trucks on a one-lane road drive toward the depot. Each has a start mile and a speed. A faster truck that catches\na slower one ahead can't pass, so they continue together at the slower speed as a convoy. Catching up exactly at\nthe depot still counts. Return the number of convoys that arrive.\n\n- **Positions are distinct**, but times can tie: a tie means \"caught up exactly at the depot\" and counts as\n  one convoy.\n- **Times are fractions** `(depot − position) / speed`. Distances and speeds go up to 10⁶, so cross-products\n  reach 10¹²: they need 64-bit integers.\n- **Up to 10⁵ trucks.**"
+  },
+  {
+   "md": "**Edge cases to keep in mind**\n\n- Catching up exactly at the depot still joins the convoy.\n- A truck already ahead and slower slows everyone behind it.\n- Arrival times are fractions; compare `dist₁ · speed₂` with `dist₂ · speed₁` to stay exact."
   }
  ],
  "think": [
   {
-   "md": "Depot at mile 12; trucks at miles `[10, 8, 0, 5, 3]` with speeds `[2, 4, 1, 1, 3]`. Alone, they'd arrive after\n`['1', '1', '12', '7', '3']` hours."
+   "md": "**Let new items collide with the top.** In these processes a new item only ever interacts with the **most recent\nsurvivors**: the comet just to its left, the truck just ahead, the plate on top. A stack holds the survivors so far,\nand each new item fights the top until it either wins (pop and continue) or stops. Every item is pushed and popped at\nmost once: O(n)."
+  },
+  {
+   "md": "**Process trucks from the one nearest the depot.** A truck can only be held up by trucks ahead of it. Going from\nthe front of the road backwards, keep the arrival time of the convoy just ahead. A truck that would arrive **no\nlater** (on its own) catches up and joins that convoy; a truck that would arrive later is slower than everything\nahead, so it leads a new convoy. Depot at 12:"
   },
   {
    "table": {
     "head": [
-     "mile",
+     "position",
      "speed",
-     "hours alone"
+     "arrival alone (hours)",
+     "decision",
+     "convoys"
     ],
     "rows": [
      [
       "10",
       "2",
+      "1",
+      "slower than the convoy ahead: leads a new convoy",
       "1"
      ],
      [
       "8",
       "4",
+      "1",
+      "would arrive by 1: catches up and joins the convoy ahead",
       "1"
      ],
      [
       "5",
       "1",
-      "7"
+      "7",
+      "slower than the convoy ahead: leads a new convoy",
+      "2"
      ],
      [
       "3",
       "3",
-      "3"
+      "3",
+      "would arrive by 7: catches up and joins the convoy ahead",
+      "2"
      ],
      [
       "0",
       "1",
-      "12"
+      "12",
+      "slower than the convoy ahead: leads a new convoy",
+      "3"
      ]
     ]
    }
   },
   {
-   "md": "Read from the depot backwards. The truck at mile 10 is in front, arriving at hour 1. The truck at mile 8 also\nneeds 1 hour alone, so it reaches the front truck exactly at the depot: one convoy. The truck at mile 5 needs 7\nhours, far behind, so it's a new convoy front. The truck at mile 3 would need 3 hours, but the truck at mile 5\nis in its way and arrives at hour 7: it gets stuck behind. The truck at mile 0 needs 12 hours, later than 7: a\nnew convoy. Total: **3**.\n\nThe key fact: a truck joins a convoy exactly when **some truck ahead of it would arrive no sooner**. A convoy's\narrival time is its slowest-so-far front truck's time, so walking nearest-first we only need the latest arrival\ntime seen so far."
+   "md": "Convoys: **3**."
   }
  ],
  "approaches": [
@@ -58,13 +76,12 @@
    "space": "O(1)",
    "idea": [
     {
-     "md": "Truck `i` leads a convoy exactly when every truck ahead of it (bigger position) would arrive strictly earlier than it would alone. If any truck ahead arrives at the same time or later, `i` catches up with it (or with whatever is holding it up) and joins. Count the leaders with a double loop."
+     "md": "A truck leads its own convoy exactly when no truck ahead of it would arrive at the same time or later. Check that for every truck against every truck ahead."
     }
    ],
    "build": [
-    "For each truck `i`, compute its distance to the depot.",
-    "Check every truck `j` with `position[j] > position[i]`: does it arrive no earlier? Compare `d_j / s_j ≥ d_i / s_i` as `d_j · s_i ≥ d_i · s_j`.",
-    "If none does, count `i`."
+    "For each truck, compare with every truck ahead.",
+    "Count trucks that no truck ahead holds up."
    ],
    "code": {
     "python": "class Solution:\n    def convoys(self, depot: int, position: List[int], speed: List[int]) -> int:\n        count = 0\n        for i in range(len(position)):\n            di = depot - position[i]\n            leads = True\n            for j in range(len(position)):\n                dj = depot - position[j]\n                if position[j] > position[i] and dj * speed[i] >= di * speed[j]:\n                    leads = False\n                    break\n            if leads:\n                count += 1\n        return count\n",
@@ -255,7 +272,7 @@
    ],
    "complexity": [
     {
-     "md": "**Time O(n²)** pairs. **Space O(1).**"
+     "md": "**Time O(n²).** **Space O(1).**"
     }
    ],
    "walk": {
@@ -439,7 +456,7 @@
    },
    "limits": [
     {
-     "md": "10⁵ trucks means 10¹⁰ comparisons. Most of them are wasted: only the **latest** arrival time ahead matters, and sorting by position lets us carry that one number forward."
+     "md": "Compares every pair. After sorting by position, only the convoy just ahead matters."
     }
    ],
    "slow": true
@@ -451,14 +468,13 @@
    "space": "O(n)",
    "idea": [
     {
-     "md": "Sort trucks by position, nearest to the depot first. Keep the arrival time of the convoy just ahead (start at 0). A truck whose own time is strictly later can't catch that convoy: it's a new convoy and its time becomes the one to beat. Otherwise it joins, and the time to beat doesn't change. Store the time as a fraction (distance, speed) and compare by cross-multiplying."
+     "md": "Sort trucks by position, nearest to the depot first. Keep the lead convoy's `(distance, speed)`. A truck\nstarts a new convoy when its arrival time is strictly later, compared exactly as\n`dist · lead_speed > lead_dist · speed`."
     }
    ],
    "build": [
-    "Pair up (position, speed) and sort by position, descending.",
-    "Time to beat = 0/1, convoys = 0.",
-    "For each truck: if `dist · leadSpeed > leadDist · speed`, it's later: count it and make it the time to beat.",
-    "Return the count."
+    "Sort by position, descending.",
+    "Carry the latest convoy arrival time.",
+    "Count trucks that arrive strictly later."
    ],
    "code": {
     "python": "class Solution:\n    def convoys(self, depot: int, position: List[int], speed: List[int]) -> int:\n        trucks = sorted(zip(position, speed), reverse=True)\n        count = 0\n        lead_dist, lead_speed = 0, 1\n        for p, s in trucks:\n            dist = depot - p\n            if dist * lead_speed > lead_dist * s:\n                count += 1\n                lead_dist, lead_speed = dist, s\n        return count\n",
@@ -652,7 +668,7 @@
    ],
    "complexity": [
     {
-     "md": "**Time O(n log n)** for the sort; the scan is O(n). **Space O(n)** for the sorted copy."
+     "md": "**Time O(n log n)** for the sort. **Space O(n).**"
     }
    ],
    "walk": {
@@ -902,7 +918,7 @@
  ],
  "takeaways": [
   {
-   "md": "- \"Can't overtake\" problems: process from the front; each item only cares about the **binding constraint ahead**,\n  which here is the latest arrival time so far.\n- Compare fractions by cross-multiplying, in 64-bit; floating point can make a catch-up-at-the-depot tie look\n  like a near miss.\n- The stack version (push a time when it's later than the top) works too, but the stack only ever matters\n  through its top, so one variable is enough."
+   "md": "- **Car fleets:** sort by position from the front; a slower-arriving truck starts a new fleet.\n- Compare fractions by cross-multiplication.\n- **Pitfall:** floating-point arrival times with exact ties."
   }
  ]
 }

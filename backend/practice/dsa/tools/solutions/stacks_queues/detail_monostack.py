@@ -22,7 +22,7 @@ for i, t in enumerate(temps):
         wait[j] = i - j
         settled.append(f"day {j} ({temps[j]}°) waits {i - j}")
     st.append(i)
-    wrows.append((i, f"{t}°", "; ".join(settled) or "—", [f"{k}:{temps[k]}°" for k in st]))
+    wrows.append((i, f"{t}°", "; ".join(settled) or "—", " ".join(f"{k}:{temps[k]}°" for k in st)))
 EXTRA["warmer-day-wait"] = {
     "question_more": [
         """
@@ -160,7 +160,7 @@ for p in prices:
         streak += s
         absorbed.append(f"({q}, {s})")
     st.append((p, streak))
-    prows.append((p, ", ".join(absorbed) or "—", streak, [f"({a}, {b})" for a, b in st]))
+    prows.append((p, ", ".join(absorbed) or "—", streak, " ".join(f"({a}, {b})" for a, b in st)))
 EXTRA["price-streak-tracker"] = {
     "question_more": [
         """

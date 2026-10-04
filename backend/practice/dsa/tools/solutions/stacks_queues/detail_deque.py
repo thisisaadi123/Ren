@@ -167,7 +167,7 @@ for j in range(len(P)):
     while dq and P[dq[-1]] >= P[j]:
         dropped.append(dq.pop())
     dq.append(j)
-    grows.append((j, P[j], "; ".join(found) or "—", dropped or "—", [f"{x}:{P[x]}" for x in dq], bestlen if bestlen <= len(ch) else "—"))
+    grows.append((j, P[j], "; ".join(found) or "—", dropped or "—", " ".join(f"{x}:{P[x]}" for x in dq), bestlen if bestlen <= len(ch) else "—"))
 EXTRA["shortest-net-gain"] = {
     "question_more": [
         """
@@ -252,7 +252,7 @@ for j, (x, y) in enumerate(posts):
     while dq and posts[dq[-1]][1] - posts[dq[-1]][0] <= y - x:
         drop.append(dq.pop())
     dq.append(j)
-    prow.append((j, f"[{x}, {y}]", y + x, y - x, exp or "—", val, [f"{q}:{posts[q][1] - posts[q][0]}" for q in dq], bestv if bestv is not None else "—"))
+    prow.append((j, f"[{x}, {y}]", y + x, y - x, exp or "—", val, " ".join(f"{q}:{posts[q][1] - posts[q][0]}" for q in dq), bestv if bestv is not None else "—"))
 EXTRA["best-pair-of-posts"] = {
     "question_more": [
         """

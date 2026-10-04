@@ -252,14 +252,14 @@ for c in fx:
             moved.append(ops.pop())
         ops.pop()
         out += moved
-        act = f"pop {moved} to the output until '('"
+        act = f"pop {' '.join(moved)} to the output until '('"
     elif c in prec:
         moved = []
         while ops and ops[-1] != "(" and (prec[ops[-1]] > prec[c] or (prec[ops[-1]] == prec[c] and c != "^")):
             moved.append(ops.pop())
         out += moved
         ops.append(c)
-        act = (f"pop {moved} (they bind at least as tightly), then push '{c}'" if moved else f"push '{c}'")
+        act = (f"pop {' '.join(moved)} (they bind at least as tightly), then push '{c}'" if moved else f"push '{c}'")
     else:
         out.append(c)
         act = "letter → output"
