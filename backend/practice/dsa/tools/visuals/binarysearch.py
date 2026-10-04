@@ -6,6 +6,8 @@ DONE = []
 
 
 CUSTOM = {
+    "spread-the-sensors": [{"spots": [1, 9, 4, 12, 7, 20], "sensors": 3}],
+    "kth-closest-pair": [{"heights": [4, 1, 9, 6, 3, 12, 7], "k": 9}],
     "insert-position": [{"scores": [2, 4, 7, 9, 12, 15, 18, 21, 25, 30, 33], "target": 20}],
     "next-gate-letter": [{"gates": "bdfhjlnprt", "current": "m"}],
     "scores-in-range": [{"scores": [70, 85, 90, 60, 85, 55, 95, 40], "queries": [[80, 90], [0, 59], [85, 85], [60, 100]]}],
@@ -23,7 +25,7 @@ CUSTOM = {
     "rotated-with-repeats": [{"shelf": [4, 5, 6, 6, 7, 0, 1, 2, 4, 4], "target": 1}],
     "low-point-with-repeats": [{"readings": [3, 3, 4, 5, 6, 1, 2, 3, 3]}],
 }
-run = make_runner(DONE, CUSTOM)
+run = make_runner(DONE, CUSTOM, prefer={"spread-the-sensors", "kth-closest-pair"})
 
 
 def span(v, lo, hi, mid=None, st=None, label=None):

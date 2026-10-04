@@ -73,14 +73,33 @@ def reference_answer(pid, args):
     return out[-1]["out"]
 
 
-def make_runner(done, custom=None):
-    """Decorator: try candidate inputs dry, then record the walkthrough for the best one."""
+def readable(args, limit=10**5):
+    """True when every number in the input is small enough to show comfortably in a cell."""
+    def ok(v):
+        if isinstance(v, bool):
+            return True
+        if isinstance(v, (int, float)):
+            return abs(v) < limit
+        if isinstance(v, (list, tuple)):
+            return all(ok(x) for x in v)
+        if isinstance(v, dict):
+            return all(ok(x) for x in v.values())
+        return True
+    return ok(args)
+
+
+def make_runner(done, custom=None, prefer=()):
+    """Decorator: try candidate inputs dry, then record the walkthrough for the best one.
+    For problems in `prefer`, the hand-picked custom inputs are tried before the stored ones."""
     custom = custom or {}
 
     def run(fn):
         global CURRENT, DRY
         pid = fn.__name__.replace("_", "-")
-        cands = stored_candidates(pid) + [(args, None) for args in custom.get(pid, [])]
+        mine = [(args, None) for args in custom.get(pid, [])]
+        cands = mine + stored_candidates(pid) if pid in prefer else stored_candidates(pid) + mine
+        # Prefer inputs whose numbers are easy to read; huge values make long, unhelpful walkthroughs.
+        cands.sort(key=lambda c: not readable(c[0]))
         best, best_n = None, -1
         for args, expected in cands:
             if expected is None:

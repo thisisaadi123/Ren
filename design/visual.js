@@ -228,7 +228,7 @@
 
   /* Rows of cells (arrays, stacks, queues, buffers) ------------------------------ */
 
-  const CW = 44;
+  const CELL_W = 44;
   const CH = 34;
 
   function rowSvg(cells, opts = {}) {
@@ -236,6 +236,9 @@
     const pointers = opts.pointers || {};
     const n = Math.max(cells.length, 1);
     const hasBelow = Object.keys(pointers).length > 0;
+    // Widen the cells when a value is too long to fit the standard width.
+    const longest = cells.reduce((m, v) => Math.max(m, v === null || v === undefined ? 0 : String(v).length), 0);
+    const CW = longest > 5 ? 7 * longest + 16 : CELL_W;
     const w = n * CW + 2 * PAD;
     const h = CH + (opts.slots ? 16 : 0) + (hasBelow ? 18 : 0) + 2 * PAD;
     const labels = {};
@@ -265,6 +268,8 @@
     const states = opts.states || {};
     const m = rows.length;
     const n = m ? Math.max(...rows.map((r) => r.length)) : 0;
+    const longest = rows.reduce((mx, r) => r.reduce((a, v) => Math.max(a, v === null || v === undefined ? 0 : String(v).length), mx), 0);
+    const CW = longest > 5 ? 7 * longest + 16 : CELL_W;
     const w = n * CW + 2 * PAD;
     const h = m * CH + 2 * PAD;
     const out = [];
