@@ -4,43 +4,54 @@
  "question": [
   {
    "md": "The readings were increasing (all different), then rotated. Return the smallest reading in O(log n).\n\n- **Rotation can be zero:** an unrotated list's minimum is its first element.\n- **Distinct values** make every comparison strict, which keeps the search simple. (Repeats need extra care:\n  see **Low Point With Repeats**.)"
+  },
+  {
+   "md": "**Edge cases to keep in mind**\n\n- Not rotated at all (fully sorted): the first element.\n- Rotated by one: the minimum is the last element.\n- One reading."
   }
  ],
  "think": [
   {
-   "md": "Take `[18, 22, 27, 31, 3, 6, 9, 14]`. It's two increasing runs: `[18, 22, 27, 31]` (the part rotated to the front) and `[3, 6, 9, 14]`. The minimum,\n3, is where the second run begins."
+   "md": "**A rotated sorted array is two sorted runs.** `[21, 25, 30, 34, 2, 7, 11, 16]` is the run `21 … 34` followed by the\nrun `2 … 16`; every value in the first run is larger than every value in the second. Binary search still works if each\nstep can tell **which side of the drop** the middle is on:\n\n- comparing `a[mid]` with `a[hi]` (the last element of the range): `a[mid] > a[hi]` means `mid` is in the first run,\n  so the drop (and the minimum) is to the right; otherwise `mid` is in the second run;\n- of the two halves around `mid`, **at least one is completely sorted**, and a sorted half lets us check directly\n  whether the target could be inside it."
   },
   {
-   "panels": [
-    {
-     "type": "row",
-     "cells": [
-      18,
-      22,
-      27,
-      31,
-      3,
-      6,
-      9,
-      14
+   "md": "**Why compare with the last element, not the first.** Comparing `a[mid]` with `a[lo]` can't tell a sorted array\n(minimum at the start) from a rotated one where `mid` is still in the first run: both have `a[lo] ≤ a[mid]`.\nComparing with `a[hi]` always works: `a[mid] > a[hi]` happens exactly when the drop lies between them. For\n`[18, 22, 27, 31, 3, 6, 9, 14]`:"
+  },
+  {
+   "table": {
+    "head": [
+     "lo",
+     "hi",
+     "mid",
+     "a[mid]",
+     "decision"
+    ],
+    "rows": [
+     [
+      "0",
+      "7",
+      "3",
+      "31",
+      "31 > a[hi] = 14: mid is in the first run, minimum is right of mid"
      ],
-     "states": {
-      "0": "mark",
-      "1": "mark",
-      "2": "mark",
-      "3": "mark",
-      "4": "answer",
-      "5": "found",
-      "6": "found",
-      "7": "found"
-     },
-     "slots": true
-    }
-   ],
-   "caption": "High run (marked) then low run; every high value is > the last value, 14."
+     [
+      "4",
+      "7",
+      "5",
+      "6",
+      "6 ≤ a[hi] = 14: minimum is at mid or left of it"
+     ],
+     [
+      "4",
+      "5",
+      "4",
+      "3",
+      "3 ≤ a[hi] = 6: minimum is at mid or left of it"
+     ]
+    ]
+   }
   },
   {
-   "md": "How do you tell the runs apart at a glance? Compare with the **last** element: everything in the high run is\nbigger than it, everything in the low run is at most it. That's a yes/no question (\"is a[mid] > a[hi]?\") that\nis yes on a prefix and no afterwards: binary search territory.\n\nWhy compare with the last element and not the first? Because if the list wasn't rotated, comparing with the\nfirst element can't tell which side to go; comparing with `a[hi]` works in every case."
+   "md": "Minimum **3**."
   }
  ],
  "approaches": [
@@ -51,11 +62,11 @@
    "space": "O(1)",
    "idea": [
     {
-     "md": "Look at every reading and keep the smallest."
+     "md": "Take the minimum of all readings."
     }
    ],
    "build": [
-    "Track the minimum over all readings."
+    "Scan for the minimum."
    ],
    "code": {
     "python": "class Solution:\n    def lowestReading(self, readings: List[int]) -> int:\n        return min(readings)\n",
@@ -289,7 +300,7 @@
    },
    "limits": [
     {
-     "md": "Ignores the structure; the requirement is O(log n)."
+     "md": "Breaks the O(log n) requirement; the comparison with the last element tells which side the drop is on."
     }
    ]
   },
@@ -300,13 +311,13 @@
    "space": "O(1)",
    "idea": [
     {
-     "md": "`lo = 0`, `hi = n − 1`. If `a[mid] > a[hi]`, mid is in the high run: `lo = mid + 1`. Otherwise mid is in the low run, at or after the minimum: `hi = mid`. Return `a[lo]`."
+     "md": "`lo = 0`, `hi = n − 1`. While `lo < hi`: if `a[mid] > a[hi]`, the minimum is right of `mid` (`lo = mid + 1`);\notherwise it's at `mid` or left (`hi = mid`). Return `a[lo]`.\n\n**Invariant.** The minimum's index is always in `lo … hi`."
     }
    ],
    "build": [
-    "`lo = 0`, `hi = n − 1`.",
-    "Compare `a[mid]` with `a[hi]` and keep the half with the drop.",
-    "Return `a[lo]`."
+    "Range over the whole log.",
+    "Compare the middle with the last element of the range.",
+    "Keep the half with the drop."
    ],
    "code": {
     "python": "class Solution:\n    def lowestReading(self, readings: List[int]) -> int:\n        lo, hi = 0, len(readings) - 1\n        while lo < hi:\n            mid = (lo + hi) // 2\n            if readings[mid] > readings[hi]:\n                lo = mid + 1\n            else:\n                hi = mid\n        return readings[lo]\n",
@@ -563,7 +574,7 @@
  ],
  "takeaways": [
   {
-   "md": "- A rotated sorted array = two sorted runs. Compare `a[mid]` with `a[hi]` to know which run mid is in.\n- Comparing with `a[hi]` also handles the unrotated case without special code."
+   "md": "- **Minimum of a rotated sorted array:** compare `a[mid]` with `a[hi]`.\n- `hi = mid` (not `mid − 1`), because `mid` itself may be the minimum.\n- **Pitfall:** comparing with `a[lo]`, which fails on unrotated input."
   }
  ]
 }

@@ -4,47 +4,53 @@
  "question": [
   {
    "md": "`elevations` rises strictly to one top, then falls strictly. For each target, return the **smallest** index\nholding it, or −1.\n\n- **A value can appear twice**, once on each slope (e.g. 6 and 3 in the example). The smallest index is the\n  one on the rising slope.\n- **Up to 10⁵ targets** on 10⁵ points: scanning per target is 10¹⁰ steps.\n- **Answer in the order of `targets`.**"
+  },
+  {
+   "md": "**Edge cases to keep in mind**\n\n- A height can appear on both slopes; the **smallest** index (on the rising slope) wins.\n- The top's height appears once.\n- Up to 10⁵ lookups: each must be O(log n) after preprocessing."
   }
  ],
  "think": [
   {
-   "md": "Take `[1, 3, 6, 9, 12, 10, 6, 4, 3, 0]` with targets `[6, 3, 11, 0]`. The top is 12 at index 4. Left of it the values increase;\nright of it they decrease."
+   "md": "**Follow the slope.** Look at `a[mid]` and its right neighbour. If the next point is **higher**, a summit must exist\nto the right: walking right you either keep climbing until the end (the last point is then a summit, since beyond it is\na drop) or the trail turns down somewhere, which is a summit. So the search can discard the left part. If the next point\nis lower, a summit exists at `mid` or to its left. The yes/no question \"is the next point higher?\" is enough to halve\nthe range even though the array isn't sorted."
   },
   {
-   "panels": [
-    {
-     "type": "row",
-     "cells": [
-      1,
-      3,
-      6,
-      9,
-      12,
-      10,
-      6,
-      4,
-      3,
-      0
+   "md": "**Three binary searches.** First find the top (the slope test). The left slope `0 … top` is increasing and the\nright slope `top … n − 1` is decreasing, so each is a sorted array. For each target, search the rising slope first\n(it holds the smaller indices); only if it's not there, search the falling slope (with comparisons reversed). For\n`[1, 3, 6, 9, 12, 10, 6, 4, 3, 0]` (top at 4):"
+  },
+  {
+   "table": {
+    "head": [
+     "target",
+     "on the rising slope",
+     "on the falling slope",
+     "answer"
+    ],
+    "rows": [
+     [
+      "6",
+      "2",
+      "6",
+      "2"
      ],
-     "states": {
-      "4": "answer",
-      "0": "found",
-      "1": "found",
-      "2": "found",
-      "3": "found",
-      "5": "mark",
-      "6": "mark",
-      "7": "mark",
-      "8": "mark",
-      "9": "mark"
-     },
-     "slots": true
-    }
-   ],
-   "caption": "Rising slope (light), top, falling slope (marked): two sorted halves."
-  },
-  {
-   "md": "Each slope is sorted, one ascending and one descending, so each can be binary-searched. The order of the two\nsearches matters: every index on the rising slope is smaller than every index on the falling slope, so look\nthere first and only fall back to the falling slope if the target isn't on the rising one.\n\nA hash map from value to first index also answers every lookup in O(1), at the cost of reading the whole\nmountain and storing it."
+     [
+      "3",
+      "1",
+      "8",
+      "1"
+     ],
+     [
+      "11",
+      "—",
+      "—",
+      "-1"
+     ],
+     [
+      "0",
+      "—",
+      "9",
+      "9"
+     ]
+    ]
+   }
   }
  ],
  "approaches": [
@@ -55,11 +61,12 @@
    "space": "O(1)",
    "idea": [
     {
-     "md": "For each target, return the first index whose elevation equals it."
+     "md": "For each target, scan the whole trail for its first occurrence."
     }
    ],
    "build": [
-    "For each target, scan from index 0; record the first match or −1."
+    "For each target, scan.",
+    "First match or −1."
    ],
    "code": {
     "python": "class Solution:\n    def findAltitudes(self, elevations: List[int], targets: List[int]) -> List[int]:\n        out = []\n        for t in targets:\n            idx = -1\n            for i, v in enumerate(elevations):\n                if v == t:\n                    idx = i\n                    break\n            out.append(idx)\n        return out\n",
@@ -158,7 +165,7 @@
    ],
    "complexity": [
     {
-     "md": "**Time O(n · q).** **Space O(1)** besides the output."
+     "md": "**Time O(n · q):** 10¹⁰ at the limits. **Space O(1)** besides the output."
     }
    ],
    "walk": {
@@ -274,7 +281,7 @@
    },
    "limits": [
     {
-     "md": "Every lookup re-reads the whole mountain."
+     "md": "Every lookup rescans; one preprocessing step can make each lookup fast."
     }
    ],
    "slow": true
@@ -286,12 +293,12 @@
    "space": "O(n)",
    "idea": [
     {
-     "md": "One pass from the left stores each elevation's first index (later duplicates don't overwrite). Each target is then a map lookup."
+     "md": "Record each height's first index in a hash map (scanning left to right), then answer each lookup in O(1)."
     }
    ],
    "build": [
-    "For each index, store `first[e[i]] = i` if absent.",
-    "Answer each target with `first.get(t, −1)`."
+    "Map height → first index.",
+    "Look up each target."
    ],
    "code": {
     "python": "class Solution:\n    def findAltitudes(self, elevations: List[int], targets: List[int]) -> List[int]:\n        first = {}\n        for i, v in enumerate(elevations):\n            first.setdefault(v, i)\n        return [first.get(t, -1) for t in targets]\n",
@@ -384,7 +391,7 @@
    ],
    "complexity": [
     {
-     "md": "**Time O(n + q).** **Space O(n)** for the map."
+     "md": "**Time O(n + q)** expected. **Space O(n).**"
     }
    ],
    "walk": {
@@ -454,7 +461,7 @@
    },
    "limits": [
     {
-     "md": "It reads and stores the entire mountain even though the mountain shape already allows searching it in place. With the slopes binary-searched, each lookup touches only O(log n) points and no extra memory is needed."
+     "md": "O(n) extra memory; the mountain's two sorted slopes allow O(log n) lookups with O(1) memory."
     }
    ]
   },
@@ -465,13 +472,14 @@
    "space": "O(1)",
    "idea": [
     {
-     "md": "Binary-search the top. For each target: lower-bound search on the rising slope `[0, top]`; if not found, search the falling slope `[top, n)` for the first index whose value is ≤ target and check it equals the target."
+     "md": "Find the top with the slope test. For each target: lower bound on the rising slope `[0, top]`; if it hits the\ntarget, that's the answer. Otherwise, on the falling slope `[top, n)`, find the first index whose height is\n`≤` the target and check it."
     }
    ],
    "build": [
-    "Find `top` with the slope test.",
-    "Rising slope: first index in `[0, top]` with value ≥ t; equal → answer.",
-    "Falling slope: first index in `[top, n)` with value ≤ t; equal → answer; else −1."
+    "Find the top.",
+    "Lower bound on the rising slope.",
+    "Mirrored search on the falling slope.",
+    "Collect answers."
    ],
    "code": {
     "python": "class Solution:\n    def findAltitudes(self, elevations: List[int], targets: List[int]) -> List[int]:\n        e, n = elevations, len(elevations)\n        lo, hi = 0, n - 1\n        while lo < hi:\n            mid = (lo + hi) // 2\n            if e[mid] < e[mid + 1]:\n                lo = mid + 1\n            else:\n                hi = mid\n        top = lo\n        out = []\n        for t in targets:\n            lo, hi = 0, top + 1\n            while lo < hi:\n                mid = (lo + hi) // 2\n                if e[mid] < t:\n                    lo = mid + 1\n                else:\n                    hi = mid\n            if lo <= top and e[lo] == t:\n                out.append(lo)\n                continue\n            lo, hi = top, n\n            while lo < hi:\n                mid = (lo + hi) // 2\n                if e[mid] > t:\n                    lo = mid + 1\n                else:\n                    hi = mid\n            out.append(lo if lo < n and e[lo] == t else -1)\n        return out\n",
@@ -634,7 +642,7 @@
    ],
    "complexity": [
     {
-     "md": "**Time O(log n + q log n).** **Space O(1)** besides the output."
+     "md": "**Time O(log n)** per lookup plus O(log n) for the top. **Space O(1)** besides the output."
     }
    ],
    "walk": {
@@ -785,7 +793,7 @@
  ],
  "takeaways": [
   {
-   "md": "- A mountain (bitonic) array = **two sorted halves**: find the peak once, then binary-search each side.\n- On a descending range, flip the comparison (or use a `greater` comparator).\n- \"Smallest index\" with duplicates across halves: search the left half first."
+   "md": "- **Search in a mountain array:** find the peak, then binary search each monotone side.\n- Search the left side first when the smallest index is wanted.\n- **Pitfall:** using the same comparison on the falling side (it's sorted the other way)."
   }
  ]
 }

@@ -4,51 +4,62 @@
  "question": [
   {
    "md": "Every row is sorted left to right and every column top to bottom. Return true if `target` is in the grid.\n\n- **Rows don't continue each other:** a row can start below the previous row's end, so the grid is *not* one\n  long sorted list. (That's the difference from **Seat Map Lookup**.)\n- **Duplicates** are allowed (non-decreasing).\n- **Size:** up to 1000 × 1000 = 10⁶ cells."
+  },
+  {
+   "md": "**Edge cases to keep in mind**\n\n- Rows can start below where the previous row ended, so the grid isn't one sorted array.\n- Duplicates are allowed.\n- The target may be off the grid's value range."
   }
  ],
  "think": [
   {
-   "md": "Take this grid and target 10."
+   "md": "**Two kinds of sorted grid.**\n\n- **Fully ordered rows** (each row starts after the previous one ends): read row by row, the grid is one sorted array of\n  length `m · n`. Index `k` of that array is cell `(k // n, k % n)`, so a plain binary search over `0 … m·n − 1` works.\n- **Rows and columns sorted separately:** start at the **top-right** corner. If the value there is too big, every value\n  below it in that column is bigger still, so the whole column can go; if it's too small, everything to its left in\n  that row is smaller, so the whole row can go. Each step removes a row or a column: at most `m + n` steps."
   },
   {
-   "panels": [
-    {
-     "type": "grid",
-     "cells": [
-      [
-       2,
-       5,
-       9,
-       14
-      ],
-      [
-       4,
-       7,
-       11,
-       18
-      ],
-      [
-       6,
-       10,
-       15,
-       21
-      ],
-      [
-       12,
-       16,
-       19,
-       25
-      ]
+   "md": "**Why the top-right corner.** At the top-right, moving left makes values smaller and moving down makes them\nbigger: exactly one direction for each outcome of the comparison. (The top-left corner wouldn't work: both moves\nincrease the value.) For the grid [[2, 5, 9, 14], [4, 7, 11, 18], [6, 10, 15, 21], [12, 16, 19, 25]] and target 10:"
+  },
+  {
+   "table": {
+    "head": [
+     "row",
+     "col",
+     "value",
+     "decision"
+    ],
+    "rows": [
+     [
+      "0",
+      "3",
+      "14",
+      "14 > 10: everything below in column 3 is bigger, drop the column"
      ],
-     "states": {
-      "0,3": "active"
-     }
-    }
-   ],
-   "caption": "Top-right corner: the largest in its row, the smallest in its column."
+     [
+      "0",
+      "2",
+      "9",
+      "9 < 10: everything left in row 0 is smaller, drop the row"
+     ],
+     [
+      "1",
+      "2",
+      "11",
+      "11 > 10: everything below in column 2 is bigger, drop the column"
+     ],
+     [
+      "1",
+      "1",
+      "7",
+      "7 < 10: everything left in row 1 is smaller, drop the row"
+     ],
+     [
+      "2",
+      "1",
+      "10",
+      "found"
+     ]
+    ]
+   }
   },
   {
-   "md": "The top-left corner is useless as a start: both moves (right, down) increase the value. But the **top-right**\ncorner sits at a crossroads: moving left decreases, moving down increases. So one comparison decides a\ndirection:\n\n- corner > target: the target can't be in this column (the rest of it is even larger): move left;\n- corner < target: the target can't be in this row (the rest of it is even smaller): move down.\n\nEach step eliminates a full row or column, so after at most m + n steps you either find the target or fall off\nthe grid. (The bottom-left corner works the same way, mirrored.)"
+   "md": "Answer **true**."
   }
  ],
  "approaches": [
@@ -59,12 +70,11 @@
    "space": "O(1)",
    "idea": [
     {
-     "md": "Compare every cell with the target."
+     "md": "Check every cell."
     }
    ],
    "build": [
-    "Loop over all cells; return true on a match.",
-    "Return false."
+    "Scan all cells."
    ],
    "code": {
     "python": "class Solution:\n    def inWarehouse(self, grid: List[List[int]], target: int) -> bool:\n        return any(v == target for row in grid for v in row)\n",
@@ -128,7 +138,7 @@
    ],
    "complexity": [
     {
-     "md": "**Time O(m · n):** 10⁶ cells. **Space O(1).**"
+     "md": "**Time O(m · n).** **Space O(1).**"
     }
    ],
    "walk": {
@@ -265,7 +275,7 @@
    },
    "limits": [
     {
-     "md": "Ignores both orderings."
+     "md": "Uses none of the ordering."
     }
    ]
   },
@@ -276,12 +286,12 @@
    "space": "O(1)",
    "idea": [
     {
-     "md": "Every row is sorted, so binary-search each row for the target."
+     "md": "Binary search each row for the target."
     }
    ],
    "build": [
-    "For each row, run a lower-bound search for the target.",
-    "Return true if any row has it."
+    "For each row, lower bound for the target.",
+    "Check equality."
    ],
    "code": {
     "python": "from bisect import bisect_left\n\nclass Solution:\n    def inWarehouse(self, grid: List[List[int]], target: int) -> bool:\n        for row in grid:\n            j = bisect_left(row, target)\n            if j < len(row) and row[j] == target:\n                return True\n        return False\n",
@@ -380,7 +390,7 @@
    ],
    "complexity": [
     {
-     "md": "**Time O(m log n):** about 10⁴ steps for 1000 × 1000. **Space O(1).**"
+     "md": "**Time O(m log n).** **Space O(1).**"
     }
    ],
    "walk": {
@@ -511,7 +521,7 @@
    },
    "limits": [
     {
-     "md": "Uses the row order but not the column order. Using both lets each comparison discard a whole row or column."
+     "md": "Uses only the row ordering; the column ordering lets each step discard a whole row or column."
     }
    ]
   },
@@ -522,13 +532,13 @@
    "space": "O(1)",
    "idea": [
     {
-     "md": "Start at (0, n − 1). Equal → true. Bigger than target → move left (drop the column). Smaller → move down (drop the row). Off the grid → false."
+     "md": "Start at the top-right; too big → move left (drop the column), too small → move down (drop the row), equal → found."
     }
    ],
    "build": [
-    "`r = 0`, `c = n − 1`.",
-    "While inside: compare, then `c −= 1` or `r += 1`.",
-    "Return false when you leave the grid."
+    "Top-right corner.",
+    "Compare and move left or down.",
+    "Stop when found or out of the grid."
    ],
    "code": {
     "python": "class Solution:\n    def inWarehouse(self, grid: List[List[int]], target: int) -> bool:\n        r, c = 0, len(grid[0]) - 1\n        while r < len(grid) and c >= 0:\n            v = grid[r][c]\n            if v == target:\n                return True\n            if v > target:\n                c -= 1\n            else:\n                r += 1\n        return False\n",
@@ -714,7 +724,7 @@
    ],
    "complexity": [
     {
-     "md": "**Time O(m + n):** at most 2000 steps for 1000 × 1000. **Space O(1).**"
+     "md": "**Time O(m + n).** **Space O(1).**"
     }
    ],
    "walk": {
@@ -945,7 +955,7 @@
  ],
  "takeaways": [
   {
-   "md": "- In a grid sorted by rows **and** columns, start at a corner where one direction increases and the other\n  decreases (top-right or bottom-left). Each comparison discards a row or a column: O(m + n).\n- If rows also continue each other, the grid is one sorted list and plain binary search gives O(log(m·n))."
+   "md": "- **Rows and columns sorted:** staircase search from the top-right (or bottom-left) corner.\n- Each comparison eliminates a whole row or column.\n- **Pitfall:** starting at the top-left, where both moves go up in value."
   }
  ]
 }

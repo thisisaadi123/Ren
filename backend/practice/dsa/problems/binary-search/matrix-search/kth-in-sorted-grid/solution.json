@@ -4,57 +4,61 @@
  "question": [
   {
    "md": "An n × n grid has every row and every column sorted. Return the k-th smallest value, counting duplicates.\n\n- **Rows don't continue each other,** so the grid isn't one sorted list.\n- **Memory goal: less than O(n²)**, which rules out copying everything into one array.\n- **Values are ±10⁹:** the difference `hi − lo` can reach 2 × 10⁹, so compute the midpoint with 64-bit math or\n  `lo + (hi − lo) / 2` in a wide type."
+  },
+  {
+   "md": "**Edge cases to keep in mind**\n\n- Duplicates count separately.\n- `k = 1` is the top-left value; `k = n²` the bottom-right.\n- Values can be negative; the search is over values, not indices."
   }
  ],
  "think": [
   {
-   "md": "Take this 4 × 4 grid and k = 7. Sorted, the values are `[1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 16, 17]`; the 7-th is 7."
+   "md": "**Two kinds of sorted grid.**\n\n- **Fully ordered rows** (each row starts after the previous one ends): read row by row, the grid is one sorted array of\n  length `m · n`. Index `k` of that array is cell `(k // n, k % n)`, so a plain binary search over `0 … m·n − 1` works.\n- **Rows and columns sorted separately:** start at the **top-right** corner. If the value there is too big, every value\n  below it in that column is bigger still, so the whole column can go; if it's too small, everything to its left in\n  that row is smaller, so the whole row can go. Each step removes a row or a column: at most `m + n` steps."
   },
   {
-   "panels": [
-    {
-     "type": "grid",
-     "cells": [
-      [
-       1,
-       4,
-       7,
-       11
-      ],
-      [
-       2,
-       5,
-       8,
-       12
-      ],
-      [
-       3,
-       6,
-       9,
-       16
-      ],
-      [
-       10,
-       13,
-       14,
-       17
-      ]
+   "md": "**Binary search on the value.** Let `count(v)` = number of cells `≤ v`. It grows with `v`, and the k-th smallest\nvalue is the smallest `v` with `count(v) ≥ k`. Counting is a staircase walk from the bottom-left: if the cell is\n`≤ v`, the whole column above it is too (add `row + 1`, move right); otherwise move up. That's O(n) per count.\n\n**Why the answer is a real grid value.** The smallest `v` with `count(v) ≥ k` must be a value in the grid: at any\n`v` not in the grid, `count(v − 1) = count(v)`, so a smaller `v` would also qualify. For the grid [[1, 4, 7, 11], [2, 5, 8, 12], [3, 6, 9, 16], [10, 13, 14, 17]] and\n`k = 7`:"
+  },
+  {
+   "table": {
+    "head": [
+     "lo",
+     "hi",
+     "mid",
+     "count(mid)",
+     "decision"
+    ],
+    "rows": [
+     [
+      "1",
+      "17",
+      "9",
+      "9",
+      "≥ k: answer ≤ mid"
      ],
-     "states": {
-      "0,0": "found",
-      "0,1": "found",
-      "0,2": "found",
-      "1,0": "found",
-      "1,1": "found",
-      "2,0": "found",
-      "2,1": "found"
-     }
-    }
-   ],
-   "caption": "The cells ≤ 7 form a staircase shape in the top-left."
+     [
+      "1",
+      "9",
+      "5",
+      "5",
+      "< k: answer > mid"
+     ],
+     [
+      "6",
+      "9",
+      "7",
+      "7",
+      "≥ k: answer ≤ mid"
+     ],
+     [
+      "6",
+      "7",
+      "6",
+      "6",
+      "< k: answer > mid"
+     ]
+    ]
+   }
   },
   {
-   "md": "Notice the shape of \"cells ≤ v\": in each row it's a prefix, and the prefixes get shorter going down (columns\nare sorted). So you can count them with a staircase walk: start at the bottom-left; if the cell is ≤ v, the\nwhole column above it is ≤ v too (add r + 1, move right); otherwise move up. That's O(n).\n\nWith a cheap count, use the **binary search on the value** idea: the k-th smallest is the smallest v with at\nleast k cells ≤ v. The search runs over the value range [1, 17] (top-left to bottom-right)."
+   "md": "Answer **7**."
   }
  ],
  "approaches": [
@@ -65,13 +69,13 @@
    "space": "O(n²)",
    "idea": [
     {
-     "md": "Copy all n² values into one array, sort it, return index k − 1."
+     "md": "Flatten the grid, sort, take the k-th value."
     }
    ],
    "build": [
-    "Copy every value.",
+    "Collect all values.",
     "Sort.",
-    "Return element k − 1."
+    "Index `k − 1`."
    ],
    "code": {
     "python": "class Solution:\n    def kthInGrid(self, grid: List[List[int]], k: int) -> int:\n        return sorted(v for row in grid for v in row)[k - 1]\n",
@@ -116,7 +120,7 @@
    ],
    "complexity": [
     {
-     "md": "**Time O(n² log n).** **Space O(n²)**, which the problem asks to avoid."
+     "md": "**Time O(n² log n).** **Space O(n²).**"
     }
    ],
    "walk": {
@@ -242,7 +246,7 @@
    },
    "limits": [
     {
-     "md": "Ignores all the sorting already present and uses n² memory."
+     "md": "Uses O(n²) memory and ignores the ordering."
     }
    ]
   },
@@ -253,13 +257,13 @@
    "space": "O(n)",
    "idea": [
     {
-     "md": "Each row is sorted, so the overall next-smallest value is always the smallest among the rows' next unused values. Keep those n values in a min-heap; pop k times, each time pushing the popped row's next value."
+     "md": "Merge the sorted rows with a min-heap: start with each row's first cell; pop `k` times, pushing the next cell in the popped row each time."
     }
    ],
    "build": [
-    "Push `(grid[r][0], r, 0)` for every row.",
-    "Pop k times; after popping `(v, r, c)`, push `(grid[r][c + 1], r, c + 1)` if it exists.",
-    "The k-th popped value is the answer."
+    "Heap of each row's first value.",
+    "Pop the smallest, push the next in its row.",
+    "The k-th pop is the answer."
    ],
    "code": {
     "python": "import heapq\n\nclass Solution:\n    def kthInGrid(self, grid: List[List[int]], k: int) -> int:\n        n = len(grid)\n        heap = [(grid[r][0], r, 0) for r in range(n)]\n        heapq.heapify(heap)\n        for _ in range(k):\n            v, r, c = heapq.heappop(heap)\n            if c + 1 < n:\n                heapq.heappush(heap, (grid[r][c + 1], r, c + 1))\n        return v\n",
@@ -408,7 +412,7 @@
    ],
    "complexity": [
     {
-     "md": "**Time O(k log n):** up to n² log n when k is large. **Space O(n)** for the heap."
+     "md": "**Time O(k log n).** **Space O(n).**"
     }
    ],
    "walk": {
@@ -847,7 +851,7 @@
    },
    "limits": [
     {
-     "md": "The cost grows with k (up to n² pops). Counting cells ≤ v doesn't depend on k at all, so binary search on the value is faster for large k and needs no heap."
+     "md": "With `k` up to `n²`, that's O(n² log n) time. Binary search on the value needs only O(n log range)."
     }
    ]
   },
@@ -858,14 +862,12 @@
    "space": "O(1)",
    "idea": [
     {
-     "md": "Search v in `[grid[0][0], grid[n−1][n−1]]`. `count(v)`: start at the bottom-left; if `grid[r][c] ≤ v`, add `r + 1` (the whole column above) and move right; else move up. If `count(mid) ≥ k`, `hi = mid`; else `lo = mid + 1`."
+     "md": "Binary search the value range `[grid[0][0], grid[n−1][n−1]]`: if `count(mid) ≥ k`, `hi = mid`, else `lo = mid + 1`. `count` is the staircase walk."
     }
    ],
    "build": [
-    "`lo` = top-left, `hi` = bottom-right (the min and max).",
-    "Midpoint with 64-bit arithmetic.",
-    "Staircase count; move the bounds.",
-    "Return `lo`."
+    "Staircase count of cells ≤ v.",
+    "Binary search for the smallest v with count ≥ k."
    ],
    "code": {
     "python": "class Solution:\n    def kthInGrid(self, grid: List[List[int]], k: int) -> int:\n        n = len(grid)\n        def count_at_most(v):\n            r, c, total = n - 1, 0, 0\n            while r >= 0 and c < n:\n                if grid[r][c] <= v:\n                    total += r + 1\n                    c += 1\n                else:\n                    r -= 1\n            return total\n        lo, hi = grid[0][0], grid[-1][-1]\n        while lo < hi:\n            mid = (lo + hi) // 2\n            if count_at_most(mid) >= k:\n                hi = mid\n            else:\n                lo = mid + 1\n        return lo\n",
@@ -1022,7 +1024,7 @@
    ],
    "complexity": [
     {
-     "md": "**Time O(n log(max − min)):** about 32 counts of O(n) each. **Space O(1).**"
+     "md": "**Time O(n · log(range)):** about 300 × 31 steps. **Space O(1).**"
     }
    ],
    "walk": {
@@ -1275,7 +1277,7 @@
  ],
  "takeaways": [
   {
-   "md": "- k-th smallest in a row- and column-sorted grid: **binary search on the value** + **staircase count**.\n- A min-heap merging sorted rows is the general \"k-way merge\"; it costs O(k log n).\n- Use 64-bit midpoints when the value range spans the whole 32-bit range."
+   "md": "- **k-th smallest in a sorted matrix:** binary search on the value + staircase counting.\n- \"Smallest value with count ≥ k\" is always an element of the grid.\n- **Pitfall:** `(lo + hi) // 2` with negative values in languages that truncate toward zero (use a floor midpoint)."
   }
  ]
 }

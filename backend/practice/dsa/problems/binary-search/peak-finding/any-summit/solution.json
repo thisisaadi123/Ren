@@ -4,39 +4,54 @@
  "question": [
   {
    "md": "Heights have no equal neighbours; the trail drops to −∞ before the first and after the last point. Return the\nindex of **any** point higher than both neighbours, in O(log n).\n\n- **Any summit** is accepted; there may be several.\n- **The ends can be summits** thanks to the imaginary drops: `[7]` → 0; `[1, 2]` → 1.\n- **Heights span the full 32-bit range**, but only comparisons are needed, so no overflow risk.\n- **The input isn't sorted**, yet binary search still works."
+  },
+  {
+   "md": "**Edge cases to keep in mind**\n\n- Any summit is accepted; there may be several.\n- The first and last points count as summits if their one neighbour is lower (the edges are drops).\n- One point: it's a summit."
   }
  ],
  "think": [
   {
-   "md": "Take `[2, 5, 3, 1, 4, 8, 6, 7, 0]`. Summits are at indices [1, 5, 7]. We only need one.\n\nStand at any point and look right. If the next point is **higher**, keep walking right while it keeps rising.\nYou can't climb forever: either the trail turns down (that's a summit) or it ends (the last point, with a\ndrop after it, is a summit). So **\"the next point is higher\" guarantees a summit to the right**. Likewise, if\nthe next point is lower, a summit exists at the current point or to its left."
+   "md": "**Follow the slope.** Look at `a[mid]` and its right neighbour. If the next point is **higher**, a summit must exist\nto the right: walking right you either keep climbing until the end (the last point is then a summit, since beyond it is\na drop) or the trail turns down somewhere, which is a summit. So the search can discard the left part. If the next point\nis lower, a summit exists at `mid` or to its left. The yes/no question \"is the next point higher?\" is enough to halve\nthe range even though the array isn't sorted."
   },
   {
-   "panels": [
-    {
-     "type": "row",
-     "cells": [
-      2,
-      5,
-      3,
-      1,
-      4,
-      8,
-      6,
-      7,
-      0
+   "md": "**Not sorted, still halvable.** `[2, 5, 3, 1, 4, 8, 6, 7, 0]` has summits at [1, 5, 7]. The array isn't sorted, yet each comparison with\nthe right neighbour still guarantees a summit on one side, so half the range can always be discarded:"
+  },
+  {
+   "table": {
+    "head": [
+     "lo",
+     "hi",
+     "mid",
+     "a[mid]",
+     "decision"
+    ],
+    "rows": [
+     [
+      "0",
+      "8",
+      "4",
+      "4",
+      "uphill to 8: a summit exists to the right"
      ],
-     "states": {
-      "1": "answer",
-      "5": "answer",
-      "7": "answer"
-     },
-     "slots": true
-    }
-   ],
-   "caption": "Any of the shaded points is a valid answer."
+     [
+      "5",
+      "8",
+      "6",
+      "6",
+      "uphill to 7: a summit exists to the right"
+     ],
+     [
+      "7",
+      "8",
+      "7",
+      "7",
+      "downhill to 0: a summit exists at mid or left"
+     ]
+    ]
+   }
   },
   {
-   "md": "That's enough for binary search. At mid: rising to the right → `lo = mid + 1`; falling → `hi = mid`. The kept\nhalf always contains a summit, and when one index is left, it is one."
+   "md": "Summit at index **7** (height 7)."
   }
  ],
  "approaches": [
@@ -47,12 +62,12 @@
    "space": "O(1)",
    "idea": [
     {
-     "md": "Return the first index i whose next point is lower, or the last index if the trail never turns down. Every point before i was rising, so i is higher than its left neighbour too."
+     "md": "Scan for the first point higher than the next one; if none, the last point is a summit."
     }
    ],
    "build": [
-    "For i from 0 to n − 2: if `h[i] > h[i + 1]`, return i.",
-    "Return n − 1."
+    "Scan for a downturn.",
+    "Return it, or the last index."
    ],
    "code": {
     "python": "class Solution:\n    def findSummit(self, heights: List[int]) -> int:\n        for i in range(len(heights) - 1):\n            if heights[i] > heights[i + 1]:\n                return i\n        return len(heights) - 1\n",
@@ -179,7 +194,7 @@
    },
    "limits": [
     {
-     "md": "Linear; the requirement is O(log n). The \"walk uphill\" argument works from any midpoint, not just from the start."
+     "md": "Linear; following the uphill side halves the range each step."
     }
    ]
   },
@@ -190,12 +205,12 @@
    "space": "O(1)",
    "idea": [
     {
-     "md": "`lo = 0`, `hi = n − 1`. If `h[mid] < h[mid + 1]`, a summit lies right: `lo = mid + 1`. Else one lies at mid or left: `hi = mid`. Return `lo`."
+     "md": "Same loop as the mountain top: go right when the next point is higher, otherwise keep `mid`.\n\n**Invariant.** The range `lo … hi` always contains a summit (the boundaries act as drops), so when it shrinks\nto one point, that point is a summit."
     }
    ],
    "build": [
-    "`lo = 0`, `hi = n − 1`.",
-    "Compare mid with mid + 1; keep the uphill half.",
+    "Range over the trail.",
+    "Uphill → right; downhill → keep mid.",
     "Return `lo`."
    ],
    "code": {
@@ -459,7 +474,7 @@
  ],
  "takeaways": [
   {
-   "md": "- **Peak finding:** move towards the higher neighbour; the boundary drops guarantee a peak in that\n  direction, so binary search works on unsorted data.\n- The invariant \"the range contains a valid answer\" is what makes it correct, not sortedness."
+   "md": "- **Find any peak:** binary search uphill; no sorting needed.\n- The guarantee comes from the boundaries being lower than everything.\n- **Pitfall:** comparing with the left neighbour at `mid = 0` (out of range)."
   }
  ]
 }
