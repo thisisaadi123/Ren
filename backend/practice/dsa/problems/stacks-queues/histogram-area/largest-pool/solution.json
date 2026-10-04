@@ -4,59 +4,110 @@
  "question": [
   {
    "md": "Columns of rock of width 1 are given by height. Rain fills every dip; water spills off both ends. Neighbouring\nwater-holding columns form one pool, and a dry column separates pools. Return the largest pool's volume.\n\n- **A dry column splits pools**, even when water stands on both sides of it (possibly at different levels).\n- **Heights reach 10⁹ and there are up to 10⁵ columns**, so a pool can hold ~10¹⁴: the answer is a `long`.\n- **No water anywhere** (for example, heights only rise) → 0."
+  },
+  {
+   "md": "**Edge cases to keep in mind**\n\n- A column that holds no water ends a pool, even if water sits on both sides of it.\n- No water anywhere: 0.\n- Volumes reach about `10¹⁰`: use 64 bits."
   }
  ],
  "think": [
   {
-   "md": "Walls `[2, 0, 3, 1, 1, 4, 0, 2, 2, 0, 1]`. Columns 1, 3 and 4 hold 2 each, but column 2 (height 3) is dry and splits them: a pool of 2\nand a pool of 4. On the right, column 6 holds 2 and column 9 holds 1. Pools: `[2, 4, 2, 1]`, so the answer is\n**4**, not the total water 9."
+   "md": "**Water per column, then pools.** Column `i` holds `min(tallest wall on its left, tallest on its right) −\nwalls[i]` (both including itself). Consecutive columns holding water form one pool; a dry column ends it."
   },
   {
-   "panels": [
-    {
-     "type": "row",
-     "cells": [
-      2,
-      0,
-      3,
-      1,
-      1,
-      4,
-      0,
-      2,
-      2,
-      0,
-      1
-     ],
-     "label": "walls"
-    },
-    {
-     "type": "row",
-     "cells": [
-      0,
-      2,
-      0,
-      2,
-      2,
-      0,
-      2,
-      0,
-      0,
-      1,
-      0
-     ],
-     "states": {
-      "1": "found",
-      "3": "found",
-      "4": "found",
-      "6": "found",
-      "9": "found"
-     },
-     "label": "water"
-    }
-   ]
+   "md": "**For `[2, 0, 3, 1, 1, 4, 0, 2, 2, 0, 1]`:**"
   },
   {
-   "md": "How high does water stand over a column? It's held by the tallest wall to its left and the tallest to its right,\nand spills over the lower of the two: `level = min(maxLeft, maxRight)`, water = level − height.\n\nNow the observation that removes the extra arrays: take the tallest wall overall (column 5). For any column\nleft of it, the tallest wall on the right is at least as high as anything on the left, so the level is simply\nthe running maximum from the left. Mirror that on the right side. The tallest wall itself is dry, so no pool\ncrosses it, and each side can be scanned on its own."
+   "table": {
+    "head": [
+     "column",
+     "height",
+     "max left",
+     "max right",
+     "water"
+    ],
+    "rows": [
+     [
+      "0",
+      "2",
+      "2",
+      "4",
+      "0"
+     ],
+     [
+      "1",
+      "0",
+      "2",
+      "4",
+      "2"
+     ],
+     [
+      "2",
+      "3",
+      "3",
+      "4",
+      "0"
+     ],
+     [
+      "3",
+      "1",
+      "3",
+      "4",
+      "2"
+     ],
+     [
+      "4",
+      "1",
+      "3",
+      "4",
+      "2"
+     ],
+     [
+      "5",
+      "4",
+      "4",
+      "4",
+      "0"
+     ],
+     [
+      "6",
+      "0",
+      "4",
+      "2",
+      "2"
+     ],
+     [
+      "7",
+      "2",
+      "4",
+      "2",
+      "0"
+     ],
+     [
+      "8",
+      "2",
+      "4",
+      "2",
+      "0"
+     ],
+     [
+      "9",
+      "0",
+      "4",
+      "1",
+      "1"
+     ],
+     [
+      "10",
+      "1",
+      "4",
+      "1",
+      "0"
+     ]
+    ]
+   }
+  },
+  {
+   "md": "Pools: [2, 4, 2, 1], so the answer is **4** (total water would be 9).\n\n**Splitting at the tallest wall.** The tallest wall (index 5) is at least as tall as anything, so for every\ncolumn to its left, the right bound is that peak, and the water level is just the running maximum from the left.\nSymmetrically on the right side. Two simple scans, no arrays."
   }
  ],
  "approaches": [
@@ -67,13 +118,13 @@
    "space": "O(1)",
    "idea": [
     {
-     "md": "For each column, find the tallest wall to its left (including itself) and to its right by scanning. Water = min of those − height. Walk the columns in order, adding water into the current pool and resetting at dry columns; keep the biggest pool."
+     "md": "For each column, scan both sides for the tallest walls; accumulate water into the current pool, resetting it at dry columns."
     }
    ],
    "build": [
-    "For each `i`, scan `0..i` for the max and `i..n−1` for the max.",
-    "Water = min − `walls[i]`.",
-    "Pool: add if water > 0, else reset to 0. Track the maximum."
+    "For each column, both maxima by scanning.",
+    "Water amount.",
+    "Extend or reset the current pool."
    ],
    "code": {
     "python": "class Solution:\n    def largestPool(self, walls: List[int]) -> int:\n        n = len(walls)\n        best = pool = 0\n        for i in range(n):\n            left = max(walls[:i + 1])\n            right = max(walls[i:])\n            water = min(left, right) - walls[i]\n            pool = pool + water if water > 0 else 0\n            best = max(best, pool)\n        return best\n",
@@ -259,7 +310,7 @@
    ],
    "complexity": [
     {
-     "md": "**Time O(n²):** two scans per column. **Space O(1).**"
+     "md": "**Time O(n²).** **Space O(1)** (Python slices aside)."
     }
    ],
    "walk": {
@@ -802,7 +853,7 @@
    },
    "limits": [
     {
-     "md": "Every column rescans the whole array. Both maxima are running maxima, so they can be computed once for all columns."
+     "md": "Rescans both sides for every column; running maxima give them in O(1)."
     }
    ],
    "slow": true
@@ -814,13 +865,13 @@
    "space": "O(n)",
    "idea": [
     {
-     "md": "Precompute `maxLeft[i]` (tallest in `0..i`) in one pass and `maxRight[i]` (tallest in `i..n−1`) in a backwards pass. Then a third pass computes each column's water and adds up the pools."
+     "md": "Precompute `max_left` and `max_right` arrays, then one pass computes each column's water and grows or resets the current pool."
     }
    ],
    "build": [
-    "Fill `maxLeft` left to right.",
-    "Fill `maxRight` right to left.",
-    "Pass over the columns: water = min − height; grow or reset the pool; track the best."
+    "Running maxima from both ends.",
+    "Water per column.",
+    "Pools split by dry columns."
    ],
    "code": {
     "python": "class Solution:\n    def largestPool(self, walls: List[int]) -> int:\n        n = len(walls)\n        max_left, max_right = [0] * n, [0] * n\n        for i in range(n):\n            max_left[i] = max(walls[i], max_left[i - 1] if i else 0)\n        for i in range(n - 1, -1, -1):\n            max_right[i] = max(walls[i], max_right[i + 1] if i < n - 1 else 0)\n        best = pool = 0\n        for i in range(n):\n            water = min(max_left[i], max_right[i]) - walls[i]\n            pool = pool + water if water > 0 else 0\n            best = max(best, pool)\n        return best\n",
@@ -1022,7 +1073,7 @@
    ],
    "complexity": [
     {
-     "md": "**Time O(n):** three passes. **Space O(n)** for the two arrays."
+     "md": "**Time O(n).** **Space O(n).**"
     }
    ],
    "walk": {
@@ -1203,7 +1254,7 @@
    },
    "limits": [
     {
-     "md": "Linear, but two extra arrays of n integers. Splitting at the tallest wall makes one of the two maxima unnecessary on each side, so a single running variable does the job."
+     "md": "Two arrays of maxima; splitting at the tallest wall needs only a running maximum per side."
     }
    ]
   },
@@ -1214,14 +1265,14 @@
    "space": "O(1)",
    "idea": [
     {
-     "md": "Find the tallest column `m`. Scan `0..m−1` left to right with a running max as the water level, adding up pools. Scan `n−1` down to `m+1` with a running max from the right, the same way. Column `m` is dry, so no pool is cut in two."
+     "md": "Find the tallest wall. Scan from the left end up to it, keeping the running maximum as the water level, and\nfrom the right end down to it the same way. Within each scan, add water to the current pool and reset at\ndry columns; track the largest pool.\n\n**Why the running maximum is the level.** On the left side, the tallest wall lies to the right and is at\nleast the running maximum, so the lower bound is the running maximum."
     }
    ],
    "build": [
-    "Find `m`, the index of the tallest wall.",
-    "Left scan: `level = max(level, walls[i])`, water = level − height, grow or reset the pool, track the best.",
-    "Reset the pool and level; scan from the right end down to `m + 1`.",
-    "Return the best."
+    "Index of the tallest wall.",
+    "Left scan up to it.",
+    "Right scan down to it.",
+    "Largest pool."
    ],
    "code": {
     "python": "class Solution:\n    def largestPool(self, walls: List[int]) -> int:\n        n = len(walls)\n        m = walls.index(max(walls))\n        best = 0\n        for side in (range(m), range(n - 1, m, -1)):\n            level = pool = 0\n            for i in side:\n                level = max(level, walls[i])\n                water = level - walls[i]\n                pool = pool + water if water > 0 else 0\n                best = max(best, pool)\n        return best\n",
@@ -1462,7 +1513,7 @@
    ],
    "complexity": [
     {
-     "md": "**Time O(n):** one pass to find the peak, one scan per side. **Space O(1).**"
+     "md": "**Time O(n).** **Space O(1).**"
     }
    ],
    "walk": {
@@ -1819,7 +1870,7 @@
  ],
  "takeaways": [
   {
-   "md": "- Trapped water at a column = `min(maxLeft, maxRight) − height`.\n- The global maximum splits the array: on each side only one running maximum matters, so no extra arrays.\n- The water can also be filled layer by layer with a stack of decreasing walls (each pop fills one horizontal\n  layer between two walls); that's useful when you need the water while scanning in a single direction."
+   "md": "- **Trapped water with pool boundaries:** water per column, then group consecutive wet columns.\n- Splitting at the global maximum makes each side's level a running maximum.\n- **Pitfall:** summing all water instead of the largest pool."
   }
  ]
 }

@@ -4,44 +4,82 @@
  "question": [
   {
    "md": "For every panel, imagine a poster exactly as tall as that panel. It must cover the panel and may extend sideways\nover neighbouring panels, but only ones at least as tall. How wide can it get?\n\n- **Equal heights don't stop it**, only strictly shorter panels do.\n- **The answer is one width per panel**, in order.\n- **Up to 10⁵ panels.**"
+  },
+  {
+   "md": "**Edge cases to keep in mind**\n\n- Equal neighbours: a poster can spread over panels of the **same** height.\n- The shortest panel reaches the whole fence.\n- \"No shorter panel on a side\" means the poster reaches that end (index −1 or n as the boundary)."
   }
  ],
  "think": [
   {
-   "md": "Panels `[3, 5, 4, 1, 4, 6, 2]`. Panel 1 (height 5) is boxed in by 3 and 4 on either side: width 1. Panel 2 (height 4) covers\npanel 1 (5 ≥ 4), then stops at panel 0 (3 < 4) on the left and at panel 3 (height 1) on the right: width 2. Panel 3 (height 1) is the shortest, so it covers all\n7. Widths: `[3, 1, 2, 7, 2, 1, 3]`."
+   "md": "**How far can a bar reach?** For bar `i` with height `h`, the widest stretch where every bar is at least `h` runs from\njust after the **nearest shorter bar on the left** to just before the **nearest shorter bar on the right**. Both\n\"nearest shorter\" positions come from a monotonic stack in one pass each: pop bars that are not shorter than the\ncurrent one; what's left on top is the nearest shorter bar.\n\n**Why this finds the best rectangle.** Any rectangle under a histogram is limited by its lowest bar. Taking each bar as\nthe lowest and stretching as far as possible covers the best rectangle for that height, so the best of these is the\nbest overall."
   },
   {
-   "panels": [
-    {
-     "type": "row",
-     "cells": [
-      3,
-      5,
-      4,
-      1,
-      4,
-      6,
-      2
-     ],
-     "label": "panels"
-    },
-    {
-     "type": "row",
-     "cells": [
-      3,
-      1,
-      2,
-      7,
-      2,
-      1,
-      3
-     ],
-     "label": "width"
-    }
-   ]
+   "md": "**For `[3, 5, 4, 1, 4, 6, 2]`:**"
   },
   {
-   "md": "Each poster is fenced in by the **nearest strictly shorter panel** on each side, so the whole problem is\n\"nearest shorter to the left\" and \"nearest shorter to the right\" for every index.\n\nScanning left to right, a panel that has a shorter-or-equal panel after it can never be anyone's nearest\nshorter panel again: the later one is closer and at least as short. Throwing such panels away leaves a stack of\nstrictly increasing heights, and its top (after popping) is exactly the nearest shorter panel."
+   "table": {
+    "head": [
+     "panel",
+     "height",
+     "nearest shorter on the left",
+     "nearest shorter on the right",
+     "width = right − left − 1"
+    ],
+    "rows": [
+     [
+      "0",
+      "3",
+      "-1",
+      "3",
+      "3"
+     ],
+     [
+      "1",
+      "5",
+      "0",
+      "2",
+      "1"
+     ],
+     [
+      "2",
+      "4",
+      "0",
+      "3",
+      "2"
+     ],
+     [
+      "3",
+      "1",
+      "-1",
+      "7",
+      "7"
+     ],
+     [
+      "4",
+      "4",
+      "3",
+      "6",
+      "2"
+     ],
+     [
+      "5",
+      "6",
+      "4",
+      "6",
+      "1"
+     ],
+     [
+      "6",
+      "2",
+      "3",
+      "7",
+      "3"
+     ]
+    ]
+   }
+  },
+  {
+   "md": "Widths: **[3, 1, 2, 7, 2, 1, 3]**."
   }
  ],
  "approaches": [
@@ -52,13 +90,13 @@
    "space": "O(1)",
    "idea": [
     {
-     "md": "For each panel, walk left while the next panel is at least as tall, then right the same way. The width is the number of panels covered."
+     "md": "For each panel, walk left and right while neighbours are at least as tall."
     }
    ],
    "build": [
-    "For each `i`: move `l` left while `panels[l − 1] ≥ panels[i]`.",
-    "Move `r` right while `panels[r + 1] ≥ panels[i]`.",
-    "Width `r − l + 1`."
+    "For each panel, extend left.",
+    "Extend right.",
+    "Width = right − left + 1."
    ],
    "code": {
     "python": "class Solution:\n    def posterReach(self, panels: List[int]) -> List[int]:\n        n = len(panels)\n        width = [0] * n\n        for i in range(n):\n            l = i\n            while l > 0 and panels[l - 1] >= panels[i]:\n                l -= 1\n            r = i\n            while r < n - 1 and panels[r + 1] >= panels[i]:\n                r += 1\n            width[i] = r - l + 1\n        return width\n",
@@ -244,7 +282,7 @@
    ],
    "complexity": [
     {
-     "md": "**Time O(n²)** in the worst case (all panels equal: every poster spreads over everything). **Space O(1)** beyond the answer."
+     "md": "**Time O(n²)** (e.g. all panels equal). **Space O(1)** besides the output."
     }
    ],
    "walk": {
@@ -502,7 +540,7 @@
    },
    "limits": [
     {
-     "md": "Each panel re-walks ground its neighbours already walked. With 10⁵ equal panels that's 10¹⁰ steps. The only facts needed are the nearest shorter panels, which a stack provides for everyone in O(n)."
+     "md": "Walks overlap heavily. The nearest shorter panel on each side, found with stacks, gives every width directly."
     }
    ],
    "slow": true
@@ -514,13 +552,13 @@
    "space": "O(n)",
    "idea": [
     {
-     "md": "Left to right, keep a stack of indices with strictly increasing heights. For panel `i`, pop every panel at least as tall; the top is now the nearest shorter panel on the left (or −1). Push `i`. Do the same right to left for the nearest shorter on the right (or `n`). The width is `right − left − 1`."
+     "md": "Left pass: a stack of panel indices; pop while the top is at least as tall as the current panel; the\nremaining top is the nearest shorter panel on the left (−1 if none). Right pass: the same from the right\n(n if none). Width = `right − left − 1`."
     }
    ],
    "build": [
-    "`left[i]` from a left-to-right stack pass (pop while `≥`).",
-    "`right[i]` from a right-to-left pass (pop while `≥`).",
-    "`width[i] = right[i] − left[i] − 1`."
+    "Left nearest-shorter pass.",
+    "Right nearest-shorter pass.",
+    "Widths from the two boundaries."
    ],
    "code": {
     "python": "class Solution:\n    def posterReach(self, panels: List[int]) -> List[int]:\n        n = len(panels)\n        left, right = [-1] * n, [n] * n\n        stack = []\n        for i in range(n):\n            while stack and panels[stack[-1]] >= panels[i]:\n                stack.pop()\n            left[i] = stack[-1] if stack else -1\n            stack.append(i)\n        stack = []\n        for i in range(n - 1, -1, -1):\n            while stack and panels[stack[-1]] >= panels[i]:\n                stack.pop()\n            right[i] = stack[-1] if stack else n\n            stack.append(i)\n        return [right[i] - left[i] - 1 for i in range(n)]\n",
@@ -722,7 +760,7 @@
    ],
    "complexity": [
     {
-     "md": "**Time O(n):** each index is pushed and popped at most once per pass. **Space O(n)** for the stack and the left stoppers."
+     "md": "**Time O(n).** **Space O(n).**"
     }
    ],
    "walk": {
@@ -1301,7 +1339,7 @@
  ],
  "takeaways": [
   {
-   "md": "- \"How far can I extend while everything stays ≥ me?\" = gap between the **nearest strictly smaller** elements.\n- A monotonic (increasing) stack finds the nearest smaller element for every index in O(n) total.\n- This is the building block of the largest-rectangle problems that follow."
+   "md": "- **Reach of each bar = nearest shorter on both sides**, via two monotonic-stack passes.\n- Boundaries −1 and n stand for \"no shorter bar\".\n- **Pitfall:** popping only strictly taller bars (stops at equal ones, undercounting the width)."
   }
  ]
 }
