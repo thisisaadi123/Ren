@@ -154,6 +154,39 @@
       )
       .join("");
 
+    // The walkthrough runs the solution step by step, so it stays behind a
+    // spoiler warning until the reader asks for it (remembered per problem).
+    const walk = $("[data-walk]");
+    const spec = problem.visual && problem.visual.walkthrough;
+    const walkKey = `ren:walk:${id}`;
+    if (walk && spec && window.renVisual) {
+      const paint = (state) => {
+        store.set(walkKey, state);
+        if (state === "shown") {
+          walk.innerHTML = `<h2 class="prob-label">Walkthrough</h2>${spec.title ? `<p class="walk-intro">${inline(spec.title)}</p>` : ""}<div data-walk-player></div>`;
+          renVisual.walkthrough($("[data-walk-player]"), spec);
+        } else if (state === "hidden") {
+          walk.innerHTML = `<h2 class="prob-label">Walkthrough</h2><button type="button" class="ghost-btn walk-reopen" data-walk-show>Show walkthrough</button>`;
+        } else {
+          walk.innerHTML = `<h2 class="prob-label">Walkthrough</h2>
+            <div class="walk-gate">
+              <p>The walkthrough steps through a solution, so it may give away how to solve this problem.</p>
+              <div class="walk-gate-btns">
+                <button type="button" class="btn btn-primary btn-sm" data-walk-show>Show walkthrough</button>
+                <button type="button" class="ghost-btn" data-walk-hide>Not now</button>
+              </div>
+            </div>`;
+        }
+        const yes = walk.querySelector("[data-walk-show]");
+        const no = walk.querySelector("[data-walk-hide]");
+        if (yes) yes.onclick = () => paint("shown");
+        if (no) no.onclick = () => paint("hidden");
+      };
+      paint(store.get(walkKey, "ask"));
+    } else if (walk) {
+      walk.innerHTML = "";
+    }
+
     document.querySelector("[data-crumb-title]").textContent = problem.title;
     const topicLink = document.querySelector("[data-topic-link]");
     if (problem.topic) {
