@@ -4,69 +4,96 @@
  "question": [
   {
    "md": "Posts are sorted by position `x`. A pair `i < j` with `x_j − x_i ≤ k` can hold a banner worth\n`y_i + y_j + (x_j − x_i)`. Return the best value. At least one valid pair exists.\n\n- **Heights can be negative**, so the best value can be negative too.\n- **Distance helps:** a farther partner adds more `x_j − x_i`, but it must stay within `k`.\n- **Up to 10⁵ posts.** Values reach about 6 × 10⁸ in size; use 64-bit to be safe (the return type is `long`)."
+  },
+  {
+   "md": "**Edge cases to keep in mind**\n\n- Only pairs within distance `k` count; at least one exists.\n- Heights can be negative.\n- Values reach about `3 × 10⁸`; 64 bits are safe."
   }
  ],
  "think": [
   {
-   "md": "Posts `[[0, 3], [2, 1], [3, 5], [7, 2], [8, 6], [12, 0]]`, `k = 4`. The best banner joins posts 2 and 3: 5 + 2 +\n(7 − 3) = **11**.\n\nThe value mixes both posts, but it separates: `y_i + y_j + x_j − x_i = (y_i − x_i) + (y_j + x_j)`. With `j`\nfixed, `y_j + x_j` is a constant, so we just need the largest `y_i − x_i` among the posts in range."
+   "md": "**Separate the two posts.** `y_i + y_j + (x_j − x_i) = (y_j + x_j) + (y_i − x_i)`. With the right post `j` fixed,\nthe first part is a constant, so we just need the **largest `y_i − x_i`** among earlier posts within distance `k`.\nThat's a sliding window maximum, where the window is defined by position rather than by count.\n\n**The deque** holds earlier posts with decreasing `y − x`; the front is the best partner. Expire posts that are too\nfar from the current `x`."
+  },
+  {
+   "md": "**Trace on `[[0, 3], [2, 1], [3, 5], [7, 2], [8, 6], [12, 0]]`, k = 4:**"
   },
   {
    "table": {
     "head": [
      "post",
-     "x",
-     "y",
+     "[x, y]",
+     "y + x",
      "y − x",
-     "y + x"
+     "expired",
+     "value with best partner",
+     "deque (post:y−x)",
+     "best"
     ],
     "rows": [
      [
       "0",
-      "0",
+      "[0, 3]",
       "3",
       "3",
-      "3"
+      "—",
+      "—",
+      "['0:3']",
+      "—"
      ],
      [
       "1",
-      "2",
-      "1",
+      "[2, 1]",
+      "3",
       "-1",
-      "3"
+      "—",
+      "6",
+      "['0:3', '1:-1']",
+      "6"
      ],
      [
       "2",
-      "3",
-      "5",
+      "[3, 5]",
+      "8",
       "2",
-      "8"
+      "—",
+      "11",
+      "['0:3', '2:2']",
+      "11"
      ],
      [
       "3",
-      "7",
-      "2",
+      "[7, 2]",
+      "9",
       "-5",
-      "9"
+      "[0]",
+      "11",
+      "['2:2', '3:-5']",
+      "11"
      ],
      [
       "4",
-      "8",
-      "6",
+      "[8, 6]",
+      "14",
       "-2",
-      "14"
+      "[2]",
+      "9",
+      "['4:-2']",
+      "11"
      ],
      [
       "5",
+      "[12, 0]",
       "12",
-      "0",
       "-12",
-      "12"
+      "—",
+      "10",
+      "['4:-2', '5:-12']",
+      "11"
      ]
     ]
    }
   },
   {
-   "md": "The range for `j` is the posts with `x_j − k ≤ x_i` and `i < j`. As `j` moves right, posts leave from the left\nand `j` itself joins on the right: a sliding window (sized by distance, not count). The maximum of a sliding\nwindow is a monotonic deque."
+   "md": "Best banner **11**."
   }
  ],
  "approaches": [
@@ -77,13 +104,13 @@
    "space": "O(1)",
    "idea": [
     {
-     "md": "For every pair `i < j` with `x_j − x_i ≤ k`, compute the value and keep the best."
+     "md": "Try every pair `i < j` within distance `k` and compute the value."
     }
    ],
    "build": [
-    "Double loop over `j` and `i < j`.",
-    "Skip pairs farther than `k`.",
-    "Track the maximum (start below any possible value)."
+    "Every pair.",
+    "Skip pairs too far apart.",
+    "Track the best value."
    ],
    "code": {
     "python": "class Solution:\n    def bestPair(self, posts: List[List[int]], k: int) -> int:\n        best = None\n        for j in range(len(posts)):\n            for i in range(j):\n                if posts[j][0] - posts[i][0] <= k:\n                    value = posts[i][1] + posts[j][1] + posts[j][0] - posts[i][0]\n                    if best is None or value > best:\n                        best = value\n        return best\n",
@@ -240,7 +267,7 @@
    ],
    "complexity": [
     {
-     "md": "**Time O(n²):** about 5 × 10⁹ pairs for 10⁵ posts. **Space O(1).**"
+     "md": "**Time O(n²).** **Space O(1).**"
     }
    ],
    "walk": {
@@ -417,7 +444,7 @@
    },
    "limits": [
     {
-     "md": "The distance check rejects most pairs when `k` is small, and when `k` is large most pairs are valid but only the best partner matters. Separating the value into per-post parts makes 'best partner' a sliding-window maximum."
+     "md": "Quadratic. Splitting the value makes the best partner a window maximum."
     }
    ],
    "slow": true
@@ -429,15 +456,14 @@
    "space": "O(n)",
    "idea": [
     {
-     "md": "Process posts left to right with a deque of earlier posts whose `y − x` strictly decreases from front to back. For post `j`: drop front posts farther than `k`; if the deque isn't empty, `(y_j + x_j) + (y − x of the front)` is the best banner ending at `j`; then pop back posts with `y − x ≤ y_j − x_j` and push `j`."
+     "md": "For each post `j` in order of position: expire deque fronts with `x_j − x_front > k`; if the deque isn't\nempty, the front gives the best value `(y_j + x_j) + (y_front − x_front)`; then pop back posts with\n`y − x ≤ y_j − x_j` and push `j`."
     }
    ],
    "build": [
-    "An empty deque, best = −∞.",
-    "For each `j`: expire front posts with `x_j − x_front > k`.",
-    "Use the front as the partner, if any.",
-    "Pop dominated posts from the back; push `j`.",
-    "Return the best."
+    "Deque of indices with decreasing `y − x`.",
+    "Expire by distance.",
+    "Use the front.",
+    "Pop dominated posts; push."
    ],
    "code": {
     "python": "from collections import deque\n\nclass Solution:\n    def bestPair(self, posts: List[List[int]], k: int) -> int:\n        dq, best = deque(), None\n        for j, (x, y) in enumerate(posts):\n            while dq and x - posts[dq[0]][0] > k:\n                dq.popleft()\n            if dq:\n                xi, yi = posts[dq[0]]\n                value = (y + x) + (yi - xi)\n                if best is None or value > best:\n                    best = value\n            while dq and posts[dq[-1]][1] - posts[dq[-1]][0] <= y - x:\n                dq.pop()\n            dq.append(j)\n        return best\n",
@@ -627,7 +653,7 @@
    ],
    "complexity": [
     {
-     "md": "**Time O(n):** each post enters and leaves the deque at most once. **Space O(n)** for the deque."
+     "md": "**Time O(n).** **Space O(n).**"
     }
    ],
    "walk": {
@@ -918,7 +944,7 @@
  ],
  "takeaways": [
   {
-   "md": "- **Separate the objective** into a part for each element of the pair; then 'best partner' becomes a max over\n  a range.\n- A window defined by **distance** (not count) still slides, as long as positions are sorted: expire from the\n  front with a while loop.\n- Dominated candidates (older and no better) leave from the back."
+   "md": "- **Pair objectives that split into f(i) + g(j):** fix `j`, maximise `f(i)` over a window.\n- Windows can be defined by coordinates; expire by distance instead of count.\n- **Pitfall:** using the post itself as its own partner (query before pushing)."
   }
  ]
 }
