@@ -1,0 +1,1901 @@
+{
+ "version": 1,
+ "id": "rotate-reverse",
+ "topic": "arrays-hashing",
+ "summary": "Reversing a stretch of an array in place is easy: swap the two ends and walk inwards. Three of those reversals\nrotate an array by any amount with O(1) extra space, and the same trick reorders words, swaps two blocks of\ndifferent lengths, and shows up inside harder algorithms.",
+ "minutes": 12,
+ "sections": [
+  {
+   "id": "idea",
+   "title": "The idea",
+   "blocks": [
+    {
+     "md": "Write the word ROTATION on a strip of paper and suppose you want to move the first three letters to the\nend: ATIONROT. The obvious way is to cut ROT off, slide the rest along, and tape ROT back on, which needs a\nspare place to hold ROT. With an array, that spare place is extra memory.\n\nHere's a way with no spare place at all. Flip the first three letters around (TOR), flip the rest around\n(NOITA), and then flip the whole strip. The two pieces swap ends, and the final flip also puts each piece\nback the right way round. Every flip is just swapping letters from the outside in."
+    },
+    {
+     "panels": [
+      {
+       "type": "row",
+       "cells": [
+        1,
+        2,
+        3,
+        4,
+        5,
+        6,
+        7
+       ],
+       "states": {
+        "0": "found",
+        "1": "found",
+        "2": "found",
+        "3": "mark",
+        "4": "mark",
+        "5": "mark",
+        "6": "mark"
+       },
+       "label": "A = 1 2 3, B = 4 5 6 7",
+       "slots": true
+      },
+      {
+       "type": "row",
+       "cells": [
+        3,
+        2,
+        1,
+        4,
+        5,
+        6,
+        7
+       ],
+       "states": {
+        "0": "found",
+        "1": "found",
+        "2": "found",
+        "3": "mark",
+        "4": "mark",
+        "5": "mark",
+        "6": "mark"
+       },
+       "label": "reverse A",
+       "slots": true
+      },
+      {
+       "type": "row",
+       "cells": [
+        3,
+        2,
+        1,
+        7,
+        6,
+        5,
+        4
+       ],
+       "states": {
+        "0": "found",
+        "1": "found",
+        "2": "found",
+        "3": "mark",
+        "4": "mark",
+        "5": "mark",
+        "6": "mark"
+       },
+       "label": "reverse B",
+       "slots": true
+      },
+      {
+       "type": "row",
+       "cells": [
+        4,
+        5,
+        6,
+        7,
+        1,
+        2,
+        3
+       ],
+       "states": {
+        "0": "mark",
+        "1": "mark",
+        "2": "mark",
+        "3": "mark",
+        "4": "found",
+        "5": "found",
+        "6": "found"
+       },
+       "label": "reverse everything",
+       "slots": true
+      }
+     ],
+     "caption": "Three reversals turn A B into B A. Nothing is copied anywhere else."
+    },
+    {
+     "key": "To rotate left by `k`: reverse the first `k`, reverse the rest, reverse the whole array. Each reversal swaps\nthe ends and moves inwards. Take `k % n` first. It's O(n) time and O(1) extra space."
+    }
+   ]
+  },
+  {
+   "id": "signals",
+   "title": "When to reach for it",
+   "blocks": [
+    {
+     "md": "\"Rotate the array by k\", \"shift every element k places, wrapping round\", \"move the last k to the front\",\n\"reverse the order of the words\", \"swap these two blocks\", usually with \"in place\" or \"O(1) extra space\".\n\nMore generally: whenever two adjacent blocks need to trade places, that's a rotation, and a rotation is three\nreversals. You'll also see a single reversal of a *suffix* as the last step of other algorithms (the next\nlesson, *Next permutation*, ends with one).\n\nNot a fit:\n\n- Extra memory is allowed and you want the simplest code. Building `a[k:] + a[:k]` into a new array is\n  clearer and just as fast.\n- The rotation happens again and again, and you only need to *read* the rotated array. Don't move anything;\n  keep an offset and read `a[(i + k) % n]`."
+    }
+   ]
+  },
+  {
+   "id": "theory",
+   "title": "Why it works",
+   "blocks": [
+    {
+     "md": "### Reversing a joined-up array\n\nWrite `X'` for \"X reversed\". If you reverse two blocks stuck together, `(X Y)'`, the last element comes\nfirst, so `Y`'s elements come out first, backwards, then `X`'s, backwards: `(X Y)' = Y' X'`. The blocks\nswap order *and* each one is flipped.\n\nRotation wants the blocks swapped but **not** flipped. So flip each one in advance, and the big reversal\nflips them back:\n\n> `(A' B')' = (B')' (A')' = B A`\n\nThat's the whole proof. The two small reversals \"pre-flip\" each block, and the big one swaps them while\nundoing the flip.\n\n### Where every element ends up\n\nAfter rotating left by `k`, the value that was at index `i` is at index `(i - k) mod n`. Equivalently, index\n`i` now holds what used to be at `(i + k) mod n`. For `[1, 2, 3, 4, 5, 6, 7]` with `k = 3`:"
+    },
+    {
+     "table": {
+      "head": [
+       "was at index",
+       "value",
+       "now at index"
+      ],
+      "rows": [
+       [
+        "0",
+        "1",
+        "4"
+       ],
+       [
+        "1",
+        "2",
+        "5"
+       ],
+       [
+        "2",
+        "3",
+        "6"
+       ],
+       [
+        "3",
+        "4",
+        "0"
+       ],
+       [
+        "4",
+        "5",
+        "1"
+       ],
+       [
+        "5",
+        "6",
+        "2"
+       ],
+       [
+        "6",
+        "7",
+        "3"
+       ]
+      ]
+     }
+    },
+    {
+     "md": "A right rotation by `k` moves everything the other way, which is the same as a left rotation by `n - k`.\n\n### k can be bigger than n\n\nRotating by `n` puts every element back where it was. So rotating by `k` is the same as rotating by\n`k % n`. Without that line, `k > n` sends the first reversal off the end of the array. With `k % n == 0`,\nthe first reversal covers nothing and the other two undo each other: the array is unchanged, as it should\nbe.\n\n### Reversing a stretch\n\n`lo` and `hi` start at the two ends. Swap them, step both inwards, and stop when they meet or cross. A stretch\nof length `L` takes `L / 2` swaps (rounded down; the middle of an odd stretch stays put). The loop condition\n`lo < hi` also handles empty stretches: reversing `0..-1` does nothing."
+    }
+   ]
+  },
+  {
+   "id": "template",
+   "title": "The template",
+   "blocks": [
+    {
+     "md": "Rotate left by `k`, in place."
+    },
+    {
+     "code": {
+      "python": "def reverse(a, lo, hi):\n    while lo < hi:\n        a[lo], a[hi] = a[hi], a[lo]\n        lo, hi = lo + 1, hi - 1\n\n\ndef rotate_left(a, k):\n    n = len(a)\n    if n == 0:\n        return a\n    k %= n\n    reverse(a, 0, k - 1)\n    reverse(a, k, n - 1)\n    reverse(a, 0, n - 1)\n    return a\n",
+      "java": "static void reverse(int[] a, int lo, int hi) {\n    while (lo < hi) {\n        int t = a[lo];\n        a[lo++] = a[hi];\n        a[hi--] = t;\n    }\n}\n\nstatic int[] rotateLeft(int[] a, int k) {\n    int n = a.length;\n    if (n == 0) return a;\n    k %= n;\n    reverse(a, 0, k - 1);\n    reverse(a, k, n - 1);\n    reverse(a, 0, n - 1);\n    return a;\n}\n",
+      "cpp": "vector<int>& rotateLeft(vector<int>& a, int k) {\n    int n = a.size();\n    if (n == 0) return a;\n    k %= n;\n    reverse(a.begin(), a.begin() + k);\n    reverse(a.begin() + k, a.end());\n    reverse(a.begin(), a.end());\n    return a;\n}\n",
+      "c": "static void reverse(int* a, int lo, int hi) {\n    while (lo < hi) {\n        int t = a[lo];\n        a[lo++] = a[hi];\n        a[hi--] = t;\n    }\n}\n\nvoid rotateLeft(int* a, int n, int k) {\n    if (n == 0) return;\n    k %= n;\n    reverse(a, 0, k - 1);\n    reverse(a, k, n - 1);\n    reverse(a, 0, n - 1);\n}\n"
+     },
+     "title": "Rotate with three reversals",
+     "lines": [
+      {
+       "text": "Reverse `a[lo..hi]`: swap the ends and walk inwards until they meet.",
+       "at": {
+        "python": [
+         [
+          2,
+          4
+         ]
+        ],
+        "java": [
+         [
+          2,
+          5
+         ]
+        ],
+        "c": [
+         [
+          2,
+          5
+         ]
+        ]
+       }
+      },
+      {
+       "text": "An empty array has nothing to rotate (and `k % 0` would fail).",
+       "at": {
+        "python": [
+         [
+          8,
+          10
+         ]
+        ],
+        "java": [
+         [
+          10,
+          11
+         ]
+        ],
+        "cpp": [
+         [
+          2,
+          3
+         ]
+        ],
+        "c": [
+         [
+          10,
+          10
+         ]
+        ]
+       },
+       "notes": {
+        "c": "C gets the length from the caller."
+       }
+      },
+      {
+       "text": "Rotating by `n` changes nothing, so only `k % n` matters.",
+       "at": {
+        "python": [
+         [
+          11,
+          11
+         ]
+        ],
+        "java": [
+         [
+          12,
+          12
+         ]
+        ],
+        "cpp": [
+         [
+          4,
+          4
+         ]
+        ],
+        "c": [
+         [
+          11,
+          11
+         ]
+        ]
+       }
+      },
+      {
+       "text": "Flip block A, the first `k` values.",
+       "at": {
+        "python": [
+         [
+          12,
+          12
+         ]
+        ],
+        "java": [
+         [
+          13,
+          13
+         ]
+        ],
+        "cpp": [
+         [
+          5,
+          5
+         ]
+        ],
+        "c": [
+         [
+          12,
+          12
+         ]
+        ]
+       },
+       "notes": {
+        "cpp": "`std::reverse` takes a half-open range `[first, last)`, so the end is `begin() + k`, not `k - 1`."
+       }
+      },
+      {
+       "text": "Flip block B, the remaining `n - k`.",
+       "at": {
+        "python": [
+         [
+          13,
+          13
+         ]
+        ],
+        "java": [
+         [
+          14,
+          14
+         ]
+        ],
+        "cpp": [
+         [
+          6,
+          6
+         ]
+        ],
+        "c": [
+         [
+          13,
+          13
+         ]
+        ]
+       }
+      },
+      {
+       "text": "Flip everything. The blocks trade places and each is the right way round again.",
+       "at": {
+        "python": [
+         [
+          14,
+          14
+         ]
+        ],
+        "java": [
+         [
+          15,
+          15
+         ]
+        ],
+        "cpp": [
+         [
+          7,
+          7
+         ]
+        ],
+        "c": [
+         [
+          14,
+          14
+         ]
+        ]
+       }
+      },
+      {
+       "text": "The rotated array (the same array, changed in place).",
+       "at": {
+        "python": [
+         [
+          15,
+          15
+         ]
+        ],
+        "java": [
+         [
+          16,
+          16
+         ]
+        ],
+        "cpp": [
+         [
+          8,
+          8
+         ]
+        ]
+       }
+      }
+     ],
+     "run": {
+      "call": "rotate_left([1, 2, 3, 4, 5, 6, 7], 3); ([1, 2, 3, 4, 5], 7); ([9], 4)",
+      "output": "4 5 6 7 1 2 3\n3 4 5 1 2\n9"
+     }
+    },
+    {
+     "md": "`k = 7` on five values behaves like `k = 2`. A single value rotates to itself however big `k` is."
+    }
+   ]
+  },
+  {
+   "id": "trace",
+   "title": "Trace it by hand",
+   "blocks": [
+    {
+     "md": "Every swap, with A in one colour and B in another:"
+    },
+    {
+     "walk": {
+      "steps": [
+       {
+        "text": "Call the first 3 values A and the other 4 B. We want B then A.",
+        "panels": [
+         {
+          "type": "row",
+          "cells": [
+           1,
+           2,
+           3,
+           4,
+           5,
+           6,
+           7
+          ],
+          "states": {
+           "0": "found",
+           "1": "found",
+           "2": "found",
+           "3": "mark",
+           "4": "mark",
+           "5": "mark",
+           "6": "mark"
+          },
+          "slots": true
+         },
+         {
+          "type": "vars",
+          "items": {
+           "A:": "1 2 3",
+           "B:": "4 5 6 7"
+          }
+         }
+        ]
+       },
+       {
+        "text": "Reverse A (indices 0 to 2). Swap indices 0 and 2. The ends have met: this reversal is done.",
+        "panels": [
+         {
+          "type": "row",
+          "cells": [
+           3,
+           2,
+           1,
+           4,
+           5,
+           6,
+           7
+          ],
+          "states": {
+           "0": "active",
+           "1": "found",
+           "2": "active",
+           "3": "mark",
+           "4": "mark",
+           "5": "mark",
+           "6": "mark"
+          },
+          "pointers": {
+           "lo": 0,
+           "hi": 2
+          },
+          "slots": true
+         },
+         {
+          "type": "vars",
+          "items": {
+           "swaps:": "1"
+          }
+         }
+        ]
+       },
+       {
+        "text": "Reverse B (indices 3 to 6). Swap indices 3 and 6, then move both ends inwards.",
+        "panels": [
+         {
+          "type": "row",
+          "cells": [
+           3,
+           2,
+           1,
+           7,
+           5,
+           6,
+           4
+          ],
+          "states": {
+           "0": "found",
+           "1": "found",
+           "2": "found",
+           "3": "active",
+           "4": "mark",
+           "5": "mark",
+           "6": "active"
+          },
+          "pointers": {
+           "lo": 3,
+           "hi": 6
+          },
+          "slots": true
+         },
+         {
+          "type": "vars",
+          "items": {
+           "swaps:": "2"
+          }
+         }
+        ]
+       },
+       {
+        "text": "Swap indices 4 and 5. The ends have met: this reversal is done.",
+        "panels": [
+         {
+          "type": "row",
+          "cells": [
+           3,
+           2,
+           1,
+           7,
+           6,
+           5,
+           4
+          ],
+          "states": {
+           "0": "found",
+           "1": "found",
+           "2": "found",
+           "3": "mark",
+           "4": "active",
+           "5": "active",
+           "6": "mark"
+          },
+          "pointers": {
+           "lo": 4,
+           "hi": 5
+          },
+          "slots": true
+         },
+         {
+          "type": "vars",
+          "items": {
+           "swaps:": "3"
+          }
+         }
+        ]
+       },
+       {
+        "text": "Reverse the whole array. Swap indices 0 and 6, then move both ends inwards.",
+        "panels": [
+         {
+          "type": "row",
+          "cells": [
+           4,
+           2,
+           1,
+           7,
+           6,
+           5,
+           3
+          ],
+          "states": {
+           "0": "active",
+           "1": "found",
+           "2": "found",
+           "3": "mark",
+           "4": "mark",
+           "5": "mark",
+           "6": "active"
+          },
+          "pointers": {
+           "lo": 0,
+           "hi": 6
+          },
+          "slots": true
+         },
+         {
+          "type": "vars",
+          "items": {
+           "swaps:": "4"
+          }
+         }
+        ]
+       },
+       {
+        "text": "Swap indices 1 and 5, then move both ends inwards.",
+        "panels": [
+         {
+          "type": "row",
+          "cells": [
+           4,
+           5,
+           1,
+           7,
+           6,
+           2,
+           3
+          ],
+          "states": {
+           "0": "mark",
+           "1": "active",
+           "2": "found",
+           "3": "mark",
+           "4": "mark",
+           "5": "active",
+           "6": "found"
+          },
+          "pointers": {
+           "lo": 1,
+           "hi": 5
+          },
+          "slots": true
+         },
+         {
+          "type": "vars",
+          "items": {
+           "swaps:": "5"
+          }
+         }
+        ]
+       },
+       {
+        "text": "Swap indices 2 and 4. The ends have met: this reversal is done. B is at the front and A at the back, each in its original order: 4 5 6 7 1 2 3.",
+        "panels": [
+         {
+          "type": "row",
+          "cells": [
+           4,
+           5,
+           6,
+           7,
+           1,
+           2,
+           3
+          ],
+          "states": {
+           "0": "mark",
+           "1": "mark",
+           "2": "active",
+           "3": "mark",
+           "4": "active",
+           "5": "found",
+           "6": "found"
+          },
+          "pointers": {
+           "lo": 2,
+           "hi": 4
+          },
+          "slots": true
+         },
+         {
+          "type": "vars",
+          "items": {
+           "swaps:": "6"
+          }
+         }
+        ]
+       }
+      ],
+      "title": "`rotate_left([1, 2, 3, 4, 5, 6, 7], 3)`: the first 3 values move to the back. Three reversals, all swaps."
+     }
+    }
+   ]
+  },
+  {
+   "id": "examples",
+   "title": "More examples",
+   "blocks": [
+    {
+     "md": "### Reversing the words of a sentence\n\n\"`the sky is blue`\" should become \"`blue is sky the`\". The words are blocks, and you want the blocks in reverse order but\neach block still readable. That's the rotation trick, the other way round: reverse the whole sentence\nfirst (the words land in the right order, each spelled backwards), then reverse each word."
+    },
+    {
+     "walk": {
+      "steps": [
+       {
+        "text": "The sentence as an array of characters (␣ is a space).",
+        "panels": [
+         {
+          "type": "row",
+          "cells": [
+           "t",
+           "h",
+           "e",
+           "␣",
+           "s",
+           "k",
+           "y",
+           "␣",
+           "i",
+           "s",
+           "␣",
+           "b",
+           "l",
+           "u",
+           "e"
+          ],
+          "slots": true
+         }
+        ]
+       },
+       {
+        "text": "Reverse the whole thing. The words are now in the right order, but each one is spelled backwards.",
+        "panels": [
+         {
+          "type": "row",
+          "cells": [
+           "e",
+           "u",
+           "l",
+           "b",
+           "␣",
+           "s",
+           "i",
+           "␣",
+           "y",
+           "k",
+           "s",
+           "␣",
+           "e",
+           "h",
+           "t"
+          ],
+          "slots": true
+         }
+        ]
+       },
+       {
+        "text": "Indices 0 to 3 hold \"eulb\". Reverse just that word: \"blue\".",
+        "panels": [
+         {
+          "type": "row",
+          "cells": [
+           "b",
+           "l",
+           "u",
+           "e",
+           "␣",
+           "s",
+           "i",
+           "␣",
+           "y",
+           "k",
+           "s",
+           "␣",
+           "e",
+           "h",
+           "t"
+          ],
+          "states": {
+           "0": "found",
+           "1": "found",
+           "2": "found",
+           "3": "found"
+          },
+          "slots": true
+         }
+        ]
+       },
+       {
+        "text": "Indices 5 to 6 hold \"si\". Reverse just that word: \"is\".",
+        "panels": [
+         {
+          "type": "row",
+          "cells": [
+           "b",
+           "l",
+           "u",
+           "e",
+           "␣",
+           "i",
+           "s",
+           "␣",
+           "y",
+           "k",
+           "s",
+           "␣",
+           "e",
+           "h",
+           "t"
+          ],
+          "states": {
+           "5": "found",
+           "6": "found"
+          },
+          "slots": true
+         }
+        ]
+       },
+       {
+        "text": "Indices 8 to 10 hold \"yks\". Reverse just that word: \"sky\".",
+        "panels": [
+         {
+          "type": "row",
+          "cells": [
+           "b",
+           "l",
+           "u",
+           "e",
+           "␣",
+           "i",
+           "s",
+           "␣",
+           "s",
+           "k",
+           "y",
+           "␣",
+           "e",
+           "h",
+           "t"
+          ],
+          "states": {
+           "8": "found",
+           "9": "found",
+           "10": "found"
+          },
+          "slots": true
+         }
+        ]
+       },
+       {
+        "text": "Indices 12 to 14 hold \"eht\". Reverse just that word: \"the\". Done: \"blue is sky the\".",
+        "panels": [
+         {
+          "type": "row",
+          "cells": [
+           "b",
+           "l",
+           "u",
+           "e",
+           "␣",
+           "i",
+           "s",
+           "␣",
+           "s",
+           "k",
+           "y",
+           "␣",
+           "t",
+           "h",
+           "e"
+          ],
+          "states": {
+           "12": "found",
+           "13": "found",
+           "14": "found"
+          },
+          "slots": true
+         }
+        ]
+       }
+      ],
+      "title": "`reverse_words(\"the sky is blue\")`. Reverse everything, then put each word back the right way round."
+     }
+    },
+    {
+     "md": "### Moving one element\n\nTaking the element at index `i` and inserting it at index `j > i` shifts everything in between one place\nleft. That's a left rotation by 1 of the stretch `a[i..j]`, so three reversals of that stretch do it. (For a\nsingle move, a plain loop shifting values one place is simpler. The rotation view pays off for big blocks.)\n\n### Swapping two blocks that aren't next to each other\n\nTo swap blocks `X` and `Z` in `X Y Z` (with `Y` in between), reverse each of the three, then reverse the\nwhole thing: `(X' Y' Z')' = Z Y X`. The middle block ends up the right way round too."
+    }
+   ]
+  },
+  {
+   "id": "variations",
+   "title": "Variations",
+   "blocks": [
+    {
+     "md": "### Reverse the words\n\nThe example above as code. Here words are separated by single spaces. If there can be extra spaces, squeeze\nthem out first (a write pointer copying characters forward), then do the same thing."
+    },
+    {
+     "code": {
+      "python": "def reverse(a, lo, hi):\n    while lo < hi:\n        a[lo], a[hi] = a[hi], a[lo]\n        lo, hi = lo + 1, hi - 1\n\n\ndef reverse_words(s):\n    chars = list(s)\n    reverse(chars, 0, len(chars) - 1)\n    start = 0\n    for i in range(len(chars) + 1):\n        if i == len(chars) or chars[i] == \" \":\n            reverse(chars, start, i - 1)\n            start = i + 1\n    return \"\".join(chars)\n",
+      "java": "static void reverse(char[] a, int lo, int hi) {\n    while (lo < hi) {\n        char t = a[lo];\n        a[lo++] = a[hi];\n        a[hi--] = t;\n    }\n}\n\nstatic String reverseWords(String s) {\n    char[] chars = s.toCharArray();\n    int n = chars.length;\n    reverse(chars, 0, n - 1);\n    int start = 0;\n    for (int i = 0; i <= n; i++) {\n        if (i == n || chars[i] == ' ') {\n            reverse(chars, start, i - 1);\n            start = i + 1;\n        }\n    }\n    return new String(chars);\n}\n",
+      "cpp": "string& reverseWords(string& s) {\n    reverse(s.begin(), s.end());\n    size_t start = 0;\n    for (size_t i = 0; i <= s.size(); i++) {\n        if (i == s.size() || s[i] == ' ') {\n            reverse(s.begin() + start, s.begin() + i);\n            start = i + 1;\n        }\n    }\n    return s;\n}\n",
+      "c": "static void reverse(char* a, int lo, int hi) {\n    while (lo < hi) {\n        char t = a[lo];\n        a[lo++] = a[hi];\n        a[hi--] = t;\n    }\n}\n\nvoid reverseWords(char* s) {\n    int n = strlen(s);\n    reverse(s, 0, n - 1);\n    int start = 0;\n    for (int i = 0; i <= n; i++) {\n        if (i == n || s[i] == ' ') {\n            reverse(s, start, i - 1);\n            start = i + 1;\n        }\n    }\n}\n"
+     },
+     "title": "Reverse the order of words in place",
+     "lines": [
+      {
+       "text": "The same in-place reversal as before, on characters.",
+       "at": {
+        "python": [
+         [
+          2,
+          4
+         ]
+        ],
+        "java": [
+         [
+          2,
+          5
+         ]
+        ],
+        "c": [
+         [
+          2,
+          5
+         ]
+        ]
+       }
+      },
+      {
+       "text": "Python and Java strings can't be changed, so work on an array of characters.",
+       "at": {
+        "python": [
+         [
+          8,
+          8
+         ]
+        ],
+        "java": [
+         [
+          10,
+          11
+         ]
+        ],
+        "c": [
+         [
+          10,
+          10
+         ]
+        ]
+       },
+       "notes": {
+        "c": "C strings are already arrays of characters ending in `'\\0'`, so this works on the caller's buffer directly."
+       }
+      },
+      {
+       "text": "Reverse the whole sentence. Words are now in the right order, spelled backwards.",
+       "at": {
+        "python": [
+         [
+          9,
+          9
+         ]
+        ],
+        "java": [
+         [
+          12,
+          12
+         ]
+        ],
+        "cpp": [
+         [
+          2,
+          2
+         ]
+        ],
+        "c": [
+         [
+          11,
+          11
+         ]
+        ]
+       }
+      },
+      {
+       "text": "Walk through, remembering where the current word started. Going one past the end lets the last word be handled like the others.",
+       "at": {
+        "python": [
+         [
+          10,
+          11
+         ]
+        ],
+        "java": [
+         [
+          13,
+          14
+         ]
+        ],
+        "cpp": [
+         [
+          3,
+          4
+         ]
+        ],
+        "c": [
+         [
+          12,
+          13
+         ]
+        ]
+       }
+      },
+      {
+       "text": "A space, or the end of the string, closes the current word.",
+       "at": {
+        "python": [
+         [
+          12,
+          12
+         ]
+        ],
+        "java": [
+         [
+          15,
+          15
+         ]
+        ],
+        "cpp": [
+         [
+          5,
+          5
+         ]
+        ],
+        "c": [
+         [
+          14,
+          14
+         ]
+        ]
+       }
+      },
+      {
+       "text": "Turn this one word back the right way round.",
+       "at": {
+        "python": [
+         [
+          13,
+          13
+         ]
+        ],
+        "java": [
+         [
+          16,
+          16
+         ]
+        ],
+        "cpp": [
+         [
+          6,
+          6
+         ]
+        ],
+        "c": [
+         [
+          15,
+          15
+         ]
+        ]
+       },
+       "notes": {
+        "cpp": "Half-open again: `begin() + i` is one past the word's last character."
+       }
+      },
+      {
+       "text": "The next word starts after the space.",
+       "at": {
+        "python": [
+         [
+          14,
+          14
+         ]
+        ],
+        "java": [
+         [
+          17,
+          17
+         ]
+        ],
+        "cpp": [
+         [
+          7,
+          7
+         ]
+        ],
+        "c": [
+         [
+          16,
+          16
+         ]
+        ]
+       }
+      },
+      {
+       "text": "The sentence with its words reversed.",
+       "at": {
+        "python": [
+         [
+          15,
+          15
+         ]
+        ],
+        "java": [
+         [
+          20,
+          20
+         ]
+        ],
+        "cpp": [
+         [
+          10,
+          10
+         ]
+        ]
+       }
+      }
+     ],
+     "run": {
+      "call": "reverse_words(\"the sky is blue\"); (\"hello\"); (\"a b\")",
+      "output": "blue is sky the\nhello\nb a"
+     }
+    },
+    {
+     "md": "### Rotation by cycles\n\nThere's a second O(1)-space way to rotate, using the cycle idea from *Cyclic sort*. After rotating left by\n`k`, slot `i` should hold the value from slot `(i + k) % n`. Pick up the value in slot 0, then let slot 0\npull from slot `k`, slot `k` pull from slot `2k`, and so on round the end, until the next pull would be from\nslot 0 again; drop the carried value there. That's one cycle. There are exactly `gcd(n, k)` cycles, each of\nlength `n / gcd(n, k)`, starting at slots `0, 1, …, gcd - 1`."
+    },
+    {
+     "walk": {
+      "steps": [
+       {
+        "text": "After a left rotation by 2, slot i holds what was at (i + 2) mod 6. Following that rule from slot 0 visits 0 → 2 → 4 → 0: a cycle. gcd(6, 2) = 2, so there are 2 cycles.",
+        "panels": [
+         {
+          "type": "row",
+          "cells": [
+           1,
+           2,
+           3,
+           4,
+           5,
+           6
+          ],
+          "states": {
+           "0": "found",
+           "2": "found",
+           "4": "found",
+           "1": "mark",
+           "3": "mark",
+           "5": "mark"
+          },
+          "slots": true
+         }
+        ]
+       },
+       {
+        "text": "Cycle starting at slot 0: pick up 1 so slot 0 is free.",
+        "panels": [
+         {
+          "type": "row",
+          "cells": [
+           1,
+           2,
+           3,
+           4,
+           5,
+           6
+          ],
+          "states": {
+           "0": "dim"
+          },
+          "pointers": {
+           "i": 0
+          },
+          "slots": true
+         },
+         {
+          "type": "vars",
+          "items": {
+           "carrying:": "1"
+          }
+         }
+        ]
+       },
+       {
+        "text": "Slot 0 pulls 3 from slot 2. Now slot 2 is the free one.",
+        "panels": [
+         {
+          "type": "row",
+          "cells": [
+           3,
+           2,
+           3,
+           4,
+           5,
+           6
+          ],
+          "states": {
+           "0": "new",
+           "2": "dim"
+          },
+          "pointers": {
+           "i": 0,
+           "j": 2
+          },
+          "slots": true
+         },
+         {
+          "type": "vars",
+          "items": {
+           "carrying:": "1"
+          }
+         }
+        ]
+       },
+       {
+        "text": "Slot 2 pulls 5 from slot 4. Now slot 4 is the free one.",
+        "panels": [
+         {
+          "type": "row",
+          "cells": [
+           3,
+           2,
+           5,
+           4,
+           5,
+           6
+          ],
+          "states": {
+           "2": "new",
+           "4": "dim"
+          },
+          "pointers": {
+           "i": 2,
+           "j": 4
+          },
+          "slots": true
+         },
+         {
+          "type": "vars",
+          "items": {
+           "carrying:": "1"
+          }
+         }
+        ]
+       },
+       {
+        "text": "The next slot to pull from would be slot 0, where we started. Drop the carried 1 into slot 4. This cycle is done.",
+        "panels": [
+         {
+          "type": "row",
+          "cells": [
+           3,
+           2,
+           5,
+           4,
+           1,
+           6
+          ],
+          "states": {
+           "4": "new"
+          },
+          "slots": true
+         },
+         {
+          "type": "vars",
+          "items": {
+           "carrying:": "nothing"
+          }
+         }
+        ]
+       },
+       {
+        "text": "Cycle starting at slot 1: pick up 2 so slot 1 is free.",
+        "panels": [
+         {
+          "type": "row",
+          "cells": [
+           3,
+           2,
+           5,
+           4,
+           1,
+           6
+          ],
+          "states": {
+           "1": "dim"
+          },
+          "pointers": {
+           "i": 1
+          },
+          "slots": true
+         },
+         {
+          "type": "vars",
+          "items": {
+           "carrying:": "2"
+          }
+         }
+        ]
+       },
+       {
+        "text": "Slot 1 pulls 4 from slot 3. Now slot 3 is the free one.",
+        "panels": [
+         {
+          "type": "row",
+          "cells": [
+           3,
+           4,
+           5,
+           4,
+           1,
+           6
+          ],
+          "states": {
+           "1": "new",
+           "3": "dim"
+          },
+          "pointers": {
+           "i": 1,
+           "j": 3
+          },
+          "slots": true
+         },
+         {
+          "type": "vars",
+          "items": {
+           "carrying:": "2"
+          }
+         }
+        ]
+       },
+       {
+        "text": "Slot 3 pulls 6 from slot 5. Now slot 5 is the free one.",
+        "panels": [
+         {
+          "type": "row",
+          "cells": [
+           3,
+           4,
+           5,
+           6,
+           1,
+           6
+          ],
+          "states": {
+           "3": "new",
+           "5": "dim"
+          },
+          "pointers": {
+           "i": 3,
+           "j": 5
+          },
+          "slots": true
+         },
+         {
+          "type": "vars",
+          "items": {
+           "carrying:": "2"
+          }
+         }
+        ]
+       },
+       {
+        "text": "The next slot to pull from would be slot 1, where we started. Drop the carried 2 into slot 5. This cycle is done.",
+        "panels": [
+         {
+          "type": "row",
+          "cells": [
+           3,
+           4,
+           5,
+           6,
+           1,
+           2
+          ],
+          "states": {
+           "5": "new"
+          },
+          "slots": true
+         },
+         {
+          "type": "vars",
+          "items": {
+           "carrying:": "nothing"
+          }
+         }
+        ]
+       }
+      ],
+      "title": "`rotate_left_cycles([1, 2, 3, 4, 5, 6], 2)`. Each slot pulls its value from 2 places to its right, round the end."
+     }
+    },
+    {
+     "code": {
+      "python": "def gcd(a, b):\n    while b:\n        a, b = b, a % b\n    return a\n\n\ndef rotate_left_cycles(a, k):\n    n = len(a)\n    if n == 0:\n        return a\n    k %= n\n    for start in range(gcd(n, k)):\n        carry = a[start]\n        i = start\n        while True:\n            j = (i + k) % n\n            if j == start:\n                break\n            a[i] = a[j]\n            i = j\n        a[i] = carry\n    return a\n",
+      "java": "static int gcd(int a, int b) {\n    while (b != 0) {\n        int t = a % b;\n        a = b;\n        b = t;\n    }\n    return a;\n}\n\nstatic int[] rotateLeftCycles(int[] a, int k) {\n    int n = a.length;\n    if (n == 0) return a;\n    k %= n;\n    for (int start = 0; start < gcd(n, k); start++) {\n        int carry = a[start], i = start;\n        while (true) {\n            int j = (i + k) % n;\n            if (j == start) break;\n            a[i] = a[j];\n            i = j;\n        }\n        a[i] = carry;\n    }\n    return a;\n}\n",
+      "cpp": "vector<int>& rotateLeftCycles(vector<int>& a, int k) {\n    int n = a.size();\n    if (n == 0) return a;\n    k %= n;\n    for (int start = 0; start < gcd(n, k); start++) {\n        int carry = a[start], i = start;\n        while (true) {\n            int j = (i + k) % n;\n            if (j == start) break;\n            a[i] = a[j];\n            i = j;\n        }\n        a[i] = carry;\n    }\n    return a;\n}\n",
+      "c": "static int gcd(int a, int b) {\n    while (b != 0) {\n        int t = a % b;\n        a = b;\n        b = t;\n    }\n    return a;\n}\n\nvoid rotateLeftCycles(int* a, int n, int k) {\n    if (n == 0) return;\n    k %= n;\n    for (int start = 0; start < gcd(n, k); start++) {\n        int carry = a[start], i = start;\n        while (true) {\n            int j = (i + k) % n;\n            if (j == start) break;\n            a[i] = a[j];\n            i = j;\n        }\n        a[i] = carry;\n    }\n}\n"
+     },
+     "title": "Rotate by following cycles",
+     "lines": [
+      {
+       "text": "Euclid's algorithm: the number of separate cycles.",
+       "at": {
+        "python": [
+         [
+          2,
+          4
+         ]
+        ],
+        "java": [
+         [
+          2,
+          5
+         ],
+         [
+          7,
+          7
+         ]
+        ],
+        "c": [
+         [
+          2,
+          5
+         ],
+         [
+          7,
+          7
+         ]
+        ]
+       }
+      },
+      {
+       "text": "Nothing to rotate in an empty array.",
+       "at": {
+        "python": [
+         [
+          8,
+          10
+         ]
+        ],
+        "java": [
+         [
+          11,
+          12
+         ]
+        ],
+        "cpp": [
+         [
+          2,
+          3
+         ]
+        ],
+        "c": [
+         [
+          11,
+          11
+         ]
+        ]
+       }
+      },
+      {
+       "text": "Only `k % n` matters.",
+       "at": {
+        "python": [
+         [
+          11,
+          11
+         ]
+        ],
+        "java": [
+         [
+          13,
+          13
+         ]
+        ],
+        "cpp": [
+         [
+          4,
+          4
+         ]
+        ],
+        "c": [
+         [
+          12,
+          12
+         ]
+        ]
+       }
+      },
+      {
+       "text": "One cycle starts at each of the first `gcd(n, k)` slots.",
+       "at": {
+        "python": [
+         [
+          12,
+          12
+         ]
+        ],
+        "java": [
+         [
+          14,
+          14
+         ]
+        ],
+        "cpp": [
+         [
+          5,
+          5
+         ]
+        ],
+        "c": [
+         [
+          13,
+          13
+         ]
+        ]
+       },
+       "notes": {
+        "cpp": "`std::gcd` (from `<numeric>`, C++17) does Euclid's algorithm for us."
+       }
+      },
+      {
+       "text": "Pick up the value at the start, freeing that slot.",
+       "at": {
+        "python": [
+         [
+          13,
+          14
+         ]
+        ],
+        "java": [
+         [
+          15,
+          15
+         ]
+        ],
+        "cpp": [
+         [
+          6,
+          6
+         ]
+        ],
+        "c": [
+         [
+          14,
+          14
+         ]
+        ]
+       }
+      },
+      {
+       "text": "Go round the cycle.",
+       "at": {
+        "python": [
+         [
+          15,
+          15
+         ]
+        ],
+        "java": [
+         [
+          16,
+          16
+         ]
+        ],
+        "cpp": [
+         [
+          7,
+          7
+         ]
+        ],
+        "c": [
+         [
+          15,
+          15
+         ]
+        ]
+       }
+      },
+      {
+       "text": "The slot that the free slot `i` should pull from.",
+       "at": {
+        "python": [
+         [
+          16,
+          16
+         ]
+        ],
+        "java": [
+         [
+          17,
+          17
+         ]
+        ],
+        "cpp": [
+         [
+          8,
+          8
+         ]
+        ],
+        "c": [
+         [
+          16,
+          16
+         ]
+        ]
+       }
+      },
+      {
+       "text": "If that's the start, the cycle is complete.",
+       "at": {
+        "python": [
+         [
+          17,
+          18
+         ]
+        ],
+        "java": [
+         [
+          18,
+          18
+         ]
+        ],
+        "cpp": [
+         [
+          9,
+          9
+         ]
+        ],
+        "c": [
+         [
+          17,
+          17
+         ]
+        ]
+       }
+      },
+      {
+       "text": "Move the value into the free slot; the slot it came from is now free.",
+       "at": {
+        "python": [
+         [
+          19,
+          20
+         ]
+        ],
+        "java": [
+         [
+          19,
+          20
+         ]
+        ],
+        "cpp": [
+         [
+          10,
+          11
+         ]
+        ],
+        "c": [
+         [
+          18,
+          19
+         ]
+        ]
+       }
+      },
+      {
+       "text": "The last free slot gets the value picked up at the start.",
+       "at": {
+        "python": [
+         [
+          21,
+          21
+         ]
+        ],
+        "java": [
+         [
+          22,
+          22
+         ]
+        ],
+        "cpp": [
+         [
+          13,
+          13
+         ]
+        ],
+        "c": [
+         [
+          21,
+          21
+         ]
+        ]
+       }
+      },
+      {
+       "text": "The rotated array.",
+       "at": {
+        "python": [
+         [
+          22,
+          22
+         ]
+        ],
+        "java": [
+         [
+          24,
+          24
+         ]
+        ],
+        "cpp": [
+         [
+          15,
+          15
+         ]
+        ]
+       }
+      }
+     ],
+     "run": {
+      "call": "rotate_left_cycles([1, 2, 3, 4, 5, 6], 2); ([1, 2, 3, 4, 5, 6, 7], 3)",
+      "output": "3 4 5 6 1 2\n4 5 6 7 1 2 3"
+     }
+    },
+    {
+     "md": "The cycle version writes each slot once (plus one extra write per cycle), while the reversal version does\nabout `n` swaps, which is about `3n` writes. In practice the reversals are usually just as fast, because they\nwalk memory in order, and they're much harder to get wrong. Know the cycle version; write the reversals."
+    },
+    {
+     "table": {
+      "head": [
+       "",
+       "three reversals",
+       "cycles"
+      ],
+      "rows": [
+       [
+        "n = 7, k = 3",
+        "6 swaps (18 writes)",
+        "8 writes (1 cycle)"
+       ],
+       [
+        "n = 6, k = 2",
+        "6 swaps (18 writes)",
+        "8 writes (2 cycles)"
+       ],
+       [
+        "n = 10, k = 4",
+        "10 swaps (30 writes)",
+        "12 writes (2 cycles)"
+       ],
+       [
+        "n = 12, k = 5",
+        "11 swaps (33 writes)",
+        "13 writes (1 cycle)"
+       ]
+      ]
+     }
+    }
+   ]
+  },
+  {
+   "id": "complexity",
+   "title": "What it costs",
+   "blocks": [
+    {
+     "md": "The three reversals do `⌊k / 2⌋ + ⌊(n - k) / 2⌋ + ⌊n / 2⌋` swaps, which is about `n`. So O(n) time, O(1) extra\nspace: two indices and a temporary. The cycle method is also O(n) time and O(1) space. Copying into a new\narray is O(n) time but O(n) space."
+    },
+    {
+     "table": {
+      "head": [
+       "Approach",
+       "Time",
+       "Extra space"
+      ],
+      "rows": [
+       [
+        "Shift by one, k times",
+        "O(n·k)",
+        "O(1)"
+       ],
+       [
+        "Copy into a new array",
+        "O(n)",
+        "O(n)"
+       ],
+       [
+        "Three reversals",
+        "O(n)",
+        "O(1)"
+       ],
+       [
+        "Follow the gcd(n, k) cycles",
+        "O(n)",
+        "O(1)"
+       ]
+      ]
+     }
+    }
+   ]
+  },
+  {
+   "id": "languages",
+   "title": "In your language",
+   "blocks": [
+    {
+     "md": "### Python\n\nSlicing makes a rotated copy in one line: `a[k:] + a[:k]`. To change the list in place with that, assign to\nthe full slice: `a[:] = a[k:] + a[:k]` (O(n) extra space, but often fine). `a[lo:hi + 1] = a[lo:hi + 1][::-1]`\nreverses a stretch. `collections.deque.rotate(-k)` rotates a deque left by `k`.\n\n### Java\n\nNo built-in reverse for `int[]`; write the two-index loop. For a `List`, `Collections.reverse` and\n`Collections.rotate(list, distance)` exist (positive distance rotates right).\n\n### C++\n\n`std::reverse(first, last)` on half-open ranges, and `std::rotate(first, middle, last)` does a whole left\nrotation, making `middle` the new first element. Mind the half-open ends: reversing indices `lo..hi` is\n`reverse(a.begin() + lo, a.begin() + hi + 1)`.\n\n### C\n\nWrite the reversal with two indices and a temporary. `%` with a negative left side gives a negative result\nin C, so if `k` can be negative, use `((k % n) + n) % n`."
+    }
+   ]
+  },
+  {
+   "id": "pitfalls",
+   "title": "Pitfalls and edge cases",
+   "blocks": [
+    {
+     "md": "- Forgetting `k %= n`. With `k > n` the first reversal runs off the end.\n- An empty array and `k % 0`. Check `n == 0` first.\n- Reversing in the wrong order for the direction you want. Draw A and B, and check which block should end up\n  in front.\n- Off-by-one at the block boundary: block A is indices `0..k-1`, block B is `k..n-1`.\n- Inclusive versus half-open ends when switching between your own `reverse(a, lo, hi)` and `std::reverse`.\n- Negative `k` (a rotation the other way) with `%` in Java, C++ and C."
+    }
+   ]
+  },
+  {
+   "id": "check",
+   "title": "Check yourself",
+   "blocks": [
+    {
+     "quiz": [
+      {
+       "q": "Why do you reverse each block before (or after) reversing the whole array?",
+       "a": "Reversing the whole array swaps the two blocks but also flips each one. Reversing each block separately flips them back, so they end up swapped and the right way round."
+      },
+      {
+       "q": "What does rotate_left([1, 2, 3, 4, 5], 7) give, and why?",
+       "a": "3 4 5 1 2. Rotating by 5 changes nothing, so 7 behaves like 7 % 5 = 2."
+      },
+      {
+       "q": "After rotating left by k, which original index does slot i hold?",
+       "a": "(i + k) mod n."
+      },
+      {
+       "q": "How many cycles does rotating 12 values by 8 have, and how long is each?",
+       "a": "gcd(12, 8) = 4 cycles, each of length 12 / 4 = 3."
+      },
+      {
+       "q": "How would you swap blocks X and Z in X Y Z using only reversals?",
+       "a": "Reverse X, reverse Y, reverse Z, then reverse the whole thing: (X' Y' Z')' = Z Y X."
+      }
+     ]
+    }
+   ]
+  }
+ ],
+ "leetcode": [
+  {
+   "id": 344,
+   "title": "Reverse String",
+   "url": "https://leetcode.com/problems/reverse-string/",
+   "difficulty": "easy"
+  },
+  {
+   "id": 541,
+   "title": "Reverse String II",
+   "url": "https://leetcode.com/problems/reverse-string-ii/",
+   "difficulty": "easy"
+  },
+  {
+   "id": 557,
+   "title": "Reverse Words in a String III",
+   "url": "https://leetcode.com/problems/reverse-words-in-a-string-iii/",
+   "difficulty": "easy"
+  },
+  {
+   "id": 2000,
+   "title": "Reverse Prefix of Word",
+   "url": "https://leetcode.com/problems/reverse-prefix-of-word/",
+   "difficulty": "easy"
+  },
+  {
+   "id": 796,
+   "title": "Rotate String",
+   "url": "https://leetcode.com/problems/rotate-string/",
+   "difficulty": "easy"
+  },
+  {
+   "id": 1752,
+   "title": "Check if Array Is Sorted and Rotated",
+   "url": "https://leetcode.com/problems/check-if-array-is-sorted-and-rotated/",
+   "difficulty": "easy"
+  },
+  {
+   "id": 189,
+   "title": "Rotate Array",
+   "url": "https://leetcode.com/problems/rotate-array/",
+   "difficulty": "medium"
+  },
+  {
+   "id": 151,
+   "title": "Reverse Words in a String",
+   "url": "https://leetcode.com/problems/reverse-words-in-a-string/",
+   "difficulty": "medium"
+  },
+  {
+   "id": 186,
+   "title": "Reverse Words in a String II",
+   "url": "https://leetcode.com/problems/reverse-words-in-a-string-ii/",
+   "difficulty": "medium",
+   "premium": true
+  }
+ ]
+}

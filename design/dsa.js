@@ -191,7 +191,7 @@
           <a class="prob lesson" href="learn.html?id=${encodeURIComponent(p.id)}">
             <span class="prob-title">Learn the pattern</span>
             <span class="prob-meta">${
-              learned(p.id) ? '<span class="prob-read">Read</span>' : `<span class="prob-type">${p.lesson} min read</span>`
+              learned(p.id) ? `<span class="prob-read">Read · ${p.lesson} min</span>` : `<span class="prob-type">${p.lesson} min read</span>`
             }</span>
             ${ICON.go}
           </a>

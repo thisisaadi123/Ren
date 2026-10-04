@@ -1,0 +1,1938 @@
+{
+ "version": 1,
+ "id": "majority-vote",
+ "topic": "arrays-hashing",
+ "summary": "When one value fills more than half of an array, you can find it with a single variable and a counter. Pair off\ndifferent values and throw both away: the majority can't run out first, so whatever is left standing is the only\nvalue that could be it. Then count it once more to be sure.",
+ "minutes": 15,
+ "sections": [
+  {
+   "id": "idea",
+   "title": "The idea",
+   "blocks": [
+    {
+     "md": "Picture a room full of people, each wearing a team shirt. You want to know if one team has more than half\nthe room. You could count every team, but there's a quieter way: ask any two people from *different* teams\nto leave together. Keep doing that until everyone left is on the same team.\n\nIf one team really had more than half, it can't be the one that runs out. Every time a pair leaves, that\nteam loses at most one person, and the rest of the room loses at least one too. So the team left standing\nis the only one that could have been the majority. Whether it actually was, you still have to check.\n\nBoyer-Moore's majority vote does exactly this while reading the array once. It keeps one **candidate** and a\n**count** of how many of the candidate's copies are still \"standing\". A matching value adds one. A\ndifferent value cancels one copy. When the count reaches zero, the next value takes over."
+    },
+    {
+     "panels": [
+      {
+       "type": "row",
+       "cells": [
+        2,
+        7,
+        2,
+        2,
+        5,
+        2,
+        7,
+        2,
+        2
+       ],
+       "states": {
+        "0": "dim",
+        "1": "dim",
+        "3": "dim",
+        "4": "dim",
+        "5": "dim",
+        "6": "dim",
+        "2": "answer",
+        "7": "answer",
+        "8": "answer"
+       },
+       "label": "crossed out in pairs",
+       "slots": true
+      }
+     ],
+     "caption": "Every grey pair is two different values that cancelled. The 3 survivors are all 2s, and 2 is the majority."
+    },
+    {
+     "key": "Keep a `candidate` and a `count`. If `count` is 0, take the current value as the candidate. Then a match adds\none and a mismatch takes one away. If any value fills more than half the array, it's the candidate at the\nend. If that isn't promised, count the candidate once more to check."
+    }
+   ]
+  },
+  {
+   "id": "signals",
+   "title": "When to reach for it",
+   "blocks": [
+    {
+     "md": "The tell is a threshold on frequency: \"more than half\", \"more than n / 3\", \"appears more than ⌊n / k⌋ times\",\n\"the dominant element\", \"the leader\". Usually there's a second hint too: O(1) extra space, one pass, or a\nstream too big to store.\n\nA hash map of counts (*Frequency counting*) solves the same questions in O(n) time, and is simpler to get\nright. Reach for majority vote when the space limit rules the map out, or when you're reading a stream and\ncan't keep everything.\n\nNot a fit:\n\n- \"The most common value\" (the mode). The majority vote only finds a value with **more than half**. If no\n  value has that many, the candidate it hands back can be anything, even a value that appears once.\n- \"The top k most frequent\". That's counting plus sorting or a heap.\n- \"At least half\" (rather than more than half). Two values can each fill exactly half, so there may be two\n  answers. The cancelling argument needs a strict majority."
+    },
+    {
+     "table": {
+      "head": [
+       "question says",
+       "slots to keep",
+       "survivors to check"
+      ],
+      "rows": [
+       [
+        "more than n / 2",
+        "1",
+        "1"
+       ],
+       [
+        "more than n / 3",
+        "2",
+        "up to 2"
+       ],
+       [
+        "more than n / k",
+        "k - 1",
+        "up to k - 1"
+       ]
+      ]
+     }
+    }
+   ]
+  },
+  {
+   "id": "theory",
+   "title": "Why it works",
+   "blocks": [
+    {
+     "md": "### Throwing away two different values keeps the majority\n\nSay value `m` appears `c` times out of `n`, with `c > n / 2`. Remove two *different* values from the array. At\nmost one of them is `m`, so `m` now appears at least `c - 1` times out of `n - 2`. And `c - 1 > (n - 2) / 2`\nis the same inequality as `c > n / 2`. So `m` is still a strict majority of what's left. Keep removing\ndifferent pairs, and `m` stays a majority every time. When no different pair is left, everything remaining\nis one value, and it has to be `m`.\n\n### The counter is that pairing, done on the fly\n\nYou don't need to actually remove anything. Read the array left to right and keep this picture:\n\n- every value read so far is either *paired off* with a different value, or *standing*;\n- everything standing is the same value, the `candidate`, and `count` says how many are standing.\n\nA new value equal to the candidate joins the standing group: `count + 1`. A different value pairs off with\none standing copy, and both are crossed out: `count - 1`. When `count` is 0 nothing is standing, so the next\nvalue starts a fresh group. That's the whole algorithm. Here are the pairs it made for `[2, 7, 2, 2, 5, 2, 7, 2, 2]`:"
+    },
+    {
+     "table": {
+      "head": [
+       "crossed out together",
+       "why"
+      ],
+      "rows": [
+       [
+        "index 0 (2) and index 1 (7)",
+        "different, so both go"
+       ],
+       [
+        "index 3 (2) and index 4 (5)",
+        "different, so both go"
+       ],
+       [
+        "index 5 (2) and index 6 (7)",
+        "different, so both go"
+       ]
+      ]
+     }
+    },
+    {
+     "md": "What's left standing is 3 copies of 2 (indices 2, 7, 8), and the counter at the\nend is 3. Every crossed-out pair was two different values, so by the argument above a true majority\ncan never be crossed out completely.\n\n### Why you still have to check\n\nThe argument runs one way only: *if* there is a majority, it's the candidate. If there isn't, the pass still\nhands back somebody. Here's `[4, 4, 5, 5, 6]`, which has no majority at all:"
+    },
+    {
+     "table": {
+      "head": [
+       "read",
+       "candidate",
+       "count"
+      ],
+      "rows": [
+       [
+        "4",
+        "4",
+        "1"
+       ],
+       [
+        "4",
+        "4",
+        "2"
+       ],
+       [
+        "5",
+        "4",
+        "1"
+       ],
+       [
+        "5",
+        "4",
+        "0"
+       ],
+       [
+        "6",
+        "6",
+        "1"
+       ]
+      ]
+     }
+    },
+    {
+     "md": "The candidate is 6, which appears once. So unless the question promises a majority exists, count the\ncandidate in a second pass and compare with `n / 2`. That keeps it O(n) time and O(1) space.\n\n### More than n / k, with k - 1 slots\n\nThe same idea scales. Keep up to `k - 1` candidates, each with a counter. A value with a slot adds one to its\ncounter. A value with no slot takes a free slot if there is one. If all `k - 1` slots are full, cross out\nthe new value *and one copy of every slot*: that's `k` different values gone at once, so every counter drops\nby one.\n\nEach such round removes `k` values, so it can happen at most `n / k` times. A value with more than `n / k`\ncopies loses at most one copy per round, so it can't be wiped out, and it ends in a slot. At most `k - 1`\nvalues can have more than `n / k` copies, which is why `k - 1` slots are enough. As before, the survivors are\nonly suspects, and you count them again."
+    },
+    {
+     "walk": {
+      "steps": [
+       {
+        "text": "With k = 4 we keep k - 1 = 3 candidates, each with its own counter.",
+        "panels": [
+         {
+          "type": "row",
+          "cells": [
+           3,
+           1,
+           3,
+           2,
+           4,
+           3,
+           1,
+           3,
+           5,
+           1,
+           3,
+           1
+          ],
+          "slots": true
+         },
+         {
+          "type": "vars",
+          "items": {
+           "slots:": "empty"
+          }
+         }
+        ]
+       },
+       {
+        "text": "3 has no slot, and a slot is free: 3 moves in with count 1.",
+        "panels": [
+         {
+          "type": "row",
+          "cells": [
+           3,
+           1,
+           3,
+           2,
+           4,
+           3,
+           1,
+           3,
+           5,
+           1,
+           3,
+           1
+          ],
+          "states": {
+           "0": "new"
+          },
+          "pointers": {
+           "x": 0
+          },
+          "slots": true
+         },
+         {
+          "type": "vars",
+          "items": {
+           "slot 3:": "1"
+          }
+         }
+        ]
+       },
+       {
+        "text": "1 has no slot, and a slot is free: 1 moves in with count 1.",
+        "panels": [
+         {
+          "type": "row",
+          "cells": [
+           3,
+           1,
+           3,
+           2,
+           4,
+           3,
+           1,
+           3,
+           5,
+           1,
+           3,
+           1
+          ],
+          "states": {
+           "0": "dim",
+           "1": "new"
+          },
+          "pointers": {
+           "x": 1
+          },
+          "slots": true
+         },
+         {
+          "type": "vars",
+          "items": {
+           "slot 3:": "1",
+           "slot 1:": "1"
+          }
+         }
+        ]
+       },
+       {
+        "text": "3 already has a slot: its counter goes up to 2.",
+        "panels": [
+         {
+          "type": "row",
+          "cells": [
+           3,
+           1,
+           3,
+           2,
+           4,
+           3,
+           1,
+           3,
+           5,
+           1,
+           3,
+           1
+          ],
+          "states": {
+           "0": "dim",
+           "1": "dim",
+           "2": "found"
+          },
+          "pointers": {
+           "x": 2
+          },
+          "slots": true
+         },
+         {
+          "type": "vars",
+          "items": {
+           "slot 3:": "2",
+           "slot 1:": "1"
+          }
+         }
+        ]
+       },
+       {
+        "text": "2 has no slot, and a slot is free: 2 moves in with count 1.",
+        "panels": [
+         {
+          "type": "row",
+          "cells": [
+           3,
+           1,
+           3,
+           2,
+           4,
+           3,
+           1,
+           3,
+           5,
+           1,
+           3,
+           1
+          ],
+          "states": {
+           "0": "dim",
+           "1": "dim",
+           "2": "dim",
+           "3": "new"
+          },
+          "pointers": {
+           "x": 3
+          },
+          "slots": true
+         },
+         {
+          "type": "vars",
+          "items": {
+           "slot 3:": "2",
+           "slot 1:": "1",
+           "slot 2:": "1"
+          }
+         }
+        ]
+       },
+       {
+        "text": "4 has no slot and all three are taken. Cross out 4 together with one copy each of 3, 1, 2: four different values gone in one go. Every counter drops by 1, and any that hit 0 free their slot.",
+        "panels": [
+         {
+          "type": "row",
+          "cells": [
+           3,
+           1,
+           3,
+           2,
+           4,
+           3,
+           1,
+           3,
+           5,
+           1,
+           3,
+           1
+          ],
+          "states": {
+           "0": "dim",
+           "1": "dim",
+           "2": "dim",
+           "3": "dim",
+           "4": "mark"
+          },
+          "pointers": {
+           "x": 4
+          },
+          "slots": true
+         },
+         {
+          "type": "vars",
+          "items": {
+           "slot 3:": "1"
+          }
+         }
+        ]
+       },
+       {
+        "text": "3 already has a slot: its counter goes up to 2.",
+        "panels": [
+         {
+          "type": "row",
+          "cells": [
+           3,
+           1,
+           3,
+           2,
+           4,
+           3,
+           1,
+           3,
+           5,
+           1,
+           3,
+           1
+          ],
+          "states": {
+           "0": "dim",
+           "1": "dim",
+           "2": "dim",
+           "3": "dim",
+           "4": "dim",
+           "5": "found"
+          },
+          "pointers": {
+           "x": 5
+          },
+          "slots": true
+         },
+         {
+          "type": "vars",
+          "items": {
+           "slot 3:": "2"
+          }
+         }
+        ]
+       },
+       {
+        "text": "1 has no slot, and a slot is free: 1 moves in with count 1.",
+        "panels": [
+         {
+          "type": "row",
+          "cells": [
+           3,
+           1,
+           3,
+           2,
+           4,
+           3,
+           1,
+           3,
+           5,
+           1,
+           3,
+           1
+          ],
+          "states": {
+           "0": "dim",
+           "1": "dim",
+           "2": "dim",
+           "3": "dim",
+           "4": "dim",
+           "5": "dim",
+           "6": "new"
+          },
+          "pointers": {
+           "x": 6
+          },
+          "slots": true
+         },
+         {
+          "type": "vars",
+          "items": {
+           "slot 3:": "2",
+           "slot 1:": "1"
+          }
+         }
+        ]
+       },
+       {
+        "text": "3 already has a slot: its counter goes up to 3.",
+        "panels": [
+         {
+          "type": "row",
+          "cells": [
+           3,
+           1,
+           3,
+           2,
+           4,
+           3,
+           1,
+           3,
+           5,
+           1,
+           3,
+           1
+          ],
+          "states": {
+           "0": "dim",
+           "1": "dim",
+           "2": "dim",
+           "3": "dim",
+           "4": "dim",
+           "5": "dim",
+           "6": "dim",
+           "7": "found"
+          },
+          "pointers": {
+           "x": 7
+          },
+          "slots": true
+         },
+         {
+          "type": "vars",
+          "items": {
+           "slot 3:": "3",
+           "slot 1:": "1"
+          }
+         }
+        ]
+       },
+       {
+        "text": "5 has no slot, and a slot is free: 5 moves in with count 1.",
+        "panels": [
+         {
+          "type": "row",
+          "cells": [
+           3,
+           1,
+           3,
+           2,
+           4,
+           3,
+           1,
+           3,
+           5,
+           1,
+           3,
+           1
+          ],
+          "states": {
+           "0": "dim",
+           "1": "dim",
+           "2": "dim",
+           "3": "dim",
+           "4": "dim",
+           "5": "dim",
+           "6": "dim",
+           "7": "dim",
+           "8": "new"
+          },
+          "pointers": {
+           "x": 8
+          },
+          "slots": true
+         },
+         {
+          "type": "vars",
+          "items": {
+           "slot 3:": "3",
+           "slot 1:": "1",
+           "slot 5:": "1"
+          }
+         }
+        ]
+       },
+       {
+        "text": "1 already has a slot: its counter goes up to 2.",
+        "panels": [
+         {
+          "type": "row",
+          "cells": [
+           3,
+           1,
+           3,
+           2,
+           4,
+           3,
+           1,
+           3,
+           5,
+           1,
+           3,
+           1
+          ],
+          "states": {
+           "0": "dim",
+           "1": "dim",
+           "2": "dim",
+           "3": "dim",
+           "4": "dim",
+           "5": "dim",
+           "6": "dim",
+           "7": "dim",
+           "8": "dim",
+           "9": "found"
+          },
+          "pointers": {
+           "x": 9
+          },
+          "slots": true
+         },
+         {
+          "type": "vars",
+          "items": {
+           "slot 3:": "3",
+           "slot 1:": "2",
+           "slot 5:": "1"
+          }
+         }
+        ]
+       },
+       {
+        "text": "3 already has a slot: its counter goes up to 4.",
+        "panels": [
+         {
+          "type": "row",
+          "cells": [
+           3,
+           1,
+           3,
+           2,
+           4,
+           3,
+           1,
+           3,
+           5,
+           1,
+           3,
+           1
+          ],
+          "states": {
+           "0": "dim",
+           "1": "dim",
+           "2": "dim",
+           "3": "dim",
+           "4": "dim",
+           "5": "dim",
+           "6": "dim",
+           "7": "dim",
+           "8": "dim",
+           "9": "dim",
+           "10": "found"
+          },
+          "pointers": {
+           "x": 10
+          },
+          "slots": true
+         },
+         {
+          "type": "vars",
+          "items": {
+           "slot 3:": "4",
+           "slot 1:": "2",
+           "slot 5:": "1"
+          }
+         }
+        ]
+       },
+       {
+        "text": "1 already has a slot: its counter goes up to 3.",
+        "panels": [
+         {
+          "type": "row",
+          "cells": [
+           3,
+           1,
+           3,
+           2,
+           4,
+           3,
+           1,
+           3,
+           5,
+           1,
+           3,
+           1
+          ],
+          "states": {
+           "0": "dim",
+           "1": "dim",
+           "2": "dim",
+           "3": "dim",
+           "4": "dim",
+           "5": "dim",
+           "6": "dim",
+           "7": "dim",
+           "8": "dim",
+           "9": "dim",
+           "10": "dim",
+           "11": "found"
+          },
+          "pointers": {
+           "x": 11
+          },
+          "slots": true
+         },
+         {
+          "type": "vars",
+          "items": {
+           "slot 3:": "4",
+           "slot 1:": "3",
+           "slot 5:": "1"
+          }
+         }
+        ]
+       },
+       {
+        "text": "The survivors are 1, 3, 5. They're only suspects: count each one again to see who really has more than 3 copies.",
+        "panels": [
+         {
+          "type": "bars",
+          "values": [
+           4,
+           1,
+           5,
+           1,
+           1
+          ],
+          "labels": [
+           "1",
+           "2",
+           "3",
+           "4",
+           "5"
+          ],
+          "states": {
+           "0": "answer",
+           "2": "answer"
+          },
+          "label": "real counts"
+         }
+        ],
+        "result": "[1, 3]"
+       }
+      ],
+      "title": "Three slots on `[3, 1, 3, 2, 4, 3, 1, 3, 5, 1, 3, 1]` (n = 12). Anything with more than 12 / 4 = 3 copies must survive."
+     }
+    }
+   ]
+  },
+  {
+   "id": "template",
+   "title": "The template",
+   "blocks": [
+    {
+     "md": "The candidate pass. It returns the majority whenever one exists; when that isn't promised, check the answer\nwith one more counting pass (the variation below shows that check)."
+    },
+    {
+     "code": {
+      "python": "def majority_candidate(nums):\n    candidate, count = None, 0\n    for x in nums:\n        if count == 0:\n            candidate = x\n        if x == candidate:\n            count += 1\n        else:\n            count -= 1\n    return candidate\n",
+      "java": "static int majorityCandidate(int[] nums) {\n    int candidate = 0, count = 0;\n    for (int x : nums) {\n        if (count == 0) candidate = x;\n        if (x == candidate) count++;\n        else count--;\n    }\n    return candidate;\n}\n",
+      "cpp": "int majorityCandidate(const vector<int>& nums) {\n    int candidate = 0, count = 0;\n    for (int x : nums) {\n        if (count == 0) candidate = x;\n        if (x == candidate) count++;\n        else count--;\n    }\n    return candidate;\n}\n",
+      "c": "int majorityCandidate(const int* nums, int n) {\n    int candidate = 0, count = 0;\n    for (int i = 0; i < n; i++) {\n        if (count == 0) candidate = nums[i];\n        if (nums[i] == candidate) count++;\n        else count--;\n    }\n    return candidate;\n}\n"
+     },
+     "title": "Boyer-Moore candidate pass",
+     "lines": [
+      {
+       "text": "No candidate yet, and nothing standing.",
+       "at": {
+        "python": [
+         [
+          2,
+          2
+         ]
+        ],
+        "java": [
+         [
+          2,
+          2
+         ]
+        ],
+        "cpp": [
+         [
+          2,
+          2
+         ]
+        ],
+        "c": [
+         [
+          2,
+          2
+         ]
+        ]
+       },
+       "notes": {
+        "java": "`candidate` needs some starting value in Java; it's never read before the first value replaces it.",
+        "c": "Same as Java: 0 is a placeholder that the first value overwrites."
+       }
+      },
+      {
+       "text": "One pass, left to right.",
+       "at": {
+        "python": [
+         [
+          3,
+          3
+         ]
+        ],
+        "java": [
+         [
+          3,
+          3
+         ]
+        ],
+        "cpp": [
+         [
+          3,
+          3
+         ]
+        ],
+        "c": [
+         [
+          3,
+          3
+         ]
+        ]
+       }
+      },
+      {
+       "text": "Nothing is standing, so this value becomes the new candidate. Check this *before* comparing, so the value counts as a vote for itself in the next line.",
+       "at": {
+        "python": [
+         [
+          4,
+          5
+         ]
+        ],
+        "java": [
+         [
+          4,
+          4
+         ]
+        ],
+        "cpp": [
+         [
+          4,
+          4
+         ]
+        ],
+        "c": [
+         [
+          4,
+          4
+         ]
+        ]
+       }
+      },
+      {
+       "text": "Another copy of the candidate joins the standing group.",
+       "at": {
+        "python": [
+         [
+          6,
+          7
+         ]
+        ],
+        "java": [
+         [
+          5,
+          5
+         ]
+        ],
+        "cpp": [
+         [
+          5,
+          5
+         ]
+        ],
+        "c": [
+         [
+          5,
+          5
+         ]
+        ]
+       }
+      },
+      {
+       "text": "A different value cancels one standing copy. Both are now crossed out.",
+       "at": {
+        "python": [
+         [
+          8,
+          9
+         ]
+        ],
+        "java": [
+         [
+          6,
+          6
+         ]
+        ],
+        "cpp": [
+         [
+          6,
+          6
+         ]
+        ],
+        "c": [
+         [
+          6,
+          6
+         ]
+        ]
+       }
+      },
+      {
+       "text": "If a majority exists, this is it. Otherwise it's just whoever was standing last.",
+       "at": {
+        "python": [
+         [
+          10,
+          10
+         ]
+        ],
+        "java": [
+         [
+          8,
+          8
+         ]
+        ],
+        "cpp": [
+         [
+          8,
+          8
+         ]
+        ],
+        "c": [
+         [
+          8,
+          8
+         ]
+        ]
+       }
+      }
+     ],
+     "run": {
+      "call": "majority_candidate([2, 7, 2, 2, 5, 2, 7, 2, 2]); ([9, 4, 9, 4, 4]); ([4, 4, 5, 5, 6])",
+      "output": "2\n4\n6"
+     }
+    },
+    {
+     "md": "The third line of output is the warning from *Why it works*: `[4, 4, 5, 5, 6]` has no majority, and the pass\nstill names 6."
+    }
+   ]
+  },
+  {
+   "id": "trace",
+   "title": "Trace it by hand",
+   "blocks": [
+    {
+     "md": "Watch the candidate change hands. The counter is the number of candidate copies still standing:"
+    },
+    {
+     "walk": {
+      "steps": [
+       {
+        "text": "Nothing read yet. The counter is 0, which means \"no candidate\": the next value read takes the job.",
+        "panels": [
+         {
+          "type": "row",
+          "cells": [
+           2,
+           7,
+           2,
+           2,
+           5,
+           2,
+           7,
+           2,
+           2
+          ],
+          "slots": true
+         },
+         {
+          "type": "vars",
+          "items": {
+           "candidate:": "none",
+           "count:": "0"
+          }
+         }
+        ]
+       },
+       {
+        "text": "The counter is 0, so 2 becomes the candidate, with count 1.",
+        "panels": [
+         {
+          "type": "row",
+          "cells": [
+           2,
+           7,
+           2,
+           2,
+           5,
+           2,
+           7,
+           2,
+           2
+          ],
+          "states": {
+           "0": "found"
+          },
+          "pointers": {
+           "x": 0
+          },
+          "slots": true
+         },
+         {
+          "type": "vars",
+          "items": {
+           "candidate:": "2",
+           "count:": "1"
+          }
+         }
+        ]
+       },
+       {
+        "text": "7 isn't the candidate. Cross it out together with one copy of 2: count drops to 0. Nothing is left standing, so whoever comes next takes over.",
+        "panels": [
+         {
+          "type": "row",
+          "cells": [
+           2,
+           7,
+           2,
+           2,
+           5,
+           2,
+           7,
+           2,
+           2
+          ],
+          "states": {
+           "0": "dim",
+           "1": "mark"
+          },
+          "pointers": {
+           "x": 1
+          },
+          "slots": true
+         },
+         {
+          "type": "vars",
+          "items": {
+           "candidate:": "2",
+           "count:": "0"
+          }
+         }
+        ]
+       },
+       {
+        "text": "The counter is 0, so 2 becomes the candidate, with count 1.",
+        "panels": [
+         {
+          "type": "row",
+          "cells": [
+           2,
+           7,
+           2,
+           2,
+           5,
+           2,
+           7,
+           2,
+           2
+          ],
+          "states": {
+           "0": "dim",
+           "1": "dim",
+           "2": "found"
+          },
+          "pointers": {
+           "x": 2
+          },
+          "slots": true
+         },
+         {
+          "type": "vars",
+          "items": {
+           "candidate:": "2",
+           "count:": "1"
+          }
+         }
+        ]
+       },
+       {
+        "text": "2 matches the candidate: one more vote for it, count 2.",
+        "panels": [
+         {
+          "type": "row",
+          "cells": [
+           2,
+           7,
+           2,
+           2,
+           5,
+           2,
+           7,
+           2,
+           2
+          ],
+          "states": {
+           "0": "dim",
+           "1": "dim",
+           "2": "dim",
+           "3": "found"
+          },
+          "pointers": {
+           "x": 3
+          },
+          "slots": true
+         },
+         {
+          "type": "vars",
+          "items": {
+           "candidate:": "2",
+           "count:": "2"
+          }
+         }
+        ]
+       },
+       {
+        "text": "5 isn't the candidate. Cross it out together with one copy of 2: count drops to 1.",
+        "panels": [
+         {
+          "type": "row",
+          "cells": [
+           2,
+           7,
+           2,
+           2,
+           5,
+           2,
+           7,
+           2,
+           2
+          ],
+          "states": {
+           "0": "dim",
+           "1": "dim",
+           "2": "dim",
+           "3": "dim",
+           "4": "mark"
+          },
+          "pointers": {
+           "x": 4
+          },
+          "slots": true
+         },
+         {
+          "type": "vars",
+          "items": {
+           "candidate:": "2",
+           "count:": "1"
+          }
+         }
+        ]
+       },
+       {
+        "text": "2 matches the candidate: one more vote for it, count 2.",
+        "panels": [
+         {
+          "type": "row",
+          "cells": [
+           2,
+           7,
+           2,
+           2,
+           5,
+           2,
+           7,
+           2,
+           2
+          ],
+          "states": {
+           "0": "dim",
+           "1": "dim",
+           "2": "dim",
+           "3": "dim",
+           "4": "dim",
+           "5": "found"
+          },
+          "pointers": {
+           "x": 5
+          },
+          "slots": true
+         },
+         {
+          "type": "vars",
+          "items": {
+           "candidate:": "2",
+           "count:": "2"
+          }
+         }
+        ]
+       },
+       {
+        "text": "7 isn't the candidate. Cross it out together with one copy of 2: count drops to 1.",
+        "panels": [
+         {
+          "type": "row",
+          "cells": [
+           2,
+           7,
+           2,
+           2,
+           5,
+           2,
+           7,
+           2,
+           2
+          ],
+          "states": {
+           "0": "dim",
+           "1": "dim",
+           "2": "dim",
+           "3": "dim",
+           "4": "dim",
+           "5": "dim",
+           "6": "mark"
+          },
+          "pointers": {
+           "x": 6
+          },
+          "slots": true
+         },
+         {
+          "type": "vars",
+          "items": {
+           "candidate:": "2",
+           "count:": "1"
+          }
+         }
+        ]
+       },
+       {
+        "text": "2 matches the candidate: one more vote for it, count 2.",
+        "panels": [
+         {
+          "type": "row",
+          "cells": [
+           2,
+           7,
+           2,
+           2,
+           5,
+           2,
+           7,
+           2,
+           2
+          ],
+          "states": {
+           "0": "dim",
+           "1": "dim",
+           "2": "dim",
+           "3": "dim",
+           "4": "dim",
+           "5": "dim",
+           "6": "dim",
+           "7": "found"
+          },
+          "pointers": {
+           "x": 7
+          },
+          "slots": true
+         },
+         {
+          "type": "vars",
+          "items": {
+           "candidate:": "2",
+           "count:": "2"
+          }
+         }
+        ]
+       },
+       {
+        "text": "2 matches the candidate: one more vote for it, count 3. The pass ends with candidate 2. Because this array is promised to have a majority, 2 is it.",
+        "panels": [
+         {
+          "type": "row",
+          "cells": [
+           2,
+           7,
+           2,
+           2,
+           5,
+           2,
+           7,
+           2,
+           2
+          ],
+          "states": {
+           "0": "dim",
+           "1": "dim",
+           "2": "dim",
+           "3": "dim",
+           "4": "dim",
+           "5": "dim",
+           "6": "dim",
+           "7": "dim",
+           "8": "found"
+          },
+          "pointers": {
+           "x": 8
+          },
+          "slots": true
+         },
+         {
+          "type": "vars",
+          "items": {
+           "candidate:": "2",
+           "count:": "3"
+          }
+         }
+        ]
+       }
+      ],
+      "title": "`majority_candidate([2, 7, 2, 2, 5, 2, 7, 2, 2])`. One candidate, one counter, one pass."
+     }
+    },
+    {
+     "md": "Notice that the candidate was 2 the whole time here, but the counter dipped to 0 after index 1. If the next\nvalue had been a 5, the 5 would have taken over for a while. That's fine: a true majority always wins the\njob back, because it has more copies than everything else put together."
+    }
+   ]
+  },
+  {
+   "id": "examples",
+   "title": "More examples",
+   "blocks": [
+    {
+     "md": "### Not the most common value\n\nRun the pass on `[1, 1, 2, 3, 4]`. The 1s take the lead, then 2 and 3 cancel them, and 4 is standing at the end, so the\ncandidate is 4. But 1 is the most common value. No value has more than half here, so the candidate means\nnothing until you check it, and checking says \"no majority\". If you want the most common value, count.\n\n### A stream you can't store\n\nA server logs which region served each request, millions per hour, and you want to know if one region is\nhandling more than half the traffic. You don't have room to store the log. Two variables, updated as each\nline goes past, give you the only region that could be over half. Read the log a second time (or count that\none region as you go next hour) to confirm.\n\n### The same leader on both sides\n\nCut an array into a left part and a right part. Is the same value a strict majority of *both* parts? If so,\nit has to be the majority of the whole array too (more than half of each side is more than half of the\ntotal). So find the overall leader once, count it, and then slide the cut along, tracking how many copies\nare on the left. The variation below writes this out. Here it is on `[4, 4, 2, 4, 3, 4]`:"
+    },
+    {
+     "walk": {
+      "steps": [
+       {
+        "text": "Boyer-Moore finds 4, and counting confirms 4 copies out of 6: more than half. Now cut the array after each index.",
+        "panels": [
+         {
+          "type": "row",
+          "cells": [
+           4,
+           4,
+           2,
+           4,
+           3,
+           4
+          ],
+          "slots": true
+         },
+         {
+          "type": "vars",
+          "items": {
+           "total 4s:": "4"
+          }
+         }
+        ]
+       },
+       {
+        "text": "Cut after index 0: the left has 1 of 1 fours, the right has 3 of 5. So both sides are led by 4, so this cut counts.",
+        "panels": [
+         {
+          "type": "row",
+          "cells": [
+           4,
+           4,
+           2,
+           4,
+           3,
+           4
+          ],
+          "states": {
+           "0": "found",
+           "1": "mark",
+           "2": "mark",
+           "3": "mark",
+           "4": "mark",
+           "5": "mark"
+          },
+          "pointers": {
+           "cut": 0
+          },
+          "slots": true
+         },
+         {
+          "type": "vars",
+          "items": {
+           "left 4s:": "1 / 1",
+           "right 4s:": "3 / 5"
+          }
+         }
+        ]
+       },
+       {
+        "text": "Cut after index 1: the left has 2 of 2 fours, the right has 2 of 4. So the right side isn't led by 4.",
+        "panels": [
+         {
+          "type": "row",
+          "cells": [
+           4,
+           4,
+           2,
+           4,
+           3,
+           4
+          ],
+          "states": {
+           "0": "found",
+           "1": "found",
+           "2": "mark",
+           "3": "mark",
+           "4": "mark",
+           "5": "mark"
+          },
+          "pointers": {
+           "cut": 1
+          },
+          "slots": true
+         },
+         {
+          "type": "vars",
+          "items": {
+           "left 4s:": "2 / 2",
+           "right 4s:": "2 / 4"
+          }
+         }
+        ]
+       },
+       {
+        "text": "Cut after index 2: the left has 2 of 3 fours, the right has 2 of 3. So both sides are led by 4, so this cut counts.",
+        "panels": [
+         {
+          "type": "row",
+          "cells": [
+           4,
+           4,
+           2,
+           4,
+           3,
+           4
+          ],
+          "states": {
+           "0": "found",
+           "1": "found",
+           "2": "found",
+           "3": "mark",
+           "4": "mark",
+           "5": "mark"
+          },
+          "pointers": {
+           "cut": 2
+          },
+          "slots": true
+         },
+         {
+          "type": "vars",
+          "items": {
+           "left 4s:": "2 / 3",
+           "right 4s:": "2 / 3"
+          }
+         }
+        ]
+       },
+       {
+        "text": "Cut after index 3: the left has 3 of 4 fours, the right has 1 of 2. So the right side isn't led by 4.",
+        "panels": [
+         {
+          "type": "row",
+          "cells": [
+           4,
+           4,
+           2,
+           4,
+           3,
+           4
+          ],
+          "states": {
+           "0": "found",
+           "1": "found",
+           "2": "found",
+           "3": "found",
+           "4": "mark",
+           "5": "mark"
+          },
+          "pointers": {
+           "cut": 3
+          },
+          "slots": true
+         },
+         {
+          "type": "vars",
+          "items": {
+           "left 4s:": "3 / 4",
+           "right 4s:": "1 / 2"
+          }
+         }
+        ]
+       },
+       {
+        "text": "Cut after index 4: the left has 3 of 5 fours, the right has 1 of 1. So both sides are led by 4, so this cut counts. 3 cuts in total.",
+        "panels": [
+         {
+          "type": "row",
+          "cells": [
+           4,
+           4,
+           2,
+           4,
+           3,
+           4
+          ],
+          "states": {
+           "0": "found",
+           "1": "found",
+           "2": "found",
+           "3": "found",
+           "4": "found",
+           "5": "mark"
+          },
+          "pointers": {
+           "cut": 4
+          },
+          "slots": true
+         },
+         {
+          "type": "vars",
+          "items": {
+           "left 4s:": "3 / 5",
+           "right 4s:": "1 / 1"
+          }
+         }
+        ]
+       }
+      ],
+      "title": "`equi_leaders([4, 4, 2, 4, 3, 4])`. The leader is 4 (4 of 6). Try every cut and check both sides."
+     }
+    }
+   ]
+  },
+  {
+   "id": "variations",
+   "title": "Variations",
+   "blocks": [
+    {
+     "md": "### Verify, then use the count\n\nMost real questions don't promise a majority, so the pass is followed by a counting pass. Once you've\ncounted, the count itself is useful. Here it lets us test every cut in O(1): the left side has `left`\ncopies, the right side has `total - left`."
+    },
+    {
+     "code": {
+      "python": "def equi_leaders(nums):\n    leader, count = None, 0\n    for x in nums:\n        if count == 0:\n            leader = x\n        count += 1 if x == leader else -1\n    n = len(nums)\n    total = sum(1 for x in nums if x == leader)\n    if total * 2 <= n:\n        return 0\n    splits, left = 0, 0\n    for i in range(n - 1):\n        if nums[i] == leader:\n            left += 1\n        right = total - left\n        if left * 2 > i + 1 and right * 2 > n - i - 1:\n            splits += 1\n    return splits\n",
+      "java": "static int equiLeaders(int[] nums) {\n    int leader = 0, count = 0;\n    for (int x : nums) {\n        if (count == 0) leader = x;\n        count += x == leader ? 1 : -1;\n    }\n    int n = nums.length, total = 0;\n    for (int x : nums) if (x == leader) total++;\n    if (total * 2 <= n) return 0;\n    int splits = 0, left = 0;\n    for (int i = 0; i < n - 1; i++) {\n        if (nums[i] == leader) left++;\n        int right = total - left;\n        if (left * 2 > i + 1 && right * 2 > n - i - 1) splits++;\n    }\n    return splits;\n}\n",
+      "cpp": "int equiLeaders(const vector<int>& nums) {\n    int leader = 0, count = 0;\n    for (int x : nums) {\n        if (count == 0) leader = x;\n        count += x == leader ? 1 : -1;\n    }\n    int n = nums.size();\n    int total = std::count(nums.begin(), nums.end(), leader);\n    if (total * 2 <= n) return 0;\n    int splits = 0, left = 0;\n    for (int i = 0; i < n - 1; i++) {\n        if (nums[i] == leader) left++;\n        int right = total - left;\n        if (left * 2 > i + 1 && right * 2 > n - i - 1) splits++;\n    }\n    return splits;\n}\n",
+      "c": "int equiLeaders(const int* nums, int n) {\n    int leader = 0, count = 0;\n    for (int i = 0; i < n; i++) {\n        if (count == 0) leader = nums[i];\n        count += nums[i] == leader ? 1 : -1;\n    }\n    int total = 0;\n    for (int i = 0; i < n; i++) if (nums[i] == leader) total++;\n    if (total * 2 <= n) return 0;\n    int splits = 0, left = 0;\n    for (int i = 0; i < n - 1; i++) {\n        if (nums[i] == leader) left++;\n        int right = total - left;\n        if (left * 2 > i + 1 && right * 2 > n - i - 1) splits++;\n    }\n    return splits;\n}\n"
+     },
+     "title": "Count the cuts where both sides share the leader",
+     "lines": [
+      {
+       "text": "Boyer-Moore: find the only value that could lead the whole array.",
+       "at": {
+        "python": [
+         [
+          2,
+          6
+         ]
+        ],
+        "java": [
+         [
+          2,
+          5
+         ]
+        ],
+        "cpp": [
+         [
+          2,
+          5
+         ]
+        ],
+        "c": [
+         [
+          2,
+          5
+         ]
+        ]
+       }
+      },
+      {
+       "text": "Count it for real.",
+       "at": {
+        "python": [
+         [
+          7,
+          8
+         ]
+        ],
+        "java": [
+         [
+          7,
+          8
+         ]
+        ],
+        "cpp": [
+         [
+          7,
+          8
+         ]
+        ],
+        "c": [
+         [
+          7,
+          8
+         ]
+        ]
+       }
+      },
+      {
+       "text": "Not a strict majority of the whole array, so it can't lead both halves of any cut. No cuts.",
+       "at": {
+        "python": [
+         [
+          9,
+          10
+         ]
+        ],
+        "java": [
+         [
+          9,
+          9
+         ]
+        ],
+        "cpp": [
+         [
+          9,
+          9
+         ]
+        ],
+        "c": [
+         [
+          9,
+          9
+         ]
+        ]
+       }
+      },
+      {
+       "text": "`left` is how many copies of the leader are in the left part so far.",
+       "at": {
+        "python": [
+         [
+          11,
+          11
+         ]
+        ],
+        "java": [
+         [
+          10,
+          10
+         ]
+        ],
+        "cpp": [
+         [
+          10,
+          10
+         ]
+        ],
+        "c": [
+         [
+          10,
+          10
+         ]
+        ]
+       }
+      },
+      {
+       "text": "Cut after index `i`, for every `i` except the last (both parts must be non-empty).",
+       "at": {
+        "python": [
+         [
+          12,
+          12
+         ]
+        ],
+        "java": [
+         [
+          11,
+          11
+         ]
+        ],
+        "cpp": [
+         [
+          11,
+          11
+         ]
+        ],
+        "c": [
+         [
+          11,
+          11
+         ]
+        ]
+       }
+      },
+      {
+       "text": "Index `i` moves into the left part.",
+       "at": {
+        "python": [
+         [
+          13,
+          14
+         ]
+        ],
+        "java": [
+         [
+          12,
+          12
+         ]
+        ],
+        "cpp": [
+         [
+          12,
+          12
+         ]
+        ],
+        "c": [
+         [
+          12,
+          12
+         ]
+        ]
+       }
+      },
+      {
+       "text": "The rest of the copies are on the right.",
+       "at": {
+        "python": [
+         [
+          15,
+          15
+         ]
+        ],
+        "java": [
+         [
+          13,
+          13
+         ]
+        ],
+        "cpp": [
+         [
+          13,
+          13
+         ]
+        ],
+        "c": [
+         [
+          13,
+          13
+         ]
+        ]
+       }
+      },
+      {
+       "text": "Strict majority on both sides. Comparing `2 * count > size` avoids rounding mistakes with `size / 2`.",
+       "at": {
+        "python": [
+         [
+          16,
+          17
+         ]
+        ],
+        "java": [
+         [
+          14,
+          14
+         ]
+        ],
+        "cpp": [
+         [
+          14,
+          14
+         ]
+        ],
+        "c": [
+         [
+          14,
+          14
+         ]
+        ]
+       }
+      },
+      {
+       "text": "The number of cuts that work.",
+       "at": {
+        "python": [
+         [
+          18,
+          18
+         ]
+        ],
+        "java": [
+         [
+          16,
+          16
+         ]
+        ],
+        "cpp": [
+         [
+          16,
+          16
+         ]
+        ],
+        "c": [
+         [
+          16,
+          16
+         ]
+        ]
+       }
+      }
+     ],
+     "run": {
+      "call": "equi_leaders([4, 4, 2, 4, 3, 4]); ([1, 2, 1, 2]); ([7, 7, 7])",
+      "output": "3\n0\n2"
+     }
+    },
+    {
+     "md": "### Several thresholds\n\nFor \"more than `n / 3`\" keep two slots, for \"more than `n / k`\" keep `k - 1`, exactly as in the walkthrough in\n*Why it works*. Two details matter when you write it:\n\n- Check \"does this value already have a slot?\" for **every** slot before you consider taking a free one.\n  Otherwise the same value can end up in two slots.\n- When all slots are full and the value has none, the value itself is crossed out too; it doesn't move\n  into a slot that just freed up.\n\n### Majority in a sorted array\n\nIf the array is sorted, a majority (if there is one) covers the middle index, so `a[n / 2]` is the only\ncandidate. Confirm it by finding its first and last positions with binary search: O(log n) without even\nreading the whole array."
+    }
+   ]
+  },
+  {
+   "id": "complexity",
+   "title": "What it costs",
+   "blocks": [
+    {
+     "md": "The candidate pass reads each value once and does O(1) work: O(n) time, O(1) extra space. The check is another\nO(n) pass. With `k - 1` slots, each value may touch every slot, so it's O(n·k) time and O(k) space, which is\nstill linear for a fixed `k` like 3."
+    },
+    {
+     "table": {
+      "head": [
+       "Approach",
+       "Time",
+       "Extra space"
+      ],
+      "rows": [
+       [
+        "Count everything in a hash map",
+        "O(n) on average",
+        "O(distinct values)"
+       ],
+       [
+        "Sort, then look at the middle",
+        "O(n log n)",
+        "O(1) to O(n)"
+       ],
+       [
+        "Boyer-Moore + check",
+        "O(n)",
+        "O(1)"
+       ],
+       [
+        "k - 1 slots + check (more than n / k)",
+        "O(n·k)",
+        "O(k)"
+       ]
+      ]
+     }
+    }
+   ]
+  },
+  {
+   "id": "languages",
+   "title": "In your language",
+   "blocks": [
+    {
+     "md": "### Python\n\nStart the candidate at `None`; the `count == 0` branch replaces it before it's ever compared. For the check,\n`nums.count(candidate)` is one fast pass. `collections.Counter(nums).most_common(1)` also works but uses\nO(n) memory, which is usually the thing you were asked to avoid.\n\n### Java\n\nWith `int[]` comparisons are plain `==`. If you ever hold the candidate in an `Integer` (say from a\n`List<Integer>`), compare with `.equals`, since `==` on boxed values above 127 compares objects, not numbers.\n\n### C++\n\n`std::count(nums.begin(), nums.end(), candidate)` does the check in one line. Compare `2 * count > n` with\n`count` and `n` as `int` or wider; for very large inputs, `long long` avoids overflow.\n\n### C\n\nThe same loop with an explicit length. Nothing to allocate, nothing to free."
+    }
+   ]
+  },
+  {
+   "id": "pitfalls",
+   "title": "Pitfalls and edge cases",
+   "blocks": [
+    {
+     "md": "- Skipping the check when a majority isn't promised. The candidate of `[1, 2, 3]` is 3.\n- Comparing before taking over. If you compare first and only then reset on `count == 0`, the new candidate\n  doesn't get its own vote.\n- `>= n / 2` instead of `> n / 2`. With `n = 4`, a value appearing twice is not a majority.\n- Integer division: `count > n / 2` with `n = 5` means `count > 2`, which is right, but it's easy to slip.\n  `2 * count > n` says what you mean.\n- Expecting the mode. Boyer-Moore says nothing about the most common value when no majority exists.\n- With several slots, letting one value occupy two slots, or letting the crossed-out value take a slot."
+    }
+   ]
+  },
+  {
+   "id": "check",
+   "title": "Check yourself",
+   "blocks": [
+    {
+     "quiz": [
+      {
+       "q": "Why can't the true majority be the value that runs out?",
+       "a": "Each cancellation removes two different values, so at most one of them is the majority. If it has more than half, it has more copies than everything else combined, and every other value can cancel at most one of its copies."
+      },
+      {
+       "q": "What does the candidate pass return for [1, 1, 2, 3, 4], and is it the answer to anything?",
+       "a": "It returns 4. No value has more than half of the 5 entries, so 4 isn't a majority (and isn't the most common value either). A check would say there's no majority."
+      },
+      {
+       "q": "When is the second counting pass not needed?",
+       "a": "When the problem promises that a majority exists. Then the candidate must be it."
+      },
+      {
+       "q": "How many slots do you need to find every value appearing more than n / 4 times, and why?",
+       "a": "Three. At most three values can each have more than a quarter of the array, and each full-slots round crosses out four different values, which can happen at most n / 4 times, so a value with more than n / 4 copies survives."
+      },
+      {
+       "q": "In equi_leaders, why is it enough to only consider the leader of the whole array?",
+       "a": "If one value is a strict majority of both parts, it has more than half of each, so more than half of the total. Any value that leads both sides must lead the whole array."
+      }
+     ]
+    }
+   ]
+  }
+ ],
+ "leetcode": [
+  {
+   "id": 169,
+   "title": "Majority Element",
+   "url": "https://leetcode.com/problems/majority-element/",
+   "difficulty": "easy"
+  },
+  {
+   "id": 1287,
+   "title": "Element Appearing More Than 25% In Sorted Array",
+   "url": "https://leetcode.com/problems/element-appearing-more-than-25-in-sorted-array/",
+   "difficulty": "easy"
+  },
+  {
+   "id": 1150,
+   "title": "Check If a Number Is Majority Element in a Sorted Array",
+   "url": "https://leetcode.com/problems/check-if-a-number-is-majority-element-in-a-sorted-array/",
+   "difficulty": "easy",
+   "premium": true
+  },
+  {
+   "id": 229,
+   "title": "Majority Element II",
+   "url": "https://leetcode.com/problems/majority-element-ii/",
+   "difficulty": "medium"
+  },
+  {
+   "id": 2780,
+   "title": "Minimum Index of a Valid Split",
+   "url": "https://leetcode.com/problems/minimum-index-of-a-valid-split/",
+   "difficulty": "medium"
+  },
+  {
+   "id": 1157,
+   "title": "Online Majority Element In Subarray",
+   "url": "https://leetcode.com/problems/online-majority-element-in-subarray/",
+   "difficulty": "hard"
+  }
+ ]
+}

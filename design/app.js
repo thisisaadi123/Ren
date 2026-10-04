@@ -31,6 +31,49 @@
     );
   }
 
+  // Theme toggle: sits in the nav (or the workspace bar) on every page. The
+  // head script has already set data-theme; a click saves an explicit choice,
+  // and until then the page follows the system setting.
+  const root = document.documentElement;
+  const KEY = "ren-theme";
+  const saved = () => {
+    try {
+      return localStorage.getItem(KEY);
+    } catch {
+      return null;
+    }
+  };
+  const actions = document.querySelector(".nav-actions, .ws-actions");
+  if (actions) {
+    const btn = document.createElement("button");
+    btn.type = "button";
+    btn.className = "icon-btn theme-btn";
+    btn.innerHTML = `
+      <svg class="i-moon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M20 14.5A8 8 0 0 1 9.5 4a8 8 0 1 0 10.5 10.5Z"/></svg>
+      <svg class="i-sun" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><circle cx="12" cy="12" r="4"/><path d="M12 2.5v2M12 19.5v2M4.6 4.6l1.4 1.4M18 18l1.4 1.4M2.5 12h2M19.5 12h2M4.6 19.4 6 18M18 6l1.4-1.4"/></svg>`;
+    const label = () => {
+      const dark = root.dataset.theme === "dark";
+      btn.setAttribute("aria-label", dark ? "Switch to light theme" : "Switch to dark theme");
+      btn.setAttribute("aria-pressed", String(dark));
+    };
+    const set = (theme) => {
+      root.dataset.theme = theme;
+      label();
+    };
+    btn.addEventListener("click", () => {
+      const next = root.dataset.theme === "dark" ? "light" : "dark";
+      set(next);
+      try {
+        localStorage.setItem(KEY, next);
+      } catch {}
+    });
+    matchMedia("(prefers-color-scheme: dark)").addEventListener("change", (e) => {
+      if (!saved()) set(e.matches ? "dark" : "light");
+    });
+    label();
+    actions.insertBefore(btn, actions.querySelector(".account") || actions.firstChild);
+  }
+
   // Run `fn` once when `el` first scrolls into view.
   const onVisible = (el, fn, threshold = 0.2) => {
     if (reduceMotion || !("IntersectionObserver" in window)) return fn();

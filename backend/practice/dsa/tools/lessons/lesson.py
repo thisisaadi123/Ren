@@ -27,6 +27,7 @@ HERE = os.path.dirname(os.path.abspath(__file__))
 sys.path.insert(0, os.path.join(os.path.dirname(HERE), "solutions"))
 from sol import Steps, dd, fig, parse, ranges, table  # noqa: E402,F401
 from lib import Grid, Row, Vars, fmt  # noqa: E402,F401  (tools/visuals, put on the path by sol)
+import leetcode  # noqa: E402
 
 DSA = os.path.dirname(os.path.dirname(HERE))
 OUT = os.path.join(DSA, "lessons")
@@ -186,6 +187,7 @@ def lesson(topic, pattern, summary, sections):
         "summary": dd(summary),
         "minutes": max(5, round(words / 200)),
         "sections": out,
+        "leetcode": leetcode.entries(pattern),
     }
     os.makedirs(os.path.join(OUT, topic), exist_ok=True)
     with open(os.path.join(OUT, topic, f"{pattern}.json"), "w") as f:

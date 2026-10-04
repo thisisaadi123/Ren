@@ -1,0 +1,1698 @@
+{
+ "version": 1,
+ "id": "consecutive-runs",
+ "topic": "arrays-hashing",
+ "summary": "To find runs of consecutive values (like 3, 4, 5, 6) in an unsorted array, put everything in a hash set and only\nstart counting at a value whose predecessor is missing. Each run is then walked exactly once, from its first value,\nso the whole thing is O(n) without sorting.",
+ "minutes": 12,
+ "sections": [
+  {
+   "id": "idea",
+   "title": "The idea",
+   "blocks": [
+    {
+     "md": "Imagine the pages of a book have come loose and been shuffled, and you want to know the longest stretch of\npages you still have in order, with nothing missing in between. You don't have to sort the pile. Spread the\npages out so you can tell at a glance whether any page number is there. Then, for each page, ask one\nquestion: \"is the page before this one here?\"\n\nIf it is, this page is somewhere in the middle of a stretch, so ignore it for now. If it isn't, this page is\nthe *first* page of a stretch, and you count forwards from it: is the next page here, and the next? Every\nstretch gets counted once, from its first page, and no page is counted twice.\n\nThe hash set is \"spread out on the table\". The \"is the one before here?\" check is what keeps it fast."
+    },
+    {
+     "panels": [
+      {
+       "type": "row",
+       "cells": [
+        8,
+        3,
+        10,
+        1,
+        2,
+        9,
+        20,
+        11,
+        4,
+        5
+       ],
+       "label": "as given"
+      },
+      {
+       "type": "row",
+       "cells": [
+        1,
+        2,
+        3,
+        4,
+        5,
+        null,
+        null,
+        8,
+        9,
+        10,
+        11
+       ],
+       "states": {
+        "0": "found",
+        "1": "found",
+        "2": "found",
+        "3": "found",
+        "4": "found",
+        "7": "mark",
+        "8": "mark",
+        "9": "mark",
+        "10": "mark"
+       },
+       "label": "number line 1 to 11"
+      }
+     ],
+     "caption": "The same values on a number line: runs 1→5 and 8→11, and 20 on its own (off to the right). The answer is 5."
+    },
+    {
+     "key": "Put the values in a set. A value `x` starts a run only if `x - 1` isn't in the set. From each start, count\n`x + 1`, `x + 2`, … while they're present. Every value is walked over once, so it's O(n)."
+    }
+   ]
+  },
+  {
+   "id": "signals",
+   "title": "When to reach for it",
+   "blocks": [
+    {
+     "md": "The question is about values that follow on from each other (`v`, `v + 1`, `v + 2`, …) but the array is in no\nparticular order, and the positions don't matter. \"Longest consecutive sequence\", \"longest streak of days\",\n\"group the numbers into ranges\", \"how many runs\", usually with \"in O(n)\" or \"without sorting\".\n\nThe thing to notice is that the *order* in the array is irrelevant. Only which values are present matters.\nThat's the moment to throw the values into a set.\n\nNot a fit:\n\n- The run must be consecutive in **position** (adjacent in the array), like \"longest increasing\n  subarray\". That's a simple left-to-right scan; a set throws away positions.\n- \"Longest increasing subsequence\" (keep the order, values just increase). That's dynamic programming.\n- Small inputs, or when you need the values sorted anyway. Sorting and scanning (*Sort then scan*) gives\n  the same runs in O(n log n) and is often simpler."
+    }
+   ]
+  },
+  {
+   "id": "theory",
+   "title": "Why it works",
+   "blocks": [
+    {
+     "md": "### Runs are separated by gaps\n\nLay the distinct values out on a number line. They clump into runs, with at least one missing number between\nneighbouring runs. Every value belongs to exactly one run, and every run has exactly one first value: the\none whose predecessor is missing. For `[8, 3, 10, 1, 2, 9, 20, 11, 4, 5]` the runs are:"
+    },
+    {
+     "table": {
+      "head": [
+       "run",
+       "length"
+      ],
+      "rows": [
+       [
+        "1 to 5",
+        "5"
+       ],
+       [
+        "8 to 11",
+        "4"
+       ],
+       [
+        "20",
+        "1"
+       ]
+      ]
+     }
+    },
+    {
+     "md": "If you think of each value as a node joined to `v + 1` when it's present, every run is a chain. The start is\nthe only node with nothing joined on its left. So \"find every chain and its length\" becomes \"find every\nstart and walk right\".\n\n### Why skipping the middles matters\n\nYou could start walking from *every* value. It gives the right answer, but on one long run it's slow: from the\nfirst value you walk the whole run, from the second you walk all but one, and so on. That's about `n² / 2`\nsteps. Starting only at the run's first value walks it once."
+    },
+    {
+     "panels": [
+      {
+       "type": "bars",
+       "values": [
+        8,
+        7,
+        6,
+        5,
+        4,
+        3,
+        2,
+        1
+       ],
+       "labels": [
+        "1",
+        "2",
+        "3",
+        "4",
+        "5",
+        "6",
+        "7",
+        "8"
+       ],
+       "label": "steps walked from each value, starting everywhere",
+       "max": 8
+      },
+      {
+       "type": "bars",
+       "values": [
+        8,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0
+       ],
+       "labels": [
+        "1",
+        "2",
+        "3",
+        "4",
+        "5",
+        "6",
+        "7",
+        "8"
+       ],
+       "states": {
+        "0": "answer"
+       },
+       "label": "starting only at a run's first value",
+       "max": 8
+      }
+     ],
+     "caption": "On the run 1→8: 36 steps against 8. The gap grows like n²."
+    },
+    {
+     "md": "### Counting the work\n\nThe outer loop looks at each distinct value once and does one set lookup (`x - 1`). The inner `while` loop\nonly runs from starts, and the walk from a start covers exactly that run's values. Runs don't overlap, so\nall the inner walks together cover each value once. Total: about `2n` lookups, O(n) on average.\n\n### Duplicates\n\nThe set holds each value once, so duplicates disappear before the counting starts. Loop over the **set**,\nnot the original array. Looping over the array still gives the right answer, but if the start of a long run\nappears a thousand times, you'd walk that run a thousand times."
+    }
+   ]
+  },
+  {
+   "id": "template",
+   "title": "The template",
+   "blocks": [
+    {
+     "md": "The length of the longest run of consecutive values, in any order, duplicates allowed."
+    },
+    {
+     "code": {
+      "python": "def longest_run(nums):\n    values = set(nums)\n    best = 0\n    for x in values:\n        if x - 1 in values:\n            continue\n        length = 1\n        while x + length in values:\n            length += 1\n        best = max(best, length)\n    return best\n",
+      "java": "static int longestRun(int[] nums) {\n    Set<Integer> values = new HashSet<>();\n    for (int x : nums) values.add(x);\n    int best = 0;\n    for (int x : values) {\n        if (values.contains(x - 1)) continue;\n        int length = 1;\n        while (values.contains(x + length)) length++;\n        best = Math.max(best, length);\n    }\n    return best;\n}\n",
+      "cpp": "int longestRun(const vector<int>& nums) {\n    unordered_set<int> values(nums.begin(), nums.end());\n    int best = 0;\n    for (int x : values) {\n        if (values.count(x - 1)) continue;\n        int length = 1;\n        while (values.count(x + length)) length++;\n        best = max(best, length);\n    }\n    return best;\n}\n",
+      "c": "typedef struct {\n    int* keys;\n    bool* used;\n    size_t mask;\n} IntSet;\n\nstatic size_t set_slot(const IntSet* s, int key) {\n    size_t i = ((uint32_t)key * 2654435761u) & s->mask;\n    while (s->used[i] && s->keys[i] != key) i = (i + 1) & s->mask;\n    return i;\n}\n\nstatic bool set_has(const IntSet* s, int key) {\n    return s->used[set_slot(s, key)];\n}\n\nint longestRun(const int* nums, int n) {\n    size_t cap = 16;\n    while (cap < 2 * (size_t)n) cap <<= 1;\n    IntSet values = {malloc(cap * sizeof(int)), calloc(cap, sizeof(bool)), cap - 1};\n    for (int i = 0; i < n; i++) {\n        size_t j = set_slot(&values, nums[i]);\n        values.used[j] = true;\n        values.keys[j] = nums[i];\n    }\n    int best = 0;\n    for (size_t j = 0; j <= values.mask; j++) {\n        if (!values.used[j]) continue;\n        int x = values.keys[j];\n        if (set_has(&values, x - 1)) continue;\n        int length = 1;\n        while (set_has(&values, x + length)) length++;\n        if (length > best) best = length;\n    }\n    free(values.keys);\n    free(values.used);\n    return best;\n}\n"
+     },
+     "title": "Longest run of consecutive values",
+     "lines": [
+      {
+       "text": "C has no hash set, so here's a small open-addressing one: a power-of-two table, at least twice as big as the input, where a key that collides moves to the next slot.",
+       "at": {
+        "c": [
+         [
+          5,
+          5
+         ],
+         [
+          8,
+          9
+         ],
+         [
+          14,
+          14
+         ]
+        ]
+       }
+      },
+      {
+       "text": "Every distinct value, with O(1) lookups.",
+       "at": {
+        "python": [
+         [
+          2,
+          2
+         ]
+        ],
+        "java": [
+         [
+          2,
+          3
+         ]
+        ],
+        "cpp": [
+         [
+          2,
+          2
+         ]
+        ],
+        "c": [
+         [
+          18,
+          24
+         ]
+        ]
+       },
+       "notes": {
+        "cpp": "`unordered_set` can be built straight from the vector's range.",
+        "c": "Insert each value into its slot. Inserting a duplicate just finds its existing slot again."
+       }
+      },
+      {
+       "text": "The longest run found so far. An empty array has no runs, so 0.",
+       "at": {
+        "python": [
+         [
+          3,
+          3
+         ]
+        ],
+        "java": [
+         [
+          4,
+          4
+         ]
+        ],
+        "cpp": [
+         [
+          3,
+          3
+         ]
+        ],
+        "c": [
+         [
+          26,
+          26
+         ]
+        ]
+       }
+      },
+      {
+       "text": "Look at each distinct value once.",
+       "at": {
+        "python": [
+         [
+          4,
+          4
+         ]
+        ],
+        "java": [
+         [
+          5,
+          5
+         ]
+        ],
+        "cpp": [
+         [
+          4,
+          4
+         ]
+        ],
+        "c": [
+         [
+          27,
+          29
+         ]
+        ]
+       },
+       "notes": {
+        "c": "Walking the table's used slots visits each distinct value exactly once."
+       }
+      },
+      {
+       "text": "If `x - 1` is present, `x` is in the middle of a run. That run is counted from its start instead.",
+       "at": {
+        "python": [
+         [
+          5,
+          6
+         ]
+        ],
+        "java": [
+         [
+          6,
+          6
+         ]
+        ],
+        "cpp": [
+         [
+          5,
+          5
+         ]
+        ],
+        "c": [
+         [
+          30,
+          30
+         ]
+        ]
+       }
+      },
+      {
+       "text": "`x` is the first value of a run.",
+       "at": {
+        "python": [
+         [
+          7,
+          7
+         ]
+        ],
+        "java": [
+         [
+          7,
+          7
+         ]
+        ],
+        "cpp": [
+         [
+          6,
+          6
+         ]
+        ],
+        "c": [
+         [
+          31,
+          31
+         ]
+        ]
+       }
+      },
+      {
+       "text": "Walk right while the next value is present.",
+       "at": {
+        "python": [
+         [
+          8,
+          9
+         ]
+        ],
+        "java": [
+         [
+          8,
+          8
+         ]
+        ],
+        "cpp": [
+         [
+          7,
+          7
+         ]
+        ],
+        "c": [
+         [
+          32,
+          32
+         ]
+        ]
+       }
+      },
+      {
+       "text": "Remember the longest.",
+       "at": {
+        "python": [
+         [
+          10,
+          10
+         ]
+        ],
+        "java": [
+         [
+          9,
+          9
+         ]
+        ],
+        "cpp": [
+         [
+          8,
+          8
+         ]
+        ],
+        "c": [
+         [
+          33,
+          33
+         ]
+        ]
+       }
+      },
+      {
+       "text": "Give the table back.",
+       "at": {
+        "c": [
+         [
+          35,
+          36
+         ]
+        ]
+       }
+      },
+      {
+       "text": "The longest run.",
+       "at": {
+        "python": [
+         [
+          11,
+          11
+         ]
+        ],
+        "java": [
+         [
+          11,
+          11
+         ]
+        ],
+        "cpp": [
+         [
+          10,
+          10
+         ]
+        ],
+        "c": [
+         [
+          37,
+          37
+         ]
+        ]
+       }
+      }
+     ],
+     "run": {
+      "call": "longest_run([8, 3, 10, 1, 2, 9, 20, 11, 4, 5]); ([7, 7, 7]); ([-1, 0, 1, 1, -2])",
+      "output": "5\n1\n4"
+     }
+    },
+    {
+     "md": "`[7, 7, 7]` is one value, so one run of length 1. `[-1, 0, 1, 1, -2]` is the run -2 → 1: negatives work the\nsame as anything else."
+    }
+   ]
+  },
+  {
+   "id": "trace",
+   "title": "Trace it by hand",
+   "blocks": [
+    {
+     "md": "A set has no fixed order, so the code may visit the values in any order. The answer doesn't depend on it.\nHere we go in the order they first appear in the array:"
+    },
+    {
+     "walk": {
+      "steps": [
+       {
+        "text": "The set answers \"is v here?\" in O(1). On a number line the values fall into runs with gaps between them. 20 sits far off to the right, alone.",
+        "panels": [
+         {
+          "type": "row",
+          "cells": [
+           8,
+           3,
+           10,
+           1,
+           2,
+           9,
+           20,
+           11,
+           4,
+           5
+          ],
+          "slots": true
+         },
+         {
+          "type": "row",
+          "cells": [
+           1,
+           2,
+           3,
+           4,
+           5,
+           null,
+           null,
+           8,
+           9,
+           10,
+           11
+          ],
+          "label": "number line 1 to 11"
+         },
+         {
+          "type": "vars",
+          "items": {
+           "best:": "0"
+          }
+         }
+        ]
+       },
+       {
+        "text": "8: is 7 in the set? No, so 8 starts a run. Now walk right: 9, 10, 11 are all there, and 12 isn't. Run length 4.",
+        "panels": [
+         {
+          "type": "row",
+          "cells": [
+           8,
+           3,
+           10,
+           1,
+           2,
+           9,
+           20,
+           11,
+           4,
+           5
+          ],
+          "states": {
+           "0": "active"
+          },
+          "pointers": {
+           "x": 0
+          },
+          "slots": true
+         },
+         {
+          "type": "row",
+          "cells": [
+           1,
+           2,
+           3,
+           4,
+           5,
+           null,
+           null,
+           8,
+           9,
+           10,
+           11
+          ],
+          "states": {
+           "7": "found",
+           "8": "found",
+           "9": "found",
+           "10": "found"
+          },
+          "label": "number line 1 to 11"
+         },
+         {
+          "type": "vars",
+          "items": {
+           "length:": "4",
+           "best:": "4"
+          }
+         }
+        ]
+       },
+       {
+        "text": "3: is 2 in the set? Yes. So 3 is in the middle of a run that starts further left. Don't count from here; that run gets counted once, from its start.",
+        "panels": [
+         {
+          "type": "row",
+          "cells": [
+           8,
+           3,
+           10,
+           1,
+           2,
+           9,
+           20,
+           11,
+           4,
+           5
+          ],
+          "states": {
+           "1": "dim"
+          },
+          "pointers": {
+           "x": 1
+          },
+          "slots": true
+         },
+         {
+          "type": "row",
+          "cells": [
+           1,
+           2,
+           3,
+           4,
+           5,
+           null,
+           null,
+           8,
+           9,
+           10,
+           11
+          ],
+          "states": {
+           "2": "dim",
+           "1": "mark"
+          },
+          "label": "number line 1 to 11"
+         },
+         {
+          "type": "vars",
+          "items": {
+           "best:": "4"
+          }
+         }
+        ]
+       },
+       {
+        "text": "10: is 9 in the set? Yes. So 10 is in the middle of a run that starts further left. Don't count from here; that run gets counted once, from its start.",
+        "panels": [
+         {
+          "type": "row",
+          "cells": [
+           8,
+           3,
+           10,
+           1,
+           2,
+           9,
+           20,
+           11,
+           4,
+           5
+          ],
+          "states": {
+           "2": "dim"
+          },
+          "pointers": {
+           "x": 2
+          },
+          "slots": true
+         },
+         {
+          "type": "row",
+          "cells": [
+           1,
+           2,
+           3,
+           4,
+           5,
+           null,
+           null,
+           8,
+           9,
+           10,
+           11
+          ],
+          "states": {
+           "9": "dim",
+           "8": "mark"
+          },
+          "label": "number line 1 to 11"
+         },
+         {
+          "type": "vars",
+          "items": {
+           "best:": "4"
+          }
+         }
+        ]
+       },
+       {
+        "text": "1: is 0 in the set? No, so 1 starts a run. Now walk right: 2, 3, 4, 5 are all there, and 6 isn't. Run length 5.",
+        "panels": [
+         {
+          "type": "row",
+          "cells": [
+           8,
+           3,
+           10,
+           1,
+           2,
+           9,
+           20,
+           11,
+           4,
+           5
+          ],
+          "states": {
+           "3": "active"
+          },
+          "pointers": {
+           "x": 3
+          },
+          "slots": true
+         },
+         {
+          "type": "row",
+          "cells": [
+           1,
+           2,
+           3,
+           4,
+           5,
+           null,
+           null,
+           8,
+           9,
+           10,
+           11
+          ],
+          "states": {
+           "0": "found",
+           "1": "found",
+           "2": "found",
+           "3": "found",
+           "4": "found"
+          },
+          "label": "number line 1 to 11"
+         },
+         {
+          "type": "vars",
+          "items": {
+           "length:": "5",
+           "best:": "5"
+          }
+         }
+        ]
+       },
+       {
+        "text": "2: is 1 in the set? Yes. So 2 is in the middle of a run that starts further left. Don't count from here; that run gets counted once, from its start.",
+        "panels": [
+         {
+          "type": "row",
+          "cells": [
+           8,
+           3,
+           10,
+           1,
+           2,
+           9,
+           20,
+           11,
+           4,
+           5
+          ],
+          "states": {
+           "4": "dim"
+          },
+          "pointers": {
+           "x": 4
+          },
+          "slots": true
+         },
+         {
+          "type": "row",
+          "cells": [
+           1,
+           2,
+           3,
+           4,
+           5,
+           null,
+           null,
+           8,
+           9,
+           10,
+           11
+          ],
+          "states": {
+           "1": "dim",
+           "0": "mark"
+          },
+          "label": "number line 1 to 11"
+         },
+         {
+          "type": "vars",
+          "items": {
+           "best:": "5"
+          }
+         }
+        ]
+       },
+       {
+        "text": "9: is 8 in the set? Yes. So 9 is in the middle of a run that starts further left. Don't count from here; that run gets counted once, from its start.",
+        "panels": [
+         {
+          "type": "row",
+          "cells": [
+           8,
+           3,
+           10,
+           1,
+           2,
+           9,
+           20,
+           11,
+           4,
+           5
+          ],
+          "states": {
+           "5": "dim"
+          },
+          "pointers": {
+           "x": 5
+          },
+          "slots": true
+         },
+         {
+          "type": "row",
+          "cells": [
+           1,
+           2,
+           3,
+           4,
+           5,
+           null,
+           null,
+           8,
+           9,
+           10,
+           11
+          ],
+          "states": {
+           "8": "dim",
+           "7": "mark"
+          },
+          "label": "number line 1 to 11"
+         },
+         {
+          "type": "vars",
+          "items": {
+           "best:": "5"
+          }
+         }
+        ]
+       },
+       {
+        "text": "20: is 19 in the set? No, so 20 starts a run. Now 21 isn't in the set, so the run is just 20. Run length 1.",
+        "panels": [
+         {
+          "type": "row",
+          "cells": [
+           8,
+           3,
+           10,
+           1,
+           2,
+           9,
+           20,
+           11,
+           4,
+           5
+          ],
+          "states": {
+           "6": "active"
+          },
+          "pointers": {
+           "x": 6
+          },
+          "slots": true
+         },
+         {
+          "type": "row",
+          "cells": [
+           1,
+           2,
+           3,
+           4,
+           5,
+           null,
+           null,
+           8,
+           9,
+           10,
+           11
+          ],
+          "label": "number line 1 to 11"
+         },
+         {
+          "type": "vars",
+          "items": {
+           "length:": "1",
+           "best:": "5"
+          }
+         }
+        ]
+       },
+       {
+        "text": "11: is 10 in the set? Yes. So 11 is in the middle of a run that starts further left. Don't count from here; that run gets counted once, from its start.",
+        "panels": [
+         {
+          "type": "row",
+          "cells": [
+           8,
+           3,
+           10,
+           1,
+           2,
+           9,
+           20,
+           11,
+           4,
+           5
+          ],
+          "states": {
+           "7": "dim"
+          },
+          "pointers": {
+           "x": 7
+          },
+          "slots": true
+         },
+         {
+          "type": "row",
+          "cells": [
+           1,
+           2,
+           3,
+           4,
+           5,
+           null,
+           null,
+           8,
+           9,
+           10,
+           11
+          ],
+          "states": {
+           "10": "dim",
+           "9": "mark"
+          },
+          "label": "number line 1 to 11"
+         },
+         {
+          "type": "vars",
+          "items": {
+           "best:": "5"
+          }
+         }
+        ]
+       },
+       {
+        "text": "4: is 3 in the set? Yes. So 4 is in the middle of a run that starts further left. Don't count from here; that run gets counted once, from its start.",
+        "panels": [
+         {
+          "type": "row",
+          "cells": [
+           8,
+           3,
+           10,
+           1,
+           2,
+           9,
+           20,
+           11,
+           4,
+           5
+          ],
+          "states": {
+           "8": "dim"
+          },
+          "pointers": {
+           "x": 8
+          },
+          "slots": true
+         },
+         {
+          "type": "row",
+          "cells": [
+           1,
+           2,
+           3,
+           4,
+           5,
+           null,
+           null,
+           8,
+           9,
+           10,
+           11
+          ],
+          "states": {
+           "3": "dim",
+           "2": "mark"
+          },
+          "label": "number line 1 to 11"
+         },
+         {
+          "type": "vars",
+          "items": {
+           "best:": "5"
+          }
+         }
+        ]
+       },
+       {
+        "text": "5: is 4 in the set? Yes. So 5 is in the middle of a run that starts further left. Don't count from here; that run gets counted once, from its start. Every value has been looked at once as a possible start, and walked over at most once. Longest run: 5.",
+        "panels": [
+         {
+          "type": "row",
+          "cells": [
+           8,
+           3,
+           10,
+           1,
+           2,
+           9,
+           20,
+           11,
+           4,
+           5
+          ],
+          "states": {
+           "9": "dim"
+          },
+          "pointers": {
+           "x": 9
+          },
+          "slots": true
+         },
+         {
+          "type": "row",
+          "cells": [
+           1,
+           2,
+           3,
+           4,
+           5,
+           null,
+           null,
+           8,
+           9,
+           10,
+           11
+          ],
+          "states": {
+           "4": "dim",
+           "3": "mark"
+          },
+          "label": "number line 1 to 11"
+         },
+         {
+          "type": "vars",
+          "items": {
+           "best:": "5"
+          }
+         }
+        ]
+       }
+      ],
+      "title": "`longest_run([8, 3, 10, 1, 2, 9, 20, 11, 4, 5])`. Put everything in a set, then count only from the start of each run."
+     }
+    }
+   ]
+  },
+  {
+   "id": "examples",
+   "title": "More examples",
+   "blocks": [
+    {
+     "md": "### Summarising into ranges\n\nGiven `[5, 1, 2, 9, 3, 10, 7]`, describe the values as ranges: `1→3, 5, 7, 9→10`. Find each run start the same way,\nand walk to its end. If you want the ranges in increasing order, sort the starts (there are usually far\nfewer starts than values) or, if the input is small, just sort everything and scan.\n\n### A streak of days\n\nA user's activity log lists the dates they practised, in any order, with repeats. Turn every date into a day\nnumber (days since some fixed date), and the longest streak is the longest run of day numbers. Repeated\ndates collapse in the set, which is exactly what you want: practising twice on one day is still one day.\n\n### Filling one gap\n\nSuppose you may add one number of your choice. The best place is either the end of some run (making it one\nlonger) or a gap of exactly one between two runs (joining them). So find all the runs, remember each one's\nlength by its start, and for each run look at the start that would sit just after a one-number gap."
+    },
+    {
+     "walk": {
+      "steps": [
+       {
+        "text": "First, find every run exactly as in the template, and remember each one's start and length.",
+        "panels": [
+         {
+          "type": "row",
+          "cells": [
+           1,
+           2,
+           3,
+           null,
+           5,
+           6,
+           7,
+           null,
+           9,
+           10,
+           11,
+           12,
+           null,
+           14,
+           null
+          ],
+          "states": {
+           "0": "found",
+           "1": "found",
+           "2": "found",
+           "4": "answer",
+           "5": "answer",
+           "6": "answer",
+           "8": "mark",
+           "9": "mark",
+           "10": "mark",
+           "11": "mark",
+           "13": "active"
+          },
+          "label": "1 to 15"
+         },
+         {
+          "type": "vars",
+          "items": {
+           "run at 1:": "3",
+           "run at 5:": "3",
+           "run at 9:": "4",
+           "run at 14:": "1"
+          }
+         }
+        ]
+       },
+       {
+        "text": "The run 1→3 ends just before a gap of one: 4 is missing and 5 starts another run of 3. Adding 4 joins them: 3 + 1 + 3 = 7.",
+        "panels": [
+         {
+          "type": "row",
+          "cells": [
+           1,
+           2,
+           3,
+           null,
+           5,
+           6,
+           7,
+           null,
+           9,
+           10,
+           11,
+           12,
+           null,
+           14,
+           null
+          ],
+          "states": {
+           "0": "found",
+           "1": "found",
+           "2": "found",
+           "4": "found",
+           "5": "found",
+           "6": "found"
+          },
+          "label": "1 to 15"
+         },
+         {
+          "type": "vars",
+          "items": {
+           "this one:": "7",
+           "best:": "7"
+          }
+         }
+        ]
+       },
+       {
+        "text": "The run 5→7 ends just before a gap of one: 8 is missing and 9 starts another run of 4. Adding 8 joins them: 3 + 1 + 4 = 8.",
+        "panels": [
+         {
+          "type": "row",
+          "cells": [
+           1,
+           2,
+           3,
+           null,
+           5,
+           6,
+           7,
+           null,
+           9,
+           10,
+           11,
+           12,
+           null,
+           14,
+           null
+          ],
+          "states": {
+           "4": "found",
+           "5": "found",
+           "6": "found",
+           "8": "found",
+           "9": "found",
+           "10": "found",
+           "11": "found"
+          },
+          "label": "1 to 15"
+         },
+         {
+          "type": "vars",
+          "items": {
+           "this one:": "8",
+           "best:": "8"
+          }
+         }
+        ]
+       },
+       {
+        "text": "The run 9→12 ends just before a gap of one: 13 is missing and 14 starts another run of 1. Adding 13 joins them: 4 + 1 + 1 = 6.",
+        "panels": [
+         {
+          "type": "row",
+          "cells": [
+           1,
+           2,
+           3,
+           null,
+           5,
+           6,
+           7,
+           null,
+           9,
+           10,
+           11,
+           12,
+           null,
+           14,
+           null
+          ],
+          "states": {
+           "8": "found",
+           "9": "found",
+           "10": "found",
+           "11": "found",
+           "13": "found"
+          },
+          "label": "1 to 15"
+         },
+         {
+          "type": "vars",
+          "items": {
+           "this one:": "6",
+           "best:": "8"
+          }
+         }
+        ]
+       },
+       {
+        "text": "After the run 14→14, 16 isn't a run start, so adding 15 only makes this run one longer: 2. The best you can do is 8.",
+        "panels": [
+         {
+          "type": "row",
+          "cells": [
+           1,
+           2,
+           3,
+           null,
+           5,
+           6,
+           7,
+           null,
+           9,
+           10,
+           11,
+           12,
+           null,
+           14,
+           null
+          ],
+          "states": {
+           "13": "found"
+          },
+          "label": "1 to 15"
+         },
+         {
+          "type": "vars",
+          "items": {
+           "this one:": "2",
+           "best:": "8"
+          }
+         }
+        ]
+       }
+      ],
+      "title": "`longest_with_one_added([1, 2, 3, 5, 6, 7, 9, 10, 11, 12, 14])`. Add one number of your choice. How long can the longest run get?"
+     }
+    }
+   ]
+  },
+  {
+   "id": "variations",
+   "title": "Variations",
+   "blocks": [
+    {
+     "md": "### Keep the runs, not just the longest\n\nOnce the starts are found, store each run's length in a map keyed by its start. Then questions about runs\nnext to each other are one lookup away: the run after `start` with a gap of one would begin at\n`start + length + 1`."
+    },
+    {
+     "code": {
+      "python": "def longest_with_one_added(nums):\n    values = set(nums)\n    runs = {}\n    for x in values:\n        if x - 1 not in values:\n            length = 1\n            while x + length in values:\n                length += 1\n            runs[x] = length\n    best = 0\n    for start, length in runs.items():\n        after = start + length + 1\n        best = max(best, length + 1 + runs.get(after, 0))\n    return best\n",
+      "java": "static int longestWithOneAdded(int[] nums) {\n    Set<Integer> values = new HashSet<>();\n    for (int x : nums) values.add(x);\n    Map<Integer, Integer> runs = new HashMap<>();\n    for (int x : values) {\n        if (values.contains(x - 1)) continue;\n        int length = 1;\n        while (values.contains(x + length)) length++;\n        runs.put(x, length);\n    }\n    int best = 0;\n    for (Map.Entry<Integer, Integer> e : runs.entrySet()) {\n        int start = e.getKey(), length = e.getValue();\n        int after = start + length + 1;\n        best = Math.max(best, length + 1 + runs.getOrDefault(after, 0));\n    }\n    return best;\n}\n",
+      "cpp": "int longestWithOneAdded(const vector<int>& nums) {\n    unordered_set<int> values(nums.begin(), nums.end());\n    unordered_map<int, int> runs;\n    for (int x : values) {\n        if (values.count(x - 1)) continue;\n        int length = 1;\n        while (values.count(x + length)) length++;\n        runs[x] = length;\n    }\n    int best = 0;\n    for (auto [start, length] : runs) {\n        int after = start + length + 1;\n        auto it = runs.find(after);\n        best = max(best, length + 1 + (it == runs.end() ? 0 : it->second));\n    }\n    return best;\n}\n",
+      "c": "typedef struct {\n    int *keys, *vals;\n    bool* used;\n    size_t mask;\n} IntMap;\n\nstatic IntMap map_new(int n) {\n    size_t cap = 16;\n    while (cap < 2 * (size_t)n) cap <<= 1;\n    IntMap m = {malloc(cap * sizeof(int)), malloc(cap * sizeof(int)), calloc(cap, sizeof(bool)), cap - 1};\n    return m;\n}\n\nstatic size_t map_slot(const IntMap* m, int key) {\n    size_t i = ((uint32_t)key * 2654435761u) & m->mask;\n    while (m->used[i] && m->keys[i] != key) i = (i + 1) & m->mask;\n    return i;\n}\n\nstatic void map_put(IntMap* m, int key, int val) {\n    size_t i = map_slot(m, key);\n    m->used[i] = true;\n    m->keys[i] = key;\n    m->vals[i] = val;\n}\n\nstatic int map_get(const IntMap* m, int key, int missing) {\n    size_t i = map_slot(m, key);\n    return m->used[i] ? m->vals[i] : missing;\n}\n\nint longestWithOneAdded(const int* nums, int n) {\n    IntMap values = map_new(n), runs = map_new(n);\n    for (int i = 0; i < n; i++) map_put(&values, nums[i], 1);\n    for (size_t j = 0; j <= values.mask; j++) {\n        if (!values.used[j]) continue;\n        int x = values.keys[j];\n        if (map_get(&values, x - 1, 0)) continue;\n        int length = 1;\n        while (map_get(&values, x + length, 0)) length++;\n        map_put(&runs, x, length);\n    }\n    int best = 0;\n    for (size_t j = 0; j <= runs.mask; j++) {\n        if (!runs.used[j]) continue;\n        int start = runs.keys[j], length = runs.vals[j];\n        int after = start + length + 1;\n        int total = length + 1 + map_get(&runs, after, 0);\n        if (total > best) best = total;\n    }\n    free(values.keys); free(values.vals); free(values.used);\n    free(runs.keys); free(runs.vals); free(runs.used);\n    return best;\n}\n"
+     },
+     "title": "Longest run after adding one number",
+     "lines": [
+      {
+       "text": "A small open-addressing hash map from `int` to `int`, used twice: once as the set of values and once for the runs.",
+       "at": {
+        "c": [
+         [
+          5,
+          5
+         ],
+         [
+          8,
+          10
+         ],
+         [
+          15,
+          16
+         ],
+         [
+          21,
+          24
+         ],
+         [
+          28,
+          29
+         ]
+        ]
+       }
+      },
+      {
+       "text": "The distinct values.",
+       "at": {
+        "python": [
+         [
+          2,
+          2
+         ]
+        ],
+        "java": [
+         [
+          2,
+          3
+         ]
+        ],
+        "cpp": [
+         [
+          2,
+          2
+         ]
+        ],
+        "c": [
+         [
+          33,
+          34
+         ]
+        ]
+       }
+      },
+      {
+       "text": "The template's loop, but instead of keeping only the best, store each run's length under its start.",
+       "at": {
+        "python": [
+         [
+          3,
+          9
+         ]
+        ],
+        "java": [
+         [
+          4,
+          9
+         ]
+        ],
+        "cpp": [
+         [
+          3,
+          8
+         ]
+        ],
+        "c": [
+         [
+          35,
+          41
+         ]
+        ]
+       }
+      },
+      {
+       "text": "Best total so far.",
+       "at": {
+        "python": [
+         [
+          10,
+          10
+         ]
+        ],
+        "java": [
+         [
+          11,
+          11
+         ]
+        ],
+        "cpp": [
+         [
+          10,
+          10
+         ]
+        ],
+        "c": [
+         [
+          43,
+          43
+         ]
+        ]
+       }
+      },
+      {
+       "text": "Look at every run.",
+       "at": {
+        "python": [
+         [
+          11,
+          11
+         ]
+        ],
+        "java": [
+         [
+          12,
+          13
+         ]
+        ],
+        "cpp": [
+         [
+          11,
+          11
+         ]
+        ],
+        "c": [
+         [
+          44,
+          46
+         ]
+        ]
+       }
+      },
+      {
+       "text": "Where a run would start if it sat just past a gap of one.",
+       "at": {
+        "python": [
+         [
+          12,
+          12
+         ]
+        ],
+        "java": [
+         [
+          14,
+          14
+         ]
+        ],
+        "cpp": [
+         [
+          12,
+          12
+         ]
+        ],
+        "c": [
+         [
+          47,
+          47
+         ]
+        ]
+       }
+      },
+      {
+       "text": "Add the missing number: it makes this run one longer, and if a run starts at `after`, it joins that one too.",
+       "at": {
+        "python": [
+         [
+          13,
+          13
+         ]
+        ],
+        "java": [
+         [
+          15,
+          15
+         ]
+        ],
+        "cpp": [
+         [
+          13,
+          14
+         ]
+        ],
+        "c": [
+         [
+          48,
+          49
+         ]
+        ]
+       },
+       "notes": {
+        "java": "`getOrDefault` gives 0 when no run starts there.",
+        "cpp": "`find` avoids `runs[after]`, which would insert a zero-length run while we're looping over the map."
+       }
+      },
+      {
+       "text": "Give both tables back.",
+       "at": {
+        "c": [
+         [
+          51,
+          52
+         ]
+        ]
+       }
+      },
+      {
+       "text": "The longest run you can make.",
+       "at": {
+        "python": [
+         [
+          14,
+          14
+         ]
+        ],
+        "java": [
+         [
+          17,
+          17
+         ]
+        ],
+        "cpp": [
+         [
+          16,
+          16
+         ]
+        ],
+        "c": [
+         [
+          53,
+          53
+         ]
+        ]
+       }
+      }
+     ],
+     "run": {
+      "call": "longest_with_one_added([1, 2, 3, 5, 6, 7, 9, 10, 11, 12, 14]); ([4, 4, 4]); ([10, 30])",
+      "output": "8\n2\n2"
+     }
+    },
+    {
+     "md": "### Union-find\n\nAnother way to build the runs: treat each value as its own group, and for each value `v`, merge it with the\ngroup of `v + 1` if that's present. The groups at the end are the runs. It's more machinery than this\nproblem needs, but it's the right tool when values arrive one at a time and you need the longest run after\nevery arrival.\n\n### Sort and scan\n\nSort, then walk the array: a run continues while `a[i] == a[i - 1] + 1`, ignores `a[i] == a[i - 1]`\n(duplicates), and breaks otherwise. O(n log n), O(1) extra space if you may sort in place. It's a fine answer\nwhen O(n) isn't required."
+    }
+   ]
+  },
+  {
+   "id": "complexity",
+   "title": "What it costs",
+   "blocks": [
+    {
+     "md": "Building the set is O(n). The loop does one lookup per distinct value, and the walks from run starts cover\neach value once more, so O(n) on average overall. Extra space is the set: O(n). Storing runs adds at most one\nmap entry per run."
+    },
+    {
+     "table": {
+      "head": [
+       "Approach",
+       "Time",
+       "Extra space"
+      ],
+      "rows": [
+       [
+        "Walk from every value",
+        "O(n²) worst case",
+        "O(n)"
+       ],
+       [
+        "Sort, then scan",
+        "O(n log n)",
+        "O(1) to O(n)"
+       ],
+       [
+        "Set, walk only from run starts",
+        "O(n) on average",
+        "O(n)"
+       ]
+      ]
+     }
+    }
+   ]
+  },
+  {
+   "id": "languages",
+   "title": "In your language",
+   "blocks": [
+    {
+     "md": "### Python\n\n`set(nums)` and `in` do everything. Iterate over the set, not the list. Python integers don't overflow, so\n`x - 1` and `x + length` are always safe.\n\n### Java\n\n`HashSet<Integer>` boxes every value, which is fine at this size. `x - 1` overflows for\n`Integer.MIN_VALUE` and wraps to `Integer.MAX_VALUE`; if both can appear, compare as `long`.\n\n### C++\n\n`unordered_set<int>` built from the vector's range. `count(x)` returns 0 or 1, handy as a condition. For very\nlarge inputs, `values.reserve(n)` avoids rehashing as it grows.\n\n### C\n\nWrite a small open-addressing set as above. Make the table at least twice the input size so probes stay\nshort, and loop over its used slots to visit distinct values. `x - 1` at `INT_MIN` is undefined behaviour in\nC; widen to `long long` if the full range is possible."
+    }
+   ]
+  },
+  {
+   "id": "pitfalls",
+   "title": "Pitfalls and edge cases",
+   "blocks": [
+    {
+     "md": "- Walking from every value. It's correct but O(n²) on one long run. The `x - 1` check is the whole point.\n- Looping over the original array with many duplicates of a run start. Loop over the set.\n- Counting duplicates as part of a run: `[4, 4, 4, 5]` has a run of length 2, not 4.\n- An empty input: the answer is 0, not 1.\n- Overflow at the extremes of `int` when computing `x - 1` or `x + length` in Java, C++ or C.\n- Confusing \"consecutive values\" with \"adjacent positions\". Re-read the question."
+    }
+   ]
+  },
+  {
+   "id": "check",
+   "title": "Check yourself",
+   "blocks": [
+    {
+     "quiz": [
+      {
+       "q": "Why does checking `x - 1` make the algorithm O(n)?",
+       "a": "It means walking only starts at the first value of each run. Runs don't overlap, so all the walks together cover each value once."
+      },
+      {
+       "q": "What is the longest run in [4, 4, 4, 5]?",
+       "a": "2 (the run 4 → 5). The set holds {4, 5}; the repeated 4s don't make the run longer."
+      },
+      {
+       "q": "Would the template still be correct if you looped over the array instead of the set?",
+       "a": "Yes, it still finds the right lengths, but a run start that's repeated many times would be walked many times, so it can become slow."
+      },
+      {
+       "q": "When is sorting a better choice?",
+       "a": "When the input is small, when O(n log n) is acceptable and you want O(1) extra space, or when you need the runs in increasing order anyway."
+      },
+      {
+       "q": "In `longest_with_one_added`, why only look at `start + length + 1`?",
+       "a": "Adding one number can only join this run to a run that begins right after a gap of exactly one. The number that fills the gap is `start + length`, so the next run would have to begin at `start + length + 1`."
+      }
+     ]
+    }
+   ]
+  }
+ ],
+ "leetcode": [
+  {
+   "id": 228,
+   "title": "Summary Ranges",
+   "url": "https://leetcode.com/problems/summary-ranges/",
+   "difficulty": "easy"
+  },
+  {
+   "id": 2229,
+   "title": "Check if an Array Is Consecutive",
+   "url": "https://leetcode.com/problems/check-if-an-array-is-consecutive/",
+   "difficulty": "easy",
+   "premium": true
+  },
+  {
+   "id": 163,
+   "title": "Missing Ranges",
+   "url": "https://leetcode.com/problems/missing-ranges/",
+   "difficulty": "easy",
+   "premium": true
+  },
+  {
+   "id": 128,
+   "title": "Longest Consecutive Sequence",
+   "url": "https://leetcode.com/problems/longest-consecutive-sequence/",
+   "difficulty": "medium"
+  },
+  {
+   "id": 2501,
+   "title": "Longest Square Streak in an Array",
+   "url": "https://leetcode.com/problems/longest-square-streak-in-an-array/",
+   "difficulty": "medium"
+  },
+  {
+   "id": 846,
+   "title": "Hand of Straights",
+   "url": "https://leetcode.com/problems/hand-of-straights/",
+   "difficulty": "medium"
+  },
+  {
+   "id": 1296,
+   "title": "Divide Array in Sets of K Consecutive Numbers",
+   "url": "https://leetcode.com/problems/divide-array-in-sets-of-k-consecutive-numbers/",
+   "difficulty": "medium"
+  }
+ ]
+}
