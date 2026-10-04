@@ -4,47 +4,71 @@
  "question": [
   {
    "md": "Repeatedly crush any k identical adjacent tiles until none remain. Return the final row.\n\n- **Chain reactions:** crushing `bbb` in `abbba` (k = 3) brings the two `a`s together, and with a third `a` they\n  could crush too.\n- **The order of crushes doesn't change the result** (given in the statement), so any convenient order works.\n- **Size:** up to 10⁵ tiles; repeatedly rescanning after each crush is too slow."
+  },
+  {
+   "md": "**Edge cases to keep in mind**\n\n- A crush can join two runs into a new crushable run (chain reactions).\n- A run longer than `k` crushes `k` and leaves the rest.\n- Everything may be crushed (empty result)."
   }
  ],
  "think": [
   {
-   "md": "Take `abbbacca` with k = 3. Crush `bbb`: `aacca`. No other run of 3 yet... `cc` isn't long enough, so the result is\n`aacca`."
+   "md": "**Building text with a stack.** When later characters can undo or combine with the most recent ones (a backspace, a\nrun of equal tiles, a `..` in a path, a closing bracket), the most recent output is exactly what's affected next. A\nstack of output pieces handles that: push to append, pop to undo, and modify the top to combine."
   },
   {
-   "panels": [
-    {
-     "type": "row",
-     "cells": [
-      "a",
-      "b",
-      "b",
-      "b",
-      "a",
-      "c",
-      "c",
-      "a"
-     ],
-     "states": {
-      "1": "mark",
-      "2": "mark",
-      "3": "mark"
-     }
-    },
-    {
-     "type": "row",
-     "cells": [
-      "a",
-      "a",
-      "c",
-      "c",
-      "a"
-     ],
-     "label": "result"
-    }
-   ]
+   "md": "**Runs on a stack.** Keep the output as a stack of `(tile, run length)`. A new tile either extends the top run\n(same tile) or starts a new run. When the top run reaches `k`, pop it: the runs on either side are now neighbours\non the stack, so if they're the same tile the next arrival extends the joined run automatically. For `abbbacca`,\n`k = 3`:"
   },
   {
-   "md": "A crush affects only what's immediately to its left and right. Process tiles left to right while remembering the\nruns to the left: when a run is completed and removed, the run before it becomes the new neighbour of the next\ntile. \"The most recent unfinished run\" is the top of a stack; storing counts with each run makes the k-check\nO(1)."
+   "table": {
+    "head": [
+     "tile",
+     "action",
+     "stack (tile×run)"
+    ],
+    "rows": [
+     [
+      "a",
+      "new run of 'a'",
+      "a×1"
+     ],
+     [
+      "b",
+      "new run of 'b'",
+      "a×1 b×1"
+     ],
+     [
+      "b",
+      "extend the run of 'b'",
+      "a×1 b×2"
+     ],
+     [
+      "b",
+      "run of 3 'b': crush",
+      "a×1"
+     ],
+     [
+      "a",
+      "extend the run of 'a'",
+      "a×2"
+     ],
+     [
+      "c",
+      "new run of 'c'",
+      "a×2 c×1"
+     ],
+     [
+      "c",
+      "extend the run of 'c'",
+      "a×2 c×2"
+     ],
+     [
+      "a",
+      "new run of 'a'",
+      "a×2 c×2 a×1"
+     ]
+    ]
+   }
+  },
+  {
+   "md": "Result **`aacca`**. Chain reactions happen naturally: in `deeedbbcccbdaa` with `k = 3`, crushing `ccc` makes the two `b`\nruns meet, and the next `b` completes a run of 3."
   }
  ],
  "approaches": [
@@ -55,13 +79,13 @@
    "space": "O(n)",
    "idea": [
     {
-     "md": "Scan for any k identical adjacent tiles; remove them; rescan from the start. Stop when a full scan finds nothing."
+     "md": "Find the first run of `k` equal tiles, cut it out, and repeat from the start until no run remains."
     }
    ],
    "build": [
-    "Loop: scan, keeping the length of the current run of equal tiles.",
-    "When it reaches k, cut those tiles out and restart.",
-    "Stop when a scan completes with no cut."
+    "Scan for a run of `k`.",
+    "Cut it out.",
+    "Repeat until nothing changes."
    ],
    "code": {
     "python": "class Solution:\n    def crushRuns(self, s: str, k: int) -> str:\n        changed = True\n        while changed:\n            changed = False\n            run = 1\n            for i in range(1, len(s) + 1):\n                if i < len(s) and s[i] == s[i - 1]:\n                    run += 1\n                    if run == k:\n                        s = s[:i - k + 1] + s[i + 1:]\n                        changed = True\n                        break\n                else:\n                    run = 1\n        return s\n",
@@ -193,7 +217,7 @@
    ],
    "complexity": [
     {
-     "md": "**Time O(n² / k)** scans of O(n) each in the worst case (each crush removes k tiles). **Space O(n).**"
+     "md": "**Time O(n² / k)** or worse: each crush rescans and rebuilds the string. **Space O(n).**"
     }
    ],
    "walk": {
@@ -260,7 +284,7 @@
    },
    "limits": [
     {
-     "md": "Every crush triggers a full rescan, although only the tiles around the crush can change. A stack keeps exactly that neighbourhood at hand."
+     "md": "Rescans everything after every crush. A stack of runs reacts to each tile in O(1)."
     }
    ],
    "slow": true
@@ -272,13 +296,14 @@
    "space": "O(n)",
    "idea": [
     {
-     "md": "For each tile: if it equals the top run's tile, increment that run's count, popping it when the count hits k; otherwise push (tile, 1). Finally, write each remaining run out."
+     "md": "Stack of `[tile, count]`: extend the top run or push a new one; pop when the count reaches `k`. Expand the stack at the end."
     }
    ],
    "build": [
-    "Stack of `[tile, count]`.",
-    "Extend or push; pop at count k.",
-    "Concatenate `tile × count` for the remaining runs."
+    "Stack of runs.",
+    "Extend or push.",
+    "Pop at `k`.",
+    "Rebuild the string."
    ],
    "code": {
     "python": "class Solution:\n    def crushRuns(self, s: str, k: int) -> str:\n        stack = []\n        for c in s:\n            if stack and stack[-1][0] == c:\n                stack[-1][1] += 1\n                if stack[-1][1] == k:\n                    stack.pop()\n            else:\n                stack.append([c, 1])\n        return \"\".join(c * n for c, n in stack)\n",
@@ -468,7 +493,7 @@
    ],
    "complexity": [
     {
-     "md": "**Time O(n):** each tile is pushed or counted once, and popped at most once. **Space O(n).**"
+     "md": "**Time O(n).** **Space O(n).**"
     }
    ],
    "walk": {
@@ -725,7 +750,7 @@
  ],
  "takeaways": [
   {
-   "md": "- \"Remove adjacent groups, then let neighbours meet\" → stack, so the new neighbour is always the top.\n- Store **(value, count)** on the stack to check run lengths in O(1)."
+   "md": "- **Repeated removal of adjacent groups:** stack of (value, run length).\n- Popping a run lets its neighbours merge on the stack automatically.\n- **Pitfall:** storing single characters and recounting runs each time."
   }
  ]
 }
