@@ -4,32 +4,124 @@
  "question": [
   {
    "md": "Return true if `tiles` is a perfect square (k × k for some whole k), without built-in square roots.\n\n- **1 is a perfect square** (1 × 1).\n- **Up to 9 × 10¹⁵:** a root, if any, is below 10⁸. Searching k up to `tiles` itself would square numbers\n  up to 9 × 10¹⁵, overflowing 64 bits, so cap the range at 10⁸.\n- **Floating-point roots are unreliable** at this size (doubles have only 53 bits of precision), which is one\n  reason built-ins are excluded."
+  },
+  {
+   "md": "**Edge cases to keep in mind**\n\n- `tiles = 1` is a perfect square.\n- Non-squares fall strictly between two consecutive squares.\n- Up to 9 × 10¹⁵ tiles: squares need 64 bits."
   }
  ],
  "think": [
   {
-   "md": "Take 7056 tiles. 84 × 84 = 7056, so they form an 84 × 84 square. 7055 tiles would not: 83² = 6889 and\n84² = 7056 skip right over it.\n\nThe question \"is k² = tiles for some k?\" is a search for a value in the increasing sequence 1², 2², 3², …,\nwhich is binary search over k: compare `mid²` with tiles, and go left or right."
+   "md": "**Why binary search works.** In a sorted array, one comparison with the middle element tells you which half can't\ncontain what you're looking for: everything on the other side of the middle is smaller (or larger) too. Throwing away\nhalf each time leaves 1 element after about `log₂ n` steps: 17 steps for 10⁵ elements.\n\n**Think in invariants, not cases.** Decide what the range `lo … hi` means (\"if the target exists, it's inside\") and\nkeep that true on every update. The loop condition and the `±1` details follow from that meaning, which is where most\nbinary-search bugs come from."
   },
   {
-   "panels": [
-    {
-     "type": "row",
-     "cells": [
+   "md": "**Searching a sequence that isn't stored.** \"Is there a `k` with `k² = tiles`?\" is an exact search in the sorted\nsequence `1², 2², 3², …`, which we never need to build: square `mid` on demand. A closed range works like the\nclassic search, and the same `10⁸` cap keeps the squares safe. For 7056:"
+  },
+  {
+   "table": {
+    "head": [
+     "lo",
+     "hi",
+     "mid",
+     "mid²",
+     "decision"
+    ],
+    "rows": [
+     [
       "1",
-      "4",
-      "9",
-      "…",
-      "6889",
       "7056",
-      "7225"
+      "3528",
+      "12446784",
+      "too big: go left"
      ],
-     "states": {
-      "5": "answer"
-     },
-     "label": "k² for k = 1, 2, 3, …, 83, 84, 85"
-    }
-   ],
-   "caption": "A sorted sequence of squares: binary-search it for the tile count."
+     [
+      "1",
+      "3527",
+      "1764",
+      "3111696",
+      "too big: go left"
+     ],
+     [
+      "1",
+      "1763",
+      "882",
+      "777924",
+      "too big: go left"
+     ],
+     [
+      "1",
+      "881",
+      "441",
+      "194481",
+      "too big: go left"
+     ],
+     [
+      "1",
+      "440",
+      "220",
+      "48400",
+      "too big: go left"
+     ],
+     [
+      "1",
+      "219",
+      "110",
+      "12100",
+      "too big: go left"
+     ],
+     [
+      "1",
+      "109",
+      "55",
+      "3025",
+      "too small: go right"
+     ],
+     [
+      "56",
+      "109",
+      "82",
+      "6724",
+      "too small: go right"
+     ],
+     [
+      "83",
+      "109",
+      "96",
+      "9216",
+      "too big: go left"
+     ],
+     [
+      "83",
+      "95",
+      "89",
+      "7921",
+      "too big: go left"
+     ],
+     [
+      "83",
+      "88",
+      "85",
+      "7225",
+      "too big: go left"
+     ],
+     [
+      "83",
+      "84",
+      "83",
+      "6889",
+      "too small: go right"
+     ],
+     [
+      "84",
+      "84",
+      "84",
+      "7056",
+      "equal: perfect square"
+     ]
+    ]
+   }
+  },
+  {
+   "md": "Answer **true**."
   }
  ],
  "approaches": [
@@ -40,13 +132,13 @@
    "space": "O(1)",
    "idea": [
     {
-     "md": "Increase k from 1 while k² < tiles. At the end, check whether k² equals tiles."
+     "md": "Increase `k` until `k² ≥ tiles`; it's a perfect square exactly when `k² = tiles` at that point."
     }
    ],
    "build": [
     "`k = 1`.",
-    "While `k² < tiles`, `k += 1`.",
-    "Return `k² == tiles`."
+    "Increase while `k² < tiles`.",
+    "Check equality."
    ],
    "code": {
     "python": "class Solution:\n    def isPerfectSquare(self, tiles: int) -> bool:\n        k = 1\n        while k * k < tiles:\n            k += 1\n        return k * k == tiles\n",
@@ -145,7 +237,7 @@
    ],
    "complexity": [
     {
-     "md": "**Time O(√n):** up to ~9.5 × 10⁷ steps. **Space O(1).**"
+     "md": "**Time O(√tiles):** up to 10⁸ steps. **Space O(1).**"
     }
    ],
    "walk": {
@@ -216,7 +308,7 @@
    },
    "limits": [
     {
-     "md": "Visits every candidate side; the squares are sorted, so binary search needs only ~27 checks."
+     "md": "Linear in the side length. Binary search over the side takes about 27 steps."
     }
    ],
    "slow": true
@@ -228,13 +320,13 @@
    "space": "O(1)",
    "idea": [
     {
-     "md": "Closed range `[1, min(tiles, 10⁸)]`. Compare `mid²` with tiles: equal → true; smaller → `lo = mid + 1`; larger → `hi = mid − 1`. Empty range → false."
+     "md": "Closed-range binary search for `k` in `[1, min(tiles, 10⁸)]` comparing `mid²` with `tiles`."
     }
    ],
    "build": [
-    "`lo = 1`, `hi = min(tiles, 10⁸)`.",
-    "Classic search on `mid * mid`.",
-    "Return false if the range empties."
+    "Range of possible sides.",
+    "Square the middle.",
+    "Equal → true; adjust the range otherwise."
    ],
    "code": {
     "python": "class Solution:\n    def isPerfectSquare(self, tiles: int) -> bool:\n        lo, hi = 1, min(tiles, 10**8)\n        while lo <= hi:\n            mid = (lo + hi) // 2\n            sq = mid * mid\n            if sq == tiles:\n                return True\n            if sq < tiles:\n                lo = mid + 1\n            else:\n                hi = mid - 1\n        return False\n",
@@ -391,7 +483,7 @@
    ],
    "complexity": [
     {
-     "md": "**Time O(log n).** **Space O(1).**"
+     "md": "**Time O(log tiles).** **Space O(1).**"
     }
    ],
    "walk": {
@@ -573,7 +665,7 @@
  ],
  "takeaways": [
   {
-   "md": "- \"Does an integer k with f(k) = target exist?\" for increasing f → binary search on k.\n- Prefer exact integer arithmetic over floating-point roots for large values.\n- Cap the search range to keep products inside 64 bits."
+   "md": "- **Binary search works on implicit sorted sequences**, computed on demand.\n- Exact search → closed range; boundary search → half-open or rounded mid.\n- **Pitfall:** floating-point square roots for large integers (rounding errors)."
   }
  ]
 }

@@ -4,40 +4,108 @@
  "question": [
   {
    "md": "Timestamps are sorted (with repeats). Return `[first, last]`, the first and last index of `target`, or\n`[−1, −1]` if it's absent.\n\n- **Many copies** can share a timestamp, possibly the whole list. The solution must stay O(log n) even\n  then.\n- **Empty list** → `[−1, −1]`.\n- **target + 1** can reach 10⁹ + 1, still inside a 32-bit `int`."
+  },
+  {
+   "md": "**Edge cases to keep in mind**\n\n- Empty list, or a target that doesn't appear: `[−1, −1]`.\n- One copy: first = last.\n- All entries equal to the target."
   }
  ],
  "think": [
   {
-   "md": "Take `times = [2, 4, 4, 7, 7, 7, 7, 9, 12]` and target 7. The copies of 7 occupy indices 3 … 6."
+   "md": "**Lower and upper bound.** Many questions aren't \"where is `x`?\" but \"where does the region of values `≥ x` (or\n`> x`) start?\". Over a half-open range `[lo, hi)`:\n\n- if `a[mid] < x`, the boundary is to the right of `mid`: `lo = mid + 1`;\n- otherwise `mid` might be the boundary: `hi = mid`.\n\nThe loop ends with `lo == hi` at the first index whose value is `≥ x` (**lower bound**), or `n` if there's none. Using\n`≤` instead of `<` in the test gives the first index with value `> x` (**upper bound**). Duplicates don't break it."
   },
   {
-   "panels": [
-    {
-     "type": "row",
-     "cells": [
-      2,
-      4,
-      4,
-      7,
-      7,
-      7,
-      7,
-      9,
-      12
+   "md": "**Two lower bounds.** The first copy of `target` is `lower_bound(target)`. The last copy is just before the first\nvalue **greater** than the target, which is `lower_bound(target + 1)` for integers. If `lower_bound(target)` is\n`n` or doesn't hold the target, it's absent. For `[2, 4, 4, 7, 7, 7, 7, 9, 12]` and target 7:"
+  },
+  {
+   "md": "**lower_bound(7):**"
+  },
+  {
+   "table": {
+    "head": [
+     "lo",
+     "hi",
+     "mid",
+     "value",
+     "decision"
+    ],
+    "rows": [
+     [
+      "0",
+      "9",
+      "4",
+      "7",
+      "mid could be the boundary: keep it"
      ],
-     "states": {
-      "3": "answer",
-      "4": "answer",
-      "5": "answer",
-      "6": "answer"
-     },
-     "slots": true
-    }
-   ],
-   "caption": "One contiguous block of 7s."
+     [
+      "0",
+      "4",
+      "2",
+      "4",
+      "4 < 7: boundary is right of mid"
+     ],
+     [
+      "3",
+      "4",
+      "3",
+      "7",
+      "mid could be the boundary: keep it"
+     ],
+     [
+      "3",
+      "3",
+      "—",
+      "—",
+      "lo = hi = 3"
+     ]
+    ]
+   }
   },
   {
-   "md": "The block's **start** is the first index with value ≥ 7. Its **end** is just before the first index\nwith value ≥ 8 (equivalently, > 7). Both are lower bounds, so two binary searches find\nthe whole block, and a final check confirms the start actually holds 7 (otherwise it's absent)."
+   "md": "**lower_bound(8):**"
+  },
+  {
+   "table": {
+    "head": [
+     "lo",
+     "hi",
+     "mid",
+     "value",
+     "decision"
+    ],
+    "rows": [
+     [
+      "0",
+      "9",
+      "4",
+      "7",
+      "7 < 8: boundary is right of mid"
+     ],
+     [
+      "5",
+      "9",
+      "7",
+      "9",
+      "mid could be the boundary: keep it"
+     ],
+     [
+      "5",
+      "7",
+      "6",
+      "7",
+      "7 < 8: boundary is right of mid"
+     ],
+     [
+      "7",
+      "7",
+      "—",
+      "—",
+      "lo = hi = 7"
+     ]
+    ]
+   }
+  },
+  {
+   "md": "Answer **[3, 6]**."
   }
  ],
  "approaches": [
@@ -48,13 +116,12 @@
    "space": "O(1)",
    "idea": [
     {
-     "md": "Walk through the list; remember the first index that equals the target and keep updating the last."
+     "md": "Scan the whole list, recording the first and last positions of the target."
     }
    ],
    "build": [
-    "`first = last = −1`.",
-    "For each index with `times[i] == target`: set `first` if unset, and set `last = i`.",
-    "Return `[first, last]`."
+    "Scan.",
+    "Record first and last matches."
    ],
    "code": {
     "python": "class Solution:\n    def deliveryRange(self, times: List[int], target: int) -> List[int]:\n        first = last = -1\n        for i, t in enumerate(times):\n            if t == target:\n                if first < 0:\n                    first = i\n                last = i\n        return [first, last]\n",
@@ -434,7 +501,7 @@
    },
    "limits": [
     {
-     "md": "Ignores the sort order; the problem demands O(log n)."
+     "md": "Breaks O(log n)."
     }
    ]
   },
@@ -445,13 +512,12 @@
    "space": "O(1)",
    "idea": [
     {
-     "md": "Classic binary search finds *some* index holding the target. Then step left and right while neighbours are still equal, to reach the block's ends."
+     "md": "Binary search for any copy, then walk left and right while neighbours equal the target."
     }
    ],
    "build": [
-    "Binary-search for any index with `times[mid] == target`; return `[−1, −1]` if none.",
-    "Move `a` left and `b` right while the neighbours equal the target.",
-    "Return `[a, b]`."
+    "Classic binary search.",
+    "Walk outward from the hit."
    ],
    "code": {
     "python": "class Solution:\n    def deliveryRange(self, times: List[int], target: int) -> List[int]:\n        lo, hi = 0, len(times) - 1\n        while lo <= hi:\n            mid = (lo + hi) // 2\n            if times[mid] == target:\n                a = b = mid\n                while a > 0 and times[a - 1] == target:\n                    a -= 1\n                while b < len(times) - 1 and times[b + 1] == target:\n                    b += 1\n                return [a, b]\n            if times[mid] < target:\n                lo = mid + 1\n            else:\n                hi = mid - 1\n        return [-1, -1]\n",
@@ -573,7 +639,7 @@
    ],
    "complexity": [
     {
-     "md": "**Time O(log n + m)** for m copies, which is **O(n)** when most of the list is the target. **Space O(1).**"
+     "md": "**Time O(log n + c)** for `c` copies: O(n) when most entries are the target. **Space O(1).**"
     }
    ],
    "walk": {
@@ -638,7 +704,7 @@
    },
    "limits": [
     {
-     "md": "The outward walk is linear in the number of copies, breaking the O(log n) requirement on inputs like a list of 10⁵ identical timestamps. Search for each end directly instead."
+     "md": "The outward walk is linear in the number of copies. Two boundary searches find both ends in O(log n)."
     }
    ]
   },
@@ -649,13 +715,13 @@
    "space": "O(1)",
    "idea": [
     {
-     "md": "`a` = first index with value ≥ target. If `a == n` or `times[a] != target`, the target is absent. Otherwise `b` = first index with value ≥ target + 1, and the answer is `[a, b − 1]`."
+     "md": "`first = lower_bound(target)`; absent if it's `n` or holds another value; `last = lower_bound(target + 1) − 1`."
     }
    ],
    "build": [
-    "Write `firstAtLeast(x)` (lower bound).",
-    "`a = firstAtLeast(target)`; return `[−1, −1]` if absent.",
-    "Return `[a, firstAtLeast(target + 1) − 1]`."
+    "Lower-bound helper.",
+    "First position and the absence check.",
+    "Last position from the next value's lower bound."
    ],
    "code": {
     "python": "class Solution:\n    def deliveryRange(self, times: List[int], target: int) -> List[int]:\n        def first_at_least(x):\n            lo, hi = 0, len(times)\n            while lo < hi:\n                mid = (lo + hi) // 2\n                if times[mid] < x:\n                    lo = mid + 1\n                else:\n                    hi = mid\n            return lo\n        a = first_at_least(target)\n        if a == len(times) or times[a] != target:\n            return [-1, -1]\n        return [a, first_at_least(target + 1) - 1]\n",
@@ -780,7 +846,7 @@
    ],
    "complexity": [
     {
-     "md": "**Time O(log n):** two binary searches, regardless of how many copies. **Space O(1).**"
+     "md": "**Time O(log n).** **Space O(1).**"
     }
    ],
    "walk": {
@@ -1032,7 +1098,7 @@
  ],
  "takeaways": [
   {
-   "md": "- The range of a value in a sorted array is `[lowerBound(x), lowerBound(x + 1) − 1]` (or use an upper bound\n  for the end).\n- \"Find one, then expand\" degrades to O(n) with many duplicates; search for both boundaries instead."
+   "md": "- **First/last occurrence:** lower bound of `x` and of `x + 1` (or an upper bound).\n- One helper serves both searches.\n- **Pitfall:** walking outward from one hit (O(n) with many duplicates)."
   }
  ]
 }
