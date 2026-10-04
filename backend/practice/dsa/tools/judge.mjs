@@ -181,7 +181,12 @@ export async function problemView(id) {
     difficulty: meta.difficulty,
     kind: meta.kind,
     topic: topic && { id: topic.id, name: topic.name },
-    pattern: pattern && { id: pattern.id, name: pattern.name },
+    // The pattern's lesson (tools/lessons), when it's written: the page links to it.
+    pattern: pattern && {
+      id: pattern.id,
+      name: pattern.name,
+      lesson: existsSync(path.join(DSA, "lessons", meta.topic, `${pattern.id}.json`)),
+    },
     params: paramsOf(meta),
     returns: meta.kind === "function" ? meta.signature.returns : null,
     visual,

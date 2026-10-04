@@ -4,18 +4,27 @@
  "question": [
   {
    "md": "A crew is a run of neighbouring workers; its power is (weakest strength) × (total strength). Return the largest\npower over all crews.\n\n- **Strengths are positive**, so adding a worker never lowers the sum, though it may lower the minimum.\n- **Up to 10⁵ workers with strength up to 10⁶**: a sum reaches 10¹¹ and a power 10¹⁷, which needs 64-bit\n  integers (still below 9.2 × 10¹⁸)."
+  },
+  {
+   "md": "**Edge cases to keep in mind**\n\n- One worker: power = strength².\n- Equal strengths: each crew must be counted with a consistent \"weakest\" choice.\n- Power reaches about `10⁶ × 10¹¹ = 10¹⁷`: use 64 bits."
   }
  ],
  "think": [
   {
-   "md": "Strengths `[3, 1, 6, 4, 5, 2]`. The crew `6, 4, 5` has weakest 4 and total 15: power 60. The whole row has weakest 1\nand total 21: power 21. The best is **60**, from the crew\n2..4 with weakest worker 3."
+   "md": "**The monotonic stack idea.** Keep a stack of items that are still **waiting for an answer** (for example \"the next\nwarmer day\"). When a new item arrives, it answers every waiting item it beats; those are popped. Because each popped\nitem was beaten by the new one, the items left on the stack are always in sorted order (that's the \"monotonic\" part),\nso the new item only needs to look at the top.\n\n**Why it's O(n).** Every item is pushed once and popped at most once, so all the `while` loops together do at most\n`n` pops, even though a single step may pop many."
+  },
+  {
+   "md": "**Fix the weakest worker.** Every crew has a weakest member. For a worker `w` taken as the weakest, the best crew\nis the **widest** stretch around `w` where nobody is weaker: extending further only adds positive strengths to the\nsum while the weakest stays `w`. So the answer is the maximum over workers of `strength[w] × (sum of that widest\nstretch)`.\n\n**Finding the widest stretch.** Its edges are the previous weaker worker and the next weaker worker, which\nmonotonic stacks find in O(n). Prefix sums give the stretch's sum in O(1). Both edges stop only at a **strictly**\nweaker worker, so workers of equal strength are included; several equal workers may share the same widest crew,\nwhich is fine because only the maximum power is needed."
+  },
+  {
+   "md": "**For `[3, 1, 6, 4, 5, 2]`:**"
   },
   {
    "table": {
     "head": [
      "worker",
      "strength",
-     "widest crew as weakest",
+     "widest stretch where they're weakest",
      "sum",
      "power"
     ],
@@ -23,42 +32,42 @@
      [
       "0",
       "3",
-      "0..0",
+      "0 … 0",
       "3",
       "9"
      ],
      [
       "1",
       "1",
-      "0..5",
+      "0 … 5",
       "21",
       "21"
      ],
      [
       "2",
       "6",
-      "2..2",
+      "2 … 2",
       "6",
       "36"
      ],
      [
       "3",
       "4",
-      "2..4",
+      "2 … 4",
       "15",
       "60"
      ],
      [
       "4",
       "5",
-      "4..4",
+      "4 … 4",
       "5",
       "25"
      ],
      [
       "5",
       "2",
-      "2..5",
+      "2 … 5",
       "17",
       "34"
      ]
@@ -66,7 +75,7 @@
    }
   },
   {
-   "md": "Group crews by their weakest member. If worker `i` is the weakest, widening the crew (while keeping `i` the\nweakest) only adds positive strengths, so the widest such crew is best. It reaches until the nearest strictly\nweaker worker on each side. So the answer is the best of `n` candidates, and each needs the nearest weaker\nneighbours (monotonic stacks) and a range sum (prefix sums)."
+   "md": "Best power **60**."
   }
  ],
  "approaches": [
@@ -77,13 +86,13 @@
    "space": "O(1)",
    "idea": [
     {
-     "md": "For each first worker, extend the crew to the right, updating the weakest strength and the total; each crew's power is their product."
+     "md": "Try every crew, keeping a running minimum and sum while extending to the right."
     }
    ],
    "build": [
-    "For each start `i`: `low = strength[i]`, `sum = 0`.",
-    "For each end `j`: update both and compare `low × sum` with the best.",
-    "Return the best (64-bit)."
+    "Every start.",
+    "Extend with running min and sum.",
+    "Track the best power."
    ],
    "code": {
     "python": "class Solution:\n    def strongestCrew(self, strength: List[int]) -> int:\n        best = 0\n        for i in range(len(strength)):\n            low, total = strength[i], 0\n            for j in range(i, len(strength)):\n                low = min(low, strength[j])\n                total += strength[j]\n                best = max(best, low * total)\n        return best\n",
@@ -240,7 +249,7 @@
    ],
    "complexity": [
     {
-     "md": "**Time O(n²)** crews. **Space O(1).**"
+     "md": "**Time O(n²).** **Space O(1).**"
     }
    ],
    "walk": {
@@ -477,7 +486,7 @@
    },
    "limits": [
     {
-     "md": "~5 × 10⁹ crews for 10⁵ workers. Only one crew per weakest worker can be the best (the widest), so n candidates suffice."
+     "md": "Quadratic. Each crew's power is determined by its weakest worker, so it's enough to consider one widest crew per worker."
     }
    ],
    "slow": true
@@ -489,14 +498,14 @@
    "space": "O(n)",
    "idea": [
     {
-     "md": "Prefix sums `P`. With a stack, find for each worker the nearest strictly weaker worker on the left (`left[i]` = the index after it) and on the right (`right[i]` = the index before it). Worker `i`'s candidate power is `strength[i] × (P[right[i] + 1] − P[left[i]])`. Return the largest."
+     "md": "Prefix sums. A left-to-right stack (popping workers with strength `≥` the current one) gives each worker's\nleft edge: just after the previous strictly weaker worker. A right-to-left stack gives the right edge the\nsame way. Power =\n`strength[i] × (P[right + 1] − P[left])`; take the maximum."
     }
    ],
    "build": [
-    "Prefix sums in 64 bits.",
-    "Left pass (pop while `≥`): `left[i]` = after the nearest weaker worker, or 0.",
-    "Right pass (pop while `≥`): `right[i]` = before the nearest weaker worker, or `n − 1`.",
-    "Best of `strength[i] × rangeSum`."
+    "Prefix sums.",
+    "Left boundaries with a stack.",
+    "Right boundaries with a stack, computing powers.",
+    "Maximum power."
    ],
    "code": {
     "python": "class Solution:\n    def strongestCrew(self, strength: List[int]) -> int:\n        n = len(strength)\n        P = [0] * (n + 1)\n        for i, v in enumerate(strength):\n            P[i + 1] = P[i] + v\n        left, stack = [0] * n, []\n        for i in range(n):\n            while stack and strength[stack[-1]] >= strength[i]:\n                stack.pop()\n            left[i] = stack[-1] + 1 if stack else 0\n            stack.append(i)\n        best, stack = 0, []\n        for i in range(n - 1, -1, -1):\n            while stack and strength[stack[-1]] >= strength[i]:\n                stack.pop()\n            right = stack[-1] - 1 if stack else n - 1\n            best = max(best, strength[i] * (P[right + 1] - P[left[i]]))\n            stack.append(i)\n        return best\n",
@@ -669,7 +678,7 @@
    ],
    "complexity": [
     {
-     "md": "**Time O(n):** prefix sums plus two stack passes. **Space O(n).**"
+     "md": "**Time O(n).** **Space O(n).**"
     }
    ],
    "walk": {
@@ -918,7 +927,7 @@
  ],
  "takeaways": [
   {
-   "md": "- **min × sum over subarrays:** fix the minimum; with positive values, the widest subarray around it is best.\n- Nearest smaller on each side (monotonic stacks) + prefix sums = O(n).\n- For a maximum, ties can be counted twice; for a sum over subarrays (like the stretch-lows problem), they can't."
+   "md": "- **\"min × something\" over subarrays:** fix each element as the minimum; its widest range comes from previous/next smaller elements.\n- Prefix sums turn range sums into O(1).\n- For a maximum, equal values may share a range; when **counting** ranges, make one side strict and the other\n  not, so each range is counted once."
   }
  ]
 }

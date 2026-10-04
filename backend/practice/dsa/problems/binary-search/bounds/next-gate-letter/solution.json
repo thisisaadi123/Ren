@@ -4,41 +4,61 @@
  "question": [
   {
    "md": "Gate letters are sorted (with repeats). Return the first gate letter that comes strictly **after** `current`,\nor wrap around to the first letter if none does.\n\n- **Strictly after:** being at gate `c` with gates `cfj` gives `f`, not `c`.\n- **Repeats** don't matter: with `fff`, being at `f` skips all of them.\n- **Wrap-around:** if `current` is at or past the last letter, the answer is `gates[0]`.\n- **`current` need not be a gate letter** itself."
+  },
+  {
+   "md": "**Edge cases to keep in mind**\n\n- `current` at or past the last letter: wrap to the first gate.\n- Repeated letters equal to `current` must be skipped (strictly after).\n- `current` may not be a gate letter at all."
   }
  ],
  "think": [
   {
-   "md": "Take `gates = \"bdfffkm\"` and current `f`. Letters ≤ `f` (b, d and the three f's) can't be the answer;\nthe first letter beyond them is `k`."
+   "md": "**Lower and upper bound.** Many questions aren't \"where is `x`?\" but \"where does the region of values `≥ x` (or\n`> x`) start?\". Over a half-open range `[lo, hi)`:\n\n- if `a[mid] < x`, the boundary is to the right of `mid`: `lo = mid + 1`;\n- otherwise `mid` might be the boundary: `hi = mid`.\n\nThe loop ends with `lo == hi` at the first index whose value is `≥ x` (**lower bound**), or `n` if there's none. Using\n`≤` instead of `<` in the test gives the first index with value `> x` (**upper bound**). Duplicates don't break it."
   },
   {
-   "panels": [
-    {
-     "type": "row",
-     "cells": [
-      "b",
-      "d",
+   "md": "**Upper bound with wrap-around.** The answer is the first letter strictly greater than `current`: an **upper\nbound** (`≤` in the test). If it runs past the end (index `n`), wrap to index 0 with `index mod n`. For\n`\"bdfffkm\"` and current `f`:"
+  },
+  {
+   "table": {
+    "head": [
+     "lo",
+     "hi",
+     "mid",
+     "value",
+     "decision"
+    ],
+    "rows": [
+     [
+      "0",
+      "7",
+      "3",
       "f",
-      "f",
-      "f",
-      "k",
-      "m"
+      "f ≤ f: boundary is right of mid"
      ],
-     "states": {
-      "0": "dim",
-      "1": "dim",
-      "2": "dim",
-      "3": "dim",
-      "4": "dim",
-      "5": "answer",
-      "6": "found"
-     },
-     "slots": true
-    }
-   ],
-   "caption": "Letters ≤ 'f' on the left, letters > 'f' on the right; the answer starts the right part."
+     [
+      "4",
+      "7",
+      "5",
+      "k",
+      "mid could be the boundary: keep it"
+     ],
+     [
+      "4",
+      "5",
+      "4",
+      "f",
+      "f ≤ f: boundary is right of mid"
+     ],
+     [
+      "5",
+      "5",
+      "—",
+      "—",
+      "lo = hi = 5"
+     ]
+    ]
+   }
   },
   {
-   "md": "So this is the **upper bound**: the first index whose letter is > current. It's the lower-bound template\nwith `≤` in place of `<`. If it equals n (no such letter), wrapping means index 0, and `index % n` gives both\ncases in one expression."
+   "md": "Index 5 → **`k`**."
   }
  ],
  "approaches": [
@@ -49,12 +69,12 @@
    "space": "O(1)",
    "idea": [
     {
-     "md": "Return the first letter greater than `current`; if none, return the first letter."
+     "md": "Scan for the first letter greater than `current`; if none, return the first letter."
     }
    ],
    "build": [
-    "For each letter, if it's > current, return it.",
-    "Return `gates[0]`."
+    "Scan.",
+    "Wrap if nothing is larger."
    ],
    "code": {
     "python": "class Solution:\n    def nextGate(self, gates: str, current: str) -> str:\n        for g in gates:\n            if g > current:\n                return g\n        return gates[0]\n",
@@ -291,7 +311,7 @@
    },
    "limits": [
     {
-     "md": "Linear in the number of gates, although the letters are sorted and half of them could be ruled out per comparison."
+     "md": "Linear; the first strictly larger letter is an upper bound, found in O(log n)."
     }
    ]
   },
@@ -302,13 +322,13 @@
    "space": "O(1)",
    "idea": [
     {
-     "md": "Find the first index whose letter is > current with the half-open template (`gates[mid] <= current` → `lo = mid + 1`, else `hi = mid`). Return `gates[lo % n]`."
+     "md": "Upper bound over `[0, n)` (`gates[mid] ≤ current` → go right), then return `gates[lo mod n]`."
     }
    ],
    "build": [
-    "`lo = 0`, `hi = n`.",
-    "While `lo < hi`: move right if `gates[mid] ≤ current`, else `hi = mid`.",
-    "Return `gates[lo % n]`."
+    "Half-open range.",
+    "Skip letters ≤ current.",
+    "Wrap with mod."
    ],
    "code": {
     "python": "class Solution:\n    def nextGate(self, gates: str, current: str) -> str:\n        lo, hi = 0, len(gates)\n        while lo < hi:\n            mid = (lo + hi) // 2\n            if gates[mid] <= current:\n                lo = mid + 1\n            else:\n                hi = mid\n        return gates[lo % len(gates)]\n",
@@ -547,7 +567,7 @@
  ],
  "takeaways": [
   {
-   "md": "- **Upper bound** = first index with `a[i] > x`; the lower-bound template with `≤` instead of `<`.\n- Circular \"next\" answers: compute the position, then take it `mod n`."
+   "md": "- **Next strictly greater element in a sorted list:** upper bound.\n- Wrap-around with `mod n`.\n- **Pitfall:** lower bound instead of upper bound (returns `current` itself)."
   }
  ]
 }

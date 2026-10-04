@@ -4,55 +4,113 @@
  "question": [
   {
    "md": "Convert an infix formula over single-letter operands to postfix. Precedence: `+ −` < `* /` < `^`. `+ − * /` group\nleft to right; `^` groups right to left. Parentheses override everything and don't appear in the output.\n\n- **Left grouping:** `a−b−c` is `(a−b)−c` → `ab-c-`.\n- **Right grouping:** `a^b^c` is `a^(b^c)` → `abc^^`.\n- **Operand order never changes** in postfix; only operators move."
+  },
+  {
+   "md": "**Edge cases to keep in mind**\n\n- `^` groups from the right: `a^b^c` is `a^(b^c)`, so its postfix is `abc^^`.\n- `+ − * /` group from the left: `a-b-c` → `ab-c-`.\n- Parentheses override precedence."
   }
  ],
  "think": [
   {
-   "md": "Take `a+b*(c^d-e)^f`. Letters appear in the output in their original order: a, b, c, d, e, f. The question is only\n**where each operator goes**: right after both of its operands are complete. Here that gives `abcd^e-f^*+`.\n\nPicture reading left to right with operators waiting in line. When `*` arrives after `a+b`, `+` must keep waiting\n(its right operand `b*…` isn't finished). When a `−` arrives after `c^d`, the `^` is complete (it binds tighter),\nso it goes to the output first. Waiting operators leave in last-in-first-out order: a stack."
+   "md": "**Why stacks fit expressions.** In an expression, an operator can't be applied until both of its operands are\ncomplete, and a later operator may bind tighter (`*` before `+`) or a parenthesis may open a whole sub-expression. A\nstack holds the parts that are **finished but not yet combined**, in exactly the order they'll be needed: the most\nrecent part is combined first.\n\n**Truncating division.** \"Toward zero\" means `−7 / 2 = −3`, not −4. Python's `//` rounds down, so the solutions divide\nthe absolute values and then put the sign back."
   },
   {
-   "panels": [
-    {
-     "type": "row",
-     "cells": [
+   "md": "**Shunting-yard.** Letters go straight to the output, in their original order. Operators wait on a stack until\nboth of their operands are complete. When a new operator arrives, every waiting operator that binds **at least as\ntightly** (higher precedence, or equal precedence and left-grouping) must be applied first, so it moves to the\noutput. For right-grouping `^`, an equal-precedence `^` waits instead. `(` blocks popping; `)` pops back to its\n`(`."
+  },
+  {
+   "md": "**Trace on `a+b*(c^d-e)^f`:**"
+  },
+  {
+   "table": {
+    "head": [
+     "char",
+     "action",
+     "output so far",
+     "operator stack"
+    ],
+    "rows": [
+     [
       "a",
-      "+",
-      "b",
-      "*",
-      "(",
-      "c",
-      "^",
-      "d",
-      "-",
-      "e",
-      ")",
-      "^",
-      "f"
+      "letter → output",
+      "a",
+      ""
      ],
-     "slots": true
-    },
-    {
-     "type": "row",
-     "cells": [
+     [
+      "+",
+      "push '+'",
       "a",
-      "b",
-      "c",
-      "d",
-      "^",
-      "e",
-      "-",
-      "f",
-      "^",
-      "*",
       "+"
      ],
-     "label": "postfix"
-    }
-   ],
-   "caption": "Operands keep their order; operators move to just after their operands."
+     [
+      "b",
+      "letter → output",
+      "ab",
+      "+"
+     ],
+     [
+      "*",
+      "push '*'",
+      "ab",
+      "+*"
+     ],
+     [
+      "(",
+      "push '('",
+      "ab",
+      "+*("
+     ],
+     [
+      "c",
+      "letter → output",
+      "abc",
+      "+*("
+     ],
+     [
+      "^",
+      "push '^'",
+      "abc",
+      "+*(^"
+     ],
+     [
+      "d",
+      "letter → output",
+      "abcd",
+      "+*(^"
+     ],
+     [
+      "-",
+      "pop ^ (they bind at least as tightly), then push '-'",
+      "abcd^",
+      "+*(-"
+     ],
+     [
+      "e",
+      "letter → output",
+      "abcd^e",
+      "+*(-"
+     ],
+     [
+      ")",
+      "pop - to the output until '('",
+      "abcd^e-",
+      "+*"
+     ],
+     [
+      "^",
+      "push '^'",
+      "abcd^e-",
+      "+*^"
+     ],
+     [
+      "f",
+      "letter → output",
+      "abcd^e-f",
+      "+*^"
+     ]
+    ]
+   }
   },
   {
-   "md": "The pop rule when a new operator `o` arrives: pop operators on top that bind **more tightly** than `o`, or **equally**\nwhen `o` groups left. For `^` (right-grouping), an equal `^` on the stack stays, because the new `^` belongs to the\nright operand of the old one."
+   "md": "Flush the stack at the end: **`abcd^e-f^*+`**."
   }
  ],
  "approaches": [
@@ -63,14 +121,13 @@
    "space": "O(depth)",
    "idea": [
     {
-     "md": "`parse(minPrec)` reads an operand (a letter, or a parenthesised `parse(1)`), then while the next operator's precedence is ≥ `minPrec`: take it, parse its right side with `parse(prec + 1)` for left-grouping operators or `parse(prec)` for `^`, and append `right + op` to the output."
+     "md": "Precedence climbing: parse an operand, then while the next operator binds at least as tightly as allowed, parse its right side with a higher minimum precedence (the same minimum for right-grouping `^`) and emit the operator after it."
     }
    ],
    "build": [
-    "Shared index into the formula.",
-    "`atom()`: letter, or `(` parse(1) `)`.",
-    "`parse(min)`: atom, then loop over operators with precedence ≥ min, recursing for the right side.",
-    "Return `parse(1)`."
+    "Precedence table.",
+    "`atom`: a letter or a parenthesised expression.",
+    "`parse(min_prec)` loops over operators and recurses for the right side."
    ],
    "code": {
     "python": "import sys\n\nclass Solution:\n    def toPostfix(self, expr: str) -> str:\n        sys.setrecursionlimit(100000)\n        prec = {\"+\": 1, \"-\": 1, \"*\": 2, \"/\": 2, \"^\": 3}\n        i = 0\n        def atom(out):\n            nonlocal i\n            if expr[i] == \"(\":\n                i += 1\n                parse(1, out)\n                i += 1\n            else:\n                out.append(expr[i])\n                i += 1\n        def parse(min_prec, out):\n            nonlocal i\n            atom(out)\n            while i < len(expr) and expr[i] in prec and prec[expr[i]] >= min_prec:\n                op = expr[i]\n                i += 1\n                parse(prec[op] if op == \"^\" else prec[op] + 1, out)\n                out.append(op)\n        out = []\n        parse(1, out)\n        return \"\".join(out)\n",
@@ -256,7 +313,7 @@
    ],
    "complexity": [
     {
-     "md": "**Time O(n).** **Space O(depth)** call stack, which overflows for very deeply nested input."
+     "md": "**Time O(n).** **Space O(depth)** for recursion."
     }
    ],
    "walk": {
@@ -311,7 +368,7 @@
    },
    "limits": [
     {
-     "md": "Deep nesting (tens of thousands of parentheses or a long `^` chain) means deep recursion and a possible stack overflow. Shunting-yard keeps the pending operators on an explicit stack instead."
+     "md": "Recursion depth grows with nesting and chains of `^`. Shunting-yard does the same with an explicit stack."
     }
    ],
    "slow": true
@@ -323,13 +380,14 @@
    "space": "O(n)",
    "idea": [
     {
-     "md": "Letter → output. `(` → push. `)` → pop to output until `(`, drop the `(`. Operator `o` → while the top is an operator (not `(`) that binds more tightly than `o`, or equally when `o` is left-grouping, pop it to the output; then push `o`. At the end, pop everything."
+     "md": "Letters go to the output. On an operator, pop operators that bind at least as tightly (respecting\nright-grouping for `^`), then push it. `(` is pushed; `)` pops to the matching `(`. At the end, pop\neverything."
     }
    ],
    "build": [
-    "Operator stack and output buffer.",
-    "Handle letters, `(`, `)` and operators as described.",
-    "Flush the stack at the end."
+    "Precedence table.",
+    "Output list and operator stack.",
+    "Handle letters, operators, `(` and `)`.",
+    "Flush the stack."
    ],
    "code": {
     "python": "class Solution:\n    def toPostfix(self, expr: str) -> str:\n        prec = {\"+\": 1, \"-\": 1, \"*\": 2, \"/\": 2, \"^\": 3}\n        out, ops = [], []\n        for c in expr:\n            if c == \"(\":\n                ops.append(c)\n            elif c == \")\":\n                while ops[-1] != \"(\":\n                    out.append(ops.pop())\n                ops.pop()\n            elif c in prec:\n                while ops and ops[-1] != \"(\" and (prec[ops[-1]] > prec[c] or (prec[ops[-1]] == prec[c] and c != \"^\")):\n                    out.append(ops.pop())\n                ops.append(c)\n            else:\n                out.append(c)\n        while ops:\n            out.append(ops.pop())\n        return \"\".join(out)\n",
@@ -602,7 +660,7 @@
    ],
    "complexity": [
     {
-     "md": "**Time O(n):** each operator is pushed and popped once. **Space O(n)** for the stack."
+     "md": "**Time O(n).** **Space O(n).**"
     }
    ],
    "walk": {
@@ -882,7 +940,7 @@
  ],
  "takeaways": [
   {
-   "md": "- **Shunting-yard:** operands straight out; operators wait on a stack; pop while the top binds tighter (or\n  equal and left-associative); `(` blocks, `)` flushes.\n- Right-associative operators (`^`) don't pop equals.\n- Precedence climbing is the recursive twin of shunting-yard."
+   "md": "- **Infix → postfix:** shunting-yard with precedence and associativity rules.\n- Right-associative operators don't pop equal-precedence ones.\n- **Pitfall:** treating `^` as left-associative."
   }
  ]
 }

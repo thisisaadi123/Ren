@@ -4,41 +4,61 @@
  "question": [
   {
    "md": "Scores are sorted and distinct. Return the target's index if present, otherwise the index where it would be\ninserted to keep the order.\n\n- **Both cases have one answer:** the first index whose score is ≥ target. If the target is present, that's\n  its own index; if not, it's where it would slot in.\n- **It can be past the end:** a target larger than everything goes at index n.\n- **Required: O(log n).**"
+  },
+  {
+   "md": "**Edge cases to keep in mind**\n\n- Target smaller than everything: position 0.\n- Target larger than everything: position `n` (past the end).\n- Target present: its own index."
   }
  ],
  "think": [
   {
-   "md": "Take `scores = [2, 5, 9, 14, 20, 27, 31]` and target 15. Nothing equals 15; the first score that is at least\n15 is 20 at index 4, so 15 would be inserted at 4."
+   "md": "**Lower and upper bound.** Many questions aren't \"where is `x`?\" but \"where does the region of values `≥ x` (or\n`> x`) start?\". Over a half-open range `[lo, hi)`:\n\n- if `a[mid] < x`, the boundary is to the right of `mid`: `lo = mid + 1`;\n- otherwise `mid` might be the boundary: `hi = mid`.\n\nThe loop ends with `lo == hi` at the first index whose value is `≥ x` (**lower bound**), or `n` if there's none. Using\n`≤` instead of `<` in the test gives the first index with value `> x` (**upper bound**). Duplicates don't break it."
   },
   {
-   "panels": [
-    {
-     "type": "row",
-     "cells": [
-      2,
-      5,
-      9,
-      14,
-      20,
-      27,
-      31
+   "md": "**Insert position = lower bound.** The position where the target is, or would be inserted, is the first index\nwhose score is `≥ target`. The half-open range starts as `[0, n)` so that \"insert at the end\" (`n`) is a possible\nanswer. For `[2, 5, 9, 14, 20, 27, 31]` and target 15:"
+  },
+  {
+   "table": {
+    "head": [
+     "lo",
+     "hi",
+     "mid",
+     "value",
+     "decision"
+    ],
+    "rows": [
+     [
+      "0",
+      "7",
+      "3",
+      "14",
+      "14 < 15: boundary is right of mid"
      ],
-     "states": {
-      "0": "dim",
-      "1": "dim",
-      "2": "dim",
-      "3": "dim",
-      "4": "answer",
-      "5": "found",
-      "6": "found"
-     },
-     "slots": true
-    }
-   ],
-   "caption": "Scores split into '< 15' (left) and '≥ 15' (right). The answer is where the right part starts."
+     [
+      "4",
+      "7",
+      "5",
+      "27",
+      "mid could be the boundary: keep it"
+     ],
+     [
+      "4",
+      "5",
+      "4",
+      "20",
+      "mid could be the boundary: keep it"
+     ],
+     [
+      "4",
+      "4",
+      "—",
+      "—",
+      "lo = hi = 4"
+     ]
+    ]
+   }
   },
   {
-   "md": "The pattern behind every problem here is the **lower bound**: in a sorted array, the first index whose value\nis ≥ x (or > x for an \"upper bound\"). Keep a half-open range `[lo, hi)` that always contains the answer. If\n`a[mid] < x`, the answer is to the right of mid (`lo = mid + 1`); otherwise mid itself could be the answer\n(`hi = mid`). When `lo == hi`, that's the answer, possibly `n` meaning \"past the end\"."
+   "md": "Answer **4**."
   }
  ],
  "approaches": [
@@ -49,12 +69,12 @@
    "space": "O(1)",
    "idea": [
     {
-     "md": "Return the first index whose score is at least the target; if none, return n."
+     "md": "Scan from the left for the first score `≥ target`; if none, return `n`."
     }
    ],
    "build": [
-    "For each i, if `scores[i] ≥ target`, return i.",
-    "Return n."
+    "Scan.",
+    "Return the first index with score ≥ target, or `n`."
    ],
    "code": {
     "python": "class Solution:\n    def insertPosition(self, scores: List[int], target: int) -> int:\n        for i, s in enumerate(scores):\n            if s >= target:\n                return i\n        return len(scores)\n",
@@ -250,7 +270,7 @@
    },
    "limits": [
     {
-     "md": "Correct, but it ignores the sorting: the problem requires O(log n), and each comparison could rule out half of the remaining scores instead of one."
+     "md": "Breaks the O(log n) requirement. The first index with score ≥ target is a lower bound."
     }
    ]
   },
@@ -261,12 +281,13 @@
    "space": "O(1)",
    "idea": [
     {
-     "md": "Keep `[lo, hi)` = `[0, n)`. While `lo < hi`: `mid = lo + (hi − lo) / 2`; if `scores[mid] < target`, the answer is after mid (`lo = mid + 1`); else mid may be it (`hi = mid`). Return `lo`."
+     "md": "Lower bound over `[0, n)`: `a[mid] < target` → `lo = mid + 1`, else `hi = mid`; return `lo`."
     }
    ],
    "build": [
-    "`lo = 0`, `hi = n` (n itself is a valid answer).",
-    "Loop while `lo < hi`, halving the range.",
+    "Half-open range including `n`.",
+    "Move right past smaller scores.",
+    "Keep `mid` otherwise.",
     "Return `lo`."
    ],
    "code": {
@@ -456,7 +477,7 @@
    ],
    "complexity": [
     {
-     "md": "**Time O(log n):** the range halves every step (about 17 steps for 10⁵ scores). **Space O(1).**"
+     "md": "**Time O(log n).** **Space O(1).**"
     }
    ],
    "walk": {
@@ -576,7 +597,7 @@
  ],
  "takeaways": [
   {
-   "md": "- **Lower bound** = first index with `a[i] ≥ x`. Use the half-open `[lo, hi)` template:\n  `a[mid] < x ? lo = mid + 1 : hi = mid`, return `lo`.\n- \"Found or insertion point\" problems are lower-bound problems in disguise.\n- `mid = lo + (hi − lo) / 2` is the overflow-safe midpoint."
+   "md": "- **Search insert position = lower bound.**\n- Use `[0, n)` so `n` is a valid answer.\n- **Pitfall:** `hi = n − 1`, which can never return `n`."
   }
  ]
 }

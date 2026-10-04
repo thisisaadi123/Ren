@@ -4,39 +4,47 @@
  "question": [
   {
    "md": "Lockers are listed in strictly increasing order. Return the index of `target`, or −1.\n\n- **Strictly increasing**, so there is at most one match.\n- **Required: O(log n)**, which rules out checking lockers one by one.\n- **Negative numbers** are fine; only the order matters."
+  },
+  {
+   "md": "**Edge cases to keep in mind**\n\n- The target may be smaller than everything, larger than everything, or fall between two lockers: return −1.\n- One locker.\n- O(log n) is required, so a scan isn't allowed."
   }
  ],
  "think": [
   {
-   "md": "Take `lockers = [-4, 1, 3, 8, 12, 17, 23, 30]` and target 17. Compare with the middle locker, 8:\nit's smaller than 17, and since the list is sorted, **everything to its left is smaller too**. Half\nthe list is gone after one comparison. Repeat on the right half."
+   "md": "**Why binary search works.** In a sorted array, one comparison with the middle element tells you which half can't\ncontain what you're looking for: everything on the other side of the middle is smaller (or larger) too. Throwing away\nhalf each time leaves 1 element after about `log₂ n` steps: 17 steps for 10⁵ elements.\n\n**Think in invariants, not cases.** Decide what the range `lo … hi` means (\"if the target exists, it's inside\") and\nkeep that true on every update. The loop condition and the `±1` details follow from that meaning, which is where most\nbinary-search bugs come from."
   },
   {
-   "panels": [
-    {
-     "type": "row",
-     "cells": [
-      -4,
-      1,
-      3,
-      8,
-      12,
-      17,
-      23,
-      30
+   "md": "**Closed range `[lo, hi]`.** Meaning: if the target exists, its index is in `lo … hi`. The loop runs while the\nrange is non-empty (`lo ≤ hi`). After comparing with `a[mid]`, the middle itself is ruled out too, so the new\nrange is `mid + 1 … hi` or `lo … mid − 1`. For `[-4, 1, 3, 8, 12, 17, 23, 30]` and target 17:"
+  },
+  {
+   "table": {
+    "head": [
+     "lo",
+     "hi",
+     "mid",
+     "value",
+     "decision"
+    ],
+    "rows": [
+     [
+      "0",
+      "7",
+      "3",
+      "8",
+      "8 < 17: target is to the right"
      ],
-     "states": {
-      "0": "dim",
-      "1": "dim",
-      "2": "dim",
-      "3": "active"
-     },
-     "slots": true
-    }
-   ],
-   "caption": "One comparison with the middle rules out a whole half."
+     [
+      "4",
+      "7",
+      "5",
+      "17",
+      "equal: found"
+     ]
+    ]
+   }
   },
   {
-   "md": "Keep a closed range `[lo, hi]` of positions where the target could still be. Each step either finds it at\n`mid`, or moves `lo` to `mid + 1` or `hi` to `mid − 1`. When the range is empty (`lo > hi`), the target isn't\nthere."
+   "md": "Answer **5**."
   }
  ],
  "approaches": [
@@ -47,12 +55,12 @@
    "space": "O(1)",
    "idea": [
     {
-     "md": "Scan from the left; return the index where the value equals the target. (You can stop once you pass a bigger value, but the worst case is still linear.)"
+     "md": "Check lockers from left to right until the target is found."
     }
    ],
    "build": [
-    "For each i, return i if `lockers[i] == target`.",
-    "Return −1."
+    "Scan.",
+    "Return the index on a match, −1 at the end."
    ],
    "code": {
     "python": "class Solution:\n    def findLocker(self, lockers: List[int], target: int) -> int:\n        for i, v in enumerate(lockers):\n            if v == target:\n                return i\n        return -1\n",
@@ -280,7 +288,7 @@
    },
    "limits": [
     {
-     "md": "Doesn't use the ordering; the requirement is O(log n)."
+     "md": "Ignores the sorting, and O(n) breaks the required O(log n)."
     }
    ]
   },
@@ -291,13 +299,13 @@
    "space": "O(1)",
    "idea": [
     {
-     "md": "Closed range `[lo, hi] = [0, n − 1]`. While non-empty: look at `mid`; equal → return; smaller → `lo = mid + 1`; larger → `hi = mid − 1`. Empty range → −1."
+     "md": "Keep `lo = 0`, `hi = n − 1`. While `lo ≤ hi`: compare the target with `a[mid]`; return `mid` on equality,\notherwise discard the half (including `mid`) that can't contain it.\n\n**Why it terminates.** Every step shrinks the range by at least one (because `mid` is excluded), and it\nhalves it, so at most about `log₂ n + 1` steps."
     }
    ],
    "build": [
-    "`lo = 0`, `hi = n − 1`.",
-    "While `lo ≤ hi`: compute `mid`, compare, and shrink.",
-    "Return −1 when the range empties."
+    "Closed range over the whole array.",
+    "Compare with the middle.",
+    "Return on a hit, else drop the half without the target."
    ],
    "code": {
     "python": "class Solution:\n    def findLocker(self, lockers: List[int], target: int) -> int:\n        lo, hi = 0, len(lockers) - 1\n        while lo <= hi:\n            mid = (lo + hi) // 2\n            if lockers[mid] == target:\n                return mid\n            if lockers[mid] < target:\n                lo = mid + 1\n            else:\n                hi = mid - 1\n        return -1\n",
@@ -525,7 +533,7 @@
  ],
  "takeaways": [
   {
-   "md": "- Classic binary search: closed range `[lo, hi]`, loop while `lo ≤ hi`, exclude mid when moving.\n- Every comparison halves the candidates: log₂(10⁵) ≈ 17 steps."
+   "md": "- **Exact search in a sorted array:** closed range, `while lo ≤ hi`, move to `mid ± 1`.\n- State what the range means and keep it true.\n- **Pitfall:** `hi = mid` with `while lo ≤ hi` (can loop forever); `(lo + hi)` overflow in fixed-width integers\n  (use `lo + (hi − lo) / 2`)."
   }
  ]
 }

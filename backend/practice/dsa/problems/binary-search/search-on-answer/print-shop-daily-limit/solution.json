@@ -4,32 +4,61 @@
  "question": [
   {
    "md": "Jobs print in order, whole jobs only. With one fixed daily page limit, the shop prints as many whole jobs as fit\neach day. Return the smallest limit that finishes all jobs within `days` days.\n\n- **Order is fixed and jobs can't split:** each day prints a contiguous block of jobs.\n- **The limit must be at least the largest job**, or that job can never print.\n- **The limit never needs to exceed the total**, which prints everything in one day."
+  },
+  {
+   "md": "**Edge cases to keep in mind**\n\n- The limit can't be below the largest job (it couldn't be printed at all).\n- `days ≥ number of jobs`: the answer is the largest job.\n- One day: the answer is the total of all pages."
   }
  ],
  "think": [
   {
-   "md": "Take jobs `[4, 2, 7, 3, 5, 6, 1]` and 3 days. With limit 10 the days go 4+2 | 7+3 | 5 | 6+1: 4 days, too many. With limit\n12: 4+2 | 7+3 | 5+6+1 (3 days), which fits."
+   "md": "**Binary search on the answer.** Sometimes there's no sorted array at all, but the **answer** lives in a range of\nnumbers, and there's a yes/no question about a candidate value that is **monotone**: once it's yes, it stays yes for\nevery larger value (or every smaller one). Then:\n\n1. pick the range `[lo, hi]` that surely contains the answer;\n2. write `check(x)`, a fast test of the yes/no question for one candidate;\n3. binary search for the boundary where `check` flips.\n\nTotal cost: `O(cost of check × log(range))`. The hard parts are noticing the monotone question and writing `check`\ncorrectly; the search itself is always the same few lines."
   },
   {
-   "panels": [
-    {
-     "type": "row",
-     "cells": [
-      4,
-      2,
-      7,
-      3,
-      5,
-      6,
-      1
+   "md": "**The check is greedy.** For a given limit, print jobs in order, starting a new day only when the next job doesn't\nfit. Packing as much as possible into each day never uses more days than any other split, because finishing more\njobs early can only help later days. A bigger limit never needs more days, so the question is monotone.\n\n**Range:** `[max(pages), sum(pages)]`: the largest job must fit in a day, and the total fits in one day. For\n`[4, 2, 7, 3, 5, 6, 1]` and 3 days:"
+  },
+  {
+   "table": {
+    "head": [
+     "lo",
+     "hi",
+     "mid",
+     "check(mid)",
+     "decision"
+    ],
+    "rows": [
+     [
+      "7",
+      "28",
+      "17",
+      "2 days",
+      "answer ≤ mid: hi = mid"
      ],
-     "slots": true
-    }
-   ],
-   "caption": "Each day prints a run of consecutive jobs up to the limit."
+     [
+      "7",
+      "17",
+      "12",
+      "3 days",
+      "answer ≤ mid: hi = mid"
+     ],
+     [
+      "7",
+      "12",
+      "9",
+      "4 days",
+      "answer > mid: lo = mid + 1"
+     ],
+     [
+      "10",
+      "12",
+      "11",
+      "4 days",
+      "answer > mid: lo = mid + 1"
+     ]
+    ]
+   }
   },
   {
-   "md": "**Checking one limit is easy:** fill each day greedily; when the next job doesn't fit, start a new day. Packing\nas much as possible into each day can only reduce the number of days, so greedy gives the minimum days for that\nlimit.\n\n**Choosing the limit is the search:** days needed never increase as the limit grows. So \"limit L finishes in\ntime\" is false, then true, and binary search finds the first true."
+   "md": "Smallest daily limit **12**."
   }
  ],
  "approaches": [
@@ -40,12 +69,12 @@
    "space": "O(1)",
    "idea": [
     {
-     "md": "Start at the largest job and raise the limit by 1 until the greedy day count fits."
+     "md": "Start at the largest job and increase the limit by 1 until the greedy packing fits in the allowed days."
     }
    ],
    "build": [
-    "Write `daysNeeded(limit)` (greedy).",
-    "For L from max(pages) upward, return the first L with `daysNeeded(L) ≤ days`."
+    "Greedy day counter.",
+    "Increase the limit until it fits."
    ],
    "code": {
     "python": "class Solution:\n    def minDailyLimit(self, pages: List[int], days: int) -> int:\n        def days_needed(limit):\n            used, load = 1, 0\n            for p in pages:\n                if load + p > limit:\n                    used += 1\n                    load = 0\n                load += p\n            return used\n        limit = max(pages)\n        while days_needed(limit) > days:\n            limit += 1\n        return limit\n",
@@ -144,7 +173,7 @@
    ],
    "complexity": [
     {
-     "md": "**Time O(sum · n):** up to 2.5 × 10⁷ limits × 5 × 10⁴ jobs. **Space O(1).**"
+     "md": "**Time O(n · (sum − max)).** **Space O(1).**"
     }
    ],
    "walk": {
@@ -305,7 +334,7 @@
    },
    "limits": [
     {
-     "md": "Steps the limit one page at a time, although days needed only decrease as the limit rises."
+     "md": "Tries every limit; the days needed are monotone in the limit, so binary search suffices."
     }
    ],
    "slow": true
@@ -317,13 +346,13 @@
    "space": "O(1)",
    "idea": [
     {
-     "md": "`lo = max(pages)`, `hi = sum(pages)`. If `daysNeeded(mid) ≤ days`, `hi = mid`; else `lo = mid + 1`. Return `lo`."
+     "md": "Binary search the smallest limit in `[max(pages), sum(pages)]` for which the greedy packing uses at most `days` days."
     }
    ],
    "build": [
-    "Range `[max(pages), sum(pages)]`.",
-    "Greedy day count for mid.",
-    "Lower-bound search for the first limit that fits."
+    "Greedy day counter.",
+    "Range `[max, sum]`.",
+    "Fits → `hi = mid`, else `lo = mid + 1`."
    ],
    "code": {
     "python": "class Solution:\n    def minDailyLimit(self, pages: List[int], days: int) -> int:\n        def days_needed(limit):\n            used, load = 1, 0\n            for p in pages:\n                if load + p > limit:\n                    used += 1\n                    load = 0\n                load += p\n            return used\n        lo, hi = max(pages), sum(pages)\n        while lo < hi:\n            mid = (lo + hi) // 2\n            if days_needed(mid) <= days:\n                hi = mid\n            else:\n                lo = mid + 1\n        return lo\n",
@@ -480,7 +509,7 @@
    ],
    "complexity": [
     {
-     "md": "**Time O(n log(sum)):** about 25 greedy passes. **Space O(1).**"
+     "md": "**Time O(n log(sum)).** **Space O(1).**"
     }
    ],
    "walk": {
@@ -556,7 +585,7 @@
  ],
  "takeaways": [
   {
-   "md": "- **Split an array into at most k contiguous parts minimising the largest part sum**: binary-search the largest\n  sum, check with a greedy fill.\n- Range: from the largest single item to the total."
+   "md": "- **Split an array into ≤ k contiguous parts minimising the largest part:** binary search on the limit + greedy check.\n- Greedy filling is optimal for a fixed limit.\n- **Pitfall:** a lower bound below the largest job (the greedy check then misbehaves)."
   }
  ]
 }

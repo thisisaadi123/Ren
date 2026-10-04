@@ -4,35 +4,95 @@
  "question": [
   {
    "md": "Expand every `k[...]` (repeat the inside k times), including nested groups.\n\n- **Counts can have several digits:** `12[a]`.\n- **Groups nest:** `3[a2[c]]` → `accaccacc`.\n- **Letters can appear outside groups:** `2[abc]3[cd]ef`.\n- **Output ≤ 10⁵ characters**, though the pattern is only up to 3000."
+  },
+  {
+   "md": "**Edge cases to keep in mind**\n\n- Multi-digit repeat counts (`12[a]`).\n- Nested groups (`2[a3[b]]`).\n- Letters outside any group."
   }
  ],
  "think": [
   {
-   "md": "Take `2[ab3[c]]d`. The innermost group `3[c]` becomes `ccc`, so the outer group is `2[abccc]` → `abcccabccc`, then\n`d`: `abcccabcccd`."
+   "md": "**Building text with a stack.** When later characters can undo or combine with the most recent ones (a backspace, a\nrun of equal tiles, a `..` in a path, a closing bracket), the most recent output is exactly what's affected next. A\nstack of output pieces handles that: push to append, pop to undo, and modify the top to combine."
   },
   {
-   "panels": [
-    {
-     "type": "row",
-     "cells": [
+   "md": "**A stack of unfinished levels.** On `k[`, the text built so far at this level and the count `k` are saved, and a\nnew level starts. On `]`, the inner text is repeated `k` times and appended to the saved outer text, which becomes\nthe current level again. Letters append to the current level."
+  },
+  {
+   "md": "**Trace on `2[ab3[c]]d`:**"
+  },
+  {
+   "table": {
+    "head": [
+     "char",
+     "action",
+     "current level",
+     "saved levels"
+    ],
+    "rows": [
+     [
       "2",
-      "[",
-      "a",
-      "b",
-      "3",
-      "[",
-      "c",
-      "]",
-      "]",
-      "d"
+      "number so far 2",
+      "(empty)",
+      "0"
      ],
-     "slots": true
-    }
-   ],
-   "caption": "Groups expand from the inside out."
+     [
+      "[",
+      "save ('', ×2) and start fresh",
+      "(empty)",
+      "1"
+     ],
+     [
+      "a",
+      "letter",
+      "a",
+      "1"
+     ],
+     [
+      "b",
+      "letter",
+      "ab",
+      "1"
+     ],
+     [
+      "3",
+      "number so far 3",
+      "ab",
+      "1"
+     ],
+     [
+      "[",
+      "save ('ab', ×3) and start fresh",
+      "(empty)",
+      "2"
+     ],
+     [
+      "c",
+      "letter",
+      "c",
+      "2"
+     ],
+     [
+      "]",
+      "close: repeat 'c' ×3 and append to 'ab'",
+      "abccc",
+      "1"
+     ],
+     [
+      "]",
+      "close: repeat 'abccc' ×2 and append to ''",
+      "abcccabccc",
+      "0"
+     ],
+     [
+      "d",
+      "letter",
+      "abcccabcccd",
+      "0"
+     ]
+    ]
+   }
   },
   {
-   "md": "Inside-out evaluation suggests recursion (evaluate the inside, then repeat it) or, equivalently, an explicit\nstack: when a group opens, park what you've built so far; when it closes, combine. The stack remembers exactly\nthe outer contexts that are waiting for the inner group to finish."
+   "md": "Result **`abcccabcccd`**."
   }
  ],
  "approaches": [
@@ -43,13 +103,13 @@
    "space": "O(output)",
    "idea": [
     {
-     "md": "Find a group with no brackets inside (`k[letters]`), replace it by its expansion, and repeat until no brackets remain."
+     "md": "Repeatedly find an innermost group `k[letters]` (no brackets inside) and replace it by its expansion, until no brackets remain."
     }
    ],
    "build": [
-    "While the text contains `[`: locate an innermost `k[letters]`.",
-    "Replace it with `letters × k`.",
-    "Return the text."
+    "Find an innermost group.",
+    "Replace it by its expansion.",
+    "Repeat."
    ],
    "code": {
     "python": "import re\n\nclass Solution:\n    def expand(self, pattern: str) -> str:\n        inner = re.compile(r\"(\\d+)\\[([a-z]*)\\]\")\n        while \"[\" in pattern:\n            m = inner.search(pattern)\n            pattern = pattern[:m.start()] + m.group(2) * int(m.group(1)) + pattern[m.end():]\n        return pattern\n",
@@ -189,7 +249,7 @@
    ],
    "complexity": [
     {
-     "md": "**Time O(groups × output):** every replacement copies the whole (growing) string. **Space O(output).**"
+     "md": "**Time O(groups × output length).** **Space O(output).**"
     }
    ],
    "walk": {
@@ -233,7 +293,7 @@
    },
    "limits": [
     {
-     "md": "Each replacement rebuilds the entire text. Processing the pattern once, left to right, with saved contexts builds each piece only as many times as it's actually repeated."
+     "md": "Each replacement rebuilds the whole string. A stack expands every group once, when its `]` arrives."
     }
    ],
    "slow": true
@@ -245,13 +305,13 @@
    "space": "O(output + depth)",
    "idea": [
     {
-     "md": "`parse()` reads from a shared position until `]` or the end: letters are appended; a number is followed by `[`, so recursively parse the group, then append its result k times. The recursion depth equals the nesting depth."
+     "md": "Recursive descent: `parse()` reads letters and groups until a `]`; a group reads its number, recurses for the inside, and repeats the result."
     }
    ],
    "build": [
-    "Shared index `i`.",
-    "`parse()`: loop until `]`/end; letters → append; digits → read k, skip `[`, `inner = parse()`, skip `]`, append inner k times.",
-    "Return `parse()` on the whole pattern."
+    "A position pointer.",
+    "`parse` handles letters and `k[`…`]` groups.",
+    "Recurse for nested groups."
    ],
    "code": {
     "python": "class Solution:\n    def expand(self, pattern: str) -> str:\n        i = 0\n        def parse():\n            nonlocal i\n            out = []\n            while i < len(pattern) and pattern[i] != \"]\":\n                c = pattern[i]\n                if c.isdigit():\n                    k = 0\n                    while pattern[i].isdigit():\n                        k = k * 10 + int(pattern[i])\n                        i += 1\n                    i += 1\n                    inner = parse()\n                    i += 1\n                    out.append(inner * k)\n                else:\n                    out.append(c)\n                    i += 1\n            return \"\".join(out)\n        return parse()\n",
@@ -431,7 +491,7 @@
    ],
    "complexity": [
     {
-     "md": "**Time O(pattern + output)** for building and copying pieces. **Space O(output)** plus a call stack as deep as the nesting (up to ~1500 levels)."
+     "md": "**Time O(output length).** **Space O(depth)** for recursion."
     }
    ],
    "walk": {
@@ -618,7 +678,7 @@
    },
    "limits": [
     {
-     "md": "Deep nesting means deep recursion, which can overflow the call stack in some environments. An explicit stack holds the same information in ordinary memory."
+     "md": "Recursion depth equals nesting depth; an explicit stack avoids that limit."
     }
    ]
   },
@@ -629,13 +689,13 @@
    "space": "O(output)",
    "idea": [
     {
-     "md": "Keep `cur` (text of the current group) and `num` (count being read). On `[`: push `(cur, num)`, start empty. On `]`: pop `(prev, k)`, set `cur = prev + cur × k`. Letters append to `cur`."
+     "md": "Explicit stack of `(text so far, count)`: digits build the count, `[` saves and resets, `]` repeats the inner text and appends it to the saved text, letters append."
     }
    ],
    "build": [
-    "`stack = []`, `cur = \"\"`, `num = 0`.",
-    "Digits build num; `[` pushes and resets; `]` pops and combines; letters append.",
-    "Return `cur`."
+    "Stack, current pieces, current number.",
+    "Handle digit, `[`, `]`, letter.",
+    "Join the final pieces."
    ],
    "code": {
     "python": "class Solution:\n    def expand(self, pattern: str) -> str:\n        stack, cur, num = [], [], 0\n        for c in pattern:\n            if c.isdigit():\n                num = num * 10 + int(c)\n            elif c == \"[\":\n                stack.append((cur, num))\n                cur, num = [], 0\n            elif c == \"]\":\n                prev, k = stack.pop()\n                prev.append(\"\".join(cur) * k)\n                cur = prev\n            else:\n                cur.append(c)\n        return \"\".join(cur)\n",
@@ -859,7 +919,7 @@
    ],
    "complexity": [
     {
-     "md": "**Time O(pattern + output).** **Space O(output)** for the text, plus a stack as deep as the nesting."
+     "md": "**Time O(output length).** **Space O(output length).**"
     }
    ],
    "walk": {
@@ -1048,7 +1108,7 @@
  ],
  "takeaways": [
   {
-   "md": "- Nested repetition (`k[...]`) → **stack of (outer text, count)**, or recursion.\n- An explicit stack avoids call-stack overflow on deep nesting.\n- Read multi-digit numbers by accumulating `num = num × 10 + digit`."
+   "md": "- **Nested repetition grammars:** stack of (outer text, repeat count).\n- Build the count across multiple digits before the `[`.\n- **Pitfall:** treating each digit as a separate count."
   }
  ]
 }

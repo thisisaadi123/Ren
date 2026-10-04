@@ -4,47 +4,129 @@
  "question": [
   {
    "md": "Return the smallest n such that n! ends with **at least** `zeros` zeros. (0! = 1 has no trailing zeros.)\n\n- **At least:** some zero counts are skipped. 24! ends in 4 zeros and 25! in 6, so asking for 5 zeros gives 25.\n- **zeros = 0** → n = 0.\n- **zeros up to 2 × 10¹⁵**, so n reaches about 8 × 10¹⁵. Never compute n! itself; count factors of 5."
+  },
+  {
+   "md": "**Edge cases to keep in mind**\n\n- `zeros = 0`: the answer is 0 (`0! = 1`).\n- Some zero counts are skipped entirely (24! has 4 zeros, 25! has 6), so \"at least\" matters.\n- `zeros` up to 2 × 10¹⁵: the answer is about 8 × 10¹⁵."
   }
  ],
  "think": [
   {
-   "md": "A trailing zero comes from a factor 10 = 2 × 5. Among 1 … n there are far more factors of 2 than of 5, so the\nnumber of zeros equals the number of 5s: multiples of 5 give one each, multiples of 25 an extra one, multiples\nof 125 another, and so on. So `zeros(n) = n/5 + n/25 + n/125 + …` (integer divisions).\n\nTake 7 zeros: zeros(29) = 5 + 1 = 6, zeros(30) = 6 + 1 = 7. The answer is 30."
+   "md": "**When there's no upper bound: double first.** If the answer could be anywhere up to a huge or unknown limit, start\nwith `hi = 1` and double it until the test is true. That takes about `log₂(answer)` steps and gives a range\n`[hi / 2, hi]` that contains the answer, which an ordinary binary search then narrows down. Total O(log answer),\nand the values tested never get much larger than the answer (no overflow from a huge guessed bound)."
   },
   {
-   "panels": [
-    {
-     "type": "row",
-     "cells": [
-      0,
-      4,
-      5,
-      10,
-      24,
-      25,
-      29,
-      30
-     ],
-     "label": "n"
-    },
-    {
-     "type": "row",
-     "cells": [
-      0,
-      0,
-      1,
-      2,
-      4,
-      6,
-      6,
-      7
-     ],
-     "label": "zeros of n!"
-    }
-   ],
-   "caption": "Non-decreasing in n, jumping by 2 at multiples of 25."
+   "md": "**Counting trailing zeros.** A trailing zero needs a factor 10 = 2 × 5, and 2s are far more common than 5s, so the\nzeros of `n!` equal the number of factors 5 in `1 … n`: `⌊n/5⌋ + ⌊n/25⌋ + ⌊n/125⌋ + …`. This never decreases as `n`\ngrows, so \"does `n!` have at least `zeros` zeros?\" is monotone. For 30 zeros, doubling first:"
   },
   {
-   "md": "Non-decreasing means \"zeros(n) ≥ target\" is false, then true: binary search on n. The problem doesn't give a\nbound for n, so find one by doubling: 1, 2, 4, 8, … until zeros(hi) ≥ target, then search `(hi/2, hi]`."
+   "table": {
+    "head": [
+     "n",
+     "zeros of n!",
+     "decision"
+    ],
+    "rows": [
+     [
+      "1",
+      "0",
+      "not enough: double"
+     ],
+     [
+      "2",
+      "0",
+      "not enough: double"
+     ],
+     [
+      "4",
+      "0",
+      "not enough: double"
+     ],
+     [
+      "8",
+      "1",
+      "not enough: double"
+     ],
+     [
+      "16",
+      "3",
+      "not enough: double"
+     ],
+     [
+      "32",
+      "7",
+      "not enough: double"
+     ],
+     [
+      "64",
+      "14",
+      "not enough: double"
+     ],
+     [
+      "128",
+      "31",
+      "enough: range found"
+     ]
+    ]
+   }
+  },
+  {
+   "md": "**Binary search in `[hi / 2, hi]`:**"
+  },
+  {
+   "table": {
+    "head": [
+     "lo",
+     "hi",
+     "mid",
+     "zeros of mid!",
+     "decision"
+    ],
+    "rows": [
+     [
+      "64",
+      "128",
+      "96",
+      "22",
+      "not enough: lo = mid + 1"
+     ],
+     [
+      "97",
+      "128",
+      "112",
+      "26",
+      "not enough: lo = mid + 1"
+     ],
+     [
+      "113",
+      "128",
+      "120",
+      "28",
+      "not enough: lo = mid + 1"
+     ],
+     [
+      "121",
+      "128",
+      "124",
+      "28",
+      "not enough: lo = mid + 1"
+     ],
+     [
+      "125",
+      "128",
+      "126",
+      "31",
+      "enough: hi = mid"
+     ],
+     [
+      "125",
+      "126",
+      "125",
+      "31",
+      "enough: hi = mid"
+     ]
+    ]
+   }
+  },
+  {
+   "md": "Smallest n: **125**."
   }
  ],
  "approaches": [
@@ -55,12 +137,12 @@
    "space": "O(1)",
    "idea": [
     {
-     "md": "Try n = 0, 1, 2, … and stop at the first n whose factor-of-5 count reaches the target."
+     "md": "Count `n` up from 0, computing the zeros of `n!` each time, until they reach the target."
     }
    ],
    "build": [
-    "Write `zeros(n)`: add n/5, n/25, … by repeatedly dividing by 5.",
-    "Increase n from 0 until `zeros(n) ≥ target`."
+    "Zero-count helper.",
+    "Increase `n` until enough."
    ],
    "code": {
     "python": "class Solution:\n    def smallestWithZeros(self, zeros: int) -> int:\n        def count(n):\n            total = 0\n            while n:\n                n //= 5\n                total += n\n            return total\n        n = 0\n        while count(n) < zeros:\n            n += 1\n        return n\n",
@@ -159,7 +241,7 @@
    ],
    "complexity": [
     {
-     "md": "**Time O(n log n):** n can be 8 × 10¹⁵. **Space O(1).**"
+     "md": "**Time O(answer · log answer):** hopeless for answers near 10¹⁶. **Space O(1).**"
     }
    ],
    "walk": {
@@ -266,7 +348,7 @@
    },
    "limits": [
     {
-     "md": "Walks through every n, although the count is non-decreasing and can be bisected. (Even stepping n by 5, since the count only changes at multiples of 5, is still linear.)"
+     "md": "Linear in the answer; the zero count is monotone and cheap, so doubling plus binary search needs about 100 evaluations."
     }
    ],
    "slow": 16
@@ -278,14 +360,13 @@
    "space": "O(1)",
    "idea": [
     {
-     "md": "Return 0 for zero zeros. Otherwise double `hi` from 1 until `count(hi) ≥ zeros`; then binary-search the first n in `(hi/2, hi]` with `count(n) ≥ zeros`."
+     "md": "Handle 0. Double `hi` until `zeros(hi) ≥ target`, then binary search the smallest `n` in `[hi / 2, hi]`."
     }
    ],
    "build": [
-    "Handle `zeros == 0`.",
-    "Double hi until it has enough zeros.",
-    "Lower-bound search in `[hi/2, hi]`.",
-    "Return lo."
+    "Zero count via repeated division by 5.",
+    "Doubling phase.",
+    "Binary search."
    ],
    "code": {
     "python": "class Solution:\n    def smallestWithZeros(self, zeros: int) -> int:\n        def count(n):\n            total = 0\n            while n:\n                n //= 5\n                total += n\n            return total\n        if zeros == 0:\n            return 0\n        hi = 1\n        while count(hi) < zeros:\n            hi *= 2\n        lo = hi // 2\n        while lo < hi:\n            mid = (lo + hi) // 2\n            if count(mid) >= zeros:\n                hi = mid\n            else:\n                lo = mid + 1\n        return lo\n",
@@ -442,7 +523,7 @@
    ],
    "complexity": [
     {
-     "md": "**Time O(log² n):** O(log n) counts during doubling and bisecting, each O(log n). **Space O(1).**"
+     "md": "**Time O(log² answer):** O(log answer) evaluations, each O(log answer). **Space O(1).**"
     }
    ],
    "walk": {
@@ -579,7 +660,7 @@
  ],
  "takeaways": [
   {
-   "md": "- Trailing zeros of n! = Σ ⌊n / 5ᵏ⌋: a monotonic function of n.\n- When no bound is given, **gallop**: double until the condition holds, then binary-search the last interval.\n- Some targets are skipped (no n gives exactly 5 zeros), which is why the problem asks for \"at least\"."
+   "md": "- **Trailing zeros of n! = number of factors 5** (Legendre's formula).\n- Monotone count + unknown bound → doubling, then binary search.\n- **Pitfall:** assuming every zero count is reachable (\"at least\" handles the gaps)."
   }
  ]
 }

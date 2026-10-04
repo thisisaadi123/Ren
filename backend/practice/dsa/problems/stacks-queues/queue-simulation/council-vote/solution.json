@@ -4,30 +4,51 @@
  "question": [
   {
    "md": "Members of two parties speak in a fixed order, round after round. On their turn, a member who hasn't been\nsilenced either silences any member of the other party, or declares victory if only their own party can still\nspeak. Both parties play optimally. Who wins?\n\n- **Silenced members are gone for good**, in this round and later ones.\n- **Rounds wrap around**: after the last member, the first surviving member speaks again.\n- **Up to 10⁵ members.**"
+  },
+  {
+   "md": "**Edge cases to keep in mind**\n\n- All members from one party: they win immediately.\n- Silencing lasts for all later rounds.\n- Each member acts at most once per round, in speaking order."
   }
  ],
  "think": [
   {
-   "md": "Council `LOOLLO`. Member 0 (Lark) silences member 1, the next Owl due to speak. Member 2 (Owl) silences\nmember 3, the next Lark. Member 4 (Lark) silences member 5. Round two: member 0 silences member 2, and the\nLarks win. Winner: **Larks**."
+   "md": "**Simulate, then look for a shortcut.** Queue problems describe a process step by step. A direct simulation with a\nqueue is always a correct first answer. Then ask what the process *really* depends on: often the exact order doesn't\nmatter (only counts do), or each element's fate can be computed directly, which removes the step-by-step loop."
   },
   {
-   "panels": [
-    {
-     "type": "row",
-     "cells": [
-      "L",
-      "O",
-      "O",
-      "L",
-      "L",
-      "O"
+   "md": "**The best move: silence the next opponent due to speak.** An opponent who would speak soonest is the most\nimmediate threat (they'd silence one of yours first). Silencing anyone further away only helps that soonest\nopponent. So every member silences the **next** member of the other party in speaking order.\n\n**Two queues of turns.** Put each party's members in a queue by turn number. Compare the two fronts: the earlier\none speaks and silences the other front; the speaker rejoins its queue with turn number `+ n` (next round).\nThe party whose queue is left non-empty wins. For `LOOLLO`:"
+  },
+  {
+   "table": {
+    "head": [
+     "Lark front",
+     "Owl front",
+     "result"
+    ],
+    "rows": [
+     [
+      "L0 (turn 0)",
+      "O1 (turn 1)",
+      "Lark 0 speaks first and silences Owl 1; the Lark is due again at turn 6"
      ],
-     "label": "speaking order"
-    }
-   ]
+     [
+      "L3 (turn 3)",
+      "O2 (turn 2)",
+      "Owl 2 speaks first and silences Lark 3; the Owl is due again at turn 8"
+     ],
+     [
+      "L4 (turn 4)",
+      "O5 (turn 5)",
+      "Lark 4 speaks first and silences Owl 5; the Lark is due again at turn 10"
+     ],
+     [
+      "L0 (turn 6)",
+      "O2 (turn 8)",
+      "Lark 0 speaks first and silences Owl 2; the Lark is due again at turn 12"
+     ]
+    ]
+   }
   },
   {
-   "md": "Why silence the **next** opponent due to speak? An opponent who speaks soon is about to silence one of us;\nremoving them now prevents that. Silencing an opponent further away instead leaves the nearer one free to act\nfirst. Any member of the other party who has already spoken this round will speak again only after the ones\nstill to come, so the next one in speaking order (wrapping) is always the most urgent.\n\nWith that rule fixed, it's pure bookkeeping: whose turn comes first? Give each member a turn number, keep each\nparty's turns in a queue, and let survivors take turn `t + n` in the next round."
+   "md": "Winner: **Larks**."
   }
  ],
  "approaches": [
@@ -38,14 +59,13 @@
    "space": "O(n)",
    "idea": [
     {
-     "md": "Loop over the members round after round. A member who isn't silenced checks whether the other party still has speakers (keep counts); if not, their party wins. Otherwise scan forward (wrapping) for the next unsilenced opponent and silence them."
+     "md": "Replay rounds: each active member checks whether the other party is gone (victory), else scans forward around the circle for the next active opponent and silences them."
     }
    ],
    "build": [
-    "Counts of active Larks and Owls; a `silenced` flag per member.",
-    "Repeat rounds; skip silenced members.",
-    "If the other party's count is 0, return this party.",
-    "Else scan forward from `i + 1` (mod n) for the next active opponent; silence them."
+    "Silenced flags and active counts.",
+    "Each active member: check victory or silence the next opponent.",
+    "Repeat rounds."
    ],
    "code": {
     "python": "class Solution:\n    def councilWinner(self, council: str) -> str:\n        n = len(council)\n        silenced = [False] * n\n        active = {\"L\": council.count(\"L\"), \"O\": council.count(\"O\")}\n        while True:\n            for i, c in enumerate(council):\n                if silenced[i]:\n                    continue\n                other = \"O\" if c == \"L\" else \"L\"\n                if active[other] == 0:\n                    return \"Larks\" if c == \"L\" else \"Owls\"\n                j = (i + 1) % n\n                while silenced[j] or council[j] != other:\n                    j = (j + 1) % n\n                silenced[j] = True\n                active[other] -= 1\n",
@@ -209,7 +229,7 @@
    ],
    "complexity": [
     {
-     "md": "**Time O(n²):** each silencing may scan past many members. **Space O(n).**"
+     "md": "**Time O(n²)** in the worst case (long scans for the next opponent). **Space O(n).**"
     }
    ],
    "walk": {
@@ -357,7 +377,7 @@
    },
    "limits": [
     {
-     "md": "The scans step over the same silenced members again and again. Keeping each party's upcoming turns in its own queue makes 'the next opponent' simply the front of the other queue."
+     "md": "Scanning for the next opponent is linear. Queues of turn numbers make the next opponent the front of a queue."
     }
    ],
    "slow": true
@@ -369,13 +389,13 @@
    "space": "O(n)",
    "idea": [
     {
-     "md": "Queue the indices of the Larks and of the Owls. While both are non-empty, pop both fronts; the smaller index speaks first and silences the other; the speaker rejoins its queue with index + n (its turn in the next round). When a queue empties, the other party wins."
+     "md": "Two queues of turn numbers. While both are non-empty, pop both fronts; the smaller turn speaks, silences\nthe other (who is simply dropped), and rejoins its queue with turn `+ n`. The non-empty queue's party wins.\n\n**Why `+ n`.** A member who spoke in this round speaks again next round, after everyone still due in this\nround, which is exactly turn `+ n` in a continuing count."
     }
    ],
    "build": [
-    "Two queues of turn numbers.",
-    "Pop both fronts; the smaller turn wins the duel and is re-queued at turn + n.",
-    "Return the party whose queue is non-empty."
+    "Queues of indices for each party.",
+    "Compare fronts; the earlier speaks.",
+    "Re-queue the speaker at `+ n`."
    ],
    "code": {
     "python": "from collections import deque\n\nclass Solution:\n    def councilWinner(self, council: str) -> str:\n        n = len(council)\n        larks = deque(i for i, c in enumerate(council) if c == \"L\")\n        owls = deque(i for i, c in enumerate(council) if c == \"O\")\n        while larks and owls:\n            a, b = larks.popleft(), owls.popleft()\n            if a < b:\n                larks.append(a + n)\n            else:\n                owls.append(b + n)\n        return \"Larks\" if larks else \"Owls\"\n",
@@ -506,7 +526,7 @@
    ],
    "complexity": [
     {
-     "md": "**Time O(n):** every duel silences one member, so there are fewer than `n` duels. **Space O(n).** Turn numbers stay small: everyone still standing after a round silenced someone during it, so each round at least halves the council. That means at most about log₂ n + 1 rounds, and turns stay below n · (log₂ n + 2), about 2 × 10⁶."
+     "md": "**Time O(n):** each comparison removes one member for good. **Space O(n).**"
     }
    ],
    "walk": {
@@ -629,7 +649,7 @@
  ],
  "takeaways": [
   {
-   "md": "- Prove the greedy move first (silence the next opponent due to act); then the simulation is simple.\n- **Round-robin with removals = queues with \"turn + n\"** to mark the next round.\n- Each step removes someone, which bounds the total work at O(n)."
+   "md": "- **Turn-based elimination:** queues of turn numbers; re-queue with `+ n` for the next round.\n- Greedy: eliminate the opponent who would act soonest.\n- **Pitfall:** silencing the first opponent in the whole list instead of the next one in turn order."
   }
  ]
 }

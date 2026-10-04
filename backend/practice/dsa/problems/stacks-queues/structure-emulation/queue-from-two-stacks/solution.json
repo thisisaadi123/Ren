@@ -4,36 +4,93 @@
  "question": [
   {
    "md": "Implement a queue (`push` to the back, `pop` / `peek` at the front, `empty`) using only stack operations: push,\ntop, pop, size, is-empty.\n\n- **A stack gives back the newest item; a queue must give back the oldest.** The orders are opposite.\n- **`pop` and `peek` are only called on a non-empty queue.**\n- **Up to 10⁵ calls**, so each should be cheap, at least on average."
+  },
+  {
+   "md": "**Edge cases to keep in mind**\n\n- Pushes and pops interleave: new pushes must not jump ahead of older items.\n- `peek` must not remove anything.\n- `pop`/`peek` are only called on a non-empty queue."
   }
  ],
  "think": [
   {
-   "md": "Push 1, 2, 3. A stack holds them with 3 on top, but the queue's front is 1, at the bottom. Popping everything\nonto a second stack **reverses** the order: now 1 is on top. That's the whole trick; the question is how often\nto pay for the reversal."
+   "md": "**Amortised cost.** Some operations occasionally do a lot of work (pouring a whole stack, rotating a whole queue). What\nmatters is the total over many operations: if each item can only be moved a constant number of times overall, the\naverage per operation is O(1), even if one particular call is slow."
   },
   {
-   "panels": [
-    {
-     "type": "row",
-     "cells": [
-      1,
-      2,
-      3
-     ],
-     "label": "in (bottom → top)"
-    },
-    {
-     "type": "row",
-     "cells": [
-      3,
-      2,
-      1
-     ],
-     "label": "after pouring into out"
-    }
-   ]
+   "md": "**Reversing a stack makes it a queue.** Pushing 1, 2, 3 onto a stack leaves 3 on top, but the queue's front is 1.\nPopping everything onto a second stack reverses the order, putting 1 on top.\n\n**Inbox and outbox.** New items go into the inbox. Reads come from the outbox. Pour the inbox into the outbox\n**only when the outbox is empty**: then the outbox holds the oldest items in the right order, and everything in\nthe inbox is newer, so it can wait."
   },
   {
-   "md": "Once items are in 'out', they're already in queue order (oldest on top), and newer arrivals can't be older than\nthem. So leave them there. New arrivals go to 'in'. Only when 'out' is empty does the next-oldest item sit at\nthe bottom of 'in'; pour then, and not before."
+   "table": {
+    "head": [
+     "operation",
+     "returns",
+     "pour?",
+     "inbox (bottom→top)",
+     "outbox (bottom→top)"
+    ],
+    "rows": [
+     [
+      "push(1)",
+      "—",
+      "—",
+      "[1]",
+      "[]"
+     ],
+     [
+      "push(2)",
+      "—",
+      "—",
+      "[1, 2]",
+      "[]"
+     ],
+     [
+      "push(3)",
+      "—",
+      "—",
+      "[1, 2, 3]",
+      "[]"
+     ],
+     [
+      "pop()",
+      "1",
+      "outbox empty: pour 3 item(s) over (order reverses)",
+      "[]",
+      "[3, 2]"
+     ],
+     [
+      "push(4)",
+      "—",
+      "—",
+      "[4]",
+      "[3, 2]"
+     ],
+     [
+      "peek()",
+      "2",
+      "—",
+      "[4]",
+      "[3, 2]"
+     ],
+     [
+      "pop()",
+      "2",
+      "—",
+      "[4]",
+      "[3]"
+     ],
+     [
+      "pop()",
+      "3",
+      "—",
+      "[4]",
+      "[]"
+     ],
+     [
+      "pop()",
+      "4",
+      "outbox empty: pour 1 item(s) over (order reverses)",
+      "[]",
+      "[]"
+     ]
+    ]
+   }
   }
  ],
  "approaches": [
@@ -44,13 +101,12 @@
    "space": "O(n)",
    "idea": [
     {
-     "md": "Keep the queue in one stack (front at the bottom). For `pop`/`peek`, pour everything into a spare stack so the front is on top, read or remove it, then pour everything back."
+     "md": "Keep everything in one stack. For every pop or peek, pour all items into the spare stack to reach the oldest, read it, then pour everything back."
     }
    ],
    "build": [
-    "`push`: push onto the main stack.",
-    "`pop`/`peek`: pour main → spare, take the top, pour spare → main.",
-    "`empty`: is the main stack empty?"
+    "Main stack for all items.",
+    "Pour over, read the front, pour back."
    ],
    "code": {
     "python": "class TwoStackQueue:\n    def __init__(self):\n        self.main = []\n        self.spare = []\n\n    def push(self, x: int) -> None:\n        self.main.append(x)\n\n    def _front(self, remove):\n        while self.main:\n            self.spare.append(self.main.pop())\n        value = self.spare.pop() if remove else self.spare[-1]\n        while self.spare:\n            self.main.append(self.spare.pop())\n        return value\n\n    def pop(self) -> int:\n        return self._front(True)\n\n    def peek(self) -> int:\n        return self._front(False)\n\n    def empty(self) -> bool:\n        return not self.main\n",
@@ -250,7 +306,7 @@
    ],
    "complexity": [
     {
-     "md": "**Time O(n) per `pop`/`peek`** (two full pours), O(1) per `push`. **Space O(n).**"
+     "md": "**Time O(n)** for every pop or peek. **Space O(n).**"
     }
    ],
    "walk": {
@@ -507,7 +563,7 @@
    },
    "limits": [
     {
-     "md": "Pouring back is wasted work: after the first pour, 'spare' already holds the queue in exactly the right order for the next reads. Keep it there, and send new items to the other stack."
+     "md": "Pours everything back after every read. Leaving items in the reversed stack until it's empty makes reads O(1) amortised."
     }
    ],
    "slow": true
@@ -519,14 +575,14 @@
    "space": "O(n)",
    "idea": [
     {
-     "md": "`push` goes onto `in`. `pop`/`peek` read from the top of `out`; if `out` is empty, first pour all of `in` into it. `empty` is true when both are empty."
+     "md": "`push` → inbox. `pop`/`peek` → if the outbox is empty, pour the whole inbox into it; then use the outbox's\ntop. `empty` checks both stacks.\n\n**Why amortised O(1).** Each item is pushed onto the inbox once, moved to the outbox once, and popped once:\nthree stack operations per item over its lifetime."
     }
    ],
    "build": [
-    "Two stacks, `in` and `out`.",
-    "`push`: onto `in`.",
-    "Before reading: if `out` is empty, pour `in` into it.",
-    "`pop`/`peek`: top of `out`. `empty`: both empty."
+    "Two stacks.",
+    "Push to the inbox.",
+    "Pour only when the outbox is empty.",
+    "Read from the outbox."
    ],
    "code": {
     "python": "class TwoStackQueue:\n    def __init__(self):\n        self.inbox = []\n        self.outbox = []\n\n    def _turn(self):\n        if not self.outbox:\n            while self.inbox:\n                self.outbox.append(self.inbox.pop())\n\n    def push(self, x: int) -> None:\n        self.inbox.append(x)\n\n    def pop(self) -> int:\n        self._turn()\n        return self.outbox.pop()\n\n    def peek(self) -> int:\n        self._turn()\n        return self.outbox[-1]\n\n    def empty(self) -> bool:\n        return not self.inbox and not self.outbox\n",
@@ -664,7 +720,7 @@
    ],
    "complexity": [
     {
-     "md": "**Time O(1) amortised per call:** each item is pushed onto `in` once, poured once, and popped from `out` once. A single `pop` can cost O(n) when it triggers a pour, but that pays for the next n reads. **Space O(n).**"
+     "md": "**Time O(1)** amortised per operation (one pour can be O(n)). **Space O(n).**"
     }
    ],
    "walk": {
@@ -858,7 +914,7 @@
  ],
  "takeaways": [
   {
-   "md": "- **Two stacks make a queue:** pouring one into the other reverses the order.\n- Pour lazily (only when the output side is empty) for amortised O(1) per operation.\n- Amortised analysis: count how many times each item can be moved over its whole life."
+   "md": "- **Queue from two stacks:** inbox + outbox, pour only when the outbox is empty.\n- Amortised analysis: count how many times each item can move.\n- **Pitfall:** pouring while the outbox still has items (breaks the order)."
   }
  ]
 }

@@ -4,39 +4,47 @@
  "question": [
   {
    "md": "Distinct ids were sorted, then rotated. Return the target's index, or −1, in O(log n).\n\n- **Unknown rotation point.** It could even be zero (fully sorted).\n- **Distinct values,** so comparisons between ends are reliable. (With repeats see **Rotated Shelf With\n  Repeats**.)"
+  },
+  {
+   "md": "**Edge cases to keep in mind**\n\n- Not rotated: an ordinary sorted search.\n- Target equal to the first or last element of a half (inclusive range checks).\n- Target absent: −1."
   }
  ],
  "think": [
   {
-   "md": "Take `[21, 25, 30, 34, 2, 7, 11, 16]` and target 7. Split at the middle (index 3, value 34).\nThe left half `[21, 25, 30, 34]` happens to be sorted; the right half contains the drop."
+   "md": "**A rotated sorted array is two sorted runs.** `[21, 25, 30, 34, 2, 7, 11, 16]` is the run `21 … 34` followed by the\nrun `2 … 16`; every value in the first run is larger than every value in the second. Binary search still works if each\nstep can tell **which side of the drop** the middle is on:\n\n- comparing `a[mid]` with `a[hi]` (the last element of the range): `a[mid] > a[hi]` means `mid` is in the first run,\n  so the drop (and the minimum) is to the right; otherwise `mid` is in the second run;\n- of the two halves around `mid`, **at least one is completely sorted**, and a sorted half lets us check directly\n  whether the target could be inside it."
   },
   {
-   "panels": [
-    {
-     "type": "row",
-     "cells": [
-      21,
-      25,
-      30,
-      34,
-      2,
-      7,
-      11,
-      16
+   "md": "**One half is always sorted.** The drop is in at most one of the two halves around `mid`, so the other half is\nsorted. Check which (`a[lo] ≤ a[mid]` means the left half is sorted), then test whether the target lies within\nthat sorted half's range: if yes, search there; if not, it can only be in the other half. For `[21, 25, 30, 34, 2, 7, 11, 16]` and target\n7:"
+  },
+  {
+   "table": {
+    "head": [
+     "lo",
+     "hi",
+     "mid",
+     "a[mid]",
+     "decision"
+    ],
+    "rows": [
+     [
+      "0",
+      "7",
+      "3",
+      "34",
+      "left half 21…34 is sorted but doesn't contain 7: go right"
      ],
-     "states": {
-      "0": "found",
-      "1": "found",
-      "2": "found",
-      "3": "found"
-     },
-     "slots": true
-    }
-   ],
-   "caption": "The sorted half (shaded) covers exactly the values between its two ends."
+     [
+      "4",
+      "7",
+      "5",
+      "7",
+      "found"
+     ]
+    ]
+   }
   },
   {
-   "md": "A sorted half covers exactly the values between its first and last element. 7 is not between\n21 and 34, so it can't be in the left half: go right. Repeat on the new range: again one side\nof its middle is sorted. Which side is sorted? If `a[lo] ≤ a[mid]`, the left side is (no drop inside it);\notherwise the right side is.\n\nAlternatively, first find the rotation point (the minimum) with one binary search, then run an ordinary binary\nsearch on whichever run could contain the target. Same complexity, two searches."
+   "md": "Answer **5**."
   }
  ],
  "approaches": [
@@ -47,11 +55,12 @@
    "space": "O(1)",
    "idea": [
     {
-     "md": "Check every position."
+     "md": "Scan the playlist for the target."
     }
    ],
    "build": [
-    "Return the index where the value equals the target, or −1."
+    "Scan.",
+    "Return the index or −1."
    ],
    "code": {
     "python": "class Solution:\n    def findTrack(self, playlist: List[int], target: int) -> int:\n        for i, v in enumerate(playlist):\n            if v == target:\n                return i\n        return -1\n",
@@ -264,7 +273,7 @@
    },
    "limits": [
     {
-     "md": "Ignores that the list is two sorted runs; the requirement is O(log n)."
+     "md": "Breaks O(log n)."
     }
    ]
   },
@@ -275,12 +284,12 @@
    "space": "O(1)",
    "idea": [
     {
-     "md": "Binary-search the minimum's index `p` (compare with the last element). The list is then `[p … n − 1]` and `[0 … p − 1]`, both sorted. If `a[p] ≤ target ≤ a[n − 1]`, binary-search the first run; otherwise the second."
+     "md": "First find the rotation point (the minimum) with the low-point search, then do an ordinary binary search in whichever of the two sorted runs could contain the target."
     }
    ],
    "build": [
-    "Find `p`, the index of the minimum.",
-    "Pick the run whose value range could contain the target.",
+    "Find the minimum's index `p`.",
+    "Pick the run: `[p, n−1]` if target is within its range, else `[0, p−1]`.",
     "Classic binary search in that run."
    ],
    "code": {
@@ -563,7 +572,7 @@
    },
    "limits": [
     {
-     "md": "Already optimal, but it needs two separate searches and an extra decision. The one-pass version folds both into a single loop."
+     "md": "Two passes; one pass can decide the half at each step directly."
     }
    ]
   },
@@ -574,14 +583,14 @@
    "space": "O(1)",
    "idea": [
     {
-     "md": "At each step: if `a[mid]` is the target, done. If `a[lo] ≤ a[mid]`, the left half is sorted: go left if `a[lo] ≤ target < a[mid]`, else right. Otherwise the right half is sorted: go right if `a[mid] < target ≤ a[hi]`, else left."
+     "md": "One binary search: at each step, if `a[mid]` is the target, done. Otherwise identify the sorted half; if the\ntarget is inside its value range, keep that half, else keep the other half.\n\n**Why it's safe.** A sorted half contains exactly the values between its two ends, so the range check is\ndecisive; the target, if present, must be in the half we keep."
     }
    ],
    "build": [
-    "Closed range `[0, n − 1]`.",
-    "Decide which half is sorted with `a[lo] ≤ a[mid]`.",
-    "Check whether the target lies within that half's end values; move accordingly.",
-    "Return −1 if the range empties."
+    "Closed range.",
+    "Hit check.",
+    "Find the sorted half.",
+    "Range-check the target and keep the right half."
    ],
    "code": {
     "python": "class Solution:\n    def findTrack(self, playlist: List[int], target: int) -> int:\n        a = playlist\n        lo, hi = 0, len(a) - 1\n        while lo <= hi:\n            mid = (lo + hi) // 2\n            if a[mid] == target:\n                return mid\n            if a[lo] <= a[mid]:\n                if a[lo] <= target < a[mid]:\n                    hi = mid - 1\n                else:\n                    lo = mid + 1\n            else:\n                if a[mid] < target <= a[hi]:\n                    lo = mid + 1\n                else:\n                    hi = mid - 1\n        return -1\n",
@@ -841,7 +850,7 @@
  ],
  "takeaways": [
   {
-   "md": "- In a rotated sorted array, **one half around mid is always sorted**; test whether the target lies in that\n  half's value range.\n- `a[lo] ≤ a[mid]` identifies a sorted left half (with distinct values).\n- Equivalent two-step method: find the rotation point, then search one run."
+   "md": "- **Search in a rotated sorted array:** one half is always sorted; range-check the target against it.\n- Use `≤` in `a[lo] ≤ a[mid]` so a one-element left half counts as sorted.\n- **Pitfall:** strict inequalities at the half's ends (misses targets equal to an end)."
   }
  ]
 }

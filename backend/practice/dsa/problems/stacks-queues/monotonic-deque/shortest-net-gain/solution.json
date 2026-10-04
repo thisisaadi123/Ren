@@ -4,45 +4,98 @@
  "question": [
   {
    "md": "Find the shortest run of consecutive days whose changes sum to at least `target`, or −1 if none exists.\n\n- **Changes can be negative**, so a longer run isn't always better and the usual two-pointer window doesn't\n  work: shrinking the window can increase its sum.\n- **`target ≥ 1`**, so an empty run never counts.\n- **Up to 10⁵ days; sums reach 10¹⁰**, beyond 32-bit integers."
+  },
+  {
+   "md": "**Edge cases to keep in mind**\n\n- Negative changes: a sliding window doesn't work (shrinking can increase the sum).\n- No run reaches the target: −1.\n- A single day may already reach the target."
   }
  ],
  "think": [
   {
-   "md": "Changes `[4, -6, 3, 2, -1, 4, 1]`, target 6. Prefix sums `P = [0, 4, -2, 1, 3, 2, 6, 7]`. A run from day `i` to day `j − 1` gains\n`P[j] − P[i]`. The shortest qualifying run has length **4**.\n\nWhy not a sliding window? With only positive changes, growing the window raises the sum and shrinking lowers it,\nso two pointers work. Here the −6 breaks that: dropping it from the left *raises* the sum."
+   "md": "**Prefix sums.** With `P[j]` = sum of the first `j` changes, a run from day `i` to day `j − 1` gains `P[j] − P[i]`.\nWe want the smallest `j − i` with `P[j] − P[i] ≥ target`. For `[4, -6, 3, 2, -1, 4, 1]`: `P = [0, 4, -2, 1, 3, 2, 6, 7]`.\n\n**Two observations about candidate starts `i`:**\n\n1. If a later index `j'` has `P[j'] ≤ P[i]`, start `i` is useless from then on: `j'` is a later start (shorter\n   runs) with a smaller prefix (more gain). So keep starts with **increasing** prefix sums (pop the back).\n2. Once start `i` has found an end `j` that works, any later end would only make a longer run from `i`. So pop it\n   from the **front** after recording.\n\nTogether this is a monotonic deque over prefix-sum indices."
   },
   {
-   "panels": [
-    {
-     "type": "row",
-     "cells": [
-      4,
-      -6,
-      3,
-      2,
-      -1,
-      4,
-      1
-     ],
-     "label": "changes"
-    },
-    {
-     "type": "row",
-     "cells": [
-      0,
-      4,
-      -2,
-      1,
-      3,
-      2,
-      6,
-      7
-     ],
-     "label": "prefix P"
-    }
-   ]
+   "md": "**Trace for target 6:**"
   },
   {
-   "md": "For an end `j`, we want the **latest** start `i < j` with `P[i] ≤ P[j] − target`. Two observations prune the\ncandidate starts:\n\n1. If `i₁ < i₂` and `P[i₁] ≥ P[i₂]`, then `i₂` is better for every future end: it's later (shorter run) and has\n   a smaller `P` (bigger gain). So `i₁` can go. The survivors have strictly increasing `P`.\n2. If start `i` works for end `j`, no later end can do better with `i`: the run would only get longer. So once\n   used, `i` can go too, from the front."
+   "table": {
+    "head": [
+     "j",
+     "P[j]",
+     "runs found (front pops)",
+     "dominated starts (back pops)",
+     "deque (index:P)",
+     "shortest"
+    ],
+    "rows": [
+     [
+      "0",
+      "0",
+      "—",
+      "—",
+      "0:0",
+      "—"
+     ],
+     [
+      "1",
+      "4",
+      "—",
+      "—",
+      "0:0 1:4",
+      "—"
+     ],
+     [
+      "2",
+      "-2",
+      "—",
+      "[1, 0]",
+      "2:-2",
+      "—"
+     ],
+     [
+      "3",
+      "1",
+      "—",
+      "—",
+      "2:-2 3:1",
+      "—"
+     ],
+     [
+      "4",
+      "3",
+      "—",
+      "—",
+      "2:-2 3:1 4:3",
+      "—"
+     ],
+     [
+      "5",
+      "2",
+      "—",
+      "[4]",
+      "2:-2 3:1 5:2",
+      "—"
+     ],
+     [
+      "6",
+      "6",
+      "start 2: gain 8, length 4",
+      "—",
+      "3:1 5:2 6:6",
+      "4"
+     ],
+     [
+      "7",
+      "7",
+      "start 3: gain 6, length 4",
+      "—",
+      "5:2 6:6 7:7",
+      "4"
+     ]
+    ]
+   }
+  },
+  {
+   "md": "Shortest run: **4**."
   }
  ],
  "approaches": [
@@ -53,13 +106,13 @@
    "space": "O(1)",
    "idea": [
     {
-     "md": "For each start day, add days one at a time; the first time the sum reaches the target, that's the shortest run from this start. Keep the minimum over all starts."
+     "md": "From every start, extend until the sum reaches the target; the first time it does is the shortest run from that start."
     }
    ],
    "build": [
-    "For each start `i`, `s = 0`.",
-    "For `j` from `i`: add `changes[j]`; if `s ≥ target`, record `j − i + 1` and stop.",
-    "Return the minimum, or −1."
+    "Every start.",
+    "Running sum while extending.",
+    "Record the first length that reaches the target."
    ],
    "code": {
     "python": "class Solution:\n    def shortestNetGain(self, changes: List[int], target: int) -> int:\n        n = len(changes)\n        best = -1\n        for i in range(n):\n            s = 0\n            for j in range(i, n):\n                s += changes[j]\n                if s >= target:\n                    if best < 0 or j - i + 1 < best:\n                        best = j - i + 1\n                    break\n        return best\n",
@@ -216,7 +269,7 @@
    ],
    "complexity": [
     {
-     "md": "**Time O(n²)** in the worst case. **Space O(1).**"
+     "md": "**Time O(n²).** **Space O(1).**"
     }
    ],
    "walk": {
@@ -424,7 +477,7 @@
    },
    "limits": [
     {
-     "md": "Each start rescans forward from scratch. With prefix sums, the question becomes 'which earlier prefix is small enough', and most earlier prefixes can be ruled out for good."
+     "md": "With negative values it can't stop early in general, so it scans everything. Prefix sums with the right data structure avoid that."
     }
    ],
    "slow": true
@@ -436,14 +489,14 @@
    "space": "O(n)",
    "idea": [
     {
-     "md": "Compute prefix sums. Walk the ends `j = 0..n`, keeping a stack of candidate starts with strictly increasing `P` (pop starts with `P ≥ P[j]` before pushing `j`). Before pushing, binary-search the stack for the last start with `P ≤ P[j] − target`; it's the latest valid start, so `j − i` is the best run ending at `j`."
+     "md": "Prefix sums, and an increasing stack of start indices (by prefix value). For each end `j`, binary-search the\nstack for the **latest** start with `P[i] ≤ P[j] − target`, then push `j` after popping starts with larger or\nequal prefix."
     }
    ],
    "build": [
-    "`P[0] = 0`, `P[j+1] = P[j] + changes[j]` (64-bit).",
-    "For each `j`: binary-search the stack for the rightmost `P[i] ≤ P[j] − target`; update the answer.",
-    "Pop starts with `P ≥ P[j]`, push `j`.",
-    "Return the best, or −1."
+    "Prefix sums.",
+    "Increasing stack of starts.",
+    "Binary-search the latest valid start for each end.",
+    "Maintain the stack."
    ],
    "code": {
     "python": "class Solution:\n    def shortestNetGain(self, changes: List[int], target: int) -> int:\n        n = len(changes)\n        P = [0] * (n + 1)\n        for i, v in enumerate(changes):\n            P[i + 1] = P[i] + v\n        best, stack = n + 1, []\n        for j in range(n + 1):\n            lo, hi = 0, len(stack) - 1\n            while lo <= hi:\n                mid = (lo + hi) // 2\n                if P[stack[mid]] <= P[j] - target:\n                    best = min(best, j - stack[mid])\n                    lo = mid + 1\n                else:\n                    hi = mid - 1\n            while stack and P[stack[-1]] >= P[j]:\n                stack.pop()\n            stack.append(j)\n        return best if best <= n else -1\n",
@@ -634,7 +687,7 @@
    ],
    "complexity": [
     {
-     "md": "**Time O(n log n):** a binary search per end; pushes and pops are O(n) in total. **Space O(n).**"
+     "md": "**Time O(n log n).** **Space O(n).**"
     }
    ],
    "walk": {
@@ -942,7 +995,7 @@
    },
    "limits": [
     {
-     "md": "The binary search is unnecessary: once a start works for some end, it never needs to be considered again (later ends make longer runs). Removing used starts from the front makes every check O(1) amortised."
+     "md": "A binary search per end. Observation 2 shows a start can be discarded once used, which makes every step O(1) amortised."
     }
    ]
   },
@@ -953,14 +1006,14 @@
    "space": "O(n)",
    "idea": [
     {
-     "md": "Keep candidate starts in a deque with strictly increasing `P`. For each end `j`: while the front start satisfies `P[j] − P[front] ≥ target`, record `j − front` and pop it from the front. Then pop from the back every start with `P ≥ P[j]` and push `j`."
+     "md": "Monotonic deque of prefix indices with increasing `P`. For each `j`: while the front start gives a gain of at\nleast `target`, record `j − front` and pop it; then pop back starts with `P ≥ P[j]`; push `j`."
     }
    ],
    "build": [
-    "Prefix sums in 64 bits.",
-    "For each `j`: pop qualifying starts from the front, recording lengths.",
-    "Pop dominated starts from the back; push `j`.",
-    "Return the best, or −1."
+    "Prefix sums.",
+    "Front pops record runs.",
+    "Back pops drop dominated starts.",
+    "Push `j`."
    ],
    "code": {
     "python": "from collections import deque\n\nclass Solution:\n    def shortestNetGain(self, changes: List[int], target: int) -> int:\n        n = len(changes)\n        P = [0] * (n + 1)\n        for i, v in enumerate(changes):\n            P[i + 1] = P[i] + v\n        best, dq = n + 1, deque()\n        for j in range(n + 1):\n            while dq and P[j] - P[dq[0]] >= target:\n                best = min(best, j - dq.popleft())\n            while dq and P[dq[-1]] >= P[j]:\n                dq.pop()\n            dq.append(j)\n        return best if best <= n else -1\n",
@@ -1150,7 +1203,7 @@
    ],
    "complexity": [
     {
-     "md": "**Time O(n):** each index enters and leaves the deque at most once. **Space O(n)** for prefix sums and the deque."
+     "md": "**Time O(n).** **Space O(n).**"
     }
    ],
    "walk": {
@@ -1457,7 +1510,7 @@
  ],
  "takeaways": [
   {
-   "md": "- **Negative numbers break the two-pointer window**; switch to prefix sums and ask about pairs `P[j] − P[i]`.\n- Prune candidates that are **dominated** (earlier and no better) from the back, and candidates that are\n  **used up** (can only get worse) from the front: a monotonic deque.\n- A binary search over a monotonic stack is a good intermediate step when the front-popping argument isn't\n  obvious."
+   "md": "- **Shortest subarray with sum ≥ target, negatives allowed:** prefix sums + monotonic deque.\n- Discard starts that are dominated (back) or already used (front).\n- **Pitfall:** using a sliding window, which needs non-negative values."
   }
  ]
 }

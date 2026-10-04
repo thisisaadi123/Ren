@@ -1,0 +1,1067 @@
+{
+ "version": 1,
+ "id": "index-marking",
+ "topic": "arrays-hashing",
+ "summary": "When the values in an array are numbers from 1 to n and the array has n slots, the array can be its own\n\"seen\" table. Value `v` leaves a mark at index `v - 1`, usually by flipping its sign, and you get set-like\nanswers with no extra memory.",
+ "minutes": 13,
+ "sections": [
+  {
+   "id": "idea",
+   "title": "The idea",
+   "blocks": [
+    {
+     "md": "Imagine a cloakroom with hooks numbered 1 to 20 and twenty tickets handed out. You want to know whether every\nticket number was given out exactly once. You could write the numbers down on a separate sheet. Or you could\njust walk along the tickets and, for ticket 7, hang a little tag on hook 7. If you ever go to tag a hook that\nalready has one, that number was handed out twice.\n\nThe hooks are already there. You didn't need a separate sheet, because every ticket number points at its own\nhook.\n\nArrays work the same way when the values are 1 to `n` and there are `n` slots. Value `v` \"belongs to\" index\n`v - 1`. So instead of a hash set of values you've seen, you leave a mark at index `v - 1`. The usual mark is\nflipping that slot's number to negative, because:\n\n- the slot still remembers its own value (take `abs`), and\n- the sign tells you whether `v` has been seen."
+    },
+    {
+     "panels": [
+      {
+       "type": "row",
+       "cells": [
+        3,
+        1,
+        4,
+        2
+       ],
+       "label": "before",
+       "slots": true
+      },
+      {
+       "type": "row",
+       "cells": [
+        -3,
+        -1,
+        -4,
+        -2
+       ],
+       "states": {
+        "0": "found",
+        "1": "found",
+        "2": "found",
+        "3": "found"
+       },
+       "label": "after marking 3, 1, 4, 2",
+       "slots": true
+      }
+     ],
+     "caption": "Every slot ended up negative: each of 1 to 4 was seen. The numbers themselves are still readable with abs."
+    },
+    {
+     "key": "Values from 1 to n can index their own array. Leave a mark at index `v - 1` (flip the sign, or add n) and the\narray works as a \"seen\" table, using O(1) extra memory."
+    },
+    {
+     "md": "You'd only bother with this when the problem asks for O(1) extra space, because a hash set does the same job\nmore simply. But interviewers ask for exactly that constraint a lot, and this is how you meet it."
+    }
+   ]
+  },
+  {
+   "id": "signals",
+   "title": "When to reach for it",
+   "blocks": [
+    {
+     "md": "The tell is a combination of two things. First, the values are tied to the size of the array: \"numbers from\n1 to n\", \"n + 1 numbers from 1 to n\", \"seats 0 to n\". Second, the problem asks for O(1) extra space, or says\n\"without extra memory\", or \"modify the array in place\".\n\nQuestions that usually fit: which values are missing, which appear twice, is this a permutation, how many\ntimes does each value appear, what's the smallest positive number not present.\n\nWhen it doesn't fit:\n\n- The values aren't tied to the length (any integers up to 10⁹). Then they can't index the array, and you\n  need a hash set or sorting.\n- You're not allowed to change the input, even temporarily. Marking changes it. (You can often restore it\n  afterwards, but check what the problem allows.)\n- O(n) extra memory is fine. Then just use a set or a boolean array. It's clearer and harder to get wrong."
+    }
+   ]
+  },
+  {
+   "id": "theory",
+   "title": "Why it works",
+   "blocks": [
+    {
+     "md": "### The array is already a table\n\nA \"seen\" table for values 1 to `n` is just `n` booleans. A boolean array of size `n` indexed by `v - 1`.\nThe input array already has `n` slots indexed `0` to `n - 1`, and each slot holds a number we still need. So\nthe trick is to squeeze one extra bit of information (seen or not) into each slot without losing the\nnumber already there.\n\n### Ways to hide a bit in a slot\n\n- **The sign.** Values are positive, so the sign bit is free. Negative means \"seen\". `abs(slot)` gives the\n  original back. This is the most common choice.\n- **Adding n.** Values are 1 to `n`. Add `n` once per sighting and the slot holds `original + n × count`.\n  `(slot - 1) % n + 1` recovers the original, and `(slot - 1) // n` gives the count. It stores a whole count,\n  not just one bit.\n- **Bitwise NOT (`~x`).** For values from 0 to `n - 1`, the sign trick fails on 0 (there's no \"-0\"). `~x`\n  turns 0 into -1, 1 into -2 and so on, and applying it again undoes it. Negative still means marked."
+    },
+    {
+     "table": {
+      "head": [
+       "value x",
+       "~x"
+      ],
+      "rows": [
+       [
+        "0",
+        "-1"
+       ],
+       [
+        "1",
+        "-2"
+       ],
+       [
+        "2",
+        "-3"
+       ],
+       [
+        "3",
+        "-4"
+       ]
+      ]
+     }
+    },
+    {
+     "md": "### Reading values while marking\n\nWhile you walk the array, some slots you'll read have already been marked by earlier values. So never use\nthe raw slot value as an index. Always decode it first: `abs(x)` for signs, `(x - 1) % n + 1` for the +n trick,\n`~x` if negative for NOT marks. Forgetting this is the most common bug in this pattern.\n\n### Putting it back\n\nMarking changes the caller's array. Good manners (and sometimes the problem) say you restore it afterwards:\none more pass taking `abs`, or `(x - 1) % n + 1`. That keeps the extra space at O(1) and the input unchanged.\n\n### How it relates to cyclic sort\n\n*Cyclic sort* (pattern 10) uses the same \"value v belongs at index v - 1\" idea, but instead of leaving a mark\nit physically moves each value to its home with swaps. Marking keeps everything where it is and only changes\nsigns. Both are O(n) time and O(1) extra space. Marking is usually shorter when you only need yes/no\ninformation; moving values is handy when you need to know which value sits where."
+    }
+   ]
+  },
+  {
+   "id": "template",
+   "title": "The template",
+   "blocks": [
+    {
+     "md": "Is `nums` a permutation of 1 to `n`, meaning every number from 1 to `n` appears exactly once? Answer with\nO(1) extra space, and leave the array the way you found it. (Values are positive.)"
+    },
+    {
+     "code": {
+      "python": "def is_permutation(nums):\n    n = len(nums)\n    ok = True\n    for x in nums:\n        v = abs(x)\n        if v < 1 or v > n or nums[v - 1] < 0:\n            ok = False\n            break\n        nums[v - 1] = -nums[v - 1]\n    for i in range(n):\n        nums[i] = abs(nums[i])\n    return ok\n",
+      "java": "static boolean isPermutation(int[] nums) {\n    int n = nums.length;\n    boolean ok = true;\n    for (int i = 0; i < n; i++) {\n        int v = Math.abs(nums[i]);\n        if (v < 1 || v > n || nums[v - 1] < 0) {\n            ok = false;\n            break;\n        }\n        nums[v - 1] = -nums[v - 1];\n    }\n    for (int i = 0; i < n; i++) nums[i] = Math.abs(nums[i]);\n    return ok;\n}\n",
+      "cpp": "bool isPermutation(vector<int>& nums) {\n    int n = nums.size();\n    bool ok = true;\n    for (int i = 0; i < n; i++) {\n        int v = abs(nums[i]);\n        if (v < 1 || v > n || nums[v - 1] < 0) {\n            ok = false;\n            break;\n        }\n        nums[v - 1] = -nums[v - 1];\n    }\n    for (int& x : nums) x = abs(x);\n    return ok;\n}\n",
+      "c": "bool isPermutation(int* nums, int n) {\n    bool ok = true;\n    for (int i = 0; i < n; i++) {\n        int v = abs(nums[i]);\n        if (v < 1 || v > n || nums[v - 1] < 0) {\n            ok = false;\n            break;\n        }\n        nums[v - 1] = -nums[v - 1];\n    }\n    for (int i = 0; i < n; i++) nums[i] = abs(nums[i]);\n    return ok;\n}\n"
+     },
+     "title": "Is it a permutation of 1 to n?",
+     "lines": [
+      {
+       "text": "`n` is both the length and the largest value allowed. `ok` starts true; any problem flips it.",
+       "at": {
+        "python": [
+         [
+          2,
+          3
+         ]
+        ],
+        "java": [
+         [
+          2,
+          3
+         ]
+        ],
+        "cpp": [
+         [
+          2,
+          3
+         ]
+        ],
+        "c": [
+         [
+          2,
+          2
+         ]
+        ]
+       },
+       "notes": {
+        "c": "In C, `n` comes in as a parameter."
+       }
+      },
+      {
+       "text": "One pass over the array.",
+       "at": {
+        "python": [
+         [
+          4,
+          4
+         ]
+        ],
+        "java": [
+         [
+          4,
+          4
+         ]
+        ],
+        "cpp": [
+         [
+          4,
+          4
+         ]
+        ],
+        "c": [
+         [
+          3,
+          3
+         ]
+        ]
+       }
+      },
+      {
+       "text": "Decode the value first. An earlier value may already have flipped this slot negative, but `abs` gives back the number that was there.",
+       "at": {
+        "python": [
+         [
+          5,
+          5
+         ]
+        ],
+        "java": [
+         [
+          5,
+          5
+         ]
+        ],
+        "cpp": [
+         [
+          5,
+          5
+         ]
+        ],
+        "c": [
+         [
+          4,
+          4
+         ]
+        ]
+       }
+      },
+      {
+       "text": "Three ways to fail: the value is too small, too big, or its slot is already marked (we've seen it before). We stop at the first one but still restore the array below.",
+       "at": {
+        "python": [
+         [
+          6,
+          8
+         ]
+        ],
+        "java": [
+         [
+          6,
+          8
+         ]
+        ],
+        "cpp": [
+         [
+          6,
+          8
+         ]
+        ],
+        "c": [
+         [
+          5,
+          7
+         ]
+        ]
+       }
+      },
+      {
+       "text": "Flip slot `v - 1` negative: \"`v` has been seen\". Its own value is still readable with `abs`.",
+       "at": {
+        "python": [
+         [
+          9,
+          9
+         ]
+        ],
+        "java": [
+         [
+          10,
+          10
+         ]
+        ],
+        "cpp": [
+         [
+          10,
+          10
+         ]
+        ],
+        "c": [
+         [
+          9,
+          9
+         ]
+        ]
+       }
+      },
+      {
+       "text": "Undo every mark so the caller gets the array back unchanged.",
+       "at": {
+        "python": [
+         [
+          10,
+          11
+         ]
+        ],
+        "java": [
+         [
+          12,
+          12
+         ]
+        ],
+        "cpp": [
+         [
+          12,
+          12
+         ]
+        ],
+        "c": [
+         [
+          11,
+          11
+         ]
+        ]
+       }
+      },
+      {
+       "text": "True only if every value was in range and new. With `n` values all different and all between 1 and `n`, every number from 1 to `n` must appear exactly once.",
+       "at": {
+        "python": [
+         [
+          12,
+          12
+         ]
+        ],
+        "java": [
+         [
+          13,
+          13
+         ]
+        ],
+        "cpp": [
+         [
+          13,
+          13
+         ]
+        ],
+        "c": [
+         [
+          12,
+          12
+         ]
+        ]
+       }
+      }
+     ],
+     "run": {
+      "call": "is_permutation([3, 1, 4, 2]); [3, 1, 3, 2]; [5, 1, 2, 3]; [1]",
+      "output": "true 3 1 4 2\nfalse 3 1 3 2\nfalse 5 1 2 3\ntrue 1"
+     }
+    },
+    {
+     "md": "The second number on each line of output is the array after the call, showing it came back unchanged even\nwhen we stopped early."
+    }
+   ]
+  },
+  {
+   "id": "trace",
+   "title": "Trace it by hand",
+   "blocks": [
+    {
+     "md": "A permutation first. Watch the minus signs appear:"
+    },
+    {
+     "walk": {
+      "steps": [
+       {
+        "text": "Values should be 1 to 4, and there are 4 slots, so value v gets slot v - 1. Nothing is marked yet.",
+        "panels": [
+         {
+          "type": "row",
+          "cells": [
+           3,
+           1,
+           4,
+           2
+          ],
+          "slots": true
+         },
+         {
+          "type": "vars",
+          "items": {
+           "marked:": "none"
+          }
+         }
+        ]
+       },
+       {
+        "text": "Index 0 holds 3 (we read abs, since the sign may already be flipped). Slot 2 is positive, so 3 is new: flip it to -4.",
+        "panels": [
+         {
+          "type": "row",
+          "cells": [
+           3,
+           1,
+           -4,
+           2
+          ],
+          "states": {
+           "2": "new"
+          },
+          "pointers": {
+           "i": 0
+          },
+          "slots": true
+         },
+         {
+          "type": "vars",
+          "items": {
+           "seen:": "3"
+          }
+         }
+        ]
+       },
+       {
+        "text": "Index 1 holds 1 (we read abs, since the sign may already be flipped). Slot 0 is positive, so 1 is new: flip it to -3.",
+        "panels": [
+         {
+          "type": "row",
+          "cells": [
+           -3,
+           1,
+           -4,
+           2
+          ],
+          "states": {
+           "0": "new",
+           "2": "found"
+          },
+          "pointers": {
+           "i": 1
+          },
+          "slots": true
+         },
+         {
+          "type": "vars",
+          "items": {
+           "seen:": "1, 3"
+          }
+         }
+        ]
+       },
+       {
+        "text": "Index 2 holds 4 (we read abs, since the sign may already be flipped). Slot 3 is positive, so 4 is new: flip it to -2.",
+        "panels": [
+         {
+          "type": "row",
+          "cells": [
+           -3,
+           1,
+           -4,
+           -2
+          ],
+          "states": {
+           "0": "found",
+           "2": "found",
+           "3": "new"
+          },
+          "pointers": {
+           "i": 2
+          },
+          "slots": true
+         },
+         {
+          "type": "vars",
+          "items": {
+           "seen:": "1, 3, 4"
+          }
+         }
+        ]
+       },
+       {
+        "text": "Index 3 holds 2 (we read abs, since the sign may already be flipped). Slot 1 is positive, so 2 is new: flip it to -1.",
+        "panels": [
+         {
+          "type": "row",
+          "cells": [
+           -3,
+           -1,
+           -4,
+           -2
+          ],
+          "states": {
+           "0": "found",
+           "1": "new",
+           "2": "found",
+           "3": "found"
+          },
+          "pointers": {
+           "i": 3
+          },
+          "slots": true
+         },
+         {
+          "type": "vars",
+          "items": {
+           "seen:": "1, 2, 3, 4"
+          }
+         }
+        ]
+       },
+       {
+        "text": "Every value landed on an unmarked slot, so each of 1 to 4 appears exactly once. Now flip the signs back so the caller gets their array unchanged.",
+        "panels": [
+         {
+          "type": "row",
+          "cells": [
+           3,
+           1,
+           4,
+           2
+          ],
+          "slots": true
+         }
+        ],
+        "result": "true"
+       }
+      ],
+      "title": "`is_permutation([3, 1, 4, 2])`. Each value v flips the sign of slot v - 1, so a minus sign means \"I've seen v\"."
+     }
+    },
+    {
+     "md": "And a repeat. The second `3` finds its slot already marked:"
+    },
+    {
+     "walk": {
+      "steps": [
+       {
+        "text": "Same rule: value v flips slot v - 1.",
+        "panels": [
+         {
+          "type": "row",
+          "cells": [
+           3,
+           1,
+           3,
+           2
+          ],
+          "slots": true
+         }
+        ]
+       },
+       {
+        "text": "Index 0 holds 3. Slot 2 is positive: mark it.",
+        "panels": [
+         {
+          "type": "row",
+          "cells": [
+           3,
+           1,
+           -3,
+           2
+          ],
+          "states": {
+           "2": "new"
+          },
+          "pointers": {
+           "i": 0
+          },
+          "slots": true
+         }
+        ]
+       },
+       {
+        "text": "Index 1 holds 1. Slot 0 is positive: mark it.",
+        "panels": [
+         {
+          "type": "row",
+          "cells": [
+           -3,
+           1,
+           -3,
+           2
+          ],
+          "states": {
+           "0": "new",
+           "2": "found"
+          },
+          "pointers": {
+           "i": 1
+          },
+          "slots": true
+         }
+        ]
+       },
+       {
+        "text": "Index 2 holds 3, but slot 2 is already negative. We've seen 3 before, so this can't be a permutation. Stop.",
+        "panels": [
+         {
+          "type": "row",
+          "cells": [
+           -3,
+           1,
+           -3,
+           2
+          ],
+          "states": {
+           "2": "active"
+          },
+          "pointers": {
+           "i": 2
+          },
+          "slots": true
+         }
+        ],
+        "result": "false"
+       }
+      ],
+      "title": "`is_permutation([3, 1, 3, 2])`: what happens when a value repeats."
+     }
+    }
+   ]
+  },
+  {
+   "id": "examples",
+   "title": "More examples",
+   "blocks": [
+    {
+     "md": "### Counting every value in place\n\nThe sign only stores one bit: seen or not. If you need actual counts, add `n` for every sighting instead.\nHere's `[3, 1, 3, 4, 1, 3]` with `n = 6`. Watch slot 2 (value 3's home) climb by 6 three times:"
+    },
+    {
+     "walk": {
+      "steps": [
+       {
+        "text": "Each slot holds a value from 1 to 6. Adding 6 doesn't hide it: (slot - 1) % 6 + 1 is still the original value.",
+        "panels": [
+         {
+          "type": "row",
+          "cells": [
+           3,
+           1,
+           3,
+           4,
+           1,
+           3
+          ],
+          "slots": true
+         }
+        ]
+       },
+       {
+        "text": "Index 0 now reads 3, which is really 3 (3 - 1 mod 6, plus 1). Add 6 to slot 2, making it 9.",
+        "panels": [
+         {
+          "type": "row",
+          "cells": [
+           3,
+           1,
+           9,
+           4,
+           1,
+           3
+          ],
+          "states": {
+           "2": "new",
+           "0": "active"
+          },
+          "pointers": {
+           "i": 0
+          },
+          "slots": true
+         }
+        ]
+       },
+       {
+        "text": "Index 1 now reads 1, which is really 1 (1 - 1 mod 6, plus 1). Add 6 to slot 0, making it 9.",
+        "panels": [
+         {
+          "type": "row",
+          "cells": [
+           9,
+           1,
+           9,
+           4,
+           1,
+           3
+          ],
+          "states": {
+           "0": "new",
+           "1": "active"
+          },
+          "pointers": {
+           "i": 1
+          },
+          "slots": true
+         }
+        ]
+       },
+       {
+        "text": "Index 2 now reads 9, which is really 3 (9 - 1 mod 6, plus 1). Add 6 to slot 2, making it 15.",
+        "panels": [
+         {
+          "type": "row",
+          "cells": [
+           9,
+           1,
+           15,
+           4,
+           1,
+           3
+          ],
+          "states": {
+           "2": "new"
+          },
+          "pointers": {
+           "i": 2
+          },
+          "slots": true
+         }
+        ]
+       },
+       {
+        "text": "Index 3 now reads 4, which is really 4 (4 - 1 mod 6, plus 1). Add 6 to slot 3, making it 10.",
+        "panels": [
+         {
+          "type": "row",
+          "cells": [
+           9,
+           1,
+           15,
+           10,
+           1,
+           3
+          ],
+          "states": {
+           "3": "new"
+          },
+          "pointers": {
+           "i": 3
+          },
+          "slots": true
+         }
+        ]
+       },
+       {
+        "text": "Index 4 now reads 1, which is really 1 (1 - 1 mod 6, plus 1). Add 6 to slot 0, making it 15.",
+        "panels": [
+         {
+          "type": "row",
+          "cells": [
+           15,
+           1,
+           15,
+           10,
+           1,
+           3
+          ],
+          "states": {
+           "0": "new",
+           "4": "active"
+          },
+          "pointers": {
+           "i": 4
+          },
+          "slots": true
+         }
+        ]
+       },
+       {
+        "text": "Index 5 now reads 3, which is really 3 (3 - 1 mod 6, plus 1). Add 6 to slot 2, making it 21.",
+        "panels": [
+         {
+          "type": "row",
+          "cells": [
+           15,
+           1,
+           21,
+           10,
+           1,
+           3
+          ],
+          "states": {
+           "2": "new",
+           "5": "active"
+          },
+          "pointers": {
+           "i": 5
+          },
+          "slots": true
+         }
+        ]
+       },
+       {
+        "text": "Each slot is now original + 6 × count. Since the original is between 1 and 6, (slot - 1) // 6 is exactly the count.",
+        "panels": [
+         {
+          "type": "row",
+          "cells": [
+           15,
+           1,
+           21,
+           10,
+           1,
+           3
+          ],
+          "label": "encoded",
+          "slots": true
+         },
+         {
+          "type": "bars",
+          "values": [
+           2,
+           0,
+           3,
+           1,
+           0,
+           0
+          ],
+          "labels": [
+           "1",
+           "2",
+           "3",
+           "4",
+           "5",
+           "6"
+          ],
+          "label": "how many of each value"
+         }
+        ],
+        "result": "[2, 0, 3, 1, 0, 0]"
+       }
+      ],
+      "title": "`counts_in_place([3, 1, 3, 4, 1, 3])`. Each value v adds n = 6 to slot v - 1. A slot can still tell you its original value with mod."
+     }
+    },
+    {
+     "md": "So value 1 appears 2 times, value 3 appears 3 times, and values 2, 5 and 6 don't appear.\nThat's a full count table, built inside the input itself.\n\n### Values from 0 instead of 1\n\nIf the values are 0 to `n - 1`, value `v` belongs at index `v` directly. But flipping the sign of 0 does\nnothing. Use `~x` as the mark instead: for `[2, 0, 3, 1]`, marking every value turns the array into `[-3, -1, -4, -2]`. Every\nslot is negative, so every value was seen, and `~` on each one gives the original numbers back.\n\n### How much memory are we saving?\n\nFor a million values, a separate boolean array is a million bytes, and a hash set of a million ints is\ntens of megabytes once you count its overhead. Marking uses none of that. It rarely matters in practice, but\nit's exactly the kind of constraint interviewers like to add to an easy problem to make it a medium one."
+    }
+   ]
+  },
+  {
+   "id": "variations",
+   "title": "Variations",
+   "blocks": [
+    {
+     "md": "### Counts with +n\n\nThe function from *More examples*, in all four languages. Each value adds `n` to its home slot, and at the\nend each slot is decoded into a count."
+    },
+    {
+     "code": {
+      "python": "def counts_in_place(nums):\n    n = len(nums)\n    for x in nums:\n        nums[(x - 1) % n] += n\n    for i in range(n):\n        nums[i] = (nums[i] - 1) // n\n    return nums\n",
+      "java": "static int[] countsInPlace(int[] nums) {\n    int n = nums.length;\n    for (int i = 0; i < n; i++) {\n        nums[(nums[i] - 1) % n] += n;\n    }\n    for (int i = 0; i < n; i++) nums[i] = (nums[i] - 1) / n;\n    return nums;\n}\n",
+      "cpp": "vector<int>& countsInPlace(vector<int>& nums) {\n    int n = nums.size();\n    for (int i = 0; i < n; i++) {\n        nums[(nums[i] - 1) % n] += n;\n    }\n    for (int& x : nums) x = (x - 1) / n;\n    return nums;\n}\n",
+      "c": "void countsInPlace(int* nums, int n) {\n    for (int i = 0; i < n; i++) {\n        nums[(nums[i] - 1) % n] += n;\n    }\n    for (int i = 0; i < n; i++) nums[i] = (nums[i] - 1) / n;\n}\n"
+     },
+     "title": "Count each value of 1 to n, in place",
+     "lines": [
+      {
+       "text": "Values are 1 to `n`, and `n` is also the amount we add per sighting.",
+       "at": {
+        "python": [
+         [
+          2,
+          2
+         ]
+        ],
+        "java": [
+         [
+          2,
+          2
+         ]
+        ],
+        "cpp": [
+         [
+          2,
+          2
+         ]
+        ]
+       }
+      },
+      {
+       "text": "One pass. Some slots we read have already been increased by earlier values.",
+       "at": {
+        "python": [
+         [
+          3,
+          3
+         ]
+        ],
+        "java": [
+         [
+          3,
+          3
+         ]
+        ],
+        "cpp": [
+         [
+          3,
+          3
+         ]
+        ],
+        "c": [
+         [
+          2,
+          2
+         ]
+        ]
+       }
+      },
+      {
+       "text": "`(x - 1) % n` decodes the value's home index however many times `n` has been added. Then add `n` there to record one more sighting.",
+       "at": {
+        "python": [
+         [
+          4,
+          4
+         ]
+        ],
+        "java": [
+         [
+          4,
+          4
+         ]
+        ],
+        "cpp": [
+         [
+          4,
+          4
+         ]
+        ],
+        "c": [
+         [
+          3,
+          3
+         ]
+        ]
+       }
+      },
+      {
+       "text": "Each slot is now `original + n × count`, with the original between 1 and `n`. Subtracting 1 and dividing by `n` drops the original and leaves the count.",
+       "at": {
+        "python": [
+         [
+          5,
+          6
+         ]
+        ],
+        "java": [
+         [
+          6,
+          6
+         ]
+        ],
+        "cpp": [
+         [
+          6,
+          6
+         ]
+        ],
+        "c": [
+         [
+          5,
+          5
+         ]
+        ]
+       },
+       "notes": {
+        "c": "C returns nothing: the counts are written straight into `nums`."
+       }
+      },
+      {
+       "text": "The array now holds counts: slot `i` is how many times `i + 1` appeared.",
+       "at": {
+        "python": [
+         [
+          7,
+          7
+         ]
+        ],
+        "java": [
+         [
+          7,
+          7
+         ]
+        ],
+        "cpp": [
+         [
+          7,
+          7
+         ]
+        ]
+       }
+      }
+     ],
+     "run": {
+      "call": "counts_in_place([3, 1, 3, 4, 1, 3]); counts_in_place([2, 2, 2])",
+      "output": "2 0 3 1 0 0\n0 3 0"
+     }
+    },
+    {
+     "md": "Watch the size of the numbers. A slot can grow to `n + n × n`. With `n = 100,000` that's ten billion, which\noverflows a 32-bit `int`. For big `n`, use a 64-bit array or stick to sign marks.\n\n### Finding which values are missing or repeated\n\nAfter a marking pass, the marks tell you everything a set would: an unmarked slot `i` means value `i + 1`\nnever appeared, and running into an already-marked slot means you've hit a repeat. Several of the practice\nproblems are exactly this idea with different questions on top.\n\n### Junk values\n\nIf the array can contain zeros, negatives or numbers bigger than `n`, first decide what to do with them.\nUsually they can't be the answer and can be skipped or replaced with a harmless value (like `n + 1`) before\nthe marking pass, so they never point at a slot."
+    }
+   ]
+  },
+  {
+   "id": "complexity",
+   "title": "What it costs",
+   "blocks": [
+    {
+     "md": "Marking is one pass, O(n), plus one pass to restore or read the marks, another O(n). Extra memory is O(1):\na couple of variables. Not counting the answer itself, if the problem asks you to return a list.\n\nCompare the alternatives: a hash set is O(n) time on average and O(n) memory; sorting is O(n log n) time and\nchanges the order; checking every value against every other is O(n²)."
+    },
+    {
+     "table": {
+      "head": [
+       "Approach",
+       "Time",
+       "Extra space",
+       "Changes the input?"
+      ],
+      "rows": [
+       [
+        "Compare every pair",
+        "O(n²)",
+        "O(1)",
+        "no"
+       ],
+       [
+        "Sort, then scan",
+        "O(n log n)",
+        "O(1) to O(n)",
+        "yes, reorders it"
+       ],
+       [
+        "Hash set / boolean array",
+        "O(n)",
+        "O(n)",
+        "no"
+       ],
+       [
+        "Mark in place",
+        "O(n)",
+        "O(1)",
+        "temporarily (restore it)"
+       ]
+      ]
+     }
+    }
+   ]
+  },
+  {
+   "id": "languages",
+   "title": "In your language",
+   "blocks": [
+    {
+     "md": "### Python\n\n`abs(x)` and `~x` work as you'd expect. Python ints don't overflow, so the +n trick is always safe. Careful\nwith `for x in nums:` while you modify `nums`: it reads the current values, which is fine here because we\ndecode them, but it's easy to forget that they've changed.\n\n### Java\n\n`Math.abs(x)`. Be aware that `Math.abs(Integer.MIN_VALUE)` is still negative, so if values could be that\nsmall, this isn't the right pattern anyway. Use an index loop rather than for-each if you find it clearer to\nsee that you're reading updated values.\n\n### C++\n\n`abs` from `<cstdlib>` for `int`. Pass the vector by reference if you mean to modify it, and restore it\nbefore returning. `~x` works on `int`.\n\n### C\n\nSame as C++: `abs` from `<stdlib.h>`. Since you can't return the array, the marks are visible to the caller\nunless you restore them, so always add the restore loop."
+    }
+   ]
+  },
+  {
+   "id": "pitfalls",
+   "title": "Pitfalls and edge cases",
+   "blocks": [
+    {
+     "md": "- Using a marked value as an index. Always decode first (`abs`, mod, `~`), or you'll index with a negative\n  or oversized number.\n- Zero. `-0` is `0`, so the sign trick can't mark a slot holding 0. Shift the values, use `~`, or use +n.\n- Values outside 1 to `n`. They don't have a slot. Check the range before indexing.\n- Marking twice. Flipping a negative slot back to positive \"unsees\" a value. Check before flipping, or set\n  it to `-abs(slot)` so a second mark does nothing.\n- Overflow with +n. Slots can reach `n + n²`.\n- Forgetting to restore. The caller (and sometimes the judge) sees your marks.\n- Using it when you don't need to. If extra memory is allowed, a set is clearer."
+    }
+   ]
+  },
+  {
+   "id": "check",
+   "title": "Check yourself",
+   "blocks": [
+    {
+     "quiz": [
+      {
+       "q": "Why do we read `abs(nums[i])` instead of `nums[i]` inside the marking loop?",
+       "a": "An earlier value may already have flipped this slot negative. The number it holds is still the original value, just with a minus sign. `abs` gets it back so we can use it as an index."
+      },
+      {
+       "q": "Values are 0 to n - 1. Why does flipping signs fail, and what do you use instead?",
+       "a": "You can't make 0 negative, so value 0's slot can never be marked if it holds a 0. Use `~x` (0 becomes -1), or add n."
+      },
+      {
+       "q": "After `counts_in_place`, how do you get the count from a slot holding 13 when n = 6?",
+       "a": "`(13 - 1) // 6 = 2`. The slot held an original value of 1 plus 6 × 2."
+      },
+      {
+       "q": "When would you choose a hash set over marking?",
+       "a": "When values aren't limited to 1..n, when you're not allowed to change the input, or simply when O(n) extra memory is fine. A set is easier to read and harder to get wrong."
+      },
+      {
+       "q": "`is_permutation` stops early on a repeated value. Why is the restore loop still important?",
+       "a": "By the time it stops, some slots are already negative. Without the restore pass the caller would get back a partly negated array."
+      }
+     ]
+    }
+   ]
+  }
+ ]
+}

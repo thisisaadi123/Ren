@@ -4,33 +4,79 @@
  "question": [
   {
    "md": "Evaluate a postfix expression given as tokens: integers and `+ - * /`, each operator after its two operands.\n\n- **Operand order matters** for `-` and `/`: `9 3 -` is 9 − 3.\n- **Division truncates toward zero:** −7 / 2 is −3 (not −4). Python's `//` floors, so it needs care there.\n- **Negative numbers** like `-7` are tokens of their own, not operators.\n- **No parentheses or precedence:** postfix order already encodes the grouping."
+  },
+  {
+   "md": "**Edge cases to keep in mind**\n\n- Negative numbers like `-9` are numbers, not the `-` operator: compare the whole token.\n- Operand order matters for `-` and `/`: the second popped value is the left operand.\n- Division truncates toward zero."
   }
  ],
  "think": [
   {
-   "md": "Take `6 2 - -9 4 / * 5 +`. Read left to right: 6, 2, then `-` combines the two most recent values: 6 − 2 = 4.\nThen −9, 4, and `/`: −9 / 4 = −2 (truncated). Then `*` combines 4 and −2: −8. Then 5 and `+`: −3."
+   "md": "**Why stacks fit expressions.** In an expression, an operator can't be applied until both of its operands are\ncomplete, and a later operator may bind tighter (`*` before `+`) or a parenthesis may open a whole sub-expression. A\nstack holds the parts that are **finished but not yet combined**, in exactly the order they'll be needed: the most\nrecent part is combined first.\n\n**Truncating division.** \"Toward zero\" means `−7 / 2 = −3`, not −4. Python's `//` rounds down, so the solutions divide\nthe absolute values and then put the sign back."
   },
   {
-   "panels": [
-    {
-     "type": "row",
-     "cells": [
+   "md": "**Postfix needs no precedence rules.** Each operator comes right after its two operands, so when an operator\narrives, its operands are the two most recent values: pop them, combine, push the result."
+  },
+  {
+   "md": "**Trace on `6 2 - -9 4 / * 5 +`:**"
+  },
+  {
+   "table": {
+    "head": [
+     "token",
+     "action",
+     "stack after"
+    ],
+    "rows": [
+     [
       "6",
+      "push",
+      "[6]"
+     ],
+     [
       "2",
+      "push",
+      "[6, 2]"
+     ],
+     [
       "-",
+      "6 - 2 = 4",
+      "[4]"
+     ],
+     [
       "-9",
+      "push",
+      "[4, -9]"
+     ],
+     [
       "4",
+      "push",
+      "[4, -9, 4]"
+     ],
+     [
       "/",
+      "-9 / 4 = -2",
+      "[4, -2]"
+     ],
+     [
       "*",
+      "4 * -2 = -8",
+      "[-8]"
+     ],
+     [
       "5",
-      "+"
+      "push",
+      "[-8, 5]"
+     ],
+     [
+      "+",
+      "-8 + 5 = -3",
+      "[-3]"
      ]
-    }
-   ],
-   "caption": "Value: -3."
+    ]
+   }
   },
   {
-   "md": "\"The two most recent unused values\" is a stack: values are pushed as they appear, and each operator consumes\nthe top two and leaves its result on top for later operators."
+   "md": "Result **-3**."
   }
  ],
  "approaches": [
@@ -41,13 +87,13 @@
    "space": "O(n)",
    "idea": [
     {
-     "md": "The first operator in the list always applies to the two tokens right before it. Replace those three tokens with the result and repeat until one value remains."
+     "md": "Repeatedly find the first operator in the token list, combine the two tokens before it, and splice the result in. Each step shortens the list by two."
     }
    ],
    "build": [
-    "Copy the tokens into a list.",
-    "Find the first operator at index i; combine `list[i − 2]` and `list[i − 1]`.",
-    "Replace the three tokens with the result; repeat."
+    "Find the first operator.",
+    "Combine its two operands.",
+    "Splice and repeat."
    ],
    "code": {
     "python": "class Solution:\n    def evalPostfix(self, tokens: List[str]) -> int:\n        t = list(tokens)\n        while len(t) > 1:\n            i = next(k for k, x in enumerate(t) if x in (\"+\", \"-\", \"*\", \"/\"))\n            a, b, op = int(t[i - 2]), int(t[i - 1]), t[i]\n            if op == \"+\": r = a + b\n            elif op == \"-\": r = a - b\n            elif op == \"*\": r = a * b\n            else: r = abs(a) // abs(b) * (1 if (a < 0) == (b < 0) else -1)\n            t[i - 2:i + 1] = [str(r)]\n        return int(t[0])\n",
@@ -250,7 +296,7 @@
    ],
    "complexity": [
     {
-     "md": "**Time O(n²):** each reduction searches and shifts the list. **Space O(n).**"
+     "md": "**Time O(n²):** each splice shifts the rest of the list. **Space O(n).**"
     }
    ],
    "walk": {
@@ -375,7 +421,7 @@
    },
    "limits": [
     {
-     "md": "Re-scans from the start and shifts the list for every operator. A stack keeps the pending values exactly where the next operator needs them."
+     "md": "Searching and splicing repeatedly is quadratic. A stack keeps the pending values right where they're needed."
     }
    ],
    "slow": true
@@ -387,13 +433,14 @@
    "space": "O(n)",
    "idea": [
     {
-     "md": "Push numbers. For an operator: `b = pop()`, `a = pop()`, push `a op b`. The single value left is the answer."
+     "md": "Push numbers; on an operator pop `b` then `a` and push `a op b`. The final stack holds the answer.\n\n**Invariant.** The stack holds the values of the complete sub-expressions read so far, in order."
     }
    ],
    "build": [
     "Empty stack.",
-    "Number → push; operator → pop right, pop left, push the combination.",
-    "Return the remaining value."
+    "Number → push.",
+    "Operator → pop two, apply, push.",
+    "Return the single value left."
    ],
    "code": {
     "python": "class Solution:\n    def evalPostfix(self, tokens: List[str]) -> int:\n        stack = []\n        for t in tokens:\n            if t in (\"+\", \"-\", \"*\", \"/\"):\n                b, a = stack.pop(), stack.pop()\n                if t == \"+\": stack.append(a + b)\n                elif t == \"-\": stack.append(a - b)\n                elif t == \"*\": stack.append(a * b)\n                else: stack.append(abs(a) // abs(b) * (1 if (a < 0) == (b < 0) else -1))\n            else:\n                stack.append(int(t))\n        return stack[0]\n",
@@ -589,7 +636,7 @@
    ],
    "complexity": [
     {
-     "md": "**Time O(n).** **Space O(n)** for the stack."
+     "md": "**Time O(n).** **Space O(n).**"
     }
    ],
    "walk": {
@@ -869,7 +916,7 @@
  ],
  "takeaways": [
   {
-   "md": "- **Postfix evaluation = stack:** numbers push; operators pop two (right first) and push one.\n- Mind truncation toward zero when your language's division floors (Python)."
+   "md": "- **Postfix evaluation:** stack of values; operators combine the top two.\n- Pop order: right operand first.\n- **Pitfall:** floor division instead of truncation for negative results."
   }
  ]
 }

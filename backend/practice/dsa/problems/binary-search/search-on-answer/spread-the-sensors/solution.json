@@ -4,36 +4,61 @@
  "question": [
   {
    "md": "Choose `sensors` distinct spots to maximise the smallest distance between any two chosen spots. Return that\ndistance.\n\n- **Spots are unsorted:** sort them first.\n- **Maximise the minimum:** the answer is a spacing, not a set of spots.\n- **Upper bound:** with k sensors spread over a span of (last − first), some gap is at most span / (k − 1)."
+  },
+  {
+   "md": "**Edge cases to keep in mind**\n\n- Two sensors: the answer is the distance between the outermost spots.\n- Spots are unsorted in the input; sort first.\n- We want the **largest** spacing that still fits, so the search looks for the last yes."
   }
  ],
  "think": [
   {
-   "md": "Take spots `[1, 9, 4, 12, 7, 20]` (sorted `[1, 4, 7, 9, 12, 20]`) and 3 sensors. With spacing 9: place at 1, then the first spot ≥ 10 is 12,\nthen the first ≥ 21 doesn't exist: only 2 sensors. With spacing 8: [1, 9, 20], which is 3. So the\nanswer is 8."
+   "md": "**Binary search on the answer.** Sometimes there's no sorted array at all, but the **answer** lives in a range of\nnumbers, and there's a yes/no question about a candidate value that is **monotone**: once it's yes, it stays yes for\nevery larger value (or every smaller one). Then:\n\n1. pick the range `[lo, hi]` that surely contains the answer;\n2. write `check(x)`, a fast test of the yes/no question for one candidate;\n3. binary search for the boundary where `check` flips.\n\nTotal cost: `O(cost of check × log(range))`. The hard parts are noticing the monotone question and writing `check`\ncorrectly; the search itself is always the same few lines."
   },
   {
-   "panels": [
-    {
-     "type": "row",
-     "cells": [
-      1,
-      4,
-      7,
-      9,
-      12,
-      20
+   "md": "**The check.** For a candidate spacing, place the first sensor at the leftmost spot, and each next sensor at the\nfirst spot at least that far from the previous one. Placing each sensor as far left as allowed leaves the most\nroom for the rest, so if any placement fits, the greedy one does. A smaller spacing is always easier, so the\nquestion is **yes up to the answer, then no**: we want the last yes (round `mid` up).\n\n**Range:** `[1, (max − min) / (sensors − 1)]`: with the sensors evenly spread across the whole road, no spacing can\nbe larger. Sorted spots `[1, 4, 7, 9, 12, 20]`, 3 sensors:"
+  },
+  {
+   "table": {
+    "head": [
+     "lo",
+     "hi",
+     "mid",
+     "check(mid)",
+     "decision"
+    ],
+    "rows": [
+     [
+      "1",
+      "9",
+      "5",
+      "greedy places 4: [1, 7, 12, 20]",
+      "spacing possible: lo = mid"
      ],
-     "states": {
-      "0": "answer",
-      "3": "answer",
-      "5": "answer"
-     },
-     "slots": true
-    }
-   ],
-   "caption": "Greedy placement with spacing 8."
+     [
+      "5",
+      "9",
+      "7",
+      "greedy places 3: [1, 9, 20]",
+      "spacing possible: lo = mid"
+     ],
+     [
+      "7",
+      "9",
+      "8",
+      "greedy places 3: [1, 9, 20]",
+      "spacing possible: lo = mid"
+     ],
+     [
+      "8",
+      "9",
+      "9",
+      "greedy places 2: [1, 12]",
+      "too wide: hi = mid − 1"
+     ]
+    ]
+   }
   },
   {
-   "md": "**Checking a spacing:** greedy from the left is optimal. Putting the first sensor at the leftmost spot leaves the\nmost room for the rest, and each next sensor goes as early as allowed for the same reason.\n\n**Searching:** if spacing g fits, every smaller spacing fits too. So \"g fits\" is true up to the answer and false\nbeyond it. This time we want the **last** true, so use the upper midpoint `(lo + hi + 1) / 2` with `lo = mid` on\nsuccess."
+   "md": "Largest spacing **8**."
   }
  ],
  "approaches": [
@@ -44,13 +69,13 @@
    "space": "O(n)",
    "idea": [
     {
-     "md": "Sort the spots. For g = span/(k − 1) down to 1, run the greedy check; the first g that fits is the largest."
+     "md": "Sort, then try spacings from the upper bound downwards until the greedy placement fits."
     }
    ],
    "build": [
     "Sort.",
-    "For g from the upper bound down, greedily count sensors.",
-    "Return the first g that fits."
+    "Greedy placement check.",
+    "Decrease the spacing until it fits."
    ],
    "code": {
     "python": "class Solution:\n    def widestSpacing(self, spots: List[int], sensors: int) -> int:\n        s = sorted(spots)\n        def fits(gap):\n            placed, last = 1, s[0]\n            for x in s[1:]:\n                if x - last >= gap:\n                    placed += 1\n                    last = x\n            return placed >= sensors\n        gap = (s[-1] - s[0]) // (sensors - 1)\n        while not fits(gap):\n            gap -= 1\n        return gap\n",
@@ -182,7 +207,7 @@
    ],
    "complexity": [
     {
-     "md": "**Time O(n log n + range · n):** the range can be 10⁹. **Space O(n).**"
+     "md": "**Time O(n · range).** **Space O(n).**"
     }
    ],
    "walk": {
@@ -248,7 +273,7 @@
    },
    "limits": [
     {
-     "md": "Steps one unit at a time through a range of up to 10⁹; the fits test is monotonic, so bisect it."
+     "md": "Tries every spacing; the check is monotone, so binary search finds the last yes."
     }
    ],
    "slow": true
@@ -260,14 +285,13 @@
    "space": "O(n)",
    "idea": [
     {
-     "md": "Sort. Search g in `[1, span / (k − 1)]` for the **last** g that fits: upper midpoint; fits → `lo = mid`, else `hi = mid − 1`."
+     "md": "Sort; binary search the largest spacing in `[1, (max − min)/(sensors − 1)]` whose greedy placement fits, with `mid` rounded up."
     }
    ],
    "build": [
-    "Sort the spots.",
-    "`lo = 1`, `hi = span / (k − 1)`.",
-    "`mid = (lo + hi + 1) / 2`; greedy check; move.",
-    "Return `lo`."
+    "Sort.",
+    "Greedy placement check.",
+    "Last-yes binary search (upper middle)."
    ],
    "code": {
     "python": "class Solution:\n    def widestSpacing(self, spots: List[int], sensors: int) -> int:\n        s = sorted(spots)\n        def fits(gap):\n            placed, last = 1, s[0]\n            for x in s[1:]:\n                if x - last >= gap:\n                    placed += 1\n                    last = x\n            return placed >= sensors\n        lo, hi = 1, (s[-1] - s[0]) // (sensors - 1)\n        while lo < hi:\n            mid = (lo + hi + 1) // 2\n            if fits(mid):\n                lo = mid\n            else:\n                hi = mid - 1\n        return lo\n",
@@ -457,7 +481,7 @@
    ],
    "complexity": [
     {
-     "md": "**Time O(n log n + n log(range)).** **Space O(n)** for the sorted copy."
+     "md": "**Time O(n log n + n log(range)).** **Space O(n).**"
     }
    ],
    "walk": {
@@ -544,7 +568,7 @@
  ],
  "takeaways": [
   {
-   "md": "- **Maximise the minimum distance** → binary-search the distance, check with a greedy left-to-right placement.\n- For the *largest* feasible value use the upper midpoint and `lo = mid`."
+   "md": "- **Maximise the minimum distance:** binary search on the distance + greedy placement.\n- Searching for the last yes → `lo = mid`, round `mid` up.\n- **Pitfall:** rounding down with `lo = mid` (infinite loop)."
   }
  ]
 }

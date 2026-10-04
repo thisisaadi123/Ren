@@ -1,0 +1,2042 @@
+{
+ "version": 1,
+ "id": "frequency-counting",
+ "topic": "arrays-hashing",
+ "summary": "Read the input once and keep a running count for each value. After that, questions like \"how many times does\nthis appear?\", \"is anything repeated?\" or \"are these two lists the same items shuffled?\" stop needing another\nscan. You just look the answer up.",
+ "minutes": 21,
+ "sections": [
+  {
+   "id": "idea",
+   "title": "The idea",
+   "blocks": [
+    {
+     "md": "Think about how votes get counted after a class election. The teacher doesn't reread the whole pile every\ntime someone asks how Asha is doing. They go through the ballots once, put a tick next to the name on each\none, and from then on any question about the result is answered by glancing at the ticks.\n\nThat's frequency counting. You walk through the array once, and every time you see a value `x` you add 1\nto `count[x]`. Then you answer the question from that table, sometimes with a second walk through the\ninput."
+    },
+    {
+     "panels": [
+      {
+       "type": "row",
+       "cells": [
+        4,
+        7,
+        4,
+        9,
+        7,
+        2
+       ],
+       "label": "input",
+       "slots": true
+      },
+      {
+       "type": "bars",
+       "values": [
+        2,
+        2,
+        1,
+        1
+       ],
+       "labels": [
+        "4",
+        "7",
+        "9",
+        "2"
+       ],
+       "label": "count after one pass"
+      }
+     ],
+     "caption": "One pass over `[4, 7, 4, 9, 7, 2]` and we know how often every value appears: two 4s, two 7s, one 9, one 2."
+    },
+    {
+     "md": "Why bother? Without the table, \"how many times does `x` appear?\" means scanning the whole list. Ask it for\neach of the `n` elements and you've done about `n × n` steps. For our six numbers that's 36 looks,\nwhich is nothing. For 100,000 numbers it's ten billion, and your program sits there for minutes. With the\ntable, each of those questions costs one lookup."
+    },
+    {
+     "key": "Count once, then look things up. One pass builds `value → count`, and every question about counts after\nthat is a single lookup instead of another scan."
+    },
+    {
+     "md": "It helps to notice what the table throws away. It keeps which values appear and how often, and forgets\nwhere they were and in what order. A lot of problems only care about that much. \"Can this word be\nrearranged into that one?\" doesn't care where the letters sit, only how many of each there are. For\nquestions like that, the table holds exactly the information you need and nothing else.\n\nWhen order does matter, say you want the *first* value that appears once, you still build the table, but\nyou answer by walking the original array again. The table tells you the counts and the array tells you\nthe order."
+    }
+   ]
+  },
+  {
+   "id": "signals",
+   "title": "When to reach for it",
+   "blocks": [
+    {
+     "md": "The giveaway is a problem that's about *how often* something happens rather than *where*. Here are the\nphrasings you'll keep running into:"
+    },
+    {
+     "table": {
+      "head": [
+       "If the problem says…",
+       "count this",
+       "and then"
+      ],
+      "rows": [
+       [
+        "any duplicate / all distinct",
+        "each value (or just whether you've seen it)",
+        "stop at the first repeat"
+       ],
+       [
+        "most / least frequent, top k, majority",
+        "each value",
+        "pick the entries with the biggest counts"
+       ],
+       [
+        "anagram, rearrangement, permutation",
+        "each character, in both strings",
+        "check the counts match"
+       ],
+       [
+        "can A be made from B",
+        "what B has to offer",
+        "use it up while walking A; fail if anything runs out"
+       ],
+       [
+        "first / last unique, appears exactly k times",
+        "each value",
+        "walk the input again in order"
+       ],
+       [
+        "number of equal pairs",
+        "each value as you go",
+        "add the count before bumping it"
+       ]
+      ]
+     }
+    },
+    {
+     "md": "A quick test I like: imagine shuffling the input. If the answer wouldn't change (apart from maybe a\ntie-break), counting is almost certainly part of the solution.\n\nIt's the wrong tool when position is the whole point. \"Is `abc` a subsequence of `aXbYc`?\" depends on\norder, and a count table can't see order, so that one's two pointers. If you need counts for every window\nof a moving range, you'll still count, but you'll update the table as the window slides instead of\nstarting over (that's the Sliding Window topic). And sometimes sorting the array and reading off runs of\nequal values is simpler and needs no extra memory at all."
+    }
+   ]
+  },
+  {
+   "id": "theory",
+   "title": "How the table works",
+   "blocks": [
+    {
+     "md": "Every counting solution makes one choice up front: what is the table? You've got two options, and it's\nworth understanding both, because they fail in different ways.\n\n### Option 1: a plain array\n\nIf the values are small whole numbers in a known range, use an array and let the value be the index. For\nlowercase letters, `ch - 'a'` turns `'a'..'z'` into `0..25`, so 26 slots cover everything. Ratings from 1\nto 5 fit in 5 (or 6) slots. Every update is one memory access, guaranteed. No hashing, no surprises.\n\nThe catch is the range. An array of 26 is free. An array big enough for values up to a billion is not. And\nif values can be negative you need to shift them first (`count[v - lowest]`), or you'll index outside the\narray.\n\n### Option 2: a hash map\n\nWhen values are huge, negative, or not numbers at all (words, pairs), you want a hash map. It only stores\nthe keys that actually show up. Underneath, though, it's still an array of slots. A **hash function** turns\neach key into a number, and that number (mod the number of slots) says which slot the key should live in.\n\nTwo different keys can want the same slot. That's a **collision**, and one common fix is to just walk\nforward to the next free slot. This is called linear probing, and it's what Python's dict does (in a\nfancier form) and what our C code below does. Step through it:"
+    },
+    {
+     "walk": {
+      "steps": [
+       {
+        "text": "Eight empty slots. Each key's home slot is `key mod 8`.",
+        "panels": [
+         {
+          "type": "row",
+          "cells": [
+           null,
+           null,
+           null,
+           null,
+           null,
+           null,
+           null,
+           null
+          ],
+          "label": "slots",
+          "slots": true
+         }
+        ]
+       },
+       {
+        "text": "12 mod 8 = 4. Slot 4 is free, so 12 goes straight in.",
+        "panels": [
+         {
+          "type": "row",
+          "cells": [
+           null,
+           null,
+           null,
+           null,
+           12,
+           null,
+           null,
+           null
+          ],
+          "states": {
+           "4": "new"
+          },
+          "pointers": {
+           "home": 4
+          },
+          "label": "slots",
+          "slots": true
+         }
+        ]
+       },
+       {
+        "text": "5 mod 8 = 5. Slot 5 is free, so 5 goes straight in.",
+        "panels": [
+         {
+          "type": "row",
+          "cells": [
+           null,
+           null,
+           null,
+           null,
+           12,
+           5,
+           null,
+           null
+          ],
+          "states": {
+           "5": "new"
+          },
+          "pointers": {
+           "home": 5
+          },
+          "label": "slots",
+          "slots": true
+         }
+        ]
+       },
+       {
+        "text": "20 mod 8 = 4, but slot 4 is taken, and so is 5. It walks forward and settles in slot 6.",
+        "panels": [
+         {
+          "type": "row",
+          "cells": [
+           null,
+           null,
+           null,
+           null,
+           12,
+           5,
+           20,
+           null
+          ],
+          "states": {
+           "4": "dim",
+           "5": "dim",
+           "6": "new"
+          },
+          "pointers": {
+           "home": 4
+          },
+          "label": "slots",
+          "slots": true
+         }
+        ]
+       },
+       {
+        "text": "13 mod 8 = 5, but slot 5 is taken, and so is 6. It walks forward and settles in slot 7.",
+        "panels": [
+         {
+          "type": "row",
+          "cells": [
+           null,
+           null,
+           null,
+           null,
+           12,
+           5,
+           20,
+           13
+          ],
+          "states": {
+           "5": "dim",
+           "6": "dim",
+           "7": "new"
+          },
+          "pointers": {
+           "home": 5
+          },
+          "label": "slots",
+          "slots": true
+         }
+        ]
+       },
+       {
+        "text": "Looking up 13 later follows the same path: start at slot 5, step past 5 and 20, find 13 in slot 7. Looking up 4 would start at slot 4 and keep walking until it hits an empty slot, which tells us 4 isn't there.",
+        "panels": [
+         {
+          "type": "row",
+          "cells": [
+           null,
+           null,
+           null,
+           null,
+           12,
+           5,
+           20,
+           13
+          ],
+          "states": {
+           "5": "dim",
+           "6": "dim",
+           "7": "found"
+          },
+          "pointers": {
+           "home": 5
+          },
+          "label": "slots",
+          "slots": true
+         }
+        ]
+       }
+      ],
+      "title": "Inserting `12, 5, 20, 13` into 8 slots, using the toy hash `key mod 8`."
+     }
+    },
+    {
+     "table": {
+      "head": [
+       "key",
+       "home slot",
+       "already taken",
+       "ends up in"
+      ],
+      "rows": [
+       [
+        "12",
+        "12 mod 8 = 4",
+        "none",
+        "4"
+       ],
+       [
+        "5",
+        "5 mod 8 = 5",
+        "none",
+        "5"
+       ],
+       [
+        "20",
+        "20 mod 8 = 4",
+        "4, 5",
+        "6"
+       ],
+       [
+        "13",
+        "13 mod 8 = 5",
+        "5, 6",
+        "7"
+       ]
+      ]
+     }
+    },
+    {
+     "md": "The table can't be allowed to fill up, or those walks get long. So it tracks how full it is (the **load\nfactor**, keys divided by slots) and when that passes a limit it doubles in size and re-inserts everything.\nJava's HashMap does this at 75% full, Python's dict at about two thirds, C++'s `unordered_map` at 100% by\ndefault.\n\n### So is it really O(1)?\n\nOn average, yes. With a decent hash function and the table kept from getting too full, a lookup touches a\nsmall, constant number of slots. That's what people mean by \"O(1) expected\".\n\nTwo caveats are worth knowing, because interviewers like asking about them. First, the worst case is bad: if\nlots of keys land on the same slot, a lookup can walk past all of them, which is O(n). That can happen by\nbad luck, or on purpose if someone builds inputs against a known hash function. (Java switches long chains\ninto trees to soften this; C++ doesn't.) Second, the doubling is expensive when it happens, because every\nkey moves. But it happens at sizes 8, 16, 32, 64… and all those moves add up to less than twice the final\nsize. Spread over every insertion, that's still O(1) each. This is called **amortised** cost.\n\nOne more thing a hash map doesn't give you is order. Iterating over it visits keys in whatever order the\nslots happen to be in. Python's dict remembers insertion order as a bonus; Java's HashMap and C++'s\n`unordered_map` don't. If your answer needs an order, sort the entries or walk the original array."
+    },
+    {
+     "table": {
+      "head": [
+       "",
+       "Plain array",
+       "Hash map"
+      ],
+      "rows": [
+       [
+        "Works for",
+        "small whole numbers in a known range",
+        "anything you can hash"
+       ],
+       [
+        "Each update",
+        "O(1), always",
+        "O(1) on average, O(n) worst case"
+       ],
+       [
+        "Memory",
+        "one slot per possible value",
+        "roughly one slot per value that appears"
+       ],
+       [
+        "Order",
+        "by value, for free",
+        "none you can rely on"
+       ],
+       [
+        "Good for",
+        "letters, digits, small ids",
+        "big or negative numbers, strings, tuples"
+       ]
+      ]
+     }
+    },
+    {
+     "md": "### A fact you'll use a lot\n\nAfter the tally, the counts add up to `n`, the length of the input. That sounds obvious, but it's handy.\nSay two strings have the same length and you add 1 for every letter of the first and subtract 1 for every\nletter of the second. When you're done, the table adds up to zero. So if nothing ever went below zero,\nnothing can be above zero either, and every count is exactly zero. You'll see this used in the\n*same letters* code below, where it saves a final check."
+    }
+   ]
+  },
+  {
+   "id": "template",
+   "title": "The template",
+   "blocks": [
+    {
+     "md": "Almost every counting solution has the same two parts: build the table, then use it. Here's a small but\ncomplete example. It returns the first value in the list that appears exactly once, or `-1` if every value\nrepeats."
+    },
+    {
+     "code": {
+      "python": "def first_unique(nums):\n    count = {}\n    for x in nums:\n        count[x] = count.get(x, 0) + 1\n    for x in nums:\n        if count[x] == 1:\n            return x\n    return -1\n",
+      "java": "static int firstUnique(int[] nums) {\n    Map<Integer, Integer> count = new HashMap<>();\n    for (int x : nums) count.merge(x, 1, Integer::sum);\n    for (int x : nums) {\n        if (count.get(x) == 1) return x;\n    }\n    return -1;\n}\n",
+      "cpp": "int firstUnique(const vector<int>& nums) {\n    unordered_map<int, int> count;\n    count.reserve(nums.size() * 2);\n    for (int x : nums) count[x]++;\n    for (int x : nums) {\n        if (count[x] == 1) return x;\n    }\n    return -1;\n}\n",
+      "c": "typedef struct {\n    int *keys, *counts;\n    bool *used;\n    size_t mask;\n} CountMap;\n\nCountMap cm_new(size_t n) {\n    size_t cap = 16;\n    while (cap < 2 * n) cap <<= 1;\n    CountMap m;\n    m.keys = malloc(cap * sizeof(int));\n    m.counts = calloc(cap, sizeof(int));\n    m.used = calloc(cap, sizeof(bool));\n    m.mask = cap - 1;\n    return m;\n}\n\nstatic size_t cm_slot(const CountMap* m, int key) {\n    size_t i = ((uint32_t)key * 2654435761u) & m->mask;\n    while (m->used[i] && m->keys[i] != key) i = (i + 1) & m->mask;\n    return i;\n}\n\nvoid cm_add(CountMap* m, int key) {\n    size_t i = cm_slot(m, key);\n    m->used[i] = true;\n    m->keys[i] = key;\n    m->counts[i]++;\n}\n\nint cm_get(const CountMap* m, int key) {\n    size_t i = cm_slot(m, key);\n    return m->used[i] ? m->counts[i] : 0;\n}\n\nint firstUnique(const int* nums, int n) {\n    CountMap count = cm_new(n);\n    for (int i = 0; i < n; i++) cm_add(&count, nums[i]);\n    int answer = -1;\n    for (int i = 0; i < n; i++) {\n        if (cm_get(&count, nums[i]) == 1) {\n            answer = nums[i];\n            break;\n        }\n    }\n    free(count.keys); free(count.counts); free(count.used);\n    return answer;\n}\n"
+     },
+     "title": "First value that appears once",
+     "lines": [
+      {
+       "text": "An empty table. The values can be any integers, so we use a hash map rather than an array.",
+       "at": {
+        "python": [
+         [
+          2,
+          2
+         ]
+        ],
+        "java": [
+         [
+          2,
+          2
+         ]
+        ],
+        "cpp": [
+         [
+          2,
+          2
+         ]
+        ],
+        "c": [
+         [
+          37,
+          37
+         ]
+        ]
+       },
+       "notes": {
+        "c": "C doesn't come with a hash map, so `cm_new` (above) builds a small one: an array of slots at least twice as big as the input, so it never gets more than half full."
+       }
+      },
+      {
+       "text": "This tells the map how big it'll get, so it doesn't have to stop and grow halfway through. Nice to have, not required.",
+       "at": {
+        "cpp": [
+         [
+          3,
+          3
+         ]
+        ]
+       }
+      },
+      {
+       "text": "The first pass. Each value bumps its own count, starting from 0 the first time we see it.",
+       "at": {
+        "python": [
+         [
+          3,
+          4
+         ]
+        ],
+        "java": [
+         [
+          3,
+          3
+         ]
+        ],
+        "cpp": [
+         [
+          4,
+          4
+         ]
+        ],
+        "c": [
+         [
+          38,
+          38
+         ]
+        ]
+       },
+       "notes": {
+        "python": "`count.get(x, 0)` gives 0 for a key that isn't there yet, so new and old keys are handled the same way.",
+        "java": "`merge(x, 1, Integer::sum)` stores 1 for a new key and adds 1 to an existing one.",
+        "cpp": "`count[x]` quietly creates `x` with a value of 0 if it's missing, then `++` makes it 1. Convenient here, but watch out when you only want to read (see *Pitfalls*).",
+        "c": "`cm_add` finds the key's slot, or the empty slot where it should go, marks it used and bumps its count."
+       }
+      },
+      {
+       "text": "The second pass goes over the original array, not the table. The table doesn't know the order things came in; the array does.",
+       "at": {
+        "python": [
+         [
+          5,
+          5
+         ]
+        ],
+        "java": [
+         [
+          4,
+          4
+         ]
+        ],
+        "cpp": [
+         [
+          5,
+          5
+         ]
+        ],
+        "c": [
+         [
+          40,
+          40
+         ]
+        ]
+       }
+      },
+      {
+       "text": "The first value with a count of 1 is the answer. Everything before it had a count of 2 or more.",
+       "at": {
+        "python": [
+         [
+          6,
+          7
+         ]
+        ],
+        "java": [
+         [
+          5,
+          5
+         ]
+        ],
+        "cpp": [
+         [
+          6,
+          6
+         ]
+        ],
+        "c": [
+         [
+          41,
+          43
+         ]
+        ]
+       }
+      },
+      {
+       "text": "Nothing appeared exactly once. Returning `-1` only works if real values can't be `-1`; otherwise return something like `None` or a flag.",
+       "at": {
+        "python": [
+         [
+          8,
+          8
+         ]
+        ],
+        "java": [
+         [
+          7,
+          7
+         ]
+        ],
+        "cpp": [
+         [
+          8,
+          8
+         ]
+        ],
+        "c": [
+         [
+          39,
+          39
+         ],
+         [
+          47,
+          47
+         ]
+        ]
+       }
+      },
+      {
+       "text": "The table's storage: keys and counts side by side, a `used` flag for each slot, and a `mask`. The slot count is a power of two, so `& mask` does the same job as `% size`, only faster.",
+       "at": {
+        "c": [
+         [
+          5,
+          5
+         ]
+        ]
+       }
+      },
+      {
+       "text": "Pick a power of two that's at least twice the number of values, so the table stays at most half full and probe walks stay short.",
+       "at": {
+        "c": [
+         [
+          8,
+          9
+         ]
+        ]
+       }
+      },
+      {
+       "text": "`calloc` starts the counts and `used` flags at zero. The keys don't need zeroing, because we only read a slot's key after checking that it's used.",
+       "at": {
+        "c": [
+         [
+          11,
+          14
+         ]
+        ]
+       }
+      },
+      {
+       "text": "Multiply by a big odd number and keep the low bits. This spreads nearby keys like 1, 2, 3 far apart in the table.",
+       "at": {
+        "c": [
+         [
+          19,
+          19
+         ]
+        ]
+       }
+      },
+      {
+       "text": "Walk forward until we find the key or hit an empty slot. If we hit an empty slot, that's where the key would go, so the same walk works for both looking up and inserting.",
+       "at": {
+        "c": [
+         [
+          20,
+          20
+         ]
+        ]
+       }
+      },
+      {
+       "text": "Find the slot, claim it, write the key, bump the count.",
+       "at": {
+        "c": [
+         [
+          25,
+          28
+         ]
+        ]
+       }
+      },
+      {
+       "text": "A key that was never added ends at an empty slot, so its count is 0.",
+       "at": {
+        "c": [
+         [
+          32,
+          33
+         ]
+        ]
+       }
+      },
+      {
+       "text": "In C you give memory back yourself.",
+       "at": {
+        "c": [
+         [
+          46,
+          46
+         ]
+        ]
+       }
+      }
+     ],
+     "run": {
+      "call": "first_unique([4, 7, 4, 9, 7, 2]); first_unique([5, 5])",
+      "output": "9\n-1"
+     }
+    },
+    {
+     "md": "If you remember one shape from this lesson, make it those two loops. Most counting problems only change\nwhat the second loop does: compare two tables, find the biggest count, or stop as soon as something runs\nout."
+    }
+   ]
+  },
+  {
+   "id": "trace",
+   "title": "Trace it by hand",
+   "blocks": [
+    {
+     "md": "Here's `first_unique([4, 7, 4, 9, 7, 2])` one step at a time. Watch the bars grow during the first pass. Then notice\nthat the second pass never counts anything. It just reads the bar."
+    },
+    {
+     "walk": {
+      "steps": [
+       {
+        "text": "Nothing counted yet. The table is empty.",
+        "panels": [
+         {
+          "type": "row",
+          "cells": [
+           4,
+           7,
+           4,
+           9,
+           7,
+           2
+          ],
+          "slots": true
+         },
+         {
+          "type": "bars",
+          "values": [
+           0,
+           0,
+           0,
+           0
+          ],
+          "labels": [
+           "4",
+           "7",
+           "9",
+           "2"
+          ],
+          "label": "count",
+          "max": 2
+         }
+        ]
+       },
+       {
+        "text": "Index 0 holds 4. We haven't met 4 before, so it goes in with a count of 1.",
+        "panels": [
+         {
+          "type": "row",
+          "cells": [
+           4,
+           7,
+           4,
+           9,
+           7,
+           2
+          ],
+          "states": {
+           "0": "active"
+          },
+          "pointers": {
+           "x": 0
+          },
+          "slots": true
+         },
+         {
+          "type": "bars",
+          "values": [
+           1,
+           0,
+           0,
+           0
+          ],
+          "labels": [
+           "4",
+           "7",
+           "9",
+           "2"
+          ],
+          "states": {
+           "0": "new"
+          },
+          "label": "count",
+          "max": 2
+         }
+        ]
+       },
+       {
+        "text": "Index 1 holds 7. We haven't met 7 before, so it goes in with a count of 1.",
+        "panels": [
+         {
+          "type": "row",
+          "cells": [
+           4,
+           7,
+           4,
+           9,
+           7,
+           2
+          ],
+          "states": {
+           "1": "active"
+          },
+          "pointers": {
+           "x": 1
+          },
+          "slots": true
+         },
+         {
+          "type": "bars",
+          "values": [
+           1,
+           1,
+           0,
+           0
+          ],
+          "labels": [
+           "4",
+           "7",
+           "9",
+           "2"
+          ],
+          "states": {
+           "1": "new"
+          },
+          "label": "count",
+          "max": 2
+         }
+        ]
+       },
+       {
+        "text": "Index 2 holds 4. We've met 4 before. Its count goes up to 2.",
+        "panels": [
+         {
+          "type": "row",
+          "cells": [
+           4,
+           7,
+           4,
+           9,
+           7,
+           2
+          ],
+          "states": {
+           "2": "active"
+          },
+          "pointers": {
+           "x": 2
+          },
+          "slots": true
+         },
+         {
+          "type": "bars",
+          "values": [
+           2,
+           1,
+           0,
+           0
+          ],
+          "labels": [
+           "4",
+           "7",
+           "9",
+           "2"
+          ],
+          "states": {
+           "0": "new"
+          },
+          "label": "count",
+          "max": 2
+         }
+        ]
+       },
+       {
+        "text": "Index 3 holds 9. We haven't met 9 before, so it goes in with a count of 1.",
+        "panels": [
+         {
+          "type": "row",
+          "cells": [
+           4,
+           7,
+           4,
+           9,
+           7,
+           2
+          ],
+          "states": {
+           "3": "active"
+          },
+          "pointers": {
+           "x": 3
+          },
+          "slots": true
+         },
+         {
+          "type": "bars",
+          "values": [
+           2,
+           1,
+           1,
+           0
+          ],
+          "labels": [
+           "4",
+           "7",
+           "9",
+           "2"
+          ],
+          "states": {
+           "2": "new"
+          },
+          "label": "count",
+          "max": 2
+         }
+        ]
+       },
+       {
+        "text": "Index 4 holds 7. We've met 7 before. Its count goes up to 2.",
+        "panels": [
+         {
+          "type": "row",
+          "cells": [
+           4,
+           7,
+           4,
+           9,
+           7,
+           2
+          ],
+          "states": {
+           "4": "active"
+          },
+          "pointers": {
+           "x": 4
+          },
+          "slots": true
+         },
+         {
+          "type": "bars",
+          "values": [
+           2,
+           2,
+           1,
+           0
+          ],
+          "labels": [
+           "4",
+           "7",
+           "9",
+           "2"
+          ],
+          "states": {
+           "1": "new"
+          },
+          "label": "count",
+          "max": 2
+         }
+        ]
+       },
+       {
+        "text": "Index 5 holds 2. We haven't met 2 before, so it goes in with a count of 1.",
+        "panels": [
+         {
+          "type": "row",
+          "cells": [
+           4,
+           7,
+           4,
+           9,
+           7,
+           2
+          ],
+          "states": {
+           "5": "active"
+          },
+          "pointers": {
+           "x": 5
+          },
+          "slots": true
+         },
+         {
+          "type": "bars",
+          "values": [
+           2,
+           2,
+           1,
+           1
+          ],
+          "labels": [
+           "4",
+           "7",
+           "9",
+           "2"
+          ],
+          "states": {
+           "3": "new"
+          },
+          "label": "count",
+          "max": 2
+         }
+        ]
+       },
+       {
+        "text": "Second pass, index 0: 4 has a count of 2, so it repeats somewhere. Move on.",
+        "panels": [
+         {
+          "type": "row",
+          "cells": [
+           4,
+           7,
+           4,
+           9,
+           7,
+           2
+          ],
+          "states": {
+           "0": "active"
+          },
+          "pointers": {
+           "x": 0
+          },
+          "slots": true
+         },
+         {
+          "type": "bars",
+          "values": [
+           2,
+           2,
+           1,
+           1
+          ],
+          "labels": [
+           "4",
+           "7",
+           "9",
+           "2"
+          ],
+          "states": {
+           "0": "active"
+          },
+          "label": "count",
+          "max": 2
+         }
+        ]
+       },
+       {
+        "text": "Second pass, index 1: 7 has a count of 2, so it repeats somewhere. Move on.",
+        "panels": [
+         {
+          "type": "row",
+          "cells": [
+           4,
+           7,
+           4,
+           9,
+           7,
+           2
+          ],
+          "states": {
+           "0": "dim",
+           "1": "active"
+          },
+          "pointers": {
+           "x": 1
+          },
+          "slots": true
+         },
+         {
+          "type": "bars",
+          "values": [
+           2,
+           2,
+           1,
+           1
+          ],
+          "labels": [
+           "4",
+           "7",
+           "9",
+           "2"
+          ],
+          "states": {
+           "1": "active"
+          },
+          "label": "count",
+          "max": 2
+         }
+        ]
+       },
+       {
+        "text": "Second pass, index 2: 4 has a count of 2, so it repeats somewhere. Move on.",
+        "panels": [
+         {
+          "type": "row",
+          "cells": [
+           4,
+           7,
+           4,
+           9,
+           7,
+           2
+          ],
+          "states": {
+           "0": "dim",
+           "1": "dim",
+           "2": "active"
+          },
+          "pointers": {
+           "x": 2
+          },
+          "slots": true
+         },
+         {
+          "type": "bars",
+          "values": [
+           2,
+           2,
+           1,
+           1
+          ],
+          "labels": [
+           "4",
+           "7",
+           "9",
+           "2"
+          ],
+          "states": {
+           "0": "active"
+          },
+          "label": "count",
+          "max": 2
+         }
+        ]
+       },
+       {
+        "text": "Second pass, index 3: 9 has a count of 1. Nothing before it qualified, so 9 is our answer.",
+        "panels": [
+         {
+          "type": "row",
+          "cells": [
+           4,
+           7,
+           4,
+           9,
+           7,
+           2
+          ],
+          "states": {
+           "0": "dim",
+           "1": "dim",
+           "2": "dim",
+           "3": "answer"
+          },
+          "pointers": {
+           "x": 3
+          },
+          "slots": true
+         },
+         {
+          "type": "bars",
+          "values": [
+           2,
+           2,
+           1,
+           1
+          ],
+          "labels": [
+           "4",
+           "7",
+           "9",
+           "2"
+          ],
+          "states": {
+           "2": "answer"
+          },
+          "label": "count",
+          "max": 2
+         }
+        ],
+        "result": "9"
+       }
+      ],
+      "title": "`first_unique([4, 7, 4, 9, 7, 2])`. First we tally, then we walk the list again with the counts in hand."
+     }
+    },
+    {
+     "md": "The same first pass written out as a table:"
+    },
+    {
+     "table": {
+      "head": [
+       "i",
+       "x",
+       "count before",
+       "count after",
+       "table so far"
+      ],
+      "rows": [
+       [
+        "0",
+        "4",
+        "0",
+        "1",
+        "{4: 1}"
+       ],
+       [
+        "1",
+        "7",
+        "0",
+        "1",
+        "{4: 1, 7: 1}"
+       ],
+       [
+        "2",
+        "4",
+        "1",
+        "2",
+        "{4: 2, 7: 1}"
+       ],
+       [
+        "3",
+        "9",
+        "0",
+        "1",
+        "{4: 2, 7: 1, 9: 1}"
+       ],
+       [
+        "4",
+        "7",
+        "1",
+        "2",
+        "{4: 2, 7: 2, 9: 1}"
+       ],
+       [
+        "5",
+        "2",
+        "0",
+        "1",
+        "{4: 2, 7: 2, 9: 1, 2: 1}"
+       ]
+      ]
+     }
+    },
+    {
+     "md": "In the second pass, 4 has a count of 2 (skip), 7 has 2 (skip), and 9 has 1, so\nthe answer is **9**. The 2 at the end also appears once, but it comes later. The table alone\ncouldn't have told us which of the two comes first, which is exactly why the second pass walks the array."
+    }
+   ]
+  },
+  {
+   "id": "examples",
+   "title": "More examples",
+   "blocks": [
+    {
+     "md": "### Is `\"study\"` a rearrangement of `\"dusty\"`?\n\nSame length, so it's possible. Add 1 for each letter of `\"dusty\"`, then take 1 away for each letter of\n`\"study\"`. If they hold the same letters, everything cancels:"
+    },
+    {
+     "panels": [
+      {
+       "type": "bars",
+       "values": [
+        1,
+        1,
+        1,
+        1,
+        1
+       ],
+       "labels": [
+        "d",
+        "s",
+        "t",
+        "u",
+        "y"
+       ],
+       "label": "after \"dusty\"",
+       "height": 48
+      },
+      {
+       "type": "bars",
+       "values": [
+        0,
+        0,
+        0,
+        0,
+        0
+       ],
+       "labels": [
+        "d",
+        "s",
+        "t",
+        "u",
+        "y"
+       ],
+       "label": "after \"study\"",
+       "height": 48
+      }
+     ],
+     "caption": "Every letter of the first word went up by one, and the second word took each one back down. All zeros: yes."
+    },
+    {
+     "md": "Now try `\"aab\"` and `\"abb\"`. After the first word, `a` is at 2 and `b` is at 1. The second word takes\n`a` down to 1, then `b` to 0, then wants another `b`, and the count drops to -1. We can stop right there:\nthe second word uses `b` more often than the first one has it.\n\n### What's the most common rating?\n\nThe ratings are `[4, 5, 4, 3, 5, 4, 2, 4, 5]`. Ratings only go from 1 to 5, so an array of five counters does the job:"
+    },
+    {
+     "panels": [
+      {
+       "type": "bars",
+       "values": [
+        0,
+        1,
+        1,
+        4,
+        3
+       ],
+       "labels": [
+        "1",
+        "2",
+        "3",
+        "4",
+        "5"
+       ],
+       "states": {
+        "3": "answer"
+       },
+       "label": "how many of each rating"
+      }
+     ],
+     "caption": "Rating 4 shows up 4 times, more than any other."
+    },
+    {
+     "md": "If two ratings tied, you'd need a rule for which one wins (the problem will usually tell you, like \"the\nsmaller one\"). Write that rule into your comparison instead of hoping the table's order matches it.\n\n### Which value repeats first?\n\nIn `[3, 8, 1, 8, 3]`, which value is the first to show up a second time? You don't need counts at all here, just\n\"have I seen this before?\", so a set is enough. And you can stop as soon as you get a hit:"
+    },
+    {
+     "table": {
+      "head": [
+       "i",
+       "x",
+       "seen so far",
+       "what happens"
+      ],
+      "rows": [
+       [
+        "0",
+        "3",
+        "{ }",
+        "new: remember it"
+       ],
+       [
+        "1",
+        "8",
+        "{3}",
+        "new: remember it"
+       ],
+       [
+        "2",
+        "1",
+        "{3, 8}",
+        "new: remember it"
+       ],
+       [
+        "3",
+        "8",
+        "{3, 8, 1}",
+        "seen it: stop"
+       ]
+      ]
+     }
+    },
+    {
+     "md": "The answer is 8. Notice that 3 also repeats, and it appeared first, but its second copy comes\nlater. Reading the question carefully decides which loop you write."
+    }
+   ]
+  },
+  {
+   "id": "variations",
+   "title": "Variations",
+   "blocks": [
+    {
+     "md": "### Small alphabets: use an array\n\nWhen the values are lowercase letters, 26 counters beat a hash map. There's no hashing, nothing to\nallocate per key, and every step costs the same. Here's the rearrangement check from the examples, written\nwith a single table: up for each letter of `a`, down for each letter of `b`."
+    },
+    {
+     "code": {
+      "python": "def same_letters(a, b):\n    if len(a) != len(b):\n        return False\n    diff = [0] * 26\n    for ch in a:\n        diff[ord(ch) - ord('a')] += 1\n    for ch in b:\n        k = ord(ch) - ord('a')\n        diff[k] -= 1\n        if diff[k] < 0:\n            return False\n    return True\n",
+      "java": "static boolean sameLetters(String a, String b) {\n    if (a.length() != b.length()) return false;\n    int[] diff = new int[26];\n    for (char ch : a.toCharArray()) diff[ch - 'a']++;\n    for (char ch : b.toCharArray()) {\n        if (--diff[ch - 'a'] < 0) return false;\n    }\n    return true;\n}\n",
+      "cpp": "bool sameLetters(const string& a, const string& b) {\n    if (a.size() != b.size()) return false;\n    int diff[26] = {0};\n    for (char ch : a) diff[ch - 'a']++;\n    for (char ch : b) {\n        if (--diff[ch - 'a'] < 0) return false;\n    }\n    return true;\n}\n",
+      "c": "bool sameLetters(const char* a, const char* b) {\n    if (strlen(a) != strlen(b)) return false;\n    int diff[26] = {0};\n    for (const char* p = a; *p; p++) diff[*p - 'a']++;\n    for (const char* p = b; *p; p++) {\n        if (--diff[*p - 'a'] < 0) return false;\n    }\n    return true;\n}\n"
+     },
+     "title": "Same letters, different order",
+     "lines": [
+      {
+       "text": "If the lengths differ, one string has a letter the other doesn't. This check also makes the early exit below safe, for the reason in *How the table works*.",
+       "at": {
+        "python": [
+         [
+          2,
+          3
+         ]
+        ],
+        "java": [
+         [
+          2,
+          2
+         ]
+        ],
+        "cpp": [
+         [
+          2,
+          2
+         ]
+        ],
+        "c": [
+         [
+          2,
+          2
+         ]
+        ]
+       }
+      },
+      {
+       "text": "26 counters, one for each letter, all starting at 0.",
+       "at": {
+        "python": [
+         [
+          4,
+          4
+         ]
+        ],
+        "java": [
+         [
+          3,
+          3
+         ]
+        ],
+        "cpp": [
+         [
+          3,
+          3
+         ]
+        ],
+        "c": [
+         [
+          3,
+          3
+         ]
+        ]
+       }
+      },
+      {
+       "text": "Count every letter of `a`.",
+       "at": {
+        "python": [
+         [
+          5,
+          6
+         ]
+        ],
+        "java": [
+         [
+          4,
+          4
+         ]
+        ],
+        "cpp": [
+         [
+          4,
+          4
+         ]
+        ],
+        "c": [
+         [
+          4,
+          4
+         ]
+        ]
+       }
+      },
+      {
+       "text": "Use those letters up while reading `b`.",
+       "at": {
+        "python": [
+         [
+          7,
+          9
+         ]
+        ],
+        "java": [
+         [
+          5,
+          5
+         ]
+        ],
+        "cpp": [
+         [
+          5,
+          5
+         ]
+        ],
+        "c": [
+         [
+          5,
+          5
+         ]
+        ]
+       }
+      },
+      {
+       "text": "If a count drops below zero, `b` used some letter more times than `a` had it. We can stop right away.",
+       "at": {
+        "python": [
+         [
+          10,
+          11
+         ]
+        ],
+        "java": [
+         [
+          6,
+          6
+         ]
+        ],
+        "cpp": [
+         [
+          6,
+          6
+         ]
+        ],
+        "c": [
+         [
+          6,
+          6
+         ]
+        ]
+       }
+      },
+      {
+       "text": "Same length and nothing went negative. The counts add up to zero and none is negative, so they're all zero, which means the letters match exactly.",
+       "at": {
+        "python": [
+         [
+          12,
+          12
+         ]
+        ],
+        "java": [
+         [
+          8,
+          8
+         ]
+        ],
+        "cpp": [
+         [
+          8,
+          8
+         ]
+        ],
+        "c": [
+         [
+          8,
+          8
+         ]
+        ]
+       }
+      }
+     ],
+     "run": {
+      "call": "same_letters(\"listen\", \"silent\"), (\"table\", \"bleat\"), (\"loop\", \"polo\"), (\"eel\", \"lee\"), (\"seen\", \"sene\"), (\"aab\", \"abb\")",
+      "output": "true\ntrue\ntrue\ntrue\ntrue\nfalse"
+     }
+    },
+    {
+     "md": "### Counting as you go: pairs of equal values\n\nHow many pairs of positions `i < j` hold the same value? One way is to count everything first and then use\na bit of maths: a value that appears `c` times can be paired up in `c × (c - 1) / 2` ways. There's a neater\nway that does it in the same pass, and you'll see it again in the next two lessons:\n\n> When you reach `x`, every earlier copy of `x` makes a new pair with it. So add `seen[x]` to the answer\n> first, and only then add 1 to `seen[x]`.\n\nThose two lines have to be in that order. Read first, and `x` only pairs with copies that came before it,\nso each pair is counted once and nothing pairs with itself. Swap them, and every element also pairs with\nitself, so you'd be off by `n`."
+    },
+    {
+     "walk": {
+      "steps": [
+       {
+        "text": "No values seen yet, no pairs yet.",
+        "panels": [
+         {
+          "type": "row",
+          "cells": [
+           3,
+           1,
+           3,
+           3,
+           1
+          ],
+          "slots": true
+         },
+         {
+          "type": "bars",
+          "values": [
+           0,
+           0
+          ],
+          "labels": [
+           "1",
+           "3"
+          ],
+          "label": "seen",
+          "max": 3
+         },
+         {
+          "type": "vars",
+          "items": {
+           "pairs:": "0"
+          }
+         }
+        ]
+       },
+       {
+        "text": "No earlier 3, so no new pairs. Then seen[3] becomes 1.",
+        "panels": [
+         {
+          "type": "row",
+          "cells": [
+           3,
+           1,
+           3,
+           3,
+           1
+          ],
+          "states": {
+           "0": "active"
+          },
+          "pointers": {
+           "x": 0
+          },
+          "slots": true
+         },
+         {
+          "type": "bars",
+          "values": [
+           0,
+           1
+          ],
+          "labels": [
+           "1",
+           "3"
+          ],
+          "states": {
+           "1": "new"
+          },
+          "label": "seen",
+          "max": 3
+         },
+         {
+          "type": "vars",
+          "items": {
+           "pairs:": "0"
+          }
+         }
+        ]
+       },
+       {
+        "text": "No earlier 1, so no new pairs. Then seen[1] becomes 1.",
+        "panels": [
+         {
+          "type": "row",
+          "cells": [
+           3,
+           1,
+           3,
+           3,
+           1
+          ],
+          "states": {
+           "1": "active"
+          },
+          "pointers": {
+           "x": 1
+          },
+          "slots": true
+         },
+         {
+          "type": "bars",
+          "values": [
+           1,
+           1
+          ],
+          "labels": [
+           "1",
+           "3"
+          ],
+          "states": {
+           "0": "new"
+          },
+          "label": "seen",
+          "max": 3
+         },
+         {
+          "type": "vars",
+          "items": {
+           "pairs:": "0"
+          }
+         }
+        ]
+       },
+       {
+        "text": "3 has 1 earlier copy (index 0), so it makes 1 new pair. Then seen[3] becomes 2.",
+        "panels": [
+         {
+          "type": "row",
+          "cells": [
+           3,
+           1,
+           3,
+           3,
+           1
+          ],
+          "states": {
+           "0": "found",
+           "2": "active"
+          },
+          "pointers": {
+           "x": 2
+          },
+          "slots": true
+         },
+         {
+          "type": "bars",
+          "values": [
+           1,
+           2
+          ],
+          "labels": [
+           "1",
+           "3"
+          ],
+          "states": {
+           "1": "new"
+          },
+          "label": "seen",
+          "max": 3
+         },
+         {
+          "type": "vars",
+          "items": {
+           "pairs:": "1"
+          }
+         }
+        ]
+       },
+       {
+        "text": "3 has 2 earlier copies (index 0, 2), so it makes 2 new pairs. Then seen[3] becomes 3.",
+        "panels": [
+         {
+          "type": "row",
+          "cells": [
+           3,
+           1,
+           3,
+           3,
+           1
+          ],
+          "states": {
+           "0": "found",
+           "2": "found",
+           "3": "active"
+          },
+          "pointers": {
+           "x": 3
+          },
+          "slots": true
+         },
+         {
+          "type": "bars",
+          "values": [
+           1,
+           3
+          ],
+          "labels": [
+           "1",
+           "3"
+          ],
+          "states": {
+           "1": "new"
+          },
+          "label": "seen",
+          "max": 3
+         },
+         {
+          "type": "vars",
+          "items": {
+           "pairs:": "3"
+          }
+         }
+        ]
+       },
+       {
+        "text": "1 has 1 earlier copy (index 1), so it makes 1 new pair. Then seen[1] becomes 2.",
+        "panels": [
+         {
+          "type": "row",
+          "cells": [
+           3,
+           1,
+           3,
+           3,
+           1
+          ],
+          "states": {
+           "1": "found",
+           "4": "active"
+          },
+          "pointers": {
+           "x": 4
+          },
+          "slots": true
+         },
+         {
+          "type": "bars",
+          "values": [
+           2,
+           3
+          ],
+          "labels": [
+           "1",
+           "3"
+          ],
+          "states": {
+           "0": "new"
+          },
+          "label": "seen",
+          "max": 3
+         },
+         {
+          "type": "vars",
+          "items": {
+           "pairs:": "4"
+          }
+         }
+        ]
+       }
+      ],
+      "title": "`equal_pairs([3, 1, 3, 3, 1])`: read how many copies came before, then add this one."
+     }
+    },
+    {
+     "code": {
+      "python": "def equal_pairs(nums):\n    seen = [0] * 101\n    pairs = 0\n    for x in nums:\n        pairs += seen[x]\n        seen[x] += 1\n    return pairs\n",
+      "java": "static long equalPairs(int[] nums) {\n    int[] seen = new int[101];\n    long pairs = 0;\n    for (int x : nums) {\n        pairs += seen[x];\n        seen[x]++;\n    }\n    return pairs;\n}\n",
+      "cpp": "long long equalPairs(const vector<int>& nums) {\n    int seen[101] = {0};\n    long long pairs = 0;\n    for (int x : nums) {\n        pairs += seen[x];\n        seen[x]++;\n    }\n    return pairs;\n}\n",
+      "c": "long long equalPairs(const int* nums, int n) {\n    int seen[101] = {0};\n    long long pairs = 0;\n    for (int i = 0; i < n; i++) {\n        pairs += seen[nums[i]];\n        seen[nums[i]]++;\n    }\n    return pairs;\n}\n"
+     },
+     "title": "Pairs of equal values (values 0..100)",
+     "lines": [
+      {
+       "text": "The values are between 0 and 100, so 101 counters are enough. The total gets a 64-bit type, because there can be a lot of pairs (look at the second example run).",
+       "at": {
+        "python": [
+         [
+          2,
+          3
+         ]
+        ],
+        "java": [
+         [
+          2,
+          3
+         ]
+        ],
+        "cpp": [
+         [
+          2,
+          3
+         ]
+        ],
+        "c": [
+         [
+          2,
+          3
+         ]
+        ]
+       }
+      },
+      {
+       "text": "One pass, left to right.",
+       "at": {
+        "python": [
+         [
+          4,
+          4
+         ]
+        ],
+        "java": [
+         [
+          4,
+          4
+         ]
+        ],
+        "cpp": [
+         [
+          4,
+          4
+         ]
+        ],
+        "c": [
+         [
+          4,
+          4
+         ]
+        ]
+       }
+      },
+      {
+       "text": "Read before you write. `seen[x]` copies of `x` came earlier, and each one pairs with this `x`.",
+       "at": {
+        "python": [
+         [
+          5,
+          5
+         ]
+        ],
+        "java": [
+         [
+          5,
+          5
+         ]
+        ],
+        "cpp": [
+         [
+          5,
+          5
+         ]
+        ],
+        "c": [
+         [
+          5,
+          5
+         ]
+        ]
+       }
+      },
+      {
+       "text": "Now count this copy too, so later copies can pair with it.",
+       "at": {
+        "python": [
+         [
+          6,
+          6
+         ]
+        ],
+        "java": [
+         [
+          6,
+          6
+         ]
+        ],
+        "cpp": [
+         [
+          6,
+          6
+         ]
+        ],
+        "c": [
+         [
+          6,
+          6
+         ]
+        ]
+       }
+      },
+      {
+       "text": "Every pair got counted exactly once, at the moment we reached its second element.",
+       "at": {
+        "python": [
+         [
+          7,
+          7
+         ]
+        ],
+        "java": [
+         [
+          8,
+          8
+         ]
+        ],
+        "cpp": [
+         [
+          8,
+          8
+         ]
+        ],
+        "c": [
+         [
+          8,
+          8
+         ]
+        ]
+       }
+      }
+     ],
+     "run": {
+      "call": "equal_pairs([3, 1, 3, 3, 1]); equal_pairs([7] * 100000)",
+      "output": "4\n4999950000"
+     }
+    },
+    {
+     "md": "The second run is 100,000 copies of the same number. That's 4,999,950,000 pairs, which doesn't fit in a 32-bit\n`int` (the limit is 2,147,483,647). That's why the total is a `long`.\n\n### Spending down: can A be paid for out of B?\n\nCount what you have, then walk through what you need and subtract. The first count that goes negative is\nthe thing you're short of. The rearrangement check above is exactly this, plus a length check. The same\nidea answers \"can I build this word from these tiles?\" or \"do these coins cover the bill?\".\n\n### Ranking by count: most common first, top k\n\nBuild the table, then put the distinct values in order of their counts. The simple way is to sort the\nentries by count (biggest first), breaking ties however the problem says. That costs O(n + d log d) for `d`\ndistinct values.\n\nThere's a cute trick when you want to avoid sorting. A count can only be between 1 and `n`, so make `n + 1`\nbuckets and drop each value into `bucket[count]`. Reading the buckets from the top down gives you values\nfrom most to least common in O(n). You still need the tie-break rule inside each bucket. And if you only\nneed the top few, a small heap that keeps the best `k` while you scan works well too.\n\n### Just \"seen or not\": a set\n\nFor \"is there a duplicate?\" or \"are all of these different?\", you don't need counts, only whether you've\nmet a value before. A set says that directly, uses less memory, and lets you stop at the first repeat,\nwhich on real data often means you barely scan anything."
+    }
+   ]
+  },
+  {
+   "id": "complexity",
+   "title": "What it costs",
+   "blocks": [
+    {
+     "md": "Let's say the input has `n` values, `d` of them distinct, and (for the array version) the values range over\n`R` possibilities.\n\nThe first pass does `n` updates. With an array each one is a single memory access, so that's O(n), plus\nO(R) to set the array up. With a hash map each update is O(1) on average, so O(n) on average overall, even\ncounting the occasional resize. The second pass is another O(n) over the array, or O(d) over the table.\nTwo passes are still O(n); constants don't change the big picture.\n\nMemory is O(R) for the array or O(d) for the map, and `d` can't be bigger than `n`.\n\nThe contrast with re-scanning is the whole reason this pattern exists. Comparing every pair of elements for\n`n = 100,000` is 4,999,950,000 comparisons. Counting is about 200,000 table operations."
+    },
+    {
+     "table": {
+      "head": [
+       "Method",
+       "Time",
+       "Extra space",
+       "Notes"
+      ],
+      "rows": [
+       [
+        "Re-scan for every element",
+        "O(n²)",
+        "O(1)",
+        "only for tiny inputs"
+       ],
+       [
+        "Sort, then count runs of equal values",
+        "O(n log n)",
+        "O(1) to O(n)",
+        "reorders the input"
+       ],
+       [
+        "Array tally (range R)",
+        "O(n + R)",
+        "O(R)",
+        "guaranteed speed"
+       ],
+       [
+        "Hash map tally",
+        "O(n) on average",
+        "O(d)",
+        "any kind of key"
+       ]
+      ]
+     }
+    }
+   ]
+  },
+  {
+   "id": "languages",
+   "title": "In your language",
+   "blocks": [
+    {
+     "md": "### Python\n\n`count[x] = count.get(x, 0) + 1` works everywhere. `collections.Counter(nums)` does the whole tally in one\ncall and returns 0 for keys it hasn't seen instead of raising an error. `Counter.most_common(k)` hands you\nthe top `k`, but its ties come out in first-seen order, so don't lean on it if the problem has its own\ntie-break rule. Also, `Counter` subtraction (`a - b`) quietly throws away anything that drops to zero or\nbelow, which is great for \"what's left over\" and wrong for \"did anything run out\". For letters in a tight\nloop, `[0] * 26` with `ord(ch) - ord('a')` is faster than a dict.\n\n### Java\n\n`map.merge(x, 1, Integer::sum)` or `map.put(x, map.getOrDefault(x, 0) + 1)`. A `HashMap<Integer, Integer>`\nwraps every key and count in an object, so for small ranges a plain `int[]` is much faster and smaller.\nWatch out for comparing two `Integer`s with `==`: it compares the objects, not the numbers, and only\nhappens to work for values between -128 and 127. Use `.equals`, or compare with an `int` so Java unboxes\nit, like the template does. If you need keys in sorted order, `TreeMap` keeps them that way at O(log n)\nper operation.\n\n### C++\n\n`count[x]++` on an `unordered_map` creates `x` at 0 if it's missing, then increments. That's handy for\ncounting and a trap for reading: `if (count[y] == 0)` silently adds `y` to the map. To look without\ntouching, use `count.find(y)` or `count.count(y)` (or `contains` in C++20). Call `reserve(n)` up front to\navoid rehashing. For letters, `int cnt[26] = {0};` or `array<int, 26>{}`.\n\n### C\n\nFor small ranges, `int cnt[26] = {0};` or `calloc(R, sizeof(int))` when the range is only known at run\ntime. For arbitrary integers there's no built-in map, so either use the little open-addressing table from\nthe template or sort with `qsort` and count runs of equal values. One gotcha: `char` can be signed, so\ncast to `unsigned char` before using it as an index if the input might contain bytes above 127."
+    }
+   ]
+  },
+  {
+   "id": "pitfalls",
+   "title": "Pitfalls and edge cases",
+   "blocks": [
+    {
+     "md": "Most bugs in counting code come from a handful of places:\n\n- `ch - 'a'` assumes lowercase letters. One capital letter, digit or space and you're indexing outside the\n  array. Check the constraints, or size the table for all 128 ASCII characters.\n- Negative values in an array table need shifting: `cnt[v - lowest]`.\n- Reading can create entries. C++'s `map[key]` (and Python's `defaultdict`) insert missing keys when you\n  read them. That can make the table grow, break a later size check, or change it while you're looping\n  over it.\n- Don't rely on the order a hash map gives you. When ties matter, sort with the rule the problem gives.\n- Pair counts get big fast. `c × (c - 1) / 2` for `c = 100,000` is about five billion, which needs 64 bits.\n- When comparing two separate tables, one can have a key the other doesn't. Compare sizes too, or use a\n  single table with +1 and -1 like the template does.\n- For \"is there a duplicate?\" or \"can we afford it?\", stop as soon as you know. Same worst case, much\n  faster on real inputs.\n- Try your code on an empty list and on a single element. One element has no duplicates and no pairs."
+    }
+   ]
+  },
+  {
+   "id": "check",
+   "title": "Check yourself",
+   "blocks": [
+    {
+     "quiz": [
+      {
+       "q": "The values are ids up to a billion, and you need to know whether any id repeats. Array or hash set?",
+       "a": "A hash set. An array would need a billion slots. A set only stores the ids that actually appear, each check is O(1) on average, and you can stop as soon as you see an id that's already in it."
+      },
+      {
+       "q": "Why can *same letters* return true without checking the table for leftover positive counts at the end?",
+       "a": "The strings have the same length, so after both loops the counts add up to zero. If none of them went negative, none can be positive either (it would need a negative somewhere to balance it). So they're all zero."
+      },
+      {
+       "q": "In *equal pairs*, what goes wrong if you swap the two lines inside the loop?",
+       "a": "Incrementing first means `seen[x]` already includes the current element, so every element pairs with itself once. The answer comes out `n` too big."
+      },
+      {
+       "q": "Why does the template's second pass walk `nums` instead of the table?",
+       "a": "We want the *first* unique value in the order of the input. The table knows counts but not positions, and a hash map won't give you its keys in input order."
+      },
+      {
+       "q": "People say a hash map lookup is O(1). What are they leaving out?",
+       "a": "That it's an average. It assumes a hash that spreads keys out and a table that resizes before it gets too full. A single lookup can be O(n) in a bad case, and a resize costs O(n) when it happens, though only O(1) per insertion when you average it out."
+      }
+     ]
+    }
+   ]
+  }
+ ]
+}

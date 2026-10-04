@@ -4,54 +4,68 @@
  "question": [
   {
    "md": "Each `record(price)` adds the next day and returns its streak: the number of consecutive days ending today\n(including today) with price **at most** today's.\n\n- **\"At most\" includes equal prices**: equal days extend the streak.\n- **The first day's streak is 1**, as is any day after a higher price.\n- **Up to 10⁵ calls**, so a call can't afford to look at every past day."
+  },
+  {
+   "md": "**Edge cases to keep in mind**\n\n- \"At most\" includes equal prices: an equal earlier price extends the streak.\n- The first day's streak is 1.\n- Up to 10⁵ calls, so each must be fast on average."
   }
  ],
  "think": [
   {
-   "md": "Prices recorded in order: `[7, 3, 4, 4, 8, 2, 9]`. The streaks returned are `[1, 1, 2, 3, 5, 1, 7]`. For example, `8` covers `7, 3, 4, 4, 8`\n(all at most 8): streak 5. `9` covers everything: 7.\n\nWhen `8` arrives, the days with 3, 4, 4 are now 'inside' its streak. Any future day that reaches back as far as\n`8` also passes them (they're lower), and a day that stops before `8` never gets there. So those days can be\nmerged into `8`'s entry: remember `8` together with the size of its streak. The entries that remain have\nstrictly falling prices from bottom to top: a stack."
+   "md": "**The monotonic stack idea.** Keep a stack of items that are still **waiting for an answer** (for example \"the next\nwarmer day\"). When a new item arrives, it answers every waiting item it beats; those are popped. Because each popped\nitem was beaten by the new one, the items left on the stack are always in sorted order (that's the \"monotonic\" part),\nso the new item only needs to look at the top.\n\n**Why it's O(n).** Every item is pushed once and popped at most once, so all the `while` loops together do at most\n`n` pops, even though a single step may pop many."
+  },
+  {
+   "md": "**Absorbing earlier days.** When today's price is at least an earlier day's price, today's streak covers that\nday **and everything that day's streak covered**. So once a day is covered, it never needs to be looked at again:\nstore `(price, streak)` pairs on a stack and fold covered days into today's streak. Recording `[7, 3, 4, 4, 8, 2, 9]`:"
   },
   {
    "table": {
     "head": [
-     "call",
      "price",
-     "streak"
+     "pairs absorbed",
+     "streak returned",
+     "stack after (price, streak)"
     ],
     "rows": [
      [
+      "7",
+      "—",
       "1",
-      "7",
-      "1"
+      "(7, 1)"
      ],
      [
+      "3",
+      "—",
+      "1",
+      "(7, 1) (3, 1)"
+     ],
+     [
+      "4",
+      "(3, 1)",
       "2",
+      "(7, 1) (4, 2)"
+     ],
+     [
+      "4",
+      "(4, 2)",
       "3",
-      "1"
+      "(7, 1) (4, 3)"
      ],
      [
-      "3",
-      "4",
-      "2"
-     ],
-     [
-      "4",
-      "4",
-      "3"
-     ],
-     [
-      "5",
       "8",
-      "5"
+      "(4, 3), (7, 1)",
+      "5",
+      "(8, 5)"
      ],
      [
-      "6",
       "2",
-      "1"
+      "—",
+      "1",
+      "(8, 5) (2, 1)"
      ],
      [
-      "7",
       "9",
-      "7"
+      "(2, 1), (8, 5)",
+      "7",
+      "(9, 7)"
      ]
     ]
    }
@@ -65,13 +79,13 @@
    "space": "O(n)",
    "idea": [
     {
-     "md": "Append each price to a list, then walk backwards from the end while prices are at most the new one. The number of steps is the streak."
+     "md": "Store every price; for each new price, walk backwards counting days until one is higher."
     }
    ],
    "build": [
-    "A list of all prices.",
-    "`record`: append, then count back from the end while `≤ price`.",
-    "Return the count."
+    "List of all prices.",
+    "Append today.",
+    "Count backwards until a higher price."
    ],
    "code": {
     "python": "class PriceStreak:\n    def __init__(self):\n        self.days = []\n\n    def record(self, price: int) -> int:\n        self.days.append(price)\n        streak = 0\n        for p in reversed(self.days):\n            if p > price:\n                break\n            streak += 1\n        return streak\n",
@@ -209,7 +223,7 @@
    ],
    "complexity": [
     {
-     "md": "**Time O(n) per call**, O(n²) in total for rising prices. **Space O(n).**"
+     "md": "**Time O(n)** per call in the worst case, O(n²) total. **Space O(n).**"
     }
    ],
    "walk": {
@@ -433,7 +447,7 @@
    },
    "limits": [
     {
-     "md": "Rising prices make every call walk the whole history: ~5 × 10⁹ steps for 10⁵ calls. Days already inside a later, higher streak never need to be walked again; merge them."
+     "md": "Rising prices make every call walk the whole history. Absorbed days never need to be walked again."
     }
    ],
    "slow": true
@@ -445,13 +459,13 @@
    "space": "O(n)",
    "idea": [
     {
-     "md": "Keep pairs `(price, streak)` with strictly falling prices from bottom to top. `record(price)`: start with streak 1; while the top's price is `≤ price`, pop it and add its streak. Push `(price, streak)` and return the streak."
+     "md": "Keep a stack of `(price, streak)`. For a new price, start at 1 and pop every pair with price `≤` today's,\nadding its streak. Push `(price, streak)` and return the streak.\n\n**Invariant.** Prices on the stack strictly decrease from bottom to top, and each pair's streak counts the\ndays it absorbed."
     }
    ],
    "build": [
-    "An empty stack of pairs.",
-    "`record`: streak = 1; pop and absorb every top pair with price ≤ today's.",
-    "Push today's pair; return the streak."
+    "Empty stack.",
+    "Pop and add streaks of pairs with price ≤ today's.",
+    "Push today's pair."
    ],
    "code": {
     "python": "class PriceStreak:\n    def __init__(self):\n        self.stack = []\n\n    def record(self, price: int) -> int:\n        streak = 1\n        while self.stack and self.stack[-1][0] <= price:\n            streak += self.stack.pop()[1]\n        self.stack.append((price, streak))\n        return streak\n",
@@ -580,7 +594,7 @@
    ],
    "complexity": [
     {
-     "md": "**Time O(1) amortised per call:** each day's pair is pushed once and popped at most once over all calls. **Space O(n)** in the worst case (falling prices)."
+     "md": "**Time O(1)** amortised per call (each day is pushed once and popped once). **Space O(n).**"
     }
    ],
    "walk": {
@@ -727,7 +741,7 @@
  ],
  "takeaways": [
   {
-   "md": "- **Online 'previous greater' queries:** a monotonic stack where each entry carries the count it has absorbed.\n- Merging dominated entries is what makes the cost amortised O(1).\n- The same trick answers 'how far back until a bigger value' for any stream."
+   "md": "- **Stock span:** stack of (price, span) pairs; a new price absorbs smaller-or-equal ones.\n- Storing the span with each pair lets one pop stand for many days.\n- **Pitfall:** using `<` when equal prices should count."
   }
  ]
 }

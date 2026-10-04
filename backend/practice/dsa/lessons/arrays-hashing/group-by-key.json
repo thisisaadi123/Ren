@@ -1,0 +1,1555 @@
+{
+ "version": 1,
+ "id": "group-by-key",
+ "topic": "arrays-hashing",
+ "summary": "When items belong together under some rule (same letters, same digits, same pattern), give each one a label\nthat comes out the same exactly when the rule says they belong together. Then a hash map from label to list sorts\neverything into groups in one pass.",
+ "minutes": 15,
+ "sections": [
+  {
+   "id": "idea",
+   "title": "The idea",
+   "blocks": [
+    {
+     "md": "Think about how a post office sorts mail. Nobody holds two envelopes side by side and asks \"do these go to\nthe same street?\". Each envelope has a postcode, the sorter reads it, and the envelope goes into that\npostcode's bag. Letters for the same street end up together without ever being compared to each other.\n\nGroup by key is the same thing for data. You come up with a **key** for each item, something you can work\nout from the item alone, which comes out identical for items that belong together and different for items\nthat don't. Then you go through the items once and drop each one into the list for its key."
+    },
+    {
+     "panels": [
+      {
+       "type": "row",
+       "cells": [
+        123,
+        45,
+        321,
+        100,
+        54,
+        10,
+        213,
+        1,
+        10
+       ],
+       "label": "numbers",
+       "slots": true
+      },
+      {
+       "type": "row",
+       "cells": [
+        321,
+        54,
+        321,
+        100,
+        54,
+        10,
+        321,
+        1,
+        10
+       ],
+       "label": "their keys (digits sorted, high to low)",
+       "slots": true
+      },
+      {
+       "type": "vars",
+       "items": {
+        "321:": "[123, 321, 213]",
+        "54:": "[45, 54]",
+        "100:": "[100]",
+        "10:": "[10, 10]",
+        "1:": "[1]"
+       },
+       "label": "key → group"
+      }
+     ],
+     "caption": "Two numbers share a key exactly when they use the same digits. The map does the rest."
+    },
+    {
+     "key": "Don't compare items with each other. Turn each item into a key, so that \"do these belong together?\"\nbecomes \"are these keys equal?\", which a hash map answers instantly."
+    },
+    {
+     "md": "The second half, filing items under their keys, is the same few lines every time. All the thinking goes\ninto the key. Most of this lesson is about how to design a good one."
+    }
+   ]
+  },
+  {
+   "id": "signals",
+   "title": "When to reach for it",
+   "blocks": [
+    {
+     "md": "Watch for problems that talk about items being \"the same\" in some loose sense: words that are anagrams of\neach other, strings that are rotations or shifts of each other, rows that match columns. Phrases like\n\"group the …\", \"how many different kinds / families are there?\" or \"count the pairs that are equivalent\"\nare strong hints.\n\nWhat these have in common is a \"same as\" rule where the problem doesn't care which member of a group you\npick. That's what makes a key possible.\n\nIt doesn't work for \"similar\" rules like \"differ in at most one letter\" or \"within 2 of each other\". Those\naren't proper \"same as\" rules: `cat` is close to `cot`, and `cot` is close to `dot`, but `cat` and `dot`\ndiffer in two places. No single key can capture that, and you'd need union-find or a graph search instead."
+    }
+   ]
+  },
+  {
+   "id": "theory",
+   "title": "Designing the key",
+   "blocks": [
+    {
+     "md": "### What makes a rule \"groupable\"\n\nFor a rule to split items into neat, non-overlapping groups, three things have to be true:\n\n1. Every item belongs with itself.\n2. If A belongs with B, then B belongs with A.\n3. If A belongs with B and B belongs with C, then A belongs with C.\n\nRules like that are called **equivalence relations**, and the groups are called **equivalence classes**.\n\"Is an anagram of\" passes all three. \"Differs by one letter\" fails the third, which is exactly why it can't\nbe grouped by key.\n\n### Two ways a key can go wrong\n\nA good key has to get both directions right:\n\n- If two items belong together, their keys must be **equal**. Get this wrong and one real group gets split\n  into two.\n- If two keys are equal, the items must really **belong together**. Get this wrong and two different groups\n  get merged into one.\n\nA key that gets both right is called a **canonical form**: one standard representative for each group. The\nusual way to build one is to pick a fixed rule for choosing the representative. Sort the letters. Number\nthe letters in order of first appearance. Shift everything so the word starts with `a`. Take the smallest\nrotation. Here are some you'll meet:"
+    },
+    {
+     "table": {
+      "head": [
+       "Items belong together when…",
+       "example",
+       "key",
+       "key for the example"
+      ],
+      "rows": [
+       [
+        "same letters in any order",
+        "\"listen\", \"silent\"",
+        "the letters, sorted",
+        "\"eilnst\""
+       ],
+       [
+        "same letters, faster",
+        "\"listen\", \"silent\"",
+        "how many of each of the 26 letters",
+        "(0,0,0,0,1,0,0,0,1,…)"
+       ],
+       [
+        "same letter pattern",
+        "\"moon\", \"feet\"",
+        "where each letter first appeared",
+        "(0,1,1,2)"
+       ],
+       [
+        "same up to shifting the alphabet",
+        "\"abc\", \"xyz\"",
+        "gaps between neighbours, mod 26",
+        "(1,1)"
+       ],
+       [
+        "same up to rotation",
+        "\"cab\", \"bca\"",
+        "the smallest rotation",
+        "\"abc\""
+       ],
+       [
+        "the same pair, either way round",
+        "(3, 1), (1, 3)",
+        "the pair, sorted",
+        "(1, 3)"
+       ],
+       [
+        "same digits (this lesson's code)",
+        "123, 321",
+        "digits sorted high to low",
+        "321"
+       ]
+      ]
+     }
+    },
+    {
+     "md": "### A key that's only half right\n\nHere's a tempting key for anagrams: add up the letter codes. Anagrams have the same letters, so they always\nget the same sum, which is the first direction. But look what happens with these four words:"
+    },
+    {
+     "panels": [
+      {
+       "type": "vars",
+       "items": {
+        "\"ad\":": "197",
+        "\"bc\":": "197",
+        "\"da\":": "197",
+        "\"cb\":": "197"
+       },
+       "label": "sum of letter codes"
+      }
+     ],
+     "caption": "All four get the same key, so they'd land in one group, even though \"bc\" isn't an anagram of \"ad\"."
+    },
+    {
+     "md": "The sum throws information away, so different groups collide. Hash values have the same problem, which is\nwhy a hash map always keeps the full key and checks it after the hash matches. Your key has to be complete\non its own.\n\n### Keys have to be fixed and unambiguous\n\nA hash map works out where to put a key once, when you insert it. If the key changes afterwards, it's now\nsitting in the wrong slot and you'll never find it again. That's why Python won't let you use a list as a\ndict key; use a tuple or a string. Java will let you use a `List`, which is worse, because nothing stops you\nchanging it later.\n\nWhen you squash a structured key into a string, put separators in. The counts `[1, 11]` and `[11, 1]` both\nturn into `\"111\"` if you just glue the numbers together, so two different keys\ncollide. Write `\"1#11\"` and `\"11#1\"`, or use a tuple.\n\n### Picking between two correct keys\n\nFor anagrams of words of length `L`, both \"sorted letters\" and \"26 letter counts\" are correct. Sorting\ncosts O(L log L) per word; counting costs O(L + 26). For short words it hardly matters. For long strings\nover a small alphabet, counting wins. Let the constraints decide.\n\n### Numbers can be keys too\n\nA key doesn't have to be a string. This lesson's code groups numbers made of the same digits, and its key\nis the digits sorted from high to low, read back as a number: 213 becomes 321. It gets both directions\nright. Same digits always give the same key. And different digit counts always give different keys,\nbecause the zeros sort to the end and stay there, so 100 (key 100) and 10 (key 10) don't get mixed up. An\ninteger key is cheap to hash and easy to store, even in C."
+    }
+   ]
+  },
+  {
+   "id": "template",
+   "title": "The template",
+   "blocks": [
+    {
+     "md": "Group non-negative integers that use the same digits. Keep the groups in the order their first member\nappeared, and keep the numbers inside each group in input order.\n\nOne small trick here: the map goes from key to the *position* of its group in a list, rather than straight\nto the group. That keeps the groups in first-seen order in every language. A plain hash map wouldn't, and\nthe list of groups is the answer anyway."
+    },
+    {
+     "code": {
+      "python": "def digit_key(x):\n    count = [0] * 10\n    while x > 0:\n        count[x % 10] += 1\n        x //= 10\n    k = 0\n    for d in range(9, -1, -1):\n        for _ in range(count[d]):\n            k = k * 10 + d\n    return k\n\ndef group_by_digits(nums):\n    group_of = {}\n    groups = []\n    for x in nums:\n        k = digit_key(x)\n        if k not in group_of:\n            group_of[k] = len(groups)\n            groups.append([])\n        groups[group_of[k]].append(x)\n    return groups\n",
+      "java": "static long digitKey(int x) {\n    int[] count = new int[10];\n    for (; x > 0; x /= 10) count[x % 10]++;\n    long k = 0;\n    for (int d = 9; d >= 0; d--) {\n        for (int c = 0; c < count[d]; c++) k = k * 10 + d;\n    }\n    return k;\n}\n\nstatic List<List<Integer>> groupByDigits(int[] nums) {\n    Map<Long, Integer> groupOf = new HashMap<>();\n    List<List<Integer>> groups = new ArrayList<>();\n    for (int x : nums) {\n        long k = digitKey(x);\n        Integer g = groupOf.get(k);\n        if (g == null) {\n            g = groups.size();\n            groupOf.put(k, g);\n            groups.add(new ArrayList<>());\n        }\n        groups.get(g).add(x);\n    }\n    return groups;\n}\n",
+      "cpp": "long long digitKey(int x) {\n    int count[10] = {0};\n    for (; x > 0; x /= 10) count[x % 10]++;\n    long long k = 0;\n    for (int d = 9; d >= 0; d--) {\n        for (int c = 0; c < count[d]; c++) k = k * 10 + d;\n    }\n    return k;\n}\n\nvector<vector<int>> groupByDigits(const vector<int>& nums) {\n    unordered_map<long long, int> groupOf;\n    vector<vector<int>> groups;\n    for (int x : nums) {\n        long long k = digitKey(x);\n        auto [it, isNew] = groupOf.emplace(k, (int)groups.size());\n        if (isNew) groups.emplace_back();\n        groups[it->second].push_back(x);\n    }\n    return groups;\n}\n",
+      "c": "long long digitKey(int x) {\n    int count[10] = {0};\n    for (; x > 0; x /= 10) count[x % 10]++;\n    long long k = 0;\n    for (int d = 9; d >= 0; d--) {\n        for (int c = 0; c < count[d]; c++) k = k * 10 + d;\n    }\n    return k;\n}\n\n// Writes nums grouped into out (group by group, input order inside each),\n// the start of group g at start[g] (start[groups] = n), and returns the number of groups.\nint groupByDigits(const int* nums, int n, int* out, int* start) {\n    size_t cap = 16;\n    while (cap < 2 * (size_t)n) cap <<= 1;\n    long long* keys = malloc(cap * sizeof(long long));\n    int* gid = malloc(cap * sizeof(int));\n    bool* used = calloc(cap, sizeof(bool));\n    int* groupOfItem = malloc((n + 1) * sizeof(int));\n    int groups = 0;\n    for (int j = 0; j < n; j++) {\n        long long k = digitKey(nums[j]);\n        size_t i = (size_t)(((uint64_t)k * 0x9E3779B97F4A7C15ull) >> 32) & (cap - 1);\n        while (used[i] && keys[i] != k) i = (i + 1) & (cap - 1);\n        if (!used[i]) {\n            used[i] = true;\n            keys[i] = k;\n            gid[i] = groups++;\n        }\n        groupOfItem[j] = gid[i];\n    }\n    for (int g = 0; g <= groups; g++) start[g] = 0;\n    for (int j = 0; j < n; j++) start[groupOfItem[j] + 1]++;\n    for (int g = 0; g < groups; g++) start[g + 1] += start[g];\n    int* fill = malloc((groups + 1) * sizeof(int));\n    memcpy(fill, start, (groups + 1) * sizeof(int));\n    for (int j = 0; j < n; j++) out[fill[groupOfItem[j]]++] = nums[j];\n    free(keys); free(gid); free(used); free(groupOfItem); free(fill);\n    return groups;\n}\n"
+     },
+     "title": "Group numbers by their digits",
+     "lines": [
+      {
+       "text": "Count each digit from 0 to 9. The key only depends on how many of each digit there are, not where they are.",
+       "at": {
+        "python": [
+         [
+          2,
+          5
+         ]
+        ],
+        "java": [
+         [
+          2,
+          3
+         ]
+        ],
+        "cpp": [
+         [
+          2,
+          3
+         ]
+        ],
+        "c": [
+         [
+          2,
+          3
+         ]
+        ]
+       },
+       "notes": {
+        "c": "For `x = 0` the loop never runs and the key is 0, which no positive number shares."
+       }
+      },
+      {
+       "text": "Read the digits back out from 9 down to 0. Numbers with the same digits produce the same result, and different digits produce different results. A 10-digit number makes a 10-digit key, which is too big for 32 bits, so the key is 64-bit.",
+       "at": {
+        "python": [
+         [
+          6,
+          10
+         ]
+        ],
+        "java": [
+         [
+          4,
+          6
+         ],
+         [
+          8,
+          8
+         ]
+        ],
+        "cpp": [
+         [
+          4,
+          6
+         ],
+         [
+          8,
+          8
+         ]
+        ],
+        "c": [
+         [
+          4,
+          6
+         ],
+         [
+          8,
+          8
+         ]
+        ]
+       }
+      },
+      {
+       "text": "A map from key to group position, and the list of groups itself.",
+       "at": {
+        "python": [
+         [
+          13,
+          14
+         ]
+        ],
+        "java": [
+         [
+          12,
+          13
+         ]
+        ],
+        "cpp": [
+         [
+          12,
+          13
+         ]
+        ],
+        "c": [
+         [
+          14,
+          20
+         ]
+        ]
+       },
+       "notes": {
+        "c": "The table's arrays (keys, group ids, used flags), plus `groupOfItem`, which remembers the group of every input position."
+       }
+      },
+      {
+       "text": "One pass over the input.",
+       "at": {
+        "python": [
+         [
+          15,
+          15
+         ]
+        ],
+        "java": [
+         [
+          14,
+          14
+         ]
+        ],
+        "cpp": [
+         [
+          14,
+          14
+         ]
+        ],
+        "c": [
+         [
+          21,
+          21
+         ]
+        ]
+       }
+      },
+      {
+       "text": "Work out this number's key.",
+       "at": {
+        "python": [
+         [
+          16,
+          16
+         ]
+        ],
+        "java": [
+         [
+          15,
+          15
+         ]
+        ],
+        "cpp": [
+         [
+          15,
+          15
+         ]
+        ],
+        "c": [
+         [
+          22,
+          22
+         ]
+        ]
+       }
+      },
+      {
+       "text": "A key we haven't seen before gets a new, empty group at the end of the list.",
+       "at": {
+        "python": [
+         [
+          17,
+          19
+         ]
+        ],
+        "java": [
+         [
+          16,
+          20
+         ]
+        ],
+        "cpp": [
+         [
+          16,
+          17
+         ]
+        ],
+        "c": [
+         [
+          25,
+          28
+         ]
+        ]
+       },
+       "notes": {
+        "cpp": "`emplace` only inserts if the key is new, and `isNew` tells us which happened, all with one lookup.",
+        "java": "`get` gives back `null` for a key we haven't seen, and that's when we start a new group."
+       }
+      },
+      {
+       "text": "Add the number to its group. Equal keys always lead to the same list.",
+       "at": {
+        "python": [
+         [
+          20,
+          20
+         ]
+        ],
+        "java": [
+         [
+          22,
+          22
+         ]
+        ],
+        "cpp": [
+         [
+          18,
+          18
+         ]
+        ],
+        "c": [
+         [
+          30,
+          30
+         ]
+        ]
+       },
+       "notes": {
+        "c": "Growing lists in C is fiddly, so we just note each number's group now and lay the groups out at the end."
+       }
+      },
+      {
+       "text": "Hash the 64-bit key (multiply by a big odd constant, keep the high bits) and walk forward to the key or an empty slot.",
+       "at": {
+        "c": [
+         [
+          23,
+          24
+         ]
+        ]
+       }
+      },
+      {
+       "text": "Lay the groups out one after another. Count how big each group is, turn those sizes into starting positions (a running total, which you'll see properly in *Prefix sums*), then drop each number into the next free spot in its group. Numbers keep their input order.",
+       "at": {
+        "c": [
+         [
+          32,
+          37
+         ]
+        ]
+       }
+      },
+      {
+       "text": "Free the temporary arrays.",
+       "at": {
+        "c": [
+         [
+          38,
+          38
+         ]
+        ]
+       }
+      },
+      {
+       "text": "The groups, in the order their first member appeared.",
+       "at": {
+        "python": [
+         [
+          21,
+          21
+         ]
+        ],
+        "java": [
+         [
+          24,
+          24
+         ]
+        ],
+        "cpp": [
+         [
+          20,
+          20
+         ]
+        ],
+        "c": [
+         [
+          39,
+          39
+         ]
+        ]
+       },
+       "notes": {
+        "c": "Returns how many groups there are. The grouped numbers are in `out`, and `start` says where each group begins."
+       }
+      }
+     ],
+     "run": {
+      "call": "group_by_digits([123, 45, 321, 100, 54, 10, 213, 1, 10])",
+      "output": "123 321 213\n45 54\n100\n10 10\n1"
+     }
+    }
+   ]
+  },
+  {
+   "id": "trace",
+   "title": "Trace it by hand",
+   "blocks": [
+    {
+     "md": "First, here's how one key gets built. Take 20301. We count its digits by peeling them off the end one at a\ntime, then read them back from the biggest digit down:"
+    },
+    {
+     "walk": {
+      "steps": [
+       {
+        "text": "Ten counters, one for each digit.",
+        "panels": [
+         {
+          "type": "bars",
+          "values": [
+           0,
+           0,
+           0,
+           0,
+           0,
+           0,
+           0,
+           0,
+           0,
+           0
+          ],
+          "labels": [
+           "0",
+           "1",
+           "2",
+           "3",
+           "4",
+           "5",
+           "6",
+           "7",
+           "8",
+           "9"
+          ],
+          "label": "how many of each digit",
+          "max": 2
+         }
+        ]
+       },
+       {
+        "text": "The last digit is 1 (that's x % 10). Count it, then drop it with x // 10, leaving 2030.",
+        "panels": [
+         {
+          "type": "bars",
+          "values": [
+           0,
+           1,
+           0,
+           0,
+           0,
+           0,
+           0,
+           0,
+           0,
+           0
+          ],
+          "labels": [
+           "0",
+           "1",
+           "2",
+           "3",
+           "4",
+           "5",
+           "6",
+           "7",
+           "8",
+           "9"
+          ],
+          "states": {
+           "1": "new"
+          },
+          "label": "how many of each digit",
+          "max": 2
+         },
+         {
+          "type": "vars",
+          "items": {
+           "x:": "2030"
+          }
+         }
+        ]
+       },
+       {
+        "text": "The last digit is 0 (that's x % 10). Count it, then drop it with x // 10, leaving 203.",
+        "panels": [
+         {
+          "type": "bars",
+          "values": [
+           1,
+           1,
+           0,
+           0,
+           0,
+           0,
+           0,
+           0,
+           0,
+           0
+          ],
+          "labels": [
+           "0",
+           "1",
+           "2",
+           "3",
+           "4",
+           "5",
+           "6",
+           "7",
+           "8",
+           "9"
+          ],
+          "states": {
+           "0": "new"
+          },
+          "label": "how many of each digit",
+          "max": 2
+         },
+         {
+          "type": "vars",
+          "items": {
+           "x:": "203"
+          }
+         }
+        ]
+       },
+       {
+        "text": "The last digit is 3 (that's x % 10). Count it, then drop it with x // 10, leaving 20.",
+        "panels": [
+         {
+          "type": "bars",
+          "values": [
+           1,
+           1,
+           0,
+           1,
+           0,
+           0,
+           0,
+           0,
+           0,
+           0
+          ],
+          "labels": [
+           "0",
+           "1",
+           "2",
+           "3",
+           "4",
+           "5",
+           "6",
+           "7",
+           "8",
+           "9"
+          ],
+          "states": {
+           "3": "new"
+          },
+          "label": "how many of each digit",
+          "max": 2
+         },
+         {
+          "type": "vars",
+          "items": {
+           "x:": "20"
+          }
+         }
+        ]
+       },
+       {
+        "text": "The last digit is 0 (that's x % 10). Count it, then drop it with x // 10, leaving 2.",
+        "panels": [
+         {
+          "type": "bars",
+          "values": [
+           2,
+           1,
+           0,
+           1,
+           0,
+           0,
+           0,
+           0,
+           0,
+           0
+          ],
+          "labels": [
+           "0",
+           "1",
+           "2",
+           "3",
+           "4",
+           "5",
+           "6",
+           "7",
+           "8",
+           "9"
+          ],
+          "states": {
+           "0": "new"
+          },
+          "label": "how many of each digit",
+          "max": 2
+         },
+         {
+          "type": "vars",
+          "items": {
+           "x:": "2"
+          }
+         }
+        ]
+       },
+       {
+        "text": "The last digit is 2 (that's x % 10). Count it, then drop it with x // 10, leaving 0.",
+        "panels": [
+         {
+          "type": "bars",
+          "values": [
+           2,
+           1,
+           1,
+           1,
+           0,
+           0,
+           0,
+           0,
+           0,
+           0
+          ],
+          "labels": [
+           "0",
+           "1",
+           "2",
+           "3",
+           "4",
+           "5",
+           "6",
+           "7",
+           "8",
+           "9"
+          ],
+          "states": {
+           "2": "new"
+          },
+          "label": "how many of each digit",
+          "max": 2
+         },
+         {
+          "type": "vars",
+          "items": {
+           "x:": "0"
+          }
+         }
+        ]
+       },
+       {
+        "text": "Reading from the top: 1 × digit 3. The key so far is 3.",
+        "panels": [
+         {
+          "type": "bars",
+          "values": [
+           2,
+           1,
+           1,
+           1,
+           0,
+           0,
+           0,
+           0,
+           0,
+           0
+          ],
+          "labels": [
+           "0",
+           "1",
+           "2",
+           "3",
+           "4",
+           "5",
+           "6",
+           "7",
+           "8",
+           "9"
+          ],
+          "states": {
+           "3": "answer"
+          },
+          "label": "how many of each digit",
+          "max": 2
+         },
+         {
+          "type": "vars",
+          "items": {
+           "key:": "3"
+          }
+         }
+        ]
+       },
+       {
+        "text": "Reading from the top: 1 × digit 2. The key so far is 32.",
+        "panels": [
+         {
+          "type": "bars",
+          "values": [
+           2,
+           1,
+           1,
+           1,
+           0,
+           0,
+           0,
+           0,
+           0,
+           0
+          ],
+          "labels": [
+           "0",
+           "1",
+           "2",
+           "3",
+           "4",
+           "5",
+           "6",
+           "7",
+           "8",
+           "9"
+          ],
+          "states": {
+           "2": "answer"
+          },
+          "label": "how many of each digit",
+          "max": 2
+         },
+         {
+          "type": "vars",
+          "items": {
+           "key:": "32"
+          }
+         }
+        ]
+       },
+       {
+        "text": "Reading from the top: 1 × digit 1. The key so far is 321.",
+        "panels": [
+         {
+          "type": "bars",
+          "values": [
+           2,
+           1,
+           1,
+           1,
+           0,
+           0,
+           0,
+           0,
+           0,
+           0
+          ],
+          "labels": [
+           "0",
+           "1",
+           "2",
+           "3",
+           "4",
+           "5",
+           "6",
+           "7",
+           "8",
+           "9"
+          ],
+          "states": {
+           "1": "answer"
+          },
+          "label": "how many of each digit",
+          "max": 2
+         },
+         {
+          "type": "vars",
+          "items": {
+           "key:": "321"
+          }
+         }
+        ]
+       },
+       {
+        "text": "Reading from the top: 2 × digit 0. The key so far is 32100.",
+        "panels": [
+         {
+          "type": "bars",
+          "values": [
+           2,
+           1,
+           1,
+           1,
+           0,
+           0,
+           0,
+           0,
+           0,
+           0
+          ],
+          "labels": [
+           "0",
+           "1",
+           "2",
+           "3",
+           "4",
+           "5",
+           "6",
+           "7",
+           "8",
+           "9"
+          ],
+          "states": {
+           "0": "answer"
+          },
+          "label": "how many of each digit",
+          "max": 2
+         },
+         {
+          "type": "vars",
+          "items": {
+           "key:": "32100"
+          }
+         }
+        ]
+       }
+      ],
+      "title": "Building the key for 20301: count its digits, then read them back out from 9 down to 0."
+     }
+    },
+    {
+     "md": "And here are the keys for every number in the example:"
+    },
+    {
+     "table": {
+      "head": [
+       "x",
+       "digits sorted high to low",
+       "key"
+      ],
+      "rows": [
+       [
+        "123",
+        "321",
+        "321"
+       ],
+       [
+        "45",
+        "54",
+        "54"
+       ],
+       [
+        "321",
+        "321",
+        "321"
+       ],
+       [
+        "100",
+        "100",
+        "100"
+       ],
+       [
+        "54",
+        "54",
+        "54"
+       ],
+       [
+        "10",
+        "10",
+        "10"
+       ],
+       [
+        "213",
+        "321",
+        "321"
+       ],
+       [
+        "1",
+        "1",
+        "1"
+       ],
+       [
+        "10",
+        "10",
+        "10"
+       ]
+      ]
+     }
+    },
+    {
+     "md": "Now the grouping itself:"
+    },
+    {
+     "walk": {
+      "steps": [
+       {
+        "text": "No groups yet. The table maps each key to the position of its group in the `groups` list.",
+        "panels": [
+         {
+          "type": "row",
+          "cells": [
+           123,
+           45,
+           321,
+           100,
+           54,
+           10,
+           213,
+           1,
+           10
+          ],
+          "slots": true
+         },
+         {
+          "type": "vars",
+          "items": {
+           "groups:": "[ ]"
+          }
+         }
+        ]
+       },
+       {
+        "text": "123 has key 321. We haven't seen that key, so it gets a new group, number 0.",
+        "panels": [
+         {
+          "type": "row",
+          "cells": [
+           123,
+           45,
+           321,
+           100,
+           54,
+           10,
+           213,
+           1,
+           10
+          ],
+          "states": {
+           "0": "active"
+          },
+          "pointers": {
+           "x": 0
+          },
+          "slots": true
+         },
+         {
+          "type": "vars",
+          "items": {
+           "321:": "[123]"
+          },
+          "label": "key → group"
+         }
+        ]
+       },
+       {
+        "text": "45 has key 54. We haven't seen that key, so it gets a new group, number 1.",
+        "panels": [
+         {
+          "type": "row",
+          "cells": [
+           123,
+           45,
+           321,
+           100,
+           54,
+           10,
+           213,
+           1,
+           10
+          ],
+          "states": {
+           "1": "active"
+          },
+          "pointers": {
+           "x": 1
+          },
+          "slots": true
+         },
+         {
+          "type": "vars",
+          "items": {
+           "321:": "[123]",
+           "54:": "[45]"
+          },
+          "label": "key → group"
+         }
+        ]
+       },
+       {
+        "text": "321 has key 321. We've seen it before, so 321 joins group 0 alongside 123.",
+        "panels": [
+         {
+          "type": "row",
+          "cells": [
+           123,
+           45,
+           321,
+           100,
+           54,
+           10,
+           213,
+           1,
+           10
+          ],
+          "states": {
+           "0": "found",
+           "2": "active"
+          },
+          "pointers": {
+           "x": 2
+          },
+          "slots": true
+         },
+         {
+          "type": "vars",
+          "items": {
+           "321:": "[123, 321]",
+           "54:": "[45]"
+          },
+          "label": "key → group"
+         }
+        ]
+       },
+       {
+        "text": "100 has key 100. We haven't seen that key, so it gets a new group, number 2.",
+        "panels": [
+         {
+          "type": "row",
+          "cells": [
+           123,
+           45,
+           321,
+           100,
+           54,
+           10,
+           213,
+           1,
+           10
+          ],
+          "states": {
+           "3": "active"
+          },
+          "pointers": {
+           "x": 3
+          },
+          "slots": true
+         },
+         {
+          "type": "vars",
+          "items": {
+           "321:": "[123, 321]",
+           "54:": "[45]",
+           "100:": "[100]"
+          },
+          "label": "key → group"
+         }
+        ]
+       },
+       {
+        "text": "54 has key 54. We've seen it before, so 54 joins group 1 alongside 45.",
+        "panels": [
+         {
+          "type": "row",
+          "cells": [
+           123,
+           45,
+           321,
+           100,
+           54,
+           10,
+           213,
+           1,
+           10
+          ],
+          "states": {
+           "1": "found",
+           "4": "active"
+          },
+          "pointers": {
+           "x": 4
+          },
+          "slots": true
+         },
+         {
+          "type": "vars",
+          "items": {
+           "321:": "[123, 321]",
+           "54:": "[45, 54]",
+           "100:": "[100]"
+          },
+          "label": "key → group"
+         }
+        ]
+       },
+       {
+        "text": "10 has key 10. We haven't seen that key, so it gets a new group, number 3.",
+        "panels": [
+         {
+          "type": "row",
+          "cells": [
+           123,
+           45,
+           321,
+           100,
+           54,
+           10,
+           213,
+           1,
+           10
+          ],
+          "states": {
+           "5": "active"
+          },
+          "pointers": {
+           "x": 5
+          },
+          "slots": true
+         },
+         {
+          "type": "vars",
+          "items": {
+           "321:": "[123, 321]",
+           "54:": "[45, 54]",
+           "100:": "[100]",
+           "10:": "[10]"
+          },
+          "label": "key → group"
+         }
+        ]
+       },
+       {
+        "text": "213 has key 321. We've seen it before, so 213 joins group 0 alongside 123, 321.",
+        "panels": [
+         {
+          "type": "row",
+          "cells": [
+           123,
+           45,
+           321,
+           100,
+           54,
+           10,
+           213,
+           1,
+           10
+          ],
+          "states": {
+           "0": "found",
+           "2": "found",
+           "6": "active"
+          },
+          "pointers": {
+           "x": 6
+          },
+          "slots": true
+         },
+         {
+          "type": "vars",
+          "items": {
+           "321:": "[123, 321, 213]",
+           "54:": "[45, 54]",
+           "100:": "[100]",
+           "10:": "[10]"
+          },
+          "label": "key → group"
+         }
+        ]
+       },
+       {
+        "text": "1 has key 1. We haven't seen that key, so it gets a new group, number 4.",
+        "panels": [
+         {
+          "type": "row",
+          "cells": [
+           123,
+           45,
+           321,
+           100,
+           54,
+           10,
+           213,
+           1,
+           10
+          ],
+          "states": {
+           "7": "active"
+          },
+          "pointers": {
+           "x": 7
+          },
+          "slots": true
+         },
+         {
+          "type": "vars",
+          "items": {
+           "321:": "[123, 321, 213]",
+           "54:": "[45, 54]",
+           "100:": "[100]",
+           "10:": "[10]",
+           "1:": "[1]"
+          },
+          "label": "key → group"
+         }
+        ]
+       },
+       {
+        "text": "10 has key 10. We've seen it before, so 10 joins group 3 alongside 10.",
+        "panels": [
+         {
+          "type": "row",
+          "cells": [
+           123,
+           45,
+           321,
+           100,
+           54,
+           10,
+           213,
+           1,
+           10
+          ],
+          "states": {
+           "5": "found",
+           "8": "active"
+          },
+          "pointers": {
+           "x": 8
+          },
+          "slots": true
+         },
+         {
+          "type": "vars",
+          "items": {
+           "321:": "[123, 321, 213]",
+           "54:": "[45, 54]",
+           "100:": "[100]",
+           "10:": "[10, 10]",
+           "1:": "[1]"
+          },
+          "label": "key → group"
+         }
+        ]
+       },
+       {
+        "text": "That's 5 groups. Numbers with equal keys ended up together, and the groups are in the order their first member appeared.",
+        "panels": [
+         {
+          "type": "vars",
+          "items": {
+           "group 0:": "[123, 321, 213]",
+           "group 1:": "[45, 54]",
+           "group 2:": "[100]",
+           "group 3:": "[10, 10]",
+           "group 4:": "[1]"
+          }
+         }
+        ],
+        "result": "5"
+       }
+      ],
+      "title": "`group_by_digits([123, 45, 321, 100, 54, 10, 213, 1, 10])`. Work out each number's key, then file the number under it."
+     }
+    },
+    {
+     "md": "Notice that no two numbers were ever compared. Each one only met the table. Also notice 100 and 10. They\nshare the digits 1 and 0, but they have different keys (100 and 10), because the\nkey remembers how many zeros there are."
+    }
+   ]
+  },
+  {
+   "id": "examples",
+   "title": "More examples",
+   "blocks": [
+    {
+     "md": "### Grouping words by rotation\n\nA rotation moves some letters from the front of a word to the back: `cab` → `abc` → `bca`. Which of these\nwords are rotations of each other? The key is the smallest of all its rotations (the one that comes first\nalphabetically). Every word in a rotation group has the same set of rotations, so they all pick the same\nsmallest one."
+    },
+    {
+     "table": {
+      "head": [
+       "word",
+       "all its rotations",
+       "key"
+      ],
+      "rows": [
+       [
+        "\"cab\"",
+        "\"cab\", \"abc\", \"bca\"",
+        "\"abc\""
+       ],
+       [
+        "\"bca\"",
+        "\"bca\", \"cab\", \"abc\"",
+        "\"abc\""
+       ],
+       [
+        "\"acb\"",
+        "\"acb\", \"cba\", \"bac\"",
+        "\"acb\""
+       ],
+       [
+        "\"abc\"",
+        "\"abc\", \"bca\", \"cab\"",
+        "\"abc\""
+       ],
+       [
+        "\"bac\"",
+        "\"bac\", \"acb\", \"cba\"",
+        "\"acb\""
+       ],
+       [
+        "\"cba\"",
+        "\"cba\", \"bac\", \"acb\"",
+        "\"acb\""
+       ]
+      ]
+     }
+    },
+    {
+     "panels": [
+      {
+       "type": "vars",
+       "items": {
+        "\"abc\":": "[\"cab\", \"bca\", \"abc\"]",
+        "\"acb\":": "[\"acb\", \"bac\", \"cba\"]"
+       },
+       "label": "key → group"
+      }
+     ],
+     "caption": "Six words, two groups. Notice `acb` isn't a rotation of `abc`, and the keys keep them apart."
+    },
+    {
+     "md": "### Friendships listed both ways round\n\nA list of friendships `[(3, 1), (1, 3), (2, 5), (4, 4), (5, 2), (1, 3)]` mentions some of them twice, once as `(a, b)` and once as `(b, a)`. How many\ndifferent friendships are there? The key is the pair sorted, so `(3, 1)` and `(1, 3)` both become `(1, 3)`:"
+    },
+    {
+     "table": {
+      "head": [
+       "pair",
+       "key"
+      ],
+      "rows": [
+       [
+        "(3, 1)",
+        "(1, 3)"
+       ],
+       [
+        "(1, 3)",
+        "(1, 3)"
+       ],
+       [
+        "(2, 5)",
+        "(2, 5)"
+       ],
+       [
+        "(4, 4)",
+        "(4, 4)"
+       ],
+       [
+        "(5, 2)",
+        "(2, 5)"
+       ],
+       [
+        "(1, 3)",
+        "(1, 3)"
+       ]
+      ]
+     }
+    },
+    {
+     "md": "Put the keys in a set and count them: 3. You don't even need lists of members here, because the\nquestion only asks how many groups there are.\n\n### When you only care about one group\n\n\"How many words have the same pattern as `moon`?\" There's only one group you care about. Work out\n`moon`'s key once, (0, 1, 1, 2), then count the words whose key matches. No map needed at all."
+    }
+   ]
+  },
+  {
+   "id": "variations",
+   "title": "Variations",
+   "blocks": [
+    {
+     "md": "### Counting groups, not members\n\n\"How many different families are there?\" only needs a set of keys. Add every key, then return the size of\nthe set. No lists.\n\n### Counting matching pairs\n\nCount how many items share each key (a count map instead of lists). A key with `c` items gives\n`c × (c - 1) / 2` pairs. Or use the one-pass \"add the count, then bump it\" trick from *Frequency counting*.\n\n### Keys built from other structures\n\nThe key can be a whole row of a grid, as a tuple in Python or a string with separators elsewhere. Then\n\"does this row match that column?\" becomes \"do they have the same key?\". It can be several attributes at\nonce: group people by `(city, age)`, and that tuple is the key. Or it can be a cleaned-up version of the\nitem, like a lower-cased word with the punctuation stripped, when the rule is \"the same, ignoring case\".\n\n### Sorting instead of hashing\n\nYou can also sort the items by their key. Items with equal keys end up next to each other, and each run of\nequal keys is a group. That's O(n log n) key comparisons and no hash map, and the groups come out sorted by\nkey. Handy in C, or when the answer has to be sorted anyway."
+    }
+   ]
+  },
+  {
+   "id": "complexity",
+   "title": "What it costs",
+   "blocks": [
+    {
+     "md": "Say there are `n` items and building one key costs `K` (for strings of length `L`, O(L log L) to sort the\nletters, or O(L) to count them).\n\nComputing all the keys costs O(n · K). Then there are `n` hash map operations, which are O(1) on average,\nexcept that hashing a key of length `L` itself costs O(L). So for words it's O(n · (K + L)) overall: O(n ·\nL log L) with sorted-letter keys, or O(n · L) with counts. Memory is O(n · L), since every item and its key\nare stored once.\n\nThe alternative, checking every pair of items to see whether they belong together, is O(n²) comparisons,\neach costing at least O(L)."
+    },
+    {
+     "table": {
+      "head": [
+       "Approach",
+       "Time (n words of length L)",
+       "Extra space"
+      ],
+      "rows": [
+       [
+        "Compare every pair",
+        "O(n² · L log L)",
+        "O(n)"
+       ],
+       [
+        "Sorted-letters key + hash map",
+        "O(n · L log L)",
+        "O(n · L)"
+       ],
+       [
+        "Letter-counts key + hash map",
+        "O(n · (L + 26))",
+        "O(n · (L + 26))"
+       ],
+       [
+        "Sort the items by key, read off runs",
+        "O(n · K + n log n · L)",
+        "O(n · L)"
+       ]
+      ]
+     }
+    }
+   ]
+  },
+  {
+   "id": "languages",
+   "title": "In your language",
+   "blocks": [
+    {
+     "md": "### Python\n\n`defaultdict(list)` with `groups[key].append(item)`. Keys have to be hashable, so use `tuple(...)` or\n`\"\".join(sorted(word))`, never a list. Dicts remember insertion order, so `list(groups.values())` comes out\nin first-seen order.\n\n### Java\n\n`map.computeIfAbsent(key, k -> new ArrayList<>()).add(item)`. A `String` key is compared by its contents,\nbut an `int[]` key is compared by identity, so two arrays with the same numbers count as different keys.\nConvert with `Arrays.toString(arr)` or `new String(charArray)`. `HashMap` doesn't keep any order; use\n`LinkedHashMap` for insertion order, or the position trick from the template.\n\n### C++\n\n`unordered_map<string, vector<string>>`, and `groups[key].push_back(item)` creates the list for you. A\n`vector<int>` or `pair` key works in `std::map` (which is sorted) but needs a custom hash for\n`unordered_map`, so people often turn it into a string with separators. `std::array<int, 26>` works as a\n`map` key.\n\n### C\n\nAn integer key, like this lesson's, is the easiest: an open-addressing table on 64-bit keys. For string\nkeys, either hash the string yourself (FNV-1a is a simple choice, checking with `strcmp` when hashes match)\nor sort an array of `(key, index)` pairs with `qsort` and read off the runs."
+    }
+   ]
+  },
+  {
+   "id": "pitfalls",
+   "title": "Pitfalls and edge cases",
+   "blocks": [
+    {
+     "md": "Things to watch for:\n\n- A key that merges groups it shouldn't. Sums, lengths or a hash on its own do this. Test your key on two\n  items that *shouldn't* end up together.\n- A key that splits a group. For shifted words, the gaps between letters have to be taken mod 26, or `\"az\"`\n  (gap 25) and `\"ba\"` (gap -1) end up in different groups. Normalise every part of the key.\n- Ambiguous string keys. Join numbers with a separator: `\"1#11\"`, not `\"111\"`.\n- Changing a key after it's been used. Never modify a list or array you've already used as a key.\n- Output order. If the answer has to be sorted (groups, or items inside groups), sort it yourself at the\n  end. Don't rely on the order the map gives you.\n- Empty items and duplicates. An empty string has an empty key and forms a group of its own. Identical\n  items have identical keys and belong in the same group; keep both copies if the problem says to."
+    }
+   ]
+  },
+  {
+   "id": "check",
+   "title": "Check yourself",
+   "blocks": [
+    {
+     "quiz": [
+      {
+       "q": "Why isn't \"the number of different letters\" a good key for grouping anagrams?",
+       "a": "It gets one direction right (anagrams always have the same number of different letters) but not the other: `\"ab\"` and `\"cd\"` both have two different letters, so they'd be grouped together even though they aren't anagrams."
+      },
+      {
+       "q": "Two words have the same pattern if you can turn one into the other by swapping letters consistently, one for one. What's a good key?",
+       "a": "Replace each letter with the order it first appeared in: `\"moon\"` becomes (0, 1, 1, 2), and so does `\"feet\"`. Two words get the same tuple exactly when their patterns match."
+      },
+      {
+       "q": "Why does the template map each key to a group *position* rather than straight to a list?",
+       "a": "So all the groups live in one list, in the order they first appeared, in every language. Looping over a Java `HashMap` or C++ `unordered_map` would give you the groups in some arbitrary order."
+      },
+      {
+       "q": "Rows `[1, 11]` and `[11, 1]` are turned into keys by gluing the numbers together. What goes wrong?",
+       "a": "Both become `\"111\"`, so they're wrongly grouped together. Use a separator (`\"1#11\"` and `\"11#1\"`) or a tuple."
+      },
+      {
+       "q": "\"Group words that differ in at most one letter.\" Can a key do this?",
+       "a": "No. That rule doesn't chain properly: `cat` is one letter from `cot`, and `cot` is one from `dot`, but `cat` and `dot` differ in two letters. So it doesn't split words into clean groups. You'd need union-find or a graph search."
+      }
+     ]
+    }
+   ]
+  }
+ ]
+}

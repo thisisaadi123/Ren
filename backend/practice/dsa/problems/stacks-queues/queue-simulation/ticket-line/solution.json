@@ -4,48 +4,60 @@
  "question": [
   {
    "md": "One ticket is sold per second to the person at the front, who then leaves (if done) or goes to the back. Return\nthe second at which person `k` buys their last ticket.\n\n- **The line cycles**, so a person's turns come once per round, in the original order (people only leave).\n- **Up to 10⁵ people wanting up to 10⁵ tickets**: up to 10¹⁰ seconds, so simulating is too slow and the answer\n  needs 64 bits."
+  },
+  {
+   "md": "**Edge cases to keep in mind**\n\n- Person `k` may be first in line, or last.\n- People wanting fewer tickets than person `k` leave early and stop taking seconds.\n- The answer can reach `10⁵ × 10⁵ = 10¹⁰`: use 64 bits."
   }
  ],
  "think": [
   {
-   "md": "Line `[2, 5, 3, 1, 4]`, `k = 2` (wants 3). Person 2 gets one ticket per round, so they finish in round 3.\nIn each round, everyone still in line buys one, in the original order. During rounds 1..3, a person at or\nbefore position 2 buys at most 3 (fewer if they want fewer). A person after position 2 only gets\n2 full rounds, because round 3 stops the moment person 2 is served."
+   "md": "**Simulate, then look for a shortcut.** Queue problems describe a process step by step. A direct simulation with a\nqueue is always a correct first answer. Then ask what the process *really* depends on: often the exact order doesn't\nmatter (only counts do), or each element's fate can be computed directly, which removes the step-by-step loop."
+  },
+  {
+   "md": "**Count purchases instead of seconds.** Every second exactly one ticket is bought, so the answer is the total\nnumber of tickets bought by everyone until person `k` finishes. Person `k` needs `3` rounds. In those rounds:\n\n- a person **at or before** `k` buys at most `3` tickets (one per round, including the last round);\n- a person **after** `k` buys at most `3 − 1` (in the final round, person `k` finishes before they're served).\n\nEach person buys the smaller of what they want and that cap. For `[2, 5, 3, 1, 4]`, `k = 2`:"
   },
   {
    "table": {
     "head": [
      "person",
      "wants",
-     "turns before k is done",
-     "bought"
+     "position",
+     "cap",
+     "tickets bought"
     ],
     "rows": [
      [
       "0",
       "2",
+      "at or before k",
       "3",
       "2"
      ],
      [
       "1",
       "5",
+      "at or before k",
       "3",
       "3"
      ],
      [
       "2",
       "3",
+      "at or before k",
       "3",
       "3"
      ],
      [
       "3",
       "1",
+      "after k",
       "2",
       "1"
      ],
      [
       "4",
       "4",
+      "after k",
       "2",
       "2"
      ]
@@ -53,7 +65,7 @@
    }
   },
   {
-   "md": "Every second sells one ticket, so the answer is the total bought: **11**."
+   "md": "Total: **11** seconds."
   }
  ],
  "approaches": [
@@ -64,13 +76,13 @@
    "space": "O(n)",
    "idea": [
     {
-     "md": "Put `(wants, index)` pairs in a queue. Each second: pop the front, add a second, and either finish them or push them back with one fewer. Stop when person `k` buys their last ticket."
+     "md": "Simulate the line with a queue of `(tickets left, person)`: serve the front, re-queue them if they still want more, and stop when person `k` buys their last ticket."
     }
    ],
    "build": [
-    "Queue of `(remaining, index)`.",
-    "Loop: pop, `t += 1`.",
-    "If remaining was 1: if it's `k`, return `t`; else drop. Otherwise push back with one fewer."
+    "Queue of (wants, index).",
+    "Serve one ticket per second.",
+    "Re-queue or stop."
    ],
    "code": {
     "python": "from collections import deque\n\nclass Solution:\n    def secondsToFinish(self, wants: List[int], k: int) -> int:\n        line = deque((w, i) for i, w in enumerate(wants))\n        t = 0\n        while True:\n            w, i = line.popleft()\n            t += 1\n            if w == 1:\n                if i == k:\n                    return t\n            else:\n                line.append((w - 1, i))\n",
@@ -212,7 +224,7 @@
    ],
    "complexity": [
     {
-     "md": "**Time O(total tickets sold):** up to 10¹⁰ seconds. **Space O(n).**"
+     "md": "**Time O(total tickets)**, up to 10¹⁰ seconds. **Space O(n).**"
     }
    ],
    "walk": {
@@ -454,7 +466,7 @@
    },
    "limits": [
     {
-     "md": "Simulating one second at a time is hopeless for large orders. But the order of turns is completely regular (rounds in the original order), so each person's purchases can be counted directly."
+     "md": "Steps through every second. Each person's purchases can be computed directly from their position and wants."
     }
    ],
    "slow": true
@@ -466,12 +478,13 @@
    "space": "O(1)",
    "idea": [
     {
-     "md": "Let `need = wants[k]`. Person `i ≤ k` buys `min(wants[i], need)` tickets before `k` is done; person `i > k` buys `min(wants[i], need − 1)`. The answer is the sum."
+     "md": "For each person, add `min(wants[i], need)` if `i ≤ k`, else `min(wants[i], need − 1)`."
     }
    ],
    "build": [
     "`need = wants[k]`.",
-    "Sum `min(wants[i], need)` for `i ≤ k` and `min(wants[i], need − 1)` for `i > k`, in 64 bits."
+    "Cap each person by their position.",
+    "Sum (64-bit)."
    ],
    "code": {
     "python": "class Solution:\n    def secondsToFinish(self, wants: List[int], k: int) -> int:\n        need = wants[k]\n        total = 0\n        for i, w in enumerate(wants):\n            total += min(w, need if i <= k else need - 1)\n        return total\n",
@@ -800,7 +813,7 @@
  ],
  "takeaways": [
   {
-   "md": "- When a simulation is perfectly regular (round-robin), **count instead of simulating**.\n- \"One unit per second\" turns a time question into a counting question.\n- Be careful about the partial last round: who comes before the target and who comes after."
+   "md": "- **Round-robin queues:** count per person instead of simulating each step.\n- People after the target get one fewer round.\n- **Pitfall:** giving people after `k` the same cap as those before."
   }
  ]
 }

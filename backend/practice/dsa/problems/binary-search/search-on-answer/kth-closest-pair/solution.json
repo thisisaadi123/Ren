@@ -4,45 +4,54 @@
  "question": [
   {
    "md": "Over all pairs i < j, the gap is |h[i] − h[j]|. Return the k-th smallest gap (duplicates counted).\n\n- **Pairs are by position:** equal heights give gap 0, possibly many times.\n- **n up to 2 × 10⁴** → about 2 × 10⁸ pairs. Listing and sorting them is too slow and too big.\n- **k can be up to n(n − 1)/2 ≈ 2 × 10⁸**, still inside a 32-bit `int`; pair counts are kept in 64 bits to be\n  safe."
+  },
+  {
+   "md": "**Edge cases to keep in mind**\n\n- Equal heights give a gap of 0.\n- `k` can be as large as `n(n − 1)/2` ≈ 2 × 10⁸: listing all gaps is too slow and too big.\n- Gaps count with multiplicity."
   }
  ],
  "think": [
   {
-   "md": "Take heights `[4, 1, 9, 6, 3]`, k = 4. All gaps sorted: `[1, 2, 2, 3, 3, 3, 5, 5, 6, 8]`; the 4-th is 3.\n\nUse the \"binary search on the value, count how many are ≤ it\" idea. For a candidate gap d: sort the heights\n(`[1, 3, 4, 6, 9]`); for each right end, the left ends within d form a window, and every left end in it makes a pair. The\nwindow's left edge only moves right as the right edge does, so counting is O(n)."
+   "md": "**Binary search on the answer.** Sometimes there's no sorted array at all, but the **answer** lives in a range of\nnumbers, and there's a yes/no question about a candidate value that is **monotone**: once it's yes, it stays yes for\nevery larger value (or every smaller one). Then:\n\n1. pick the range `[lo, hi]` that surely contains the answer;\n2. write `check(x)`, a fast test of the yes/no question for one candidate;\n3. binary search for the boundary where `check` flips.\n\nTotal cost: `O(cost of check × log(range))`. The hard parts are noticing the monotone question and writing `check`\ncorrectly; the search itself is always the same few lines."
   },
   {
-   "panels": [
-    {
-     "type": "row",
-     "cells": [
-      1,
-      3,
-      4,
-      6,
-      9
-     ],
-     "slots": true
-    },
-    {
-     "type": "row",
-     "cells": [
-      0,
-      1,
-      3,
-      6,
-      6,
-      8,
-      9,
-      9,
-      10
-     ],
-     "label": "pairs with gap ≤ d (d = 0, 1, …)"
-    }
-   ],
-   "caption": "The count grows with d; the answer is where it first reaches k."
+   "md": "**Counting pairs with gap ≤ d.** Sort the heights. For each right end, the left ends within `d` form a window\nthat only moves right as the right end moves right (a sliding window), so all pairs with gap `≤ d` are counted in\nO(n). That count grows with `d`, and the k-th smallest gap is the smallest `d` whose count reaches `k`. Sorted\n`[1, 3, 4, 6, 9]`, all gaps `[1, 2, 2, 3, 3, 3, 5, 5, 6, 8]`, `k = 4`:"
   },
   {
-   "md": "The smallest d with count ≥ k is always an actual gap, because the count only rises at real gap values."
+   "table": {
+    "head": [
+     "lo",
+     "hi",
+     "mid",
+     "check(mid)",
+     "decision"
+    ],
+    "rows": [
+     [
+      "0",
+      "8",
+      "4",
+      "6 pairs with gap ≤ 4",
+      "answer ≤ mid: hi = mid"
+     ],
+     [
+      "0",
+      "4",
+      "2",
+      "3 pairs with gap ≤ 2",
+      "answer > mid: lo = mid + 1"
+     ],
+     [
+      "3",
+      "4",
+      "3",
+      "6 pairs with gap ≤ 3",
+      "answer ≤ mid: hi = mid"
+     ]
+    ]
+   }
+  },
+  {
+   "md": "The 4-th smallest gap is **3**."
   }
  ],
  "approaches": [
@@ -53,13 +62,13 @@
    "space": "O(n²)",
    "idea": [
     {
-     "md": "Compute all n(n − 1)/2 gaps, sort them, return index k − 1."
+     "md": "List every pair's gap, sort, take the k-th."
     }
    ],
    "build": [
-    "Collect |h[i] − h[j]| for all i < j.",
+    "All `n(n−1)/2` gaps.",
     "Sort.",
-    "Return element k − 1."
+    "Index `k − 1`."
    ],
    "code": {
     "python": "class Solution:\n    def kthPairGap(self, heights: List[int], k: int) -> int:\n        n = len(heights)\n        gaps = sorted(abs(heights[i] - heights[j]) for i in range(n) for j in range(i + 1, n))\n        return gaps[k - 1]\n",
@@ -133,7 +142,7 @@
    ],
    "complexity": [
     {
-     "md": "**Time O(n² log n).** **Space O(n²)**: 2 × 10⁸ numbers at the limit."
+     "md": "**Time O(n² log n).** **Space O(n²):** 2 × 10⁸ gaps at the limit."
     }
    ],
    "walk": {
@@ -196,7 +205,7 @@
    },
    "limits": [
     {
-     "md": "Materialises every pair. Counting pairs below a threshold is cheap on sorted data, which enables binary search on the gap value."
+     "md": "Far too much time and memory; counting gaps up to a value takes O(n) with a sliding window."
     }
    ],
    "slow": true
@@ -208,13 +217,13 @@
    "space": "O(n)",
    "idea": [
     {
-     "md": "Sort. Search d in `[0, max − min]`. `count(d)`: for each right, move left while `s[right] − s[left] > d`, add `right − left`. If `count(mid) ≥ k`, `hi = mid`; else `lo = mid + 1`."
+     "md": "Sort; binary search the gap in `[0, max − min]`; the check counts pairs with gap `≤ mid` using a sliding window."
     }
    ],
    "build": [
-    "Sort a copy.",
-    "Write the sliding-window count of pairs with gap ≤ d.",
-    "Lower-bound search for the smallest d with count ≥ k."
+    "Sort.",
+    "Sliding-window pair count.",
+    "Smallest gap whose count reaches `k`."
    ],
    "code": {
     "python": "class Solution:\n    def kthPairGap(self, heights: List[int], k: int) -> int:\n        s = sorted(heights)\n        n = len(s)\n        def pairs_within(d):\n            total = left = 0\n            for right in range(n):\n                while s[right] - s[left] > d:\n                    left += 1\n                total += right - left\n            return total\n        lo, hi = 0, s[-1] - s[0]\n        while lo < hi:\n            mid = (lo + hi) // 2\n            if pairs_within(mid) >= k:\n                hi = mid\n            else:\n                lo = mid + 1\n        return lo\n",
@@ -404,7 +413,7 @@
    ],
    "complexity": [
     {
-     "md": "**Time O(n log n + n log W)** for W = max − min. **Space O(n)** for the sorted copy."
+     "md": "**Time O(n log n + n log(range)).** **Space O(n).**"
     }
    ],
    "walk": {
@@ -483,7 +492,7 @@
  ],
  "takeaways": [
   {
-   "md": "- k-th smallest among too many derived values (pair gaps) → binary-search the value and count with an O(n)\n  pass.\n- On sorted data, \"pairs with difference ≤ d\" is a sliding-window count."
+   "md": "- **k-th smallest pairwise distance:** binary search on the distance + a sliding-window count.\n- \"Smallest value with count ≥ k\" is always an actual gap.\n- **Pitfall:** restarting the left pointer for every right end, which makes each check O(n²) instead of O(n)."
   }
  ]
 }

@@ -4,60 +4,58 @@
  "question": [
   {
    "md": "Each row is sorted, and each row's first number is bigger than the previous row's last. Return true if\n`target` appears. Required: O(log(m · n)).\n\n- **The \"rows continue each other\" rule** is what makes the whole grid one sorted sequence.\n- **Required time O(log(m·n))**, so a row-by-row or staircase scan isn't enough.\n- **Size:** up to 300 × 300."
+  },
+  {
+   "md": "**Edge cases to keep in mind**\n\n- One row or one column.\n- Target smaller than the first seat or larger than the last.\n- O(log(m·n)) is required."
   }
  ],
  "think": [
   {
-   "md": "Take this grid and target 18. Read it row by row: `[2, 4, 7, 9, 12, 15, 18, 20, 23, 26, 31, 35]`. That's sorted from start to end, because\nevery row picks up where the previous one stopped."
+   "md": "**Two kinds of sorted grid.**\n\n- **Fully ordered rows** (each row starts after the previous one ends): read row by row, the grid is one sorted array of\n  length `m · n`. Index `k` of that array is cell `(k // n, k % n)`, so a plain binary search over `0 … m·n − 1` works.\n- **Rows and columns sorted separately:** start at the **top-right** corner. If the value there is too big, every value\n  below it in that column is bigger still, so the whole column can go; if it's too small, everything to its left in\n  that row is smaller, so the whole row can go. Each step removes a row or a column: at most `m + n` steps."
   },
   {
-   "panels": [
-    {
-     "type": "grid",
-     "cells": [
-      [
-       2,
-       4,
-       7,
-       9
-      ],
-      [
-       12,
-       15,
-       18,
-       20
-      ],
-      [
-       23,
-       26,
-       31,
-       35
-      ]
-     ]
-    },
-    {
-     "type": "row",
-     "cells": [
-      2,
-      4,
-      7,
-      9,
-      12,
-      15,
-      18,
-      20,
-      23,
-      26,
-      31,
-      35
+   "md": "**One long sorted array.** For the grid [[2, 4, 7, 9], [12, 15, 18, 20], [23, 26, 31, 35]], flattened index `k` is cell `(k // 4, k % 4)`. Binary search\nover `0 … 11` for target 18:"
+  },
+  {
+   "table": {
+    "head": [
+     "lo",
+     "hi",
+     "mid",
+     "cell",
+     "value",
+     "decision"
+    ],
+    "rows": [
+     [
+      "0",
+      "11",
+      "5",
+      "(1, 1)",
+      "15",
+      "go right"
      ],
-     "slots": true
-    }
-   ],
-   "caption": "Row by row, the grid is one sorted list."
+     [
+      "6",
+      "11",
+      "8",
+      "(2, 0)",
+      "23",
+      "go left"
+     ],
+     [
+      "6",
+      "7",
+      "6",
+      "(1, 2)",
+      "18",
+      "found"
+     ]
+    ]
+   }
   },
   {
-   "md": "So binary search applies directly to positions 0 … m·n − 1. We never need to build that list: position k is\nrow `k // n`, column `k % n` (n = 4 columns). For example, position 6 is row 1, column 2, which holds 18."
+   "md": "Answer **true**."
   }
  ],
  "approaches": [
@@ -68,12 +66,11 @@
    "space": "O(1)",
    "idea": [
     {
-     "md": "Compare every cell with the target."
+     "md": "Check every seat."
     }
    ],
    "build": [
-    "Loop over all cells; return true on a match.",
-    "Return false."
+    "Scan all cells."
    ],
    "code": {
     "python": "class Solution:\n    def hasSeat(self, rows: List[List[int]], target: int) -> bool:\n        return any(v == target for row in rows for v in row)\n",
@@ -213,7 +210,7 @@
    },
    "limits": [
     {
-     "md": "Uses no ordering at all."
+     "md": "Ignores all the ordering."
     }
    ]
   },
@@ -224,13 +221,12 @@
    "space": "O(1)",
    "idea": [
     {
-     "md": "The grid also satisfies the weaker \"rows and columns sorted\" property, so the staircase walk works: bigger → move left, smaller → move down."
+     "md": "Staircase walk from the top-right corner, discarding a row or a column per step."
     }
    ],
    "build": [
-    "Start at (0, n − 1).",
-    "Bigger → `c −= 1`; smaller → `r += 1`; equal → true.",
-    "Leaving the grid → false."
+    "Start top-right.",
+    "Too big → left; too small → down."
    ],
    "code": {
     "python": "class Solution:\n    def hasSeat(self, rows: List[List[int]], target: int) -> bool:\n        r, c = 0, len(rows[0]) - 1\n        while r < len(rows) and c >= 0:\n            if rows[r][c] == target:\n                return True\n            if rows[r][c] > target:\n                c -= 1\n            else:\n                r += 1\n        return False\n",
@@ -443,7 +439,7 @@
    },
    "limits": [
     {
-     "md": "Doesn't use the stronger \"rows continue each other\" property, and O(m + n) misses the required O(log(m·n))."
+     "md": "O(m + n) is more than O(log(m·n)); this grid's stronger ordering allows a full binary search."
     }
    ]
   },
@@ -454,13 +450,13 @@
    "space": "O(1)",
    "idea": [
     {
-     "md": "Binary-search positions `[0, m·n − 1]`; the value at position k is `rows[k / n][k % n]`."
+     "md": "Binary search over `0 … m·n − 1`, reading the value at `(mid // n, mid % n)`."
     }
    ],
    "build": [
-    "`lo = 0`, `hi = m·n − 1`.",
-    "Read `mid`'s value through `mid / n` and `mid % n`.",
-    "Classic binary search."
+    "Dimensions.",
+    "Closed range over flattened indices.",
+    "Map mid to a cell and compare."
    ],
    "code": {
     "python": "class Solution:\n    def hasSeat(self, rows: List[List[int]], target: int) -> bool:\n        m, n = len(rows), len(rows[0])\n        lo, hi = 0, m * n - 1\n        while lo <= hi:\n            mid = (lo + hi) // 2\n            v = rows[mid // n][mid % n]\n            if v == target:\n                return True\n            if v < target:\n                lo = mid + 1\n            else:\n                hi = mid - 1\n        return False\n",
@@ -646,7 +642,7 @@
    ],
    "complexity": [
     {
-     "md": "**Time O(log(m · n)):** about 17 steps for 300 × 300. **Space O(1).**"
+     "md": "**Time O(log(m·n)).** **Space O(1).**"
     }
    ],
    "walk": {
@@ -869,7 +865,7 @@
  ],
  "takeaways": [
   {
-   "md": "- A grid whose rows continue each other is a sorted list in disguise: index k ↔ `(k / n, k % n)`.\n- Translate indices instead of copying data.\n- Compare with **Staircase Search**, where rows only satisfy the weaker property and O(m + n) is the best."
+   "md": "- **Fully ordered grid = one sorted array:** index `k` ↔ `(k // n, k % n)`.\n- The staircase works for weaker orderings but is slower here.\n- **Pitfall:** dividing by the number of rows instead of the number of columns."
   }
  ]
 }

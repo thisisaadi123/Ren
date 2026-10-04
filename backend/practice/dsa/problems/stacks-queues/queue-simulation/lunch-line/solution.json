@@ -4,42 +4,56 @@
  "question": [
   {
    "md": "Students queue; trays are stacked. The front student takes the top tray if it's their kind, otherwise goes to the\nback. Stop when nobody in the queue wants the top tray. Return how many students go hungry.\n\n- **Trays can't be skipped**: the top tray must be taken before anyone sees the next one.\n- **There are exactly as many trays as students**, so if every tray gets taken, nobody is hungry.\n- **Up to 10⁵ students.**"
+  },
+  {
+   "md": "**Edge cases to keep in mind**\n\n- Everyone may eat (answer 0).\n- The process stops as soon as nobody in line wants the top tray, even if later trays would suit them.\n- Students who don't want the top tray just rotate; the line order never matters in the end."
   }
  ],
  "think": [
   {
-   "md": "Queue `[1, 1, 0, 0, 1, 0]`, trays `[0, 1, 0, 0, 0, 1]` (top first). Three students want 0 and three want 1. The first four trays\n(0, 1, 0, 0) are taken, each by someone who eventually reaches the front. Then the top tray is 0, but nobody\nleft wants 0: lunch stops with **2** hungry."
+   "md": "**Simulate, then look for a shortcut.** Queue problems describe a process step by step. A direct simulation with a\nqueue is always a correct first answer. Then ask what the process *really* depends on: often the exact order doesn't\nmatter (only counts do), or each element's fate can be computed directly, which removes the step-by-step loop."
   },
   {
-   "panels": [
-    {
-     "type": "row",
-     "cells": [
-      1,
-      1,
-      0,
-      0,
-      1,
-      0
-     ],
-     "label": "queue"
-    },
-    {
-     "type": "row",
-     "cells": [
-      0,
-      1,
-      0,
-      0,
-      0,
-      1
-     ],
-     "label": "trays (top first)"
-    }
-   ]
+   "md": "**Order doesn't matter, counts do.** Students keep rotating, so if anyone in the line wants the top tray, that\nstudent eventually reaches the front and takes it. The top tray gets stuck only when **nobody** remaining wants\nthat type. So walk the trays from the top, using up one student who wants each tray, until a tray type has no\ntakers. For students `[1, 1, 0, 0, 1, 0]` and trays `[0, 1, 0, 0, 0, 1]`:"
   },
   {
-   "md": "The rotation is the key: a student who doesn't want the top tray goes to the back, and the line keeps turning\nuntil someone who wants it reaches the front. So the top tray is taken **if and only if at least one waiting\nstudent wants its kind**; which student, and the queue's order, never matter. Two counters are enough."
+   "table": {
+    "head": [
+     "top tray",
+     "remaining preferences",
+     "what happens"
+    ],
+    "rows": [
+     [
+      "0",
+      "2 want 0, 3 want 1",
+      "someone who wants it will reach the front"
+     ],
+     [
+      "1",
+      "2 want 0, 2 want 1",
+      "someone who wants it will reach the front"
+     ],
+     [
+      "0",
+      "1 want 0, 2 want 1",
+      "someone who wants it will reach the front"
+     ],
+     [
+      "0",
+      "0 want 0, 2 want 1",
+      "someone who wants it will reach the front"
+     ],
+     [
+      "0",
+      "0 want 0, 2 want 1",
+      "nobody left wants it: lunch stops"
+     ]
+    ]
+   }
+  },
+  {
+   "md": "Hungry students: **2**."
   }
  ],
  "approaches": [
@@ -50,13 +64,13 @@
    "space": "O(n)",
    "idea": [
     {
-     "md": "Run the canteen literally with a queue. Count consecutive students who passed on the current top tray; if that count reaches the queue's length, nobody wants it and the simulation stops."
+     "md": "Simulate: serve or rotate the front student; stop after a full pass with no one taking the top tray."
     }
    ],
    "build": [
-    "Queue of preferences, a pointer to the top tray, a 'passes in a row' counter.",
-    "Match → pop, advance the tray, reset the counter. No match → rotate, count the pass.",
-    "Stop when the counter equals the queue length (or the queue empties)."
+    "Queue of students.",
+    "Take or rotate.",
+    "Stop after a full unproductive pass."
    ],
    "code": {
     "python": "from collections import deque\n\nclass Solution:\n    def hungryStudents(self, prefers: List[int], trays: List[int]) -> int:\n        q = deque(prefers)\n        top = passes = 0\n        while q and passes < len(q):\n            s = q.popleft()\n            if s == trays[top]:\n                top += 1\n                passes = 0\n            else:\n                q.append(s)\n                passes += 1\n        return len(q)\n",
@@ -216,7 +230,7 @@
    ],
    "complexity": [
     {
-     "md": "**Time O(n²)** in the worst case: each tray can take a full rotation of the queue to find its student. **Space O(n).**"
+     "md": "**Time O(n²)** in the worst case (many rotations per tray). **Space O(n).**"
     }
    ],
    "walk": {
@@ -529,7 +543,7 @@
    },
    "limits": [
     {
-     "md": "The rotations carry no information: they only bring a matching student to the front, if one exists. Counting students per kind answers 'does one exist?' in O(1)."
+     "md": "Rotations don't change who eventually gets each tray; only the counts of each preference matter."
     }
    ],
    "slow": true
@@ -541,13 +555,13 @@
    "space": "O(1)",
    "idea": [
     {
-     "md": "Count students wanting 0 and wanting 1. For each tray from the top: if its kind's count is 0, stop; otherwise decrement it. Return the sum of the counts."
+     "md": "Count students wanting 0 and 1. For each tray from the top, if nobody wants that type, stop; otherwise one such student eats. The answer is the number of students left."
     }
    ],
    "build": [
-    "`want[0]`, `want[1]` = counts of each preference.",
-    "For each tray: stop if `want[tray] == 0`, else `want[tray]--`.",
-    "Return `want[0] + want[1]`."
+    "Count preferences.",
+    "Walk the trays, using up counts.",
+    "Stop at the first unwanted tray."
    ],
    "code": {
     "python": "class Solution:\n    def hungryStudents(self, prefers: List[int], trays: List[int]) -> int:\n        want = [prefers.count(0), prefers.count(1)]\n        for t in trays:\n            if want[t] == 0:\n                break\n            want[t] -= 1\n        return want[0] + want[1]\n",
@@ -875,7 +889,7 @@
  ],
  "takeaways": [
   {
-   "md": "- If a queue can rotate freely, its **order doesn't matter**, only its contents.\n- Look for the quantity a simulation really depends on (here, two counts) and track only that.\n- The stack of trays is the real constraint: its order is fixed."
+   "md": "- **When a queue rotates freely, only counts matter.**\n- Stop at the first item nobody wants.\n- **Pitfall:** skipping an unwanted tray and continuing (the stack blocks everything behind it)."
   }
  ]
 }

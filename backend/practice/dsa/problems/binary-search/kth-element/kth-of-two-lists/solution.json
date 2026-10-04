@@ -4,54 +4,58 @@
  "question": [
   {
    "md": "Both lists are sorted. Return the k-th smallest value of all values together (duplicates count separately).\n\n- **Either list may be empty.**\n- **k counts from 1**, up to m + n.\n- **The goal is O(log(m + n))**, faster than merging."
+  },
+  {
+   "md": "**Edge cases to keep in mind**\n\n- One list may be empty.\n- All of the first `k` may come from one list.\n- Duplicates count separately."
   }
  ],
  "think": [
   {
-   "md": "Take `a = [1, 4, 6, 9, 12]`, `b = [2, 3, 7, 10, 15, 20]`, k = 6. Merged: `[1, 2, 3, 4, 6, 7, 9, 10, 12, 15, 20]`; the 6-th is 7.\n\nLook at which elements make up the first 6: some prefix of a and some prefix of b. Here it's a's first\n3 and b's first 3. So the problem is really: **how many come from a?** Call it i (then j = k − i come\nfrom b)."
+   "md": "**K-th element by counting or partitioning.** The k-th smallest of a structure we can't (or don't want to) sort can be\nfound two ways:\n\n- **Binary search on the value:** count how many elements are `≤ v` (fast because of the structure) and find the\n  smallest `v` whose count reaches `k`;\n- **Binary search on a split:** decide how many of the first `k` elements come from each part, and check the split\n  with a couple of comparisons."
   },
   {
-   "panels": [
-    {
-     "type": "row",
-     "cells": [
-      1,
-      4,
-      6,
-      9,
-      12
-     ],
-     "states": {
-      "0": "answer",
-      "1": "answer",
-      "2": "answer"
-     },
-     "label": "a",
-     "slots": true
-    },
-    {
-     "type": "row",
-     "cells": [
-      2,
-      3,
-      7,
-      10,
-      15,
-      20
-     ],
-     "states": {
-      "0": "answer",
-      "1": "answer",
-      "2": "answer"
-     },
-     "label": "b",
-     "slots": true
-    }
-   ],
-   "caption": "The k smallest = a prefix of a + a prefix of b."
+   "md": "**A split, not a value.** The first `k` elements of the merged order are a prefix of `a` (say `i` elements) plus a\nprefix of `b` (`k − i` elements). The split is right when the last element taken from each list is no bigger than\nthe first element **not** taken from the other. If `a[i] < b[k − i − 1]`, an element of `a` that we didn't take is\nsmaller than one we did take from `b`: take more from `a`. This test is monotone in `i`, so binary search `i`\nover `[max(0, k − n), min(k, m)]` (searching the shorter list). For `a = [1, 4, 6, 9, 12]`, `b = [2, 3, 7, 10, 15, 20]`, `k = 6`:"
   },
   {
-   "md": "A choice of i is right when nothing left out is smaller than something taken: `a[i] ≥ b[j − 1]` and\n`b[j] ≥ a[i − 1]`. If `a[i] < b[j − 1]`, then a's next value beats something taken from b, so i is too small.\nThat test changes from \"too small\" to \"fine\" only once as i grows, so binary-search i over its valid range\n`[max(0, k − n), min(k, m)]`. The answer is then the larger of the two last taken values."
+   "table": {
+    "head": [
+     "lo",
+     "hi",
+     "i (from a)",
+     "k − i (from b)",
+     "compare",
+     "decision"
+    ],
+    "rows": [
+     [
+      "0",
+      "5",
+      "2",
+      "4",
+      "a[2] = 6 vs b[3] = 10",
+      "take more from a"
+     ],
+     [
+      "3",
+      "5",
+      "4",
+      "2",
+      "a[4] = 12 vs b[1] = 3",
+      "take at most i from a"
+     ],
+     [
+      "3",
+      "4",
+      "3",
+      "3",
+      "a[3] = 9 vs b[2] = 7",
+      "take at most i from a"
+     ]
+    ]
+   }
+  },
+  {
+   "md": "Take 3 from a and 3 from b; the k-th is the larger of their last elements: **7**."
   }
  ],
  "approaches": [
@@ -62,13 +66,13 @@
    "space": "O(m + n)",
    "idea": [
     {
-     "md": "Put both lists together, sort, return index k − 1."
+     "md": "Concatenate, sort, take the k-th."
     }
    ],
    "build": [
     "Concatenate.",
     "Sort.",
-    "Return element k − 1."
+    "Index `k − 1`."
    ],
    "code": {
     "python": "class Solution:\n    def kthOfTwo(self, a: List[int], b: List[int], k: int) -> int:\n        return sorted(a + b)[k - 1]\n",
@@ -222,7 +226,7 @@
    },
    "limits": [
     {
-     "md": "Re-sorts data that is already sorted, and processes all m + n values when only k matter."
+     "md": "Re-sorts two already sorted lists."
     }
    ]
   },
@@ -233,13 +237,12 @@
    "space": "O(1)",
    "idea": [
     {
-     "md": "Walk both lists from the front with two pointers, each time taking the smaller head; the k-th value taken is the answer."
+     "md": "Merge the two lists for `k` steps, always taking the smaller front."
     }
    ],
    "build": [
-    "`i = j = 0`.",
-    "Repeat k times: take from a if b is used up or `a[i] ≤ b[j]`; else from b.",
-    "Return the last value taken."
+    "Two pointers.",
+    "Take the smaller front `k` times."
    ],
    "code": {
     "python": "class Solution:\n    def kthOfTwo(self, a: List[int], b: List[int], k: int) -> int:\n        i = j = 0\n        for _ in range(k):\n            if j == len(b) or (i < len(a) and a[i] <= b[j]):\n                value = a[i]\n                i += 1\n            else:\n                value = b[j]\n                j += 1\n        return value\n",
@@ -338,7 +341,7 @@
    ],
    "complexity": [
     {
-     "md": "**Time O(k)**, up to O(m + n). **Space O(1).**"
+     "md": "**Time O(k).** **Space O(1).**"
     }
    ],
    "walk": {
@@ -572,7 +575,7 @@
    },
    "limits": [
     {
-     "md": "Still linear in k. Since only the *split* between a and b matters, binary-search the split instead of walking to it."
+     "md": "Linear in `k`; binary searching the split takes O(log min(m, n))."
     }
    ]
   },
@@ -583,14 +586,14 @@
    "space": "O(1)",
    "idea": [
     {
-     "md": "Make a the shorter list. Search i (count from a) in `[max(0, k − n), min(k, m)]`, with `j = k − i`. If `a[i] < b[j − 1]`, i is too small (`lo = i + 1`); otherwise `hi = i`. At the end, the answer is `max(a[i − 1], b[j − 1])`, skipping a side that contributes nothing."
+     "md": "Swap so `a` is shorter. Binary search `i` (elements from `a`) in `[max(0, k − n), min(k, m)]` with the test `a[i] < b[k − i − 1]`; the answer is `max(a[i − 1], b[k − i − 1])` with missing elements treated as −∞."
     }
    ],
    "build": [
-    "Swap so `len(a) ≤ len(b)`.",
-    "`lo = max(0, k − n)`, `hi = min(k, m)`.",
-    "Binary-search with the test `a[i] < b[k − i − 1]`.",
-    "Return the larger of the last taken values."
+    "Search the shorter list.",
+    "Valid range for `i`.",
+    "Monotone split test.",
+    "Larger of the two last-taken elements."
    ],
    "code": {
     "python": "class Solution:\n    def kthOfTwo(self, a: List[int], b: List[int], k: int) -> int:\n        if len(a) > len(b):\n            a, b = b, a\n        m, n = len(a), len(b)\n        lo, hi = max(0, k - n), min(k, m)\n        while lo < hi:\n            i = (lo + hi) // 2\n            if a[i] < b[k - i - 1]:\n                lo = i + 1\n            else:\n                hi = i\n        i, j = lo, k - lo\n        left_a = a[i - 1] if i > 0 else float(\"-inf\")\n        left_b = b[j - 1] if j > 0 else float(\"-inf\")\n        return max(left_a, left_b)\n",
@@ -981,7 +984,7 @@
  ],
  "takeaways": [
   {
-   "md": "- \"k smallest of two sorted lists\" = choose a **split**: i from a, k − i from b.\n- A split is valid when the cut-off elements are ordered consistently; the \"too few from a\" test is\n  monotonic in i, so binary-search i.\n- Search over the shorter list to keep indices in range and the search short."
+   "md": "- **k-th of two sorted lists:** binary search how many come from the shorter list.\n- Clamp the split range so neither list is over- or under-used.\n- **Pitfall:** searching the longer list (indices can run out of range in the other)."
   }
  ]
 }

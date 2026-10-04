@@ -97,7 +97,8 @@
     const key = `ren:sol:${id}`;
     let data = null;
     let loading = null;
-    let lang = store.get("ren:sol:lang") || editorLang || "python";
+    // The code follows the editor's language (renSolution's language() is called when it changes).
+    let lang = editorLang || "python";
     if (!LANGS.some((l) => l.id === lang)) lang = "python";
 
     const quiet = (title, line, actions = "") => {
@@ -245,7 +246,6 @@
 
     function setLang(next) {
       lang = next;
-      store.set("ren:sol:lang", lang);
       el.querySelectorAll("[data-code]").forEach((box) => (box.innerHTML = codeBlock(data.approaches[Number(box.dataset.code)])));
       el.querySelectorAll("[data-lines]").forEach((box) => (box.innerHTML = lineRows(data.approaches[Number(box.dataset.lines)])));
     }
@@ -434,6 +434,10 @@
 
     let opened = false;
     return {
+      // The editor switched language: show the code in that language too.
+      language(next) {
+        if (next !== lang && LANGS.some((l) => l.id === next)) setLang(next);
+      },
       // Called each time the Solution tab is shown.
       open() {
         if (opened) return;

@@ -4,45 +4,84 @@
  "question": [
   {
    "md": "Rewrite an absolute path into its tidy form: single slashes, no `.` or `..`, no trailing slash (except the root\nitself).\n\n- **`..` at the root stays at the root:** `/../a` → `/a`.\n- **`...` is just a folder name**, as is anything that isn't exactly `.` or `..`.\n- **Repeated slashes collapse:** `/a//b` → `/a/b`."
+  },
+  {
+   "md": "**Edge cases to keep in mind**\n\n- `..` at the root stays at the root.\n- `...` (or any other dotted name) is an ordinary folder.\n- Repeated slashes and a trailing slash disappear."
   }
  ],
  "think": [
   {
-   "md": "Take `/usr//local/./bin/../lib/.../`. Reading folder by folder: `usr`, `local`, `.` (stay), `bin`, `..` (back out of bin), `lib`,\n`...` (a normal name). Result: `/usr/local/lib/...`."
+   "md": "**Building text with a stack.** When later characters can undo or combine with the most recent ones (a backspace, a\nrun of equal tiles, a `..` in a path, a closing bracket), the most recent output is exactly what's affected next. A\nstack of output pieces handles that: push to append, pop to undo, and modify the top to combine."
   },
   {
-   "panels": [
-    {
-     "type": "row",
-     "cells": [
-      "",
-      "usr",
-      "",
-      "local",
-      ".",
-      "bin",
-      "..",
-      "lib",
-      "...",
-      ""
-     ],
-     "label": "parts after splitting on '/'"
-    },
-    {
-     "type": "row",
-     "cells": [
-      "usr",
-      "local",
-      "lib",
-      "..."
-     ],
-     "label": "kept"
-    }
-   ],
-   "caption": "Empty parts come from repeated or trailing slashes."
+   "md": "**Folders on a stack.** Split the path at `/`. Empty parts (from repeated or trailing slashes) and `.` change\nnothing; `..` pops the last folder (if any); any other name is pushed. The stack, joined with `/` and prefixed by\none `/`, is the tidy path."
   },
   {
-   "md": "`..` undoes the most recently entered folder: last in, first out. That's a stack of folder names."
+   "md": "**Trace on `/usr//local/./bin/../lib/.../`:**"
+  },
+  {
+   "table": {
+    "head": [
+     "part",
+     "action",
+     "path so far"
+    ],
+    "rows": [
+     [
+      "''",
+      "empty or '.': ignore",
+      "/"
+     ],
+     [
+      "'usr'",
+      "enter folder",
+      "/usr"
+     ],
+     [
+      "''",
+      "empty or '.': ignore",
+      "/usr"
+     ],
+     [
+      "'local'",
+      "enter folder",
+      "/usr/local"
+     ],
+     [
+      "'.'",
+      "empty or '.': ignore",
+      "/usr/local"
+     ],
+     [
+      "'bin'",
+      "enter folder",
+      "/usr/local/bin"
+     ],
+     [
+      "'..'",
+      "go up one folder",
+      "/usr/local"
+     ],
+     [
+      "'lib'",
+      "enter folder",
+      "/usr/local/lib"
+     ],
+     [
+      "'...'",
+      "enter folder",
+      "/usr/local/lib/..."
+     ],
+     [
+      "''",
+      "empty or '.': ignore",
+      "/usr/local/lib/..."
+     ]
+    ]
+   }
+  },
+  {
+   "md": "Tidy path: **`/usr/local/lib/...`**."
   }
  ],
  "approaches": [
@@ -53,13 +92,13 @@
    "space": "O(n)",
    "idea": [
     {
-     "md": "Apply local rewrite rules repeatedly: collapse `//`, delete `/./`, cancel `/name/../`, and turn a leading `/../` into `/`. When nothing applies, trim the trailing slash."
+     "md": "Apply text rewriting rules (collapse slashes, remove `/./`, remove `name/../`, handle `/../` at the root) until nothing changes."
     }
    ],
    "build": [
-    "Append `/` so every part is surrounded by slashes.",
-    "Loop over the rules until a full round changes nothing.",
-    "Remove the trailing `/` (keep `/` for the root)."
+    "Add a trailing slash.",
+    "Apply the rules repeatedly.",
+    "Strip the trailing slash."
    ],
    "code": {
     "python": "import re\n\nclass Solution:\n    def tidyPath(self, path: str) -> str:\n        t = path + \"/\"\n        rules = [(r\"//+\", \"/\"), (r\"/\\./\", \"/\"), (r\"/(?!\\.\\./)[^/]+/\\.\\./\", \"/\"), (r\"^/\\.\\./\", \"/\")]\n        changed = True\n        while changed:\n            changed = False\n            for pattern, repl in rules:\n                new = re.sub(pattern, repl, t, count=1)\n                if new != t:\n                    t, changed = new, True\n        return t.rstrip(\"/\") or \"/\"\n",
@@ -191,7 +230,7 @@
    ],
    "complexity": [
     {
-     "md": "**Time O(n²):** each rewrite rescans and shifts the string. **Space O(n).**"
+     "md": "**Time O(n²)** in the worst case. **Space O(n).**"
     }
    ],
    "walk": {
@@ -268,7 +307,7 @@
    },
    "limits": [
     {
-     "md": "Each fix rescans from the start. The structure is just \"enter folder / leave folder\", which a stack processes in one pass."
+     "md": "Each rewrite rescans the whole path, and the rules are easy to get subtly wrong. A stack of folders processes each part once."
     }
    ],
    "slow": true
@@ -280,13 +319,13 @@
    "space": "O(n)",
    "idea": [
     {
-     "md": "Split on `/`. For each part: empty or `.` → nothing; `..` → pop if non-empty; else push. Answer: `/` + parts joined by `/`."
+     "md": "Split at `/`, push names, pop on `..`, ignore empty parts and `.`; join with `/`."
     }
    ],
    "build": [
-    "Split the path on `/`.",
-    "Process parts with the stack rules.",
-    "Return `\"/\" + join(stack, \"/\")`."
+    "Split.",
+    "Push, pop or ignore each part.",
+    "Join with a leading `/`."
    ],
    "code": {
     "python": "class Solution:\n    def tidyPath(self, path: str) -> str:\n        stack = []\n        for part in path.split(\"/\"):\n            if part == \"..\":\n                if stack:\n                    stack.pop()\n            elif part and part != \".\":\n                stack.append(part)\n        return \"/\" + \"/\".join(stack)\n",
@@ -454,7 +493,7 @@
    ],
    "complexity": [
     {
-     "md": "**Time O(n).** **Space O(n)** for the parts and the result."
+     "md": "**Time O(n).** **Space O(n).**"
     }
    ],
    "walk": {
@@ -613,7 +652,7 @@
  ],
  "takeaways": [
   {
-   "md": "- Path normalisation = **stack of components**: push names, pop on `..`, ignore `.` and empty parts.\n- Split first; work with tokens rather than characters."
+   "md": "- **Path normalisation:** split and use a stack of folder names.\n- `..` pops (but never below the root); `.` and empty parts are ignored.\n- **Pitfall:** treating `...` as special."
   }
  ]
 }

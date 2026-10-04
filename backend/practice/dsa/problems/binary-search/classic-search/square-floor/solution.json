@@ -4,51 +4,110 @@
  "question": [
   {
    "md": "Return √x rounded down, without a built-in square root or power function.\n\n- **Rounded down:** √8 ≈ 2.83 → 2. Perfect squares give their exact root: √49 = 7.\n- **x up to 9 × 10¹⁵:** the answer is at most about 9.5 × 10⁷, but squaring a candidate as large as x itself\n  would overflow 64 bits. Bound the search range.\n- **x = 0** gives 0."
+  },
+  {
+   "md": "**Edge cases to keep in mind**\n\n- `x = 0` and `x = 1`.\n- Perfect squares: the answer is exact.\n- `x` up to 9 × 10¹⁵, so `mid²` needs 64 bits; the answer is at most about 9.5 × 10⁷."
   }
  ],
  "think": [
   {
-   "md": "Take x = 2024. 44² = 1936 ≤ 2024 and 45² = 2025 > 2024, so the answer is 44.\n\nThink of the yes/no question \"is k² ≤ x?\" for k = 0, 1, 2, …: it's **yes** up to the answer and **no** after\nit. Finding where a monotonic yes/no flips is exactly what binary search does, so search on k instead of\ncounting up.\n\nRange: k is at least 0 and at most `min(x, 10⁸)` (since (10⁸)² = 10¹⁶ > 9 × 10¹⁵). The cap keeps `mid * mid`\nwithin 64 bits."
+   "md": "**Why binary search works.** In a sorted array, one comparison with the middle element tells you which half can't\ncontain what you're looking for: everything on the other side of the middle is smaller (or larger) too. Throwing away\nhalf each time leaves 1 element after about `log₂ n` steps: 17 steps for 10⁵ elements.\n\n**Think in invariants, not cases.** Decide what the range `lo … hi` means (\"if the target exists, it's inside\") and\nkeep that true on every update. The loop condition and the `±1` details follow from that meaning, which is where most\nbinary-search bugs come from."
   },
   {
-   "panels": [
-    {
-     "type": "row",
-     "cells": [
+   "md": "**Search on the answer.** The yes/no question \"is `k² ≤ x`?\" is **yes** for `k = 0, 1, …, ⌊√x⌋` and **no**\nafterwards. We want the last yes, so search over `k` instead of over an array.\n\n**Rounding up.** The range `[lo, hi]` means \"the answer is in here\". If `mid² ≤ x`, then `mid` is still a\ncandidate, so `lo = mid` (not `mid + 1`). With `mid = (lo + hi) // 2`, a two-element range `lo, lo + 1` would\ngive `mid = lo` and never shrink; rounding up, `mid = (lo + hi + 1) // 2`, avoids that.\n\n**The cap.** `√(9 × 10¹⁵) ≈ 9.49 × 10⁷`, so `hi = min(x, 10⁸)` keeps `mid²` well inside 64 bits. For x = 2024:"
+  },
+  {
+   "table": {
+    "head": [
+     "lo",
+     "hi",
+     "mid",
+     "mid²",
+     "decision"
+    ],
+    "rows": [
+     [
       "0",
-      "…",
+      "2024",
+      "1012",
+      "1024144",
+      "1012² > 2024: answer < 1012"
+     ],
+     [
+      "0",
+      "1011",
+      "506",
+      "256036",
+      "506² > 2024: answer < 506"
+     ],
+     [
+      "0",
+      "505",
+      "253",
+      "64009",
+      "253² > 2024: answer < 253"
+     ],
+     [
+      "0",
+      "252",
+      "126",
+      "15876",
+      "126² > 2024: answer < 126"
+     ],
+     [
+      "0",
+      "125",
+      "63",
+      "3969",
+      "63² > 2024: answer < 63"
+     ],
+     [
+      "0",
+      "62",
+      "31",
+      "961",
+      "31² ≤ 2024: answer ≥ 31"
+     ],
+     [
+      "31",
+      "62",
+      "47",
+      "2209",
+      "47² > 2024: answer < 47"
+     ],
+     [
+      "31",
+      "46",
+      "39",
+      "1521",
+      "39² ≤ 2024: answer ≥ 39"
+     ],
+     [
+      "39",
+      "46",
+      "43",
+      "1849",
+      "43² ≤ 2024: answer ≥ 43"
+     ],
+     [
+      "43",
+      "46",
+      "45",
+      "2025",
+      "45² > 2024: answer < 45"
+     ],
+     [
       "43",
       "44",
-      "45",
-      "…"
-     ],
-     "states": {
-      "3": "answer",
-      "4": "mark"
-     },
-     "label": "k"
-    },
-    {
-     "type": "row",
-     "cells": [
-      "yes",
-      "…",
-      "yes",
-      "yes",
-      "no",
-      "…"
-     ],
-     "states": {
-      "3": "answer",
-      "4": "mark"
-     },
-     "label": "k² ≤ x?"
-    }
-   ],
-   "caption": "The answer is the last 'yes'."
+      "44",
+      "1936",
+      "44² ≤ 2024: answer ≥ 44"
+     ]
+    ]
+   }
   },
   {
-   "md": "Searching for the **last** yes needs the upper middle `mid = (lo + hi + 1) / 2`: with `lo = mid` on a yes, a\nlower middle could pick `mid = lo` forever when `hi = lo + 1`."
+   "md": "Answer **44**."
   }
  ],
  "approaches": [
@@ -59,13 +118,12 @@
    "space": "O(1)",
    "idea": [
     {
-     "md": "Start at k = 0 and keep increasing while (k + 1)² ≤ x."
+     "md": "Count `k` up while `(k + 1)² ≤ x`."
     }
    ],
    "build": [
     "`k = 0`.",
-    "While `(k + 1)² ≤ x`, `k += 1`.",
-    "Return k."
+    "Increase while the next square fits."
    ],
    "code": {
     "python": "class Solution:\n    def squareFloor(self, x: int) -> int:\n        k = 0\n        while (k + 1) * (k + 1) <= x:\n            k += 1\n        return k\n",
@@ -164,7 +222,7 @@
    ],
    "complexity": [
     {
-     "md": "**Time O(√x):** up to ~9.5 × 10⁷ steps. **Space O(1).**"
+     "md": "**Time O(√x):** about 10⁸ steps at the limit. **Space O(1).**"
     }
    ],
    "walk": {
@@ -259,7 +317,7 @@
    },
    "limits": [
     {
-     "md": "Tries every k one by one, although \"k² ≤ x\" is monotonic in k and could be bisected."
+     "md": "Linear in the answer. The yes/no question is monotone, so binary search finds the last yes in about 27 steps."
     }
    ],
    "slow": true
@@ -271,13 +329,13 @@
    "space": "O(1)",
    "idea": [
     {
-     "md": "Search k in `[0, min(x, 10⁸)]`. With `mid = (lo + hi + 1) / 2`: if `mid² ≤ x`, the answer is ≥ mid (`lo = mid`); else it's < mid (`hi = mid − 1`). When `lo == hi`, that's ⌊√x⌋."
+     "md": "Binary search the largest `k` with `k² ≤ x` over `[0, min(x, 10⁸)]`, with `mid` rounded up so `lo = mid`\nalways makes progress."
     }
    ],
    "build": [
-    "`lo = 0`, `hi = min(x, 10⁸)`.",
-    "Upper middle; move `lo` up on a yes, `hi` down on a no.",
-    "Return `lo`."
+    "Range `[0, min(x, 10⁸)]`.",
+    "Upper middle.",
+    "`mid² ≤ x` → `lo = mid`, else `hi = mid − 1`."
    ],
    "code": {
     "python": "class Solution:\n    def squareFloor(self, x: int) -> int:\n        lo, hi = 0, min(x, 10**8)\n        while lo < hi:\n            mid = (lo + hi + 1) // 2\n            if mid * mid <= x:\n                lo = mid\n            else:\n                hi = mid - 1\n        return lo\n",
@@ -434,7 +492,7 @@
    ],
    "complexity": [
     {
-     "md": "**Time O(log x):** about 27 steps for the largest inputs. **Space O(1).**"
+     "md": "**Time O(log x).** **Space O(1).**"
     }
    ],
    "walk": {
@@ -601,7 +659,7 @@
  ],
  "takeaways": [
   {
-   "md": "- \"Largest k with f(k) ≤ x\" for an increasing f is a binary search on k.\n- For the **last true**, use the upper middle `(lo + hi + 1) / 2` with `lo = mid`; for the first true, the\n  lower middle with `hi = mid`.\n- Bound the search range so intermediate values (like k²) can't overflow."
+   "md": "- **Integer square root:** binary search for the last `k` with `k² ≤ x`.\n- When the update is `lo = mid`, round `mid` up.\n- **Pitfall:** overflow in `mid * mid` without a cap or 64-bit arithmetic."
   }
  ]
 }

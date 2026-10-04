@@ -121,7 +121,10 @@
     $("[data-meta]").innerHTML = [
       `<span class="diff ${esc(problem.difficulty)}">${DIFF[problem.difficulty] || esc(problem.difficulty)}</span>`,
       problem.topic && esc(problem.topic.name),
-      problem.pattern && esc(problem.pattern.name),
+      problem.pattern &&
+        (problem.pattern.lesson
+          ? `<a class="meta-lesson" href="learn.html?id=${encodeURIComponent(problem.pattern.id)}" title="Read the ${esc(problem.pattern.name.toLowerCase())} lesson">${esc(problem.pattern.name)}</a>`
+          : esc(problem.pattern.name)),
     ]
       .filter(Boolean)
       .join(" · ");
@@ -154,14 +157,36 @@
       )
       .join("");
 
+    // The walkthrough runs the solution step by step, so it stays behind a
+    // spoiler warning until the reader asks for it (remembered per problem).
     const walk = $("[data-walk]");
     const spec = problem.visual && problem.visual.walkthrough;
-    if (!walk) {
-      // The SQL page has no walkthrough.
-    } else if (spec && window.renVisual) {
-      walk.innerHTML = `<h2 class="prob-label">Walkthrough</h2>${spec.title ? `<p class="walk-intro">${inline(spec.title)}</p>` : ""}<div data-walk-player></div>`;
-      renVisual.walkthrough($("[data-walk-player]"), spec);
-    } else {
+    const walkKey = `ren:walk:${id}`;
+    if (walk && spec && window.renVisual) {
+      const paint = (state) => {
+        store.set(walkKey, state);
+        if (state === "shown") {
+          walk.innerHTML = `<h2 class="prob-label">Walkthrough</h2>${spec.title ? `<p class="walk-intro">${inline(spec.title)}</p>` : ""}<div data-walk-player></div>`;
+          renVisual.walkthrough($("[data-walk-player]"), spec);
+        } else if (state === "hidden") {
+          walk.innerHTML = `<h2 class="prob-label">Walkthrough</h2><button type="button" class="ghost-btn walk-reopen" data-walk-show>Show walkthrough</button>`;
+        } else {
+          walk.innerHTML = `<h2 class="prob-label">Walkthrough</h2>
+            <div class="walk-gate">
+              <p>The walkthrough steps through a solution, so it may give away how to solve this problem.</p>
+              <div class="walk-gate-btns">
+                <button type="button" class="btn btn-primary btn-sm" data-walk-show>Show walkthrough</button>
+                <button type="button" class="ghost-btn" data-walk-hide>Not now</button>
+              </div>
+            </div>`;
+        }
+        const yes = walk.querySelector("[data-walk-show]");
+        const no = walk.querySelector("[data-walk-hide]");
+        if (yes) yes.onclick = () => paint("shown");
+        if (no) no.onclick = () => paint("hidden");
+      };
+      paint(store.get(walkKey, "ask"));
+    } else if (walk) {
       walk.innerHTML = "";
     }
 
@@ -185,64 +210,14 @@
   const fileLabel = $("[data-file]");
   const savedNote = $("[data-saved]");
 
-  const KEYWORDS = [
-    "def", "return", "if", "elif", "else", "for", "while", "in", "and", "or", "not", "is", "lambda", "class",
-    "import", "from", "as", "with", "try", "except", "finally", "raise", "pass", "break", "continue", "yield",
-    "None", "True", "False", "self", "function", "const", "let", "var", "of", "new", "this", "typeof",
-    "public", "private", "protected", "static", "final", "int", "long", "double", "float", "char", "boolean",
-    "void", "auto", "bool", "string", "vector", "unordered_map", "unordered_set", "map", "set", "pair",
-    "null", "nullptr", "true", "false", "func", "range", "package", "struct", "switch", "case", "default",
-    "do", "using", "namespace", "template", "typename", "include", "sizeof", "unsigned", "typedef", "enum",
-    "extends", "implements", "interface", "throw", "throws", "assert", "del", "nonlocal", "global",
-  ].join("|");
-
-  const tokensFor = (comment) =>
-    new RegExp(
-      [
-        `(${comment === "#" ? "#" : "//"}[^\\n]*)`, // 1 comment
-        "(\"(?:[^\"\\\\\\n]|\\\\.)*\"|'(?:[^'\\\\\\n]|\\\\.)*')", // 2 string
-        `\\b(${KEYWORDS})\\b`, // 3 keyword
-        "\\b(\\d+(?:\\.\\d+)?)\\b", // 4 number
-        "\\b([A-Za-z_]\\w*)(?=\\()", // 5 function call
-      ].join("|"),
-      "g"
-    );
-  const SQL_KEYWORDS = [
-    "select", "from", "where", "and", "or", "not", "in", "is", "null", "as", "on", "join", "left", "right", "full",
-    "inner", "outer", "cross", "natural", "using", "group", "by", "order", "having", "limit", "offset", "distinct",
-    "union", "all", "intersect", "except", "case", "when", "then", "else", "end", "with", "recursive", "over",
-    "partition", "rows", "range", "between", "preceding", "following", "current", "row", "unbounded", "asc", "desc",
-    "like", "glob", "exists", "values", "cast", "filter", "window", "nulls", "first", "last", "true", "false",
-  ].join("|");
-  const SQL_TOKENS = new RegExp(
-    [
-      "(--[^\\n]*)", // 1 comment
-      "('(?:[^']|'')*')", // 2 string
-      `\\b(${SQL_KEYWORDS})\\b`, // 3 keyword
-      "\\b(\\d+(?:\\.\\d+)?)\\b", // 4 number
-      "\\b([A-Za-z_]\\w*)(?=\\()", // 5 function call
-    ].join("|"),
-    "gi"
-  );
-  const CLASS = [null, "tk-c", "tk-s", "tk-k", "tk-n", "tk-f"];
+  const { tokensFor, SQL_TOKENS } = renCode;
   let tokens = tokensFor("#");
   let lang;
 
-  const highlight = (src, re = tokens) => {
-    let out = "";
-    let last = 0;
-    for (const m of src.matchAll(re)) {
-      out += esc(src.slice(last, m.index));
-      const group = m.findIndex((g, i) => i > 0 && g !== undefined);
-      out += `<span class="${CLASS[group]}">${esc(m[0])}</span>`;
-      last = m.index + m[0].length;
-    }
-    return out + esc(src.slice(last));
-  };
+  const highlight = (src, re = tokens) => renCode.highlight(src, re);
 
   // Any language's code, highlighted (the Solution tab's code blocks).
-  const LANG_TOKENS = { python: tokensFor("#"), other: tokensFor("//") };
-  const highlightAs = (src, l) => highlight(src, l === "python" ? LANG_TOKENS.python : LANG_TOKENS.other);
+  const highlightAs = renCode.as;
 
   const render = () => {
     const src = input.value;
@@ -360,6 +335,7 @@
     input.value = store.get(codeKey(lang), l.starter);
     savedNote.textContent = store.get(codeKey(lang)) ? "Saved in this browser" : "";
     render();
+    if (!SQL) renPane.language(lang);
     if (focus) caretToBody();
   }
 
@@ -957,6 +933,10 @@
       },
       shown() {
         if (current === "solution" && solution) solution.open();
+      },
+      // Keep the Solution tab's code in the editor's language.
+      language(next) {
+        if (solution) solution.language(next);
       },
     };
   })();

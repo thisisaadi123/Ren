@@ -4,17 +4,40 @@
  "question": [
   {
    "md": "Remove the fewest brackets so the remaining brackets are balanced; letters stay. Return any valid result.\n\n- **Letters never move or disappear.**\n- **Several answers can be valid** (which of two equivalent `)` to drop); any one is accepted.\n- **Removing unmatched brackets is enough and necessary:** every unmatched bracket must go, and once they're\n  gone the rest is balanced."
+  },
+  {
+   "md": "**Edge cases to keep in mind**\n\n- Letters are never removed.\n- Several minimal answers can exist; any one is accepted.\n- Strays can be `)` with nothing open or `(` never closed."
   }
  ],
  "think": [
   {
-   "md": "Take `a)b(c(d)e)f)(g`. Match brackets left to right: the first `)` has nothing open (stray). `(c(d)e)` is fully matched.\nThe `)` after `f` has nothing open (stray). The final `(` is never closed (stray). Removing those three gives\n`ab(c(d)e)fg`."
+   "md": "**Why a stack.** In a well-formed bracket string, the bracket opened most recently must be closed first: brackets\nnest, they never cross. \"Most recent first\" is exactly last-in, first-out, so keep the open brackets on a stack: push\non an opener, and on a closer check (and pop) the top. With a single kind of bracket the stack only ever holds `(`,\nso a **counter** of open brackets can replace it."
   },
   {
-   "panels": [
-    {
-     "type": "row",
-     "cells": [
+   "md": "**Which brackets are stray?** Scanning left to right, a `)` with nothing open can never be matched. After the\nscan, every `(` still open can never be matched either. Removing exactly those brackets leaves a balanced string,\nand no smaller removal works, because each of them is unmatched no matter what else is removed.\n\nFor `a)b(c(d)e)f)(g` the stray positions are [1, 11, 12]:"
+  },
+  {
+   "table": {
+    "head": [
+     "position",
+     "0",
+     "1",
+     "2",
+     "3",
+     "4",
+     "5",
+     "6",
+     "7",
+     "8",
+     "9",
+     "10",
+     "11",
+     "12",
+     "13"
+    ],
+    "rows": [
+     [
+      "char",
       "a",
       ")",
       "b",
@@ -30,18 +53,28 @@
       "(",
       "g"
      ],
-     "states": {
-      "1": "mark",
-      "11": "mark",
-      "12": "mark"
-     },
-     "slots": true
-    }
-   ],
-   "caption": "The stray brackets (marked) are exactly the unmatched ones."
+     [
+      "stray?",
+      "",
+      "✗",
+      "",
+      "",
+      "",
+      "",
+      "",
+      "",
+      "",
+      "",
+      "",
+      "✗",
+      "✗",
+      ""
+     ]
+    ]
+   }
   },
   {
-   "md": "Why is that the minimum? Each unmatched bracket must be removed (nothing can partner with it), and removing\nonly those leaves every remaining bracket with its partner. Greedy left-to-right matching (each `)` with the most\nrecent open `(`) finds a maximum set of matched pairs, so it leaves the fewest strays."
+   "md": "Cleaned: **`ab(c(d)e)fg`**."
   }
  ],
  "approaches": [
@@ -52,14 +85,14 @@
    "space": "O(n)",
    "idea": [
     {
-     "md": "Scan once: push the index of every `(`; on `)`, pop a partner if any, otherwise mark the `)` for removal. After the scan, every index still on the stack is an unclosed `(`: mark those too. Build the result without the marked positions."
+     "md": "Scan with a stack of `(` positions: pop on a matched `)`, mark an unmatched `)` for removal. At the end,\nmark every position left on the stack. Build the string without the marked positions."
     }
    ],
    "build": [
-    "Stack of `(` indices; a set (or boolean array) of indices to drop.",
-    "Scan and match.",
-    "Mark the leftover `(`.",
-    "Copy every unmarked character."
+    "Stack of `(` positions.",
+    "Mark unmatched `)`.",
+    "Mark leftover `(`.",
+    "Build the result."
    ],
    "code": {
     "python": "class Solution:\n    def stripStray(self, s: str) -> str:\n        stack, drop = [], set()\n        for i, c in enumerate(s):\n            if c == \"(\":\n                stack.append(i)\n            elif c == \")\":\n                if stack:\n                    stack.pop()\n                else:\n                    drop.add(i)\n        drop.update(stack)\n        return \"\".join(c for i, c in enumerate(s) if i not in drop)\n",
@@ -470,7 +503,7 @@
    },
    "limits": [
     {
-     "md": "The stack only needs to know *how many* `(` are open, not where, if strays are removed in two directional passes."
+     "md": "Stores positions; two counting passes do the same with only counters (plus the output)."
     }
    ]
   },
@@ -481,13 +514,13 @@
    "space": "O(1)",
    "idea": [
     {
-     "md": "Pass 1, left to right: keep a balance; skip any `)` when the balance is 0 (stray), otherwise copy. Pass 2, right to left over that result: skip any `(` when the balance of `)` seen is 0 (an unclosed `(`), otherwise copy. Reverse."
+     "md": "Pass 1 (left to right): drop any `)` that arrives with no open `(`. Pass 2 (right to left over the result):\ndrop any `(` that arrives with no `)` to its right. What's left is balanced.\n\n**Why two directions.** Stray `)` are detected reading forwards (nothing open yet); stray `(` are detected\nreading backwards (nothing to close them)."
     }
    ],
    "build": [
-    "Left-to-right: drop `)` with no open `(`.",
-    "Right-to-left: drop `(` with no `)` after it.",
-    "Return the kept characters in order."
+    "Forward pass removing stray `)`.",
+    "Backward pass removing stray `(`.",
+    "Reverse back."
    ],
    "code": {
     "python": "class Solution:\n    def stripStray(self, s: str) -> str:\n        first, open_ = [], 0\n        for c in s:\n            if c == \")\":\n                if open_ == 0:\n                    continue\n                open_ -= 1\n            elif c == \"(\":\n                open_ += 1\n            first.append(c)\n        out, close = [], 0\n        for c in reversed(first):\n            if c == \"(\":\n                if close == 0:\n                    continue\n                close -= 1\n            elif c == \")\":\n                close += 1\n            out.append(c)\n        return \"\".join(reversed(out))\n",
@@ -592,7 +625,7 @@
    ],
    "complexity": [
     {
-     "md": "**Time O(n):** two passes. **Space O(1)** besides the output being built."
+     "md": "**Time O(n).** **Space O(n)** for the output."
     }
    ],
    "walk": {
@@ -650,7 +683,7 @@
  ],
  "takeaways": [
   {
-   "md": "- **Remove the minimum to balance** = remove exactly the unmatched brackets.\n- Unmatched `)` are found left to right; unmatched `(` right to left (or as leftovers on a stack)."
+   "md": "- **Minimum removals to balance:** remove unmatched `)` (forward) and unmatched `(` (backward or leftover stack).\n- A stack of positions tells you exactly which brackets to drop.\n- **Pitfall:** removing letters, or removing a matched bracket."
   }
  ]
 }

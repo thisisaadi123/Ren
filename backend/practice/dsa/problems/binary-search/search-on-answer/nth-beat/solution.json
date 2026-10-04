@@ -4,38 +4,68 @@
  "question": [
   {
    "md": "Beats are the positive multiples of a or of b (a common multiple counts once). Return the n-th beat modulo\n10⁹ + 7.\n\n- **Shared hits count once:** with a = 2, b = 4, every multiple of 4 is also a multiple of 2.\n- **n up to 10⁹** and a, b up to 4 × 10⁴: the answer reaches 4 × 10¹³, so search in 64 bits and take the modulo\n  only at the end.\n- **The modulo doesn't affect the search**; it's just how the (exact) answer is reported."
+  },
+  {
+   "md": "**Edge cases to keep in mind**\n\n- When `a` divides `b`, every `b` beat is also an `a` beat.\n- `n` up to 10⁹ with `a, b` up to 4 × 10⁴: the answer can reach 4 × 10¹³, beyond 32 bits.\n- Shared beats count once."
   }
  ],
  "think": [
   {
-   "md": "Take a = 4, b = 6, n = 8. Beats: [4, 6, 8, 12, 16, 18, 20, 24, 28, 30]… (12 and 24 are shared). The 8-th is 24.\n\nHow many beats are ≤ x? Multiples of a: ⌊x/a⌋. Multiples of b: ⌊x/b⌋. Shared ones (multiples of lcm(a, b) =\n12) were counted twice, so subtract ⌊x/12⌋. This count never decreases as x grows, and the n-th beat is the\nfirst x where it reaches n."
+   "md": "**Binary search on the answer.** Sometimes there's no sorted array at all, but the **answer** lives in a range of\nnumbers, and there's a yes/no question about a candidate value that is **monotone**: once it's yes, it stays yes for\nevery larger value (or every smaller one). Then:\n\n1. pick the range `[lo, hi]` that surely contains the answer;\n2. write `check(x)`, a fast test of the yes/no question for one candidate;\n3. binary search for the boundary where `check` flips.\n\nTotal cost: `O(cost of check × log(range))`. The hard parts are noticing the monotone question and writing `check`\ncorrectly; the search itself is always the same few lines."
   },
   {
-   "panels": [
-    {
-     "type": "row",
-     "cells": [
-      4,
-      6,
-      8,
-      12,
-      16,
-      18,
-      20,
-      24,
-      28,
-      30
+   "md": "**Counting beats up to x.** Multiples of `a` up to `x`: `⌊x/a⌋`; of `b`: `⌊x/b⌋`. The shared ones are the\nmultiples of `lcm(a, b)`, counted twice, so subtract `⌊x/lcm⌋` (inclusion–exclusion). This count never decreases,\nand the n-th beat is the smallest `x` whose count reaches `n`. Range: `[1, n · min(a, b)]` (the faster drummer\nalone reaches `n` beats by then). For `a = 4`, `b = 6` (lcm 12), `n = 8`:"
+  },
+  {
+   "table": {
+    "head": [
+     "lo",
+     "hi",
+     "mid",
+     "check(mid)",
+     "decision"
+    ],
+    "rows": [
+     [
+      "1",
+      "32",
+      "16",
+      "4 + 2 − 1 = 5",
+      "answer > mid: lo = mid + 1"
      ],
-     "states": {
-      "7": "answer"
-     },
-     "label": "beats"
-    }
-   ],
-   "caption": "Multiples of 4 or 6, each counted once."
+     [
+      "17",
+      "32",
+      "24",
+      "6 + 4 − 2 = 8",
+      "answer ≤ mid: hi = mid"
+     ],
+     [
+      "17",
+      "24",
+      "20",
+      "5 + 3 − 1 = 7",
+      "answer > mid: lo = mid + 1"
+     ],
+     [
+      "21",
+      "24",
+      "22",
+      "5 + 3 − 1 = 7",
+      "answer > mid: lo = mid + 1"
+     ],
+     [
+      "23",
+      "24",
+      "23",
+      "5 + 3 − 1 = 7",
+      "answer > mid: lo = mid + 1"
+     ]
+    ]
+   }
   },
   {
-   "md": "Range: the first drummer alone produces n beats by `n × a`, so the answer is at most `n × min(a, b)`.\nlcm(a, b) = a × b / gcd(a, b) (up to 1.6 × 10⁹, so compute it in 64 bits)."
+   "md": "The 8-th beat is **24**."
   }
  ],
  "approaches": [
@@ -46,13 +76,13 @@
    "space": "O(1)",
    "idea": [
     {
-     "md": "Walk both sequences of multiples like merging two sorted lists, taking the smaller next hit each time (advancing both when equal), until n beats are counted."
+     "md": "Merge the two beat sequences like merging sorted lists, skipping shared beats, `n` times."
     }
    ],
    "build": [
-    "`nextA = a`, `nextB = b`.",
-    "Repeat n times: `beat = min(nextA, nextB)`; advance whichever equals it (both if equal).",
-    "Return `beat mod 10⁹ + 7`."
+    "Next beat of each drummer.",
+    "Take the smaller; advance one or both.",
+    "Repeat `n` times."
    ],
    "code": {
     "python": "class Solution:\n    def nthBeat(self, n: int, a: int, b: int) -> int:\n        next_a, next_b = a, b\n        beat = 0\n        for _ in range(n):\n            beat = min(next_a, next_b)\n            if next_a == beat:\n                next_a += a\n            if next_b == beat:\n                next_b += b\n        return beat % (10**9 + 7)\n",
@@ -258,7 +288,7 @@
    },
    "limits": [
     {
-     "md": "Walks every beat up to the n-th. Counting beats up to any x is O(1) with inclusion–exclusion, so the n-th beat can be binary-searched."
+     "md": "Linear in `n`. The count of beats up to `x` has a closed form, so binary search over `x` takes about 45 steps."
     }
    ],
    "slow": true
@@ -270,14 +300,13 @@
    "space": "O(1)",
    "idea": [
     {
-     "md": "`lcm = a / gcd(a, b) × b`. Search x in `[1, n × min(a, b)]` for the first x with `x/a + x/b − x/lcm ≥ n`. Return `x mod 10⁹ + 7`."
+     "md": "Compute `lcm(a, b)`; binary search the smallest `x` with `⌊x/a⌋ + ⌊x/b⌋ − ⌊x/lcm⌋ ≥ n`; return it modulo 10⁹ + 7."
     }
    ],
    "build": [
-    "Compute gcd (Euclid) and lcm in 64 bits.",
-    "`lo = 1`, `hi = n × min(a, b)`.",
-    "Count beats ≤ mid; lower-bound search.",
-    "Return `lo % (10⁹ + 7)`."
+    "lcm via gcd.",
+    "Inclusion–exclusion count.",
+    "Binary search the smallest qualifying `x`."
    ],
    "code": {
     "python": "import math\n\nclass Solution:\n    def nthBeat(self, n: int, a: int, b: int) -> int:\n        lcm = a // math.gcd(a, b) * b\n        lo, hi = 1, n * min(a, b)\n        while lo < hi:\n            mid = (lo + hi) // 2\n            if mid // a + mid // b - mid // lcm >= n:\n                hi = mid\n            else:\n                lo = mid + 1\n        return lo % (10**9 + 7)\n",
@@ -534,7 +563,7 @@
  ],
  "takeaways": [
   {
-   "md": "- \"n-th element of a merged set of arithmetic sequences\" → binary search on the value with an\n  inclusion–exclusion count.\n- Search with exact 64-bit values; apply a requested modulo only to the final answer."
+   "md": "- **n-th element of a merged arithmetic sequence:** binary search on the value + inclusion–exclusion count.\n- `lcm = a / gcd · b` avoids overflow.\n- **Pitfall:** counting shared multiples twice."
   }
  ]
 }

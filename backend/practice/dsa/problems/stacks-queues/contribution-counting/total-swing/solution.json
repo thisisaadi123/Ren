@@ -4,55 +4,56 @@
  "question": [
   {
    "md": "For every stretch of consecutive readings, take its swing: largest minus smallest. Return the sum over all\nn(n+1)/2 stretches.\n\n- **Single readings have swing 0.**\n- **Readings can be negative and can repeat.**\n- **Up to 10⁵ readings with |value| ≤ 10⁶:** the answer can reach ~10¹⁶, so it needs 64-bit integers (the\n  return type is `long`)."
+  },
+  {
+   "md": "**Edge cases to keep in mind**\n\n- Single readings have swing 0.\n- Negative readings are fine; only differences matter.\n- The total can reach about `n²/2 · 2 × 10⁶ ≈ 10¹⁶`: use 64 bits."
   }
  ],
  "think": [
   {
-   "md": "Take `[4, 1, 4, 2]`. The stretches from index 0 have swings 0, 3, 3, 3; from index 1: 0, 3, 3; from index 2: 0, 2;\nfrom index 3: 0. Total **17**.\n\nThe swing mixes two things, but sums split: Σ(high − low) = Σhigh − Σlow. So the problem is two copies of \"sum\nof every stretch's extreme\", which is a contribution count: how many stretches is each reading the high (or\nlow) of?"
+   "md": "**The contribution technique.** Instead of looping over all `n(n + 1)/2` stretches, ask for each element: **in how\nmany stretches is it the minimum (or maximum)?** If element `i` is the minimum of every stretch that starts in the\n`L` positions from just after its previous smaller element up to `i`, and ends in the `R` positions from `i` up to\njust before its next smaller element, then it is the minimum of exactly `L · R` stretches and contributes\n`value · L · R`.\n\n**Ties.** With equal values, a stretch could be credited to two elements. Make one side strict and the other not\n(previous strictly smaller on the left, next smaller-**or-equal** on the right), so every stretch is credited to exactly\none of its minimums (here, the rightmost one)."
+  },
+  {
+   "md": "**Split the swing.** `Σ (high − low) = Σ high − Σ low` over all stretches. Each sum is a contribution count: the\nsum of maxima uses previous/next **larger** elements, the sum of minima uses previous/next **smaller** ones. For\n`[4, 1, 4, 2]`:"
   },
   {
    "table": {
     "head": [
-     "index",
+     "i",
      "reading",
-     "high of",
-     "low of",
-     "net"
+     "times it's the high",
+     "times it's the low"
     ],
     "rows": [
      [
       "0",
       "4",
       "2",
-      "1",
-      "4"
+      "1"
      ],
      [
       "1",
       "1",
       "1",
-      "6",
-      "-5"
+      "6"
      ],
      [
       "2",
       "4",
       "6",
-      "1",
-      "20"
+      "1"
      ],
      [
       "3",
       "2",
       "1",
-      "2",
-      "-2"
+      "2"
      ]
     ]
    }
   },
   {
-   "md": "Reading `i` is the high of a stretch when nothing in it is bigger: the stretch can reach left until the previous\nbigger reading and right until the next bigger one. The two 4s tie: let a reading reach left past equal values\nbut stop at equal values on the right, so the stretch `4, 1, 4` is credited to one 4, not both. The highs sum to\n35, the lows to 18, and 35 − 18 = 17.\n\nA shortcut for the code: the low of a stretch is −(high of the negated stretch), so Σlow = −Σhigh(−readings), and\nthe answer is `sumOfHighs(readings) + sumOfHighs(−readings)`."
+   "md": "Sum of highs 35 − sum of lows 18 = **17** (direct check: 17)."
   }
  ],
  "approaches": [
@@ -63,13 +64,13 @@
    "space": "O(1)",
    "idea": [
     {
-     "md": "For each start, extend the stretch rightwards, updating the running maximum and minimum; each extension adds `high − low`."
+     "md": "For every start, extend with a running maximum and minimum, adding their difference for every end."
     }
    ],
    "build": [
-    "For each start `i`, `hi = lo = readings[i]`.",
-    "For each end `j`, update both and add `hi − lo`.",
-    "Return the 64-bit total."
+    "Every start.",
+    "Running high and low.",
+    "Add each swing."
    ],
    "code": {
     "python": "class Solution:\n    def totalSwing(self, readings: List[int]) -> int:\n        n = len(readings)\n        total = 0\n        for i in range(n):\n            hi = lo = readings[i]\n            for j in range(i, n):\n                hi = max(hi, readings[j])\n                lo = min(lo, readings[j])\n                total += hi - lo\n        return total\n",
@@ -226,7 +227,7 @@
    ],
    "complexity": [
     {
-     "md": "**Time O(n²):** one step per stretch. **Space O(1).**"
+     "md": "**Time O(n²).** **Space O(1).**"
     }
    ],
    "walk": {
@@ -377,7 +378,7 @@
    },
    "limits": [
     {
-     "md": "~5 × 10⁹ stretches for 10⁵ readings. Splitting the swing into highs minus lows turns this into two contribution counts that never visit stretches individually."
+     "md": "Quadratic. Splitting into highs and lows lets each element's contribution be counted directly."
     }
    ],
    "slow": true
@@ -389,13 +390,13 @@
    "space": "O(n)",
    "idea": [
     {
-     "md": "Write `sumOfHighs(a)`: for each `i`, `left` = distance to the previous strictly bigger value (pop the stack\nwhile the top is ≤ `a[i]`), `right` = distance to the next bigger-or-equal value (pop while the top is\n< `a[i]`); add `a[i] × left × right`.\n\nThen `Σlow(a) = −sumOfHighs(−a)`, so the answer is `sumOfHighs(a) + sumOfHighs(−a)`."
+     "md": "`sum_of_highs(a)` computes Σ max over all stretches with two monotonic-stack passes (one side strict).\nThe sum of lows is `−sum_of_highs(−a)`, so the answer is `sum_of_highs(a) + sum_of_highs(−a)`."
     }
    ],
    "build": [
-    "Write `sumOfHighs(a)` with two monotonic-stack passes and a 64-bit total.",
-    "Call it on the readings and on the negated readings.",
-    "Return the sum of the two."
+    "Contribution sum of maxima.",
+    "Reuse it on the negated readings for the minima.",
+    "Add (64-bit)."
    ],
    "code": {
     "python": "class Solution:\n    def totalSwing(self, readings: List[int]) -> int:\n        def sum_of_highs(a):\n            n = len(a)\n            left, stack = [0] * n, []\n            for i in range(n):\n                while stack and a[stack[-1]] <= a[i]:\n                    stack.pop()\n                left[i] = i - (stack[-1] if stack else -1)\n                stack.append(i)\n            stack, total = [], 0\n            for i in range(n - 1, -1, -1):\n                while stack and a[stack[-1]] < a[i]:\n                    stack.pop()\n                right = (stack[-1] if stack else n) - i\n                total += a[i] * left[i] * right\n                stack.append(i)\n            return total\n        return sum_of_highs(readings) + sum_of_highs([-v for v in readings])\n",
@@ -606,7 +607,7 @@
    ],
    "complexity": [
     {
-     "md": "**Time O(n):** four stack passes, each pushing and popping every index at most once. **Space O(n).**"
+     "md": "**Time O(n).** **Space O(n).**"
     }
    ],
    "walk": {
@@ -775,7 +776,7 @@
  ],
  "takeaways": [
   {
-   "md": "- A sum of `max − min` over subarrays splits into two independent contribution counts.\n- `min(a) = −max(−a)`: one helper covers both, by negating.\n- Make one boundary strict and the other not, so a tie is credited once."
+   "md": "- **Sum of (max − min) over subarrays = Σ max − Σ min**, each by contribution.\n- Negating the array turns maxima into minima, so one routine serves both.\n- **Pitfall:** 32-bit totals."
   }
  ]
 }

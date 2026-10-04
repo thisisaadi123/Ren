@@ -4,39 +4,53 @@
  "question": [
   {
    "md": "For each query `[lo, hi]`, count the scores with `lo ≤ score ≤ hi`, answering in order.\n\n- **The scores are unsorted**, but we may sort a copy: queries only ask how many, not which ones.\n- **Inclusive bounds**, and repeated scores each count.\n- **Many queries:** up to 10⁵ queries over 10⁵ scores, so scanning all scores per query (10¹⁰) is too slow."
+  },
+  {
+   "md": "**Edge cases to keep in mind**\n\n- Inclusive bounds: scores equal to `lo` or `hi` count.\n- A range containing no scores: 0.\n- Many queries (10⁵), so each must be fast after preprocessing."
   }
  ],
  "think": [
   {
-   "md": "Take `scores = [70, 85, 90, 60, 85, 72, 99, 55]`. Sorted: `[55, 60, 70, 72, 85, 85, 90, 99]`. For the query [70, 86], the qualifying scores 70, 72, 85, 85 sit\nnext to each other in sorted order."
+   "md": "**Lower and upper bound.** Many questions aren't \"where is `x`?\" but \"where does the region of values `≥ x` (or\n`> x`) start?\". Over a half-open range `[lo, hi)`:\n\n- if `a[mid] < x`, the boundary is to the right of `mid`: `lo = mid + 1`;\n- otherwise `mid` might be the boundary: `hi = mid`.\n\nThe loop ends with `lo == hi` at the first index whose value is `≥ x` (**lower bound**), or `n` if there's none. Using\n`≤` instead of `<` in the test gives the first index with value `> x` (**upper bound**). Duplicates don't break it."
   },
   {
-   "panels": [
-    {
-     "type": "row",
-     "cells": [
-      55,
-      60,
-      70,
-      72,
-      85,
-      85,
-      90,
-      99
+   "md": "**Sort once, then count with two bounds.** In sorted order, the scores in `[lo, hi]` form one contiguous block:\nfrom `lower_bound(lo)` (first score `≥ lo`) up to just before `upper_bound(hi)` (first score `> hi`). Its size is\n`upper_bound(hi) − lower_bound(lo)`. Sorted `[55, 60, 70, 72, 85, 85, 90, 99]`:"
+  },
+  {
+   "table": {
+    "head": [
+     "query",
+     "lower_bound(lo)",
+     "upper_bound(hi)",
+     "count"
+    ],
+    "rows": [
+     [
+      "[70, 86]",
+      "2",
+      "6",
+      "4"
      ],
-     "states": {
-      "2": "answer",
-      "3": "answer",
-      "4": "answer",
-      "5": "answer"
-     },
-     "slots": true
-    }
-   ],
-   "caption": "Scores within a range are always one block of the sorted list."
-  },
-  {
-   "md": "The block starts at the **lower bound** of lo (first score ≥ lo) and ends just before the **upper bound** of\nhi (first score > hi). Their difference is the count. Sorting costs O(n log n) once; each query then costs\ntwo O(log n) searches."
+     [
+      "[56, 59]",
+      "1",
+      "1",
+      "0"
+     ],
+     [
+      "[55, 99]",
+      "0",
+      "8",
+      "8"
+     ],
+     [
+      "[91, 98]",
+      "7",
+      "7",
+      "0"
+     ]
+    ]
+   }
   }
  ],
  "approaches": [
@@ -47,11 +61,12 @@
    "space": "O(1)",
    "idea": [
     {
-     "md": "For each query, count the scores between lo and hi with a full pass."
+     "md": "For each query, scan all scores and count those inside the range."
     }
    ],
    "build": [
-    "For each query, loop over all scores and count those with `lo ≤ s ≤ hi`."
+    "For each query, scan.",
+    "Count scores in range."
    ],
    "code": {
     "python": "class Solution:\n    def countInRange(self, scores: List[int], queries: List[List[int]]) -> List[int]:\n        return [sum(1 for s in scores if lo <= s <= hi) for lo, hi in queries]\n",
@@ -115,7 +130,7 @@
    ],
    "complexity": [
     {
-     "md": "**Time O(n · q).** **Space O(1)** besides the output."
+     "md": "**Time O(n · q):** 10¹⁰ checks at the limits. **Space O(1)** besides the output."
     }
    ],
    "walk": {
@@ -213,7 +228,7 @@
    },
    "limits": [
     {
-     "md": "Every query re-reads every score. Sorting once makes each query's matches a block whose ends can be binary-searched."
+     "md": "Every query rescans everything. After one sort, each query is two binary searches."
     }
    ],
    "slow": true
@@ -225,13 +240,13 @@
    "space": "O(n)",
    "idea": [
     {
-     "md": "Sort a copy. For each query: `a` = first index with score ≥ lo, `b` = first index with score > hi. Answer `b − a`."
+     "md": "Sort the scores once; for each query, `upper_bound(hi) − lower_bound(lo)`."
     }
    ],
    "build": [
-    "Sort a copy of the scores.",
-    "For each query, compute the lower bound of lo and the upper bound of hi.",
-    "Append `b − a`."
+    "Sort.",
+    "Two bounds per query.",
+    "Subtract."
    ],
    "code": {
     "python": "from bisect import bisect_left, bisect_right\n\nclass Solution:\n    def countInRange(self, scores: List[int], queries: List[List[int]]) -> List[int]:\n        s = sorted(scores)\n        return [bisect_right(s, hi) - bisect_left(s, lo) for lo, hi in queries]\n",
@@ -455,7 +470,7 @@
  ],
  "takeaways": [
   {
-   "md": "- **Count in [lo, hi] on sorted data** = `upperBound(hi) − lowerBound(lo)`.\n- Sorting once pays off when many queries follow.\n- For integers, \"≥ lo\" equals \"> lo − 1\", so one bound function can serve both ends."
+   "md": "- **Count values in a range:** sort once, then `upper_bound(hi) − lower_bound(lo)`.\n- Inclusive upper end → upper bound, inclusive lower end → lower bound.\n- **Pitfall:** using lower bound for `hi` (misses scores equal to `hi`)."
   }
  ]
 }

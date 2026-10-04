@@ -9,6 +9,7 @@
 //   GET  /api/dsa                           -> 200 { tracks, topics } | 401
 //   GET  /api/dsa/problem?id=               -> 200 { problem for the page } | 401 | 404
 //   GET  /api/dsa/solution?id=              -> 200 { the written-out solution } | 401 | 404
+//   GET  /api/dsa/lesson?id=<pattern>       -> 200 { the pattern's lesson, its problems } | 401 | 404
 //   POST /api/dsa/run    { id, lang, code, cases } -> 200 { cases } (this machine only)
 //   POST /api/dsa/submit { id, lang, code }        -> 200 { verdict, passed, total }
 //   GET  /api/sql                           -> 200 { tracks, topics } | 401
@@ -252,6 +253,14 @@ const api = {
     send(res, 200, judge.solutionView(id));
   },
 
+  "GET /api/dsa/lesson": (req, res) => {
+    if (!currentUser(req)) return send(res, 401, { error: "Not signed in." });
+    const id = new URL(req.url, "http://localhost").searchParams.get("id") || "";
+    const lesson = dsaLesson(id);
+    if (!lesson) return send(res, 404, { error: "This lesson isn't written yet." });
+    send(res, 200, lesson);
+  },
+
   "POST /api/dsa/run": (req, res) => judgeCode(req, res, "run"),
   "POST /api/dsa/submit": (req, res) => judgeCode(req, res, "submit"),
 
@@ -361,11 +370,50 @@ function dsaSheet() {
         name: p.name,
         about: p.about,
         count: p.count,
+        lesson: lessonMinutes(t.id, p.id),
         problems: (problems.get(p.id) || []).sort(
           (a, b) => DIFFICULTY[a.difficulty] - DIFFICULTY[b.difficulty] || a.title.localeCompare(b.title)
         ),
       })),
     })),
+  };
+}
+
+/* Pattern lessons ------------------------------------------------------------ */
+
+// A pattern's lesson (lessons/<topic>/<pattern>.json, written by
+// tools/lessons/build.py): the theory and practice to read before its problems.
+const lessonFile = (topic, pattern) => path.join(DSA, "lessons", topic, `${pattern}.json`);
+
+function lessonMinutes(topic, pattern) {
+  const file = lessonFile(topic, pattern);
+  if (!fs.existsSync(file)) return null;
+  try {
+    return JSON.parse(fs.readFileSync(file, "utf8")).minutes || null;
+  } catch {
+    return null;
+  }
+}
+
+// The lesson with what the page shows around it: the topic and pattern, the
+// pattern's problems to practise, and the lessons before and after it.
+function dsaLesson(id) {
+  if (!/^[a-z0-9-]+$/.test(id)) return null;
+  const sheet = dsaSheet();
+  const all = sheet.topics.flatMap((t) => t.patterns.map((p) => ({ topic: t, pattern: p })));
+  const at = all.findIndex((x) => x.pattern.id === id && x.pattern.lesson);
+  if (at < 0) return null;
+  const { topic, pattern } = all[at];
+  const near = (x) => x && { id: x.pattern.id, name: x.pattern.name, minutes: x.pattern.lesson };
+  const withLesson = all.filter((x) => x.pattern.lesson);
+  const i = withLesson.findIndex((x) => x.pattern.id === id);
+  return {
+    ...JSON.parse(fs.readFileSync(lessonFile(topic.id, id), "utf8")),
+    topic: { id: topic.id, name: topic.name },
+    pattern: { id, name: pattern.name, about: pattern.about, count: pattern.count },
+    problems: pattern.problems,
+    prev: near(withLesson[i - 1]),
+    next: near(withLesson[i + 1]),
   };
 }
 
@@ -432,7 +480,7 @@ const TYPES = {
 };
 
 // Pages that need a session, and pages that make no sense with one.
-const PRIVATE = new Set(["/app.html", "/practice.html", "/dsa.html", "/problem.html", "/sql.html", "/sql-problem.html"]);
+const PRIVATE = new Set(["/app.html", "/practice.html", "/dsa.html", "/problem.html", "/learn.html", "/sql.html", "/sql-problem.html"]);
 const GUEST_ONLY = new Set(["/login.html", "/signup.html"]);
 
 // Any missing page gets the 404 page (design/404.html), with a 404 status.
@@ -452,6 +500,7 @@ function serveStatic(req, res, pathname) {
   if (pathname === "/app") pathname = "/app.html";
   if (pathname === "/practice") pathname = "/practice.html";
   if (pathname === "/dsa") pathname = "/dsa.html";
+  if (pathname === "/learn") pathname = "/learn.html";
   if (pathname === "/sql") pathname = "/sql.html";
 
   if (PRIVATE.has(pathname) && !currentUser(req)) {

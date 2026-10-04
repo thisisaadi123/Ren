@@ -4,43 +4,54 @@
  "question": [
   {
    "md": "Flower i blooms on day `bloom[i]` and stays bloomed. A bouquet takes `size` **adjacent** flowers; each flower\nis used once. Return the earliest day you can make `bouquets` bouquets, or −1.\n\n- **Adjacent** matters: three bloomed flowers separated by an unbloomed one don't make a bouquet of 3.\n- **Impossible** exactly when `bouquets × size > n`: even on the last day there aren't enough flowers. That\n  product can reach 10⁶ × 10⁵, so compute it in 64 bits.\n- **The answer is always a bloom day** (bouquet counts only change when a flower blooms)."
+  },
+  {
+   "md": "**Edge cases to keep in mind**\n\n- Not enough flowers at all (`bouquets · size > n`): −1 immediately.\n- Flowers in a bouquet must be **adjacent**; a gap restarts the count.\n- The answer is always one of the bloom days."
   }
  ],
  "think": [
   {
-   "md": "Take `[3, 9, 4, 8, 2, 5, 1, 7]`, 2 bouquets of 2. By day 5 the bloomed positions are\n[0, 2, 4, 5, 6]: the only adjacent run is 4–6, which gives just 1 bouquet of 2.\nOn day 7 the bloomed pattern\n`■□■□■■■■` allows 2."
+   "md": "**Binary search on the answer.** Sometimes there's no sorted array at all, but the **answer** lives in a range of\nnumbers, and there's a yes/no question about a candidate value that is **monotone**: once it's yes, it stays yes for\nevery larger value (or every smaller one). Then:\n\n1. pick the range `[lo, hi]` that surely contains the answer;\n2. write `check(x)`, a fast test of the yes/no question for one candidate;\n3. binary search for the boundary where `check` flips.\n\nTotal cost: `O(cost of check × log(range))`. The hard parts are noticing the monotone question and writing `check`\ncorrectly; the search itself is always the same few lines."
   },
   {
-   "panels": [
-    {
-     "type": "row",
-     "cells": [
-      3,
-      9,
-      4,
-      8,
-      2,
-      5,
-      1,
-      7
+   "md": "**The check.** On a given day, walk the row counting consecutive bloomed flowers; every `size` of them make a\nbouquet and the count restarts. Taking a bouquet as soon as `size` adjacent flowers are available is optimal (it\nuses the leftmost possible flowers). Later days only add bloomed flowers, so the number of bouquets never\ndecreases: monotone. For `[3, 9, 4, 8, 2, 5, 1, 7]`, 2 bouquets of 2 (■ = bloomed):"
+  },
+  {
+   "table": {
+    "head": [
+     "lo",
+     "hi",
+     "mid",
+     "check(mid)",
+     "decision"
+    ],
+    "rows": [
+     [
+      "1",
+      "9",
+      "5",
+      "1 bouquet(s), row ■□■□■■■□",
+      "answer > mid: lo = mid + 1"
      ],
-     "states": {
-      "0": "found",
-      "1": "dim",
-      "2": "found",
-      "3": "dim",
-      "4": "found",
-      "5": "found",
-      "6": "found",
-      "7": "found"
-     },
-     "slots": true
-    }
-   ],
-   "caption": "Bloomed by day 7 (light)."
+     [
+      "6",
+      "9",
+      "7",
+      "2 bouquet(s), row ■□■□■■■■",
+      "answer ≤ mid: hi = mid"
+     ],
+     [
+      "6",
+      "7",
+      "6",
+      "1 bouquet(s), row ■□■□■■■□",
+      "answer > mid: lo = mid + 1"
+     ]
+    ]
+   }
   },
   {
-   "md": "Two pieces:\n\n- **For a fixed day,** counting bouquets greedily from the left is optimal: taking the leftmost possible\n  bouquet never blocks a better choice.\n- **Across days,** a later day has every flower an earlier day had, so the count never drops. The test \"day d\n  is enough\" is monotonic: binary search on d."
+   "md": "Earliest day **7**."
   }
  ],
  "approaches": [
@@ -51,13 +62,13 @@
    "space": "O(n)",
    "idea": [
     {
-     "md": "Sort the distinct bloom days; for each in increasing order, count bouquets; return the first day that gives enough. (Return −1 up front if there aren't enough flowers at all.)"
+     "md": "After the impossibility check, try the distinct bloom days in increasing order and return the first that allows enough bouquets."
     }
    ],
    "build": [
-    "If `bouquets × size > n`, return −1.",
-    "Sort distinct bloom days.",
-    "For each day, greedy-count bouquets; return the first that's enough."
+    "Impossible if there aren't enough flowers.",
+    "Sort the distinct bloom days.",
+    "Check each in order."
    ],
    "code": {
     "python": "class Solution:\n    def earliestBouquetDay(self, bloom: List[int], bouquets: int, size: int) -> int:\n        if bouquets * size > len(bloom):\n            return -1\n        def count(day):\n            made = run = 0\n            for b in bloom:\n                run = run + 1 if b <= day else 0\n                if run == size:\n                    made += 1\n                    run = 0\n            return made\n        for day in sorted(set(bloom)):\n            if count(day) >= bouquets:\n                return day\n        return -1\n",
@@ -189,7 +200,7 @@
    ],
    "complexity": [
     {
-     "md": "**Time O(n²)** count passes in the worst case (n distinct days), plus the sort. **Space O(n).**"
+     "md": "**Time O(n²)** in the worst case (n distinct days, O(n) check each). **Space O(n).**"
     }
    ],
    "walk": {
@@ -410,7 +421,7 @@
    },
    "limits": [
     {
-     "md": "Tests every candidate day in order; the test is monotonic, so binary search needs only ~30 tests."
+     "md": "Checks every candidate day; monotonicity lets binary search check only about 30 days."
     }
    ],
    "slow": true
@@ -422,13 +433,13 @@
    "space": "O(1)",
    "idea": [
     {
-     "md": "After the impossibility check, search the first day in `[min(bloom), max(bloom)]` with `count(day) ≥ bouquets`."
+     "md": "Binary search the day in `[min(bloom), max(bloom)]` with the greedy bouquet count as the check."
     }
    ],
    "build": [
-    "Return −1 if `bouquets × size > n`.",
-    "Range `[min, max]` of bloom days.",
-    "Greedy count for mid; enough → `hi = mid`, else `lo = mid + 1`."
+    "Impossibility check.",
+    "Greedy count of bouquets on a day.",
+    "Binary search the earliest day with enough."
    ],
    "code": {
     "python": "class Solution:\n    def earliestBouquetDay(self, bloom: List[int], bouquets: int, size: int) -> int:\n        if bouquets * size > len(bloom):\n            return -1\n        def enough(day):\n            made = run = 0\n            for b in bloom:\n                run = run + 1 if b <= day else 0\n                if run == size:\n                    made += 1\n                    run = 0\n            return made >= bouquets\n        lo, hi = min(bloom), max(bloom)\n        while lo < hi:\n            mid = (lo + hi) // 2\n            if enough(mid):\n                hi = mid\n            else:\n                lo = mid + 1\n        return lo\n",
@@ -614,7 +625,7 @@
    ],
    "complexity": [
     {
-     "md": "**Time O(n log(max day)):** about 30 passes. **Space O(1).**"
+     "md": "**Time O(n log(max bloom)).** **Space O(1).**"
     }
    ],
    "walk": {
@@ -695,7 +706,7 @@
  ],
  "takeaways": [
   {
-   "md": "- \"Earliest time when a monotonic condition holds\" → binary search on time.\n- Contiguity constraints are usually checked with a greedy run counter.\n- Rule out the impossible case first, so the search always has a valid answer."
+   "md": "- **Earliest day something becomes possible:** binary search on the day.\n- Check feasibility greedily (take a bouquet as soon as possible).\n- **Pitfall:** not resetting the run after making a bouquet (flowers would be reused)."
   }
  ]
 }

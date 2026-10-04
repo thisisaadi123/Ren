@@ -4,41 +4,47 @@
  "question": [
   {
    "md": "Two sorted lists; return the median of all their values combined: the middle value for an odd total, the\naverage of the two middle values for an even total.\n\n- **Either list can be empty** (but not both).\n- **The result is a decimal number** (`[1, 2]` and `[3, 4]` → 2.5).\n- **Goal O(log(m + n))**, faster than merging."
+  },
+  {
+   "md": "**Edge cases to keep in mind**\n\n- One queue empty.\n- Even total: average of the two middle values.\n- All values of one queue smaller than the other's."
   }
  ],
  "think": [
   {
-   "md": "Take `a = [1, 5, 8, 12]`, `b = [2, 3, 9, 10, 15]`. Combined and sorted: `[1, 2, 3, 5, 8, 9, 10, 12, 15]` (9 values), so the median is the 5th: 8.\n\nDraw a line through the combined sorted list right after the median (for an odd total, the median goes on the\nleft). Everything left of the line is a prefix of a plus a prefix of b, with **(m + n + 1) / 2** values in\ntotal. So if we pick how many come from a (call it i), the number from b is forced: j = half − i."
+   "md": "**K-th element by counting or partitioning.** The k-th smallest of a structure we can't (or don't want to) sort can be\nfound two ways:\n\n- **Binary search on the value:** count how many elements are `≤ v` (fast because of the structure) and find the\n  smallest `v` whose count reaches `k`;\n- **Binary search on a split:** decide how many of the first `k` elements come from each part, and check the split\n  with a couple of comparisons."
   },
   {
-   "panels": [
-    {
-     "type": "row",
-     "cells": [
-      1,
-      2,
-      3,
-      5,
-      8,
-      9,
-      10,
-      12,
-      15
+   "md": "**Partition both lists.** Put a cut in each list so that the left sides together hold `⌈(m + n) / 2⌉` values. The\ncut is correct when everything on the left is no bigger than everything on the right, which only needs two checks:\n`a_left ≤ b_right` and `b_left ≤ a_right`. If `a_left > b_right`, too much was taken from `a`; if `b_left > a_right`,\ntoo little. The median is then the largest left value (odd total), or the average of the largest left and smallest\nright values (even total). Missing neighbours act as ±∞. For `a = [1, 5, 8, 12]`, `b = [2, 3, 9, 10, 15]`:"
+  },
+  {
+   "table": {
+    "head": [
+     "i (left of a)",
+     "j (left of b)",
+     "a: left | right",
+     "b: left | right",
+     "decision"
+    ],
+    "rows": [
+     [
+      "2",
+      "3",
+      "5 | 8",
+      "9 | 10",
+      "b's left part too big: more from a"
      ],
-     "states": {
-      "0": "found",
-      "1": "found",
-      "2": "found",
-      "3": "found",
-      "4": "found"
-     },
-     "slots": true
-    }
-   ],
-   "caption": "Left half (shaded) = a prefix of a + a prefix of b."
+     [
+      "3",
+      "2",
+      "8 | 12",
+      "3 | 9",
+      "valid partition"
+     ]
+    ]
+   }
   },
   {
-   "md": "A cut (i, j) is the real median split when the left parts are all ≤ the right parts. Within each list that's\nautomatic, so only the cross pairs matter: `a[i − 1] ≤ b[j]` and `b[j − 1] ≤ a[i]`. If `a[i − 1] > b[j]`, too\nmany came from a, so move i left; if `b[j − 1] > a[i]`, move i right. Binary search over i in the shorter list\nfinds the valid cut. Then the median is `max(left parts)` (odd total) or the average of `max(left)` and\n`min(right)` (even). Missing neighbours at the list ends act as −∞ and +∞."
+   "md": "Median **8**."
   }
  ],
  "approaches": [
@@ -49,12 +55,13 @@
    "space": "O(1)",
    "idea": [
     {
-     "md": "Walk both lists from the front with two pointers, remembering the last two values taken. Stop just after the middle position; return the middle value, or the average of the two middle ones for an even total."
+     "md": "Merge the two lists up to the middle, remembering the last two values seen; the median is the middle one (odd total) or their average."
     }
    ],
    "build": [
-    "`total = m + n`; walk `total // 2 + 1` steps, keeping the previous and current values.",
-    "Odd total: return the current value. Even: return the average of previous and current."
+    "Two pointers.",
+    "Advance `(m + n)/2 + 1` times.",
+    "Median from the last one or two values."
    ],
    "code": {
     "python": "class Solution:\n    def combinedMedian(self, a: List[int], b: List[int]) -> float:\n        total = len(a) + len(b)\n        i = j = 0\n        prev = cur = 0\n        for _ in range(total // 2 + 1):\n            prev = cur\n            if j == len(b) or (i < len(a) and a[i] <= b[j]):\n                cur = a[i]\n                i += 1\n            else:\n                cur = b[j]\n                j += 1\n        return float(cur) if total % 2 else (prev + cur) / 2\n",
@@ -401,7 +408,7 @@
    },
    "limits": [
     {
-     "md": "Walks half of all values. The median split is determined by one cut position in the shorter list, which can be binary-searched."
+     "md": "Linear; the partition can be found by binary search over the shorter list."
     }
    ]
   },
@@ -412,14 +419,14 @@
    "space": "O(1)",
    "idea": [
     {
-     "md": "Make a the shorter list; `half = (m + n + 1) / 2`. Search i in `[0, m]`, with `j = half − i`. Using ±∞ for missing neighbours: if `a[i − 1] > b[j]`, `hi = i − 1`; if `b[j − 1] > a[i]`, `lo = i + 1`; otherwise the split is valid and the median comes from the four boundary values."
+     "md": "Swap so `a` is shorter. Binary search the cut `i` in `a` (with `j = half − i` in `b`) until the two cross-checks hold; compute the median from the four boundary values."
     }
    ],
    "build": [
-    "Swap so `m ≤ n`; `half = (m + n + 1) / 2`.",
-    "Loop: `i = (lo + hi) / 2`, `j = half − i`; read the four boundary values with ±∞ at the ends.",
-    "Valid → odd: `max(aLeft, bLeft)`; even: average of that and `min(aRight, bRight)`.",
-    "Else move lo or hi."
+    "Search the shorter list.",
+    "Boundary values with ±∞ for missing ones.",
+    "Move the cut by the failing check.",
+    "Median from the boundaries."
    ],
    "code": {
     "python": "class Solution:\n    def combinedMedian(self, a: List[int], b: List[int]) -> float:\n        if len(a) > len(b):\n            a, b = b, a\n        m, n = len(a), len(b)\n        half = (m + n + 1) // 2\n        lo, hi = 0, m\n        INF = float(\"inf\")\n        while True:\n            i = (lo + hi) // 2\n            j = half - i\n            a_left = a[i - 1] if i > 0 else -INF\n            a_right = a[i] if i < m else INF\n            b_left = b[j - 1] if j > 0 else -INF\n            b_right = b[j] if j < n else INF\n            if a_left <= b_right and b_left <= a_right:\n                if (m + n) % 2:\n                    return float(max(a_left, b_left))\n                return (max(a_left, b_left) + min(a_right, b_right)) / 2\n            if a_left > b_right:\n                hi = i - 1\n            else:\n                lo = i + 1\n",
@@ -698,7 +705,7 @@
  ],
  "takeaways": [
   {
-   "md": "- **Median of two sorted arrays:** partition both so the left sides hold half the values and\n  `maxLeft ≤ minRight`; binary-search the cut in the shorter array.\n- Use ±∞ sentinels for cuts at the ends of a list instead of special cases.\n- The same partition idea answers the general k-th smallest of two lists."
+   "md": "- **Median of two sorted arrays:** binary search a partition of the shorter array.\n- Validity needs only the two cross comparisons at the cut.\n- **Pitfall:** forgetting ±∞ for empty sides of a cut."
   }
  ]
 }

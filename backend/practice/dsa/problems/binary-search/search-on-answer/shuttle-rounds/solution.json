@@ -4,46 +4,68 @@
  "question": [
   {
    "md": "Shuttles run in parallel; shuttle i completes a round every `roundTime[i]` minutes. Return the earliest minute by\nwhich they've completed at least `totalRounds` rounds together.\n\n- **Only completed rounds count**, so shuttle i contributes ⌊t / roundTime[i]⌋ by minute t.\n- **The answer can exceed 32 bits:** up to 10⁷ minutes per round × 10⁷ rounds = 10¹⁴. Return a 64-bit value and\n  do the search in 64 bits."
+  },
+  {
+   "md": "**Edge cases to keep in mind**\n\n- Only completed rounds count: `⌊t / roundTime⌋`.\n- One shuttle: the answer is `roundTime · totalRounds`.\n- The answer can reach `10⁷ × 10⁷ = 10¹⁴`: use 64 bits."
   }
  ],
  "think": [
   {
-   "md": "Take round times `[3, 5, 8]` and 7 rounds. By minute 12: 4 + 2 + 1 = 7\nrounds, enough. One minute earlier, at 11: 3 + 2 + 1 = 6,\nnot enough. So the answer is 12."
+   "md": "**Binary search on the answer.** Sometimes there's no sorted array at all, but the **answer** lives in a range of\nnumbers, and there's a yes/no question about a candidate value that is **monotone**: once it's yes, it stays yes for\nevery larger value (or every smaller one). Then:\n\n1. pick the range `[lo, hi]` that surely contains the answer;\n2. write `check(x)`, a fast test of the yes/no question for one candidate;\n3. binary search for the boundary where `check` flips.\n\nTotal cost: `O(cost of check × log(range))`. The hard parts are noticing the monotone question and writing `check`\ncorrectly; the search itself is always the same few lines."
   },
   {
-   "panels": [
-    {
-     "type": "row",
-     "cells": [
-      9,
-      10,
-      11,
-      12,
-      13,
-      14
-     ],
-     "label": "minute"
-    },
-    {
-     "type": "row",
-     "cells": [
-      5,
-      6,
-      6,
-      7,
-      7,
-      7
-     ],
-     "states": {
-      "3": "answer"
-     },
-     "label": "rounds done"
-    }
-   ],
-   "caption": "Rounds done only increase with time."
+   "md": "**Monotone in time.** More minutes never means fewer finished rounds. The range: at least 1 minute, and at most\nthe time for the **fastest** shuttle to do all rounds alone, `min(roundTime) · totalRounds`. For `[3, 5, 8]` and\n7 rounds:"
   },
   {
-   "md": "**Searching on the answer.** The answer is a number in a known range, and there's a yes/no test (\"is this value\ngood enough?\") that is false for small values and true from the answer onward (or the reverse). Binary search\nthat boundary: O(log range) tests, each costing one pass over the input."
+   "table": {
+    "head": [
+     "lo",
+     "hi",
+     "mid",
+     "check(mid)",
+     "decision"
+    ],
+    "rows": [
+     [
+      "1",
+      "21",
+      "11",
+      "6 rounds",
+      "answer > mid: lo = mid + 1"
+     ],
+     [
+      "12",
+      "21",
+      "16",
+      "10 rounds",
+      "answer ≤ mid: hi = mid"
+     ],
+     [
+      "12",
+      "16",
+      "14",
+      "7 rounds",
+      "answer ≤ mid: hi = mid"
+     ],
+     [
+      "12",
+      "14",
+      "13",
+      "7 rounds",
+      "answer ≤ mid: hi = mid"
+     ],
+     [
+      "12",
+      "13",
+      "12",
+      "7 rounds",
+      "answer ≤ mid: hi = mid"
+     ]
+    ]
+   }
+  },
+  {
+   "md": "Earliest time **12** minutes."
   }
  ],
  "approaches": [
@@ -54,12 +76,12 @@
    "space": "O(1)",
    "idea": [
     {
-     "md": "Check t = 1, 2, 3, … until the total of ⌊t / roundTime[i]⌋ reaches the target."
+     "md": "Advance the clock one minute at a time, counting rounds, until there are enough."
     }
    ],
    "build": [
-    "For t = 1, 2, …: total = Σ ⌊t / roundTime[i]⌋ (64-bit).",
-    "Return the first t with total ≥ target."
+    "Minute by minute.",
+    "Count rounds."
    ],
    "code": {
     "python": "class Solution:\n    def minTimeForRounds(self, roundTime: List[int], totalRounds: int) -> int:\n        t = 1\n        while sum(t // r for r in roundTime) < totalRounds:\n            t += 1\n        return t\n",
@@ -129,7 +151,7 @@
    ],
    "complexity": [
     {
-     "md": "**Time O(T · n)** for an answer of T minutes (up to 10¹⁴). **Space O(1).**"
+     "md": "**Time O(n · answer):** hopeless for answers near 10¹⁴. **Space O(1).**"
     }
    ],
    "walk": {
@@ -294,7 +316,7 @@
    },
    "limits": [
     {
-     "md": "One minute at a time, although rounds done only ever increase: bisect the time instead."
+     "md": "Steps through every minute. The round count is monotone in time, so binary search needs about 47 checks."
     }
    ],
    "slow": true
@@ -306,13 +328,13 @@
    "space": "O(1)",
    "idea": [
     {
-     "md": "Search t in `[1, min(roundTime) × totalRounds]` (the fastest shuttle alone gets there). If rounds by mid ≥ target, `hi = mid`; else `lo = mid + 1`."
+     "md": "Binary search the smallest `t` in `[1, min(roundTime) · totalRounds]` with `Σ ⌊t / r⌋ ≥ totalRounds`."
     }
    ],
    "build": [
-    "Range `[1, min × total]` in 64 bits.",
-    "Count rounds by mid.",
-    "Lower-bound search."
+    "Upper bound from the fastest shuttle.",
+    "Count rounds at `mid`.",
+    "Enough → `hi = mid`, else `lo = mid + 1`."
    ],
    "code": {
     "python": "class Solution:\n    def minTimeForRounds(self, roundTime: List[int], totalRounds: int) -> int:\n        lo, hi = 1, min(roundTime) * totalRounds\n        while lo < hi:\n            mid = (lo + hi) // 2\n            if sum(mid // r for r in roundTime) >= totalRounds:\n                hi = mid\n            else:\n                lo = mid + 1\n        return lo\n",
@@ -440,7 +462,7 @@
    ],
    "complexity": [
     {
-     "md": "**Time O(n log(min · total)):** about 47 passes. **Space O(1).**"
+     "md": "**Time O(n log(answer)).** **Space O(1).**"
     }
    ],
    "walk": {
@@ -529,7 +551,7 @@
  ],
  "takeaways": [
   {
-   "md": "- \"Earliest time to finish k units of parallel work\" → binary search on time, counting completed units per worker."
+   "md": "- **Minimum time for parallel workers:** binary search on time, count completed work.\n- A safe upper bound: the fastest worker alone.\n- **Pitfall:** summing rounds in 32 bits for a large candidate time; use 64 bits (or stop summing once enough rounds are counted)."
   }
  ]
 }

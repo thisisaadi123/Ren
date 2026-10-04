@@ -4,19 +4,25 @@
  "question": [
   {
    "md": "Every stretch of consecutive days (there are n(n+1)/2 of them) has a low, its smallest price. Add up all those\nlows, modulo 10⁹ + 7.\n\n- **Single days count:** a one-day stretch's low is that day's price.\n- **Prices can repeat**, so a stretch can contain its low twice. It must still be counted once.\n- **Up to 10⁵ days**: about 5 × 10⁹ stretches, too many to visit one by one."
+  },
+  {
+   "md": "**Edge cases to keep in mind**\n\n- Equal prices: each stretch must be counted for exactly one of its minimums.\n- One day: the answer is that price.\n- Return the sum modulo 10⁹ + 7."
   }
  ],
  "think": [
   {
-   "md": "Take `[3, 1, 2, 4, 2]`. There are 15 stretches. Listing them by start day: from day 0 the lows are\n3, 1, 1, 1, 1; from day 1 they're all 1; and so on. The total is **25**.\n\nNow look at it from day 1 (price 1): it's the cheapest day, so it's the low of every stretch that contains it:\n2 possible starts × 4 possible ends = 8 stretches, contributing 8. Day 3 (price 4) is the low only of itself."
+   "md": "**The contribution technique.** Instead of looping over all `n(n + 1)/2` stretches, ask for each element: **in how\nmany stretches is it the minimum (or maximum)?** If element `i` is the minimum of every stretch that starts in the\n`L` positions from just after its previous smaller element up to `i`, and ends in the `R` positions from `i` up to\njust before its next smaller element, then it is the minimum of exactly `L · R` stretches and contributes\n`value · L · R`.\n\n**Ties.** With equal values, a stretch could be credited to two elements. Make one side strict and the other not\n(previous strictly smaller on the left, next smaller-**or-equal** on the right), so every stretch is credited to exactly\none of its minimums (here, the rightmost one)."
+  },
+  {
+   "md": "**For `[3, 1, 2, 4, 2]`** (L = choices of start, R = choices of end, for stretches where this day is the low):"
   },
   {
    "table": {
     "head": [
      "day",
      "price",
-     "starts",
-     "ends",
+     "L",
+     "R",
      "stretches",
      "contribution"
     ],
@@ -65,7 +71,7 @@
    }
   },
   {
-   "md": "Day `i` is the low of a stretch exactly when nothing in the stretch is cheaper. So the stretch can reach left\nuntil the previous cheaper day and right until the next cheaper day. Any start in that left range and any end in\nthe right range work, independently: `left × right` stretches.\n\n**Ties:** days 2 and 4 both cost 2, and the stretch `2, 4, 2` would be counted twice. Fix this by letting a day\nreach left past equal prices but stop at equal prices on the right, so each stretch is credited to its rightmost\nlow only."
+   "md": "Sum of contributions **25** (adding up the low of every stretch directly gives 25)."
   }
  ],
  "approaches": [
@@ -76,13 +82,13 @@
    "space": "O(1)",
    "idea": [
     {
-     "md": "For each start day, extend the stretch to the right one day at a time, keeping the running minimum. Each extension is a new stretch whose low is the running minimum: add it."
+     "md": "For every start, extend with a running minimum and add it for every end."
     }
    ],
    "build": [
-    "For each start `i`, set `low = prices[i]`.",
-    "For each end `j ≥ i`, update `low = min(low, prices[j])` and add it.",
-    "Return the total modulo 10⁹ + 7."
+    "Every start.",
+    "Running low while extending.",
+    "Add each low."
    ],
    "code": {
     "python": "class Solution:\n    def sumOfLows(self, prices: List[int]) -> int:\n        n = len(prices)\n        total = 0\n        for i in range(n):\n            low = prices[i]\n            for j in range(i, n):\n                low = min(low, prices[j])\n                total += low\n        return total % (10**9 + 7)\n",
@@ -244,7 +250,7 @@
    ],
    "complexity": [
     {
-     "md": "**Time O(n²):** one step per stretch. **Space O(1).**"
+     "md": "**Time O(n²).** **Space O(1).**"
     }
    ],
    "walk": {
@@ -439,7 +445,7 @@
    },
    "limits": [
     {
-     "md": "One step per stretch is ~5 × 10⁹ steps for 10⁵ days. Counting stretches per day instead of visiting them is the way out."
+     "md": "Quadratic. Each day's total contribution can be computed from its two boundaries."
     }
    ],
    "slow": true
@@ -451,13 +457,12 @@
    "space": "O(1)",
    "idea": [
     {
-     "md": "For each day `i`, walk left while prices are ≥ `prices[i]` and right while prices are > `prices[i]`. With `left` possible starts and `right` possible ends, day `i` is the (rightmost) low of `left × right` stretches; add `prices[i] × left × right`."
+     "md": "For each day, walk left over prices `≥` it and right over prices `>` it to find `L` and `R`, then add `price · L · R`."
     }
    ],
    "build": [
-    "For each day `i`: extend `l` left over prices `≥ prices[i]`.",
-    "Extend `r` right over prices `> prices[i]`.",
-    "Add `prices[i] × (i − l + 1) × (r − i + 1)`."
+    "For each day, walk to both boundaries.",
+    "Add `price · L · R`."
    ],
    "code": {
     "python": "class Solution:\n    def sumOfLows(self, prices: List[int]) -> int:\n        n = len(prices)\n        total = 0\n        for i in range(n):\n            l = i\n            while l > 0 and prices[l - 1] >= prices[i]:\n                l -= 1\n            r = i\n            while r < n - 1 and prices[r + 1] > prices[i]:\n                r += 1\n            total += prices[i] * (i - l + 1) * (r - i + 1)\n        return total % (10**9 + 7)\n",
@@ -648,7 +653,7 @@
    ],
    "complexity": [
     {
-     "md": "**Time O(n²) worst case:** if all prices are equal or sorted, the walks are long. Often much faster in practice. **Space O(1).**"
+     "md": "**Time O(n²)** in the worst case (long walks). **Space O(1).**"
     }
    ],
    "walk": {
@@ -795,7 +800,7 @@
    },
    "limits": [
     {
-     "md": "Each day walks to its boundaries from scratch, so a sorted or constant input still costs O(n²). The boundaries are 'previous smaller' and 'next smaller-or-equal', which a monotonic stack finds for all days in one pass."
+     "md": "The walks overlap; monotonic stacks find every boundary in one pass per side."
     }
    ],
    "slow": true
@@ -807,13 +812,13 @@
    "space": "O(n)",
    "idea": [
     {
-     "md": "Left pass: keep a stack of indices with strictly increasing prices. For day `i`, pop while the top's price ≥ `prices[i]`; the remaining top is the previous strictly cheaper day, so `left[i] = i − top` (or `i + 1` if empty). Right pass from the end: pop while the top's price > `prices[i]`; the top is the next day with price ≤ `prices[i]`, so `right[i] = top − i` (or `n − i`). Add `prices[i] × left[i] × right[i]`."
+     "md": "Left pass: stack popping prices `≥` the current one; `L = i − (previous strictly smaller index)`. Right pass:\nstack popping prices `>` the current one; `R = (next smaller-or-equal index) − i`. Sum `price · L · R`\nmodulo 10⁹ + 7."
     }
    ],
    "build": [
-    "Left pass with a stack, filling `left`.",
-    "Right pass from the end with a fresh stack, computing `right` and adding the contribution.",
-    "Return the total modulo 10⁹ + 7."
+    "Left boundaries with a stack.",
+    "Right boundaries with a stack.",
+    "Sum contributions."
    ],
    "code": {
     "python": "class Solution:\n    def sumOfLows(self, prices: List[int]) -> int:\n        n = len(prices)\n        left = [0] * n\n        stack = []\n        for i in range(n):\n            while stack and prices[stack[-1]] >= prices[i]:\n                stack.pop()\n            left[i] = i - (stack[-1] if stack else -1)\n            stack.append(i)\n        stack, total = [], 0\n        for i in range(n - 1, -1, -1):\n            while stack and prices[stack[-1]] > prices[i]:\n                stack.pop()\n            right = (stack[-1] if stack else n) - i\n            total += prices[i] * left[i] * right\n            stack.append(i)\n        return total % (10**9 + 7)\n",
@@ -1107,7 +1112,7 @@
    ],
    "complexity": [
     {
-     "md": "**Time O(n):** each index is pushed and popped at most once per pass. **Space O(n)** for `left` and the stack."
+     "md": "**Time O(n).** **Space O(n).**"
     }
    ],
    "walk": {
@@ -1525,7 +1530,7 @@
  ],
  "takeaways": [
   {
-   "md": "- **Contribution counting:** to sum a property over all subarrays, ask how many subarrays each element is\n  responsible for, and multiply.\n- \"Previous smaller\" and \"next smaller\" for every element = two monotonic-stack passes.\n- With duplicates, make one side strict and the other not, so every subarray is credited exactly once."
+   "md": "- **Sum of subarray minimums:** contribution `value · L · R` from previous/next smaller elements.\n- One strict side and one non-strict side for ties.\n- **Pitfall:** both sides strict (stretches with equal minimums counted twice)."
   }
  ]
 }

@@ -4,42 +4,78 @@
  "question": [
   {
    "md": "Repeatedly: reveal the top card, then move the next top card to the bottom. Arrange the deck so the cards come\nout in increasing order, and return it top to bottom.\n\n- **Cards are distinct**, so \"increasing order\" fixes exactly which card is revealed at each turn.\n- **The last card** is just revealed; there's nothing to move.\n- **Up to 10⁵ cards.**"
+  },
+  {
+   "md": "**Edge cases to keep in mind**\n\n- One card: it's the whole deck.\n- The numbers are distinct, so \"increasing order\" is unambiguous.\n- The trick moves positions in a fixed pattern regardless of the numbers."
   }
  ],
  "think": [
   {
-   "md": "Cards `[5, 2, 9, 7, 1, 4]`. The answer is `[1, 5, 2, 9, 4, 7]`: running the trick on it reveals 1, 2, 4, 5, 7, 9.\n\nNotice the trick never looks at the numbers: it moves **positions** around in a fixed pattern. Number the deck\npositions 0 (top) to 5. Run the trick on the positions: the first position revealed must hold the smallest\ncard, the second the next smallest, and so on."
+   "md": "**Simulate, then look for a shortcut.** Queue problems describe a process step by step. A direct simulation with a\nqueue is always a correct first answer. Then ask what the process *really* depends on: often the exact order doesn't\nmatter (only counts do), or each element's fate can be computed directly, which removes the step-by-step loop."
   },
   {
-   "panels": [
-    {
-     "type": "row",
-     "cells": [
-      0,
-      1,
-      2,
-      3,
-      4,
-      5
-     ],
-     "label": "positions"
-    },
-    {
-     "type": "row",
-     "cells": [
-      1,
-      5,
-      2,
-      9,
-      4,
-      7
-     ],
-     "label": "deck"
-    }
-   ]
+   "md": "**Simulate positions, not cards.** The trick doesn't look at the numbers: which deck **position** is revealed\n1st, 2nd, 3rd, … is fixed. So run the trick on positions `0 … n − 1` with a queue: the front position is revealed\n(it receives the next smallest card), then the following position moves to the back."
   },
   {
-   "md": "\"Reveal the front, move the next to the back\" is exactly a queue. Alternatively, the trick can be **run in\nreverse**: starting from the largest card, put cards back on top, undoing the move each time."
+   "md": "**Dealing the sorted cards [1, 2, 4, 5, 7, 9] into positions:**"
+  },
+  {
+   "table": {
+    "head": [
+     "card",
+     "revealed position",
+     "position moved to the bottom",
+     "queue of positions after",
+     "deck so far"
+    ],
+    "rows": [
+     [
+      "1",
+      "0",
+      "1",
+      "[2, 3, 4, 5, 1]",
+      "1 · · · · ·"
+     ],
+     [
+      "2",
+      "2",
+      "3",
+      "[4, 5, 1, 3]",
+      "1 · 2 · · ·"
+     ],
+     [
+      "4",
+      "4",
+      "5",
+      "[1, 3, 5]",
+      "1 · 2 · 4 ·"
+     ],
+     [
+      "5",
+      "1",
+      "3",
+      "[5, 3]",
+      "1 5 2 · 4 ·"
+     ],
+     [
+      "7",
+      "5",
+      "3",
+      "[3]",
+      "1 5 2 · 4 7"
+     ],
+     [
+      "9",
+      "3",
+      "—",
+      "[]",
+      "1 5 2 9 4 7"
+     ]
+    ]
+   }
+  },
+  {
+   "md": "Stack the deck as **[1, 5, 2, 9, 4, 7]**; the trick then reveals the cards in increasing order."
   }
  ],
  "approaches": [
@@ -50,13 +86,13 @@
    "space": "O(n)",
    "idea": [
     {
-     "md": "Go through the sorted cards from largest to smallest and rebuild the deck backwards. Undoing one round means: undo 'move the top card to the bottom' (take the bottom card back to the top), then undo 'reveal' (put the card back on top). With a plain array, each move to the front costs O(n)."
+     "md": "Undo the trick backwards: take cards from largest to smallest; before placing each card on top, move the bottom card to the top (the reverse of 'move top to bottom')."
     }
    ],
    "build": [
-    "Sort the cards.",
-    "From the largest: if the deck isn't empty, move its last card to the front; then insert the card at the front.",
-    "Return the deck."
+    "Cards in decreasing order.",
+    "Reverse step: bottom card to the top.",
+    "Put the card on top."
    ],
    "code": {
     "python": "class Solution:\n    def stackDeck(self, cards: List[int]) -> List[int]:\n        deck = []\n        for card in sorted(cards, reverse=True):\n            if deck:\n                deck.insert(0, deck.pop())\n            deck.insert(0, card)\n        return deck\n",
@@ -243,7 +279,7 @@
    ],
    "complexity": [
     {
-     "md": "**Time O(n²):** each insertion at the front shifts the whole array. **Space O(n).**"
+     "md": "**Time O(n²)** with list inserts at the front. **Space O(n).**"
     }
    ],
    "walk": {
@@ -363,7 +399,7 @@
    },
    "limits": [
     {
-     "md": "Front insertions make it quadratic: ~10¹⁰ shifts for 10⁵ cards. A deque would fix that, and so does running the trick forwards on positions with a queue."
+     "md": "Inserting at the front of an array is O(n). Simulating positions forward with a queue is O(n)."
     }
    ],
    "slow": true
@@ -375,14 +411,13 @@
    "space": "O(n)",
    "idea": [
     {
-     "md": "Queue the positions `0..n−1`. For each card in increasing order: pop the front position and put the card there; then, if positions remain, move the next front position to the back."
+     "md": "Queue of positions `0 … n − 1`. For each card in increasing order, assign it to the front position, then move the next position to the back."
     }
    ],
    "build": [
     "Sort the cards.",
-    "Queue of positions `0..n−1`.",
-    "For each card: assign it to the popped front; rotate one position to the back.",
-    "Return the filled deck."
+    "Queue of positions.",
+    "Reveal (assign) and move (rotate)."
    ],
    "code": {
     "python": "from collections import deque\n\nclass Solution:\n    def stackDeck(self, cards: List[int]) -> List[int]:\n        n = len(cards)\n        spots = deque(range(n))\n        deck = [0] * n\n        for card in sorted(cards):\n            deck[spots.popleft()] = card\n            if spots:\n                spots.append(spots.popleft())\n        return deck\n",
@@ -736,7 +771,7 @@
  ],
  "takeaways": [
   {
-   "md": "- If a process moves **positions** in a fixed pattern regardless of values, simulate it on indices and then\n  assign values.\n- Any shuffle can also be undone step by step in reverse; use a deque so front operations are O(1).\n- \"Take from the front, put at the back\" = queue."
+   "md": "- **Fixed shuffling processes:** simulate on positions, then place values into the positions.\n- A queue models \"take the front, move the next to the back\".\n- **Pitfall:** simulating with the card values, which the process never looks at."
   }
  ]
 }

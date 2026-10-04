@@ -1,0 +1,1565 @@
+{
+ "version": 1,
+ "id": "cyclic-sort",
+ "topic": "arrays-hashing",
+ "summary": "When an array holds the numbers 1 to n (or nearly so), every value has an obvious home: value v belongs at index\nv - 1. Swap each value into its home, and in O(n) time with no extra memory the array is sorted, and every value\nthat's missing or doubled shows up as a slot holding the wrong number.",
+ "minutes": 13,
+ "sections": [
+  {
+   "id": "idea",
+   "title": "The idea",
+   "blocks": [
+    {
+     "md": "Think of a row of numbered parking spaces, 1 to 5, and five cars with matching numbers that parked in the\nwrong spaces. You don't need a clever sorting algorithm. Walk to space 1: car 3 is there, so drive it to space\n3 (and whatever was in space 3 comes back with you to space 1). Keep doing that until the car in space 1 is\ncar 1, then move on to space 2. Every move puts one car in its final spot, so you're done after at most four\nmoves.\n\nThat's cyclic sort. It isn't a general-purpose sort; it only works because each value tells you exactly where\nit belongs. But when that's true, it beats O(n log n) sorting and needs no extra memory."
+    },
+    {
+     "panels": [
+      {
+       "type": "row",
+       "cells": [
+        3,
+        1,
+        5,
+        4,
+        2
+       ],
+       "label": "parked anywhere",
+       "slots": true
+      },
+      {
+       "type": "row",
+       "cells": [
+        1,
+        2,
+        3,
+        4,
+        5
+       ],
+       "states": {
+        "0": "found",
+        "1": "found",
+        "2": "found",
+        "3": "found",
+        "4": "found"
+       },
+       "label": "every value at index v - 1",
+       "slots": true
+      }
+     ],
+     "caption": "Each value names its own home. Moving it there takes one swap, and it never has to move again."
+    },
+    {
+     "key": "If values are 1 to n, value `v` belongs at index `v - 1`. At each index, keep swapping the current value to its\nhome until the index holds its own value (or a duplicate), then move on. Each swap fixes one value for good, so\nit's O(n)."
+    }
+   ]
+  },
+  {
+   "id": "signals",
+   "title": "When to reach for it",
+   "blocks": [
+    {
+     "md": "The same tell as *In-place index marking*: values tied to the array's length (\"1 to n\", \"0 to n\", \"n + 1\nnumbers from 1 to n\"), together with O(n) time and O(1) extra space. Questions about missing numbers,\nduplicates, the smallest missing positive, or \"put each number in its place\".\n\nMarking and cyclic sort solve many of the same problems. Choose cyclic sort when it helps to have values\nphysically in place (afterwards, slot `i` either holds `i + 1` or tells you something is wrong), and marking\nwhen you'd rather keep everything where it is.\n\nNot a fit:\n\n- Values not tied to the length (arbitrary integers). They have no home index. Use real sorting or hashing.\n- You mustn't reorder the input. Cyclic sort rearranges it (copy it first, or use marking and restore).\n- Junk values (0, negatives, numbers bigger than n) are fine, but they have no home. They need a rule: leave\n  them where they are and skip them."
+    },
+    {
+     "table": {
+      "head": [
+       "values are",
+       "home of v",
+       "works for"
+      ],
+      "rows": [
+       [
+        "1 to n",
+        "v - 1",
+        "every number 1..n once (or mostly)"
+       ],
+       [
+        "0 to n - 1",
+        "v",
+        "every number 0..n-1 once"
+       ],
+       [
+        "lo to lo + n - 1",
+        "v - lo",
+        "any run of n consecutive numbers"
+       ]
+      ]
+     }
+    }
+   ]
+  },
+  {
+   "id": "theory",
+   "title": "Why it works",
+   "blocks": [
+    {
+     "md": "### Every swap finishes a value\n\nWhen we swap `nums[i]` into index `home`, the value now at `home` is exactly `home + 1`. It's in its final\nplace, and the algorithm never moves a value that's already home (the check `nums[home] != nums[i]` would be\nfalse for it). So each swap permanently places one value. There are only `n` values, so there are at most `n`\nswaps (in fact at most `n - 1`, since the last value is placed automatically).\n\nThe index `i` only moves forward, and it moves exactly `n` times. Every loop iteration either swaps or moves\n`i`, so there are at most about `2n` iterations. That's O(n), even though there's a `while` loop that sometimes\nstays on the same index for a while.\n\n### Why duplicates don't loop forever\n\nSuppose `nums[i]` is 4 and index 3 already holds a 4. Swapping them would change nothing, and we'd swap again\nforever. The check `nums[home] != nums[i]` catches exactly this: if home already has the right value, the one\nat `i` is an extra copy, so leave it and move on. It sits in some other value's slot, which tells you that\nother value is missing.\n\n### What the array tells you afterwards\n\nAfter the placement pass, every value that appears at least once is sitting in its home. So for each index `i`:\n\n- if `nums[i] == i + 1`, then `i + 1` is present;\n- otherwise `i + 1` is missing, and whatever sits there is an extra copy of some value.\n\nThat single scan answers \"which numbers are missing\", \"which are doubled\", \"what's the first missing one\".\n\n### Cycles\n\nA permutation (every value exactly once) breaks into **cycles**. Start at any index, look at its value, jump to\nthat value's home, and repeat; you always come back to where you started. Cyclic sort fixes one cycle at a\ntime: the swaps at an index walk around its cycle until it closes. Here are the cycles of `[3, 5, 1, 2, 4, 6]`:"
+    },
+    {
+     "table": {
+      "head": [
+       "cycle (following each value to its home)",
+       "length"
+      ],
+      "rows": [
+       [
+        "index 0 (3) → index 2 (1) → back",
+        "2"
+       ],
+       [
+        "index 1 (5) → index 4 (4) → index 3 (2) → back",
+        "3"
+       ],
+       [
+        "index 5 (6) (already home)",
+        "1"
+       ]
+      ]
+     }
+    },
+    {
+     "panels": [
+      {
+       "type": "row",
+       "cells": [
+        3,
+        5,
+        1,
+        2,
+        4,
+        6
+       ],
+       "states": {
+        "0": "answer",
+        "2": "answer",
+        "1": "found",
+        "4": "found",
+        "3": "found",
+        "5": "mark"
+       },
+       "label": "each colour is one cycle",
+       "slots": true
+      }
+     ],
+     "caption": "3 cycles. A cycle of length 1 is a value that's already home."
+    },
+    {
+     "md": "Thinking in cycles is useful well beyond sorting. Rearranging an array by a list of destinations, rotating in\nplace, and several counting questions all come down to \"follow the cycle, carrying one value\"."
+    }
+   ]
+  },
+  {
+   "id": "template",
+   "title": "The template",
+   "blocks": [
+    {
+     "md": "Put every value of an array holding numbers from 1 to `n` into its home, in place. Values can repeat; extra\ncopies end up in the slots of the missing values."
+    },
+    {
+     "code": {
+      "python": "def cyclic_place(nums):\n    i = 0\n    while i < len(nums):\n        home = nums[i] - 1\n        if nums[home] != nums[i]:\n            nums[i], nums[home] = nums[home], nums[i]\n        else:\n            i += 1\n    return nums\n",
+      "java": "static int[] cyclicPlace(int[] nums) {\n    int i = 0;\n    while (i < nums.length) {\n        int home = nums[i] - 1;\n        if (nums[home] != nums[i]) {\n            int t = nums[home];\n            nums[home] = nums[i];\n            nums[i] = t;\n        } else {\n            i++;\n        }\n    }\n    return nums;\n}\n",
+      "cpp": "vector<int>& cyclicPlace(vector<int>& nums) {\n    size_t i = 0;\n    while (i < nums.size()) {\n        int home = nums[i] - 1;\n        if (nums[home] != nums[i]) {\n            swap(nums[i], nums[home]);\n        } else {\n            i++;\n        }\n    }\n    return nums;\n}\n",
+      "c": "void cyclicPlace(int* nums, int n) {\n    int i = 0;\n    while (i < n) {\n        int home = nums[i] - 1;\n        if (nums[home] != nums[i]) {\n            int t = nums[home];\n            nums[home] = nums[i];\n            nums[i] = t;\n        } else {\n            i++;\n        }\n    }\n}\n"
+     },
+     "title": "Cyclic placement",
+     "lines": [
+      {
+       "text": "Start at index 0.",
+       "at": {
+        "python": [
+         [
+          2,
+          2
+         ]
+        ],
+        "java": [
+         [
+          2,
+          2
+         ]
+        ],
+        "cpp": [
+         [
+          2,
+          2
+         ]
+        ],
+        "c": [
+         [
+          2,
+          2
+         ]
+        ]
+       }
+      },
+      {
+       "text": "Keep going until every index has been settled.",
+       "at": {
+        "python": [
+         [
+          3,
+          3
+         ]
+        ],
+        "java": [
+         [
+          3,
+          3
+         ]
+        ],
+        "cpp": [
+         [
+          3,
+          3
+         ]
+        ],
+        "c": [
+         [
+          3,
+          3
+         ]
+        ]
+       }
+      },
+      {
+       "text": "Where the current value belongs. Values must be 1 to `n` for this to be a valid index; junk values would need to be skipped before this line.",
+       "at": {
+        "python": [
+         [
+          4,
+          4
+         ]
+        ],
+        "java": [
+         [
+          4,
+          4
+         ]
+        ],
+        "cpp": [
+         [
+          4,
+          4
+         ]
+        ],
+        "c": [
+         [
+          4,
+          4
+         ]
+        ]
+       }
+      },
+      {
+       "text": "Is the home free of this value? If home already holds the same number (because it's home, or because this is a duplicate), there's nothing to do.",
+       "at": {
+        "python": [
+         [
+          5,
+          5
+         ]
+        ],
+        "java": [
+         [
+          5,
+          5
+         ]
+        ],
+        "cpp": [
+         [
+          5,
+          5
+         ]
+        ],
+        "c": [
+         [
+          5,
+          5
+         ]
+        ]
+       }
+      },
+      {
+       "text": "Send the value home. Whatever was there comes to index `i`, and we look at it next without moving `i`.",
+       "at": {
+        "python": [
+         [
+          6,
+          6
+         ]
+        ],
+        "java": [
+         [
+          6,
+          8
+         ]
+        ],
+        "cpp": [
+         [
+          6,
+          6
+         ]
+        ],
+        "c": [
+         [
+          6,
+          8
+         ]
+        ]
+       },
+       "notes": {
+        "python": "The tuple swap works because `home` was computed beforehand; writing `nums[nums[i] - 1]` on the left would go wrong mid-swap."
+       }
+      },
+      {
+       "text": "Index `i` is settled: it holds its own value or an extra copy. Move on.",
+       "at": {
+        "python": [
+         [
+          7,
+          8
+         ]
+        ],
+        "java": [
+         [
+          9,
+          10
+         ]
+        ],
+        "cpp": [
+         [
+          7,
+          8
+         ]
+        ],
+        "c": [
+         [
+          9,
+          10
+         ]
+        ]
+       },
+       "notes": {
+        "c": "C works on the caller's array in place and returns nothing."
+       }
+      },
+      {
+       "text": "Every value that appears is home. Each slot holding the wrong number marks a missing value.",
+       "at": {
+        "python": [
+         [
+          9,
+          9
+         ]
+        ],
+        "java": [
+         [
+          13,
+          13
+         ]
+        ],
+        "cpp": [
+         [
+          11,
+          11
+         ]
+        ]
+       }
+      }
+     ],
+     "run": {
+      "call": "cyclic_place([3, 1, 5, 4, 2]); cyclic_place([4, 3, 4, 1, 3])",
+      "output": "1 2 3 4 5\n1 4 3 4 3"
+     }
+    }
+   ]
+  },
+  {
+   "id": "trace",
+   "title": "Trace it by hand",
+   "blocks": [
+    {
+     "md": "First a clean permutation. Watch index 0 do most of the work, then the rest are already home:"
+    },
+    {
+     "walk": {
+      "steps": [
+       {
+        "text": "Every value is between 1 and 5, so each has exactly one home: value v lives at index v - 1.",
+        "panels": [
+         {
+          "type": "row",
+          "cells": [
+           3,
+           1,
+           5,
+           4,
+           2
+          ],
+          "slots": true
+         },
+         {
+          "type": "vars",
+          "items": {
+           "swaps:": "0"
+          }
+         }
+        ]
+       },
+       {
+        "text": "Index 0 holds 3, whose home is index 2. Swap: 3 goes home, and 5 comes back to index 0 to be looked at next.",
+        "panels": [
+         {
+          "type": "row",
+          "cells": [
+           5,
+           1,
+           3,
+           4,
+           2
+          ],
+          "states": {
+           "2": "new",
+           "3": "found",
+           "0": "active"
+          },
+          "pointers": {
+           "i": 0
+          },
+          "slots": true
+         },
+         {
+          "type": "vars",
+          "items": {
+           "swaps:": "1"
+          }
+         }
+        ]
+       },
+       {
+        "text": "Index 0 holds 5, whose home is index 4. Swap: 5 goes home, and 2 comes back to index 0 to be looked at next.",
+        "panels": [
+         {
+          "type": "row",
+          "cells": [
+           2,
+           1,
+           3,
+           4,
+           5
+          ],
+          "states": {
+           "2": "found",
+           "3": "found",
+           "4": "new",
+           "0": "active"
+          },
+          "pointers": {
+           "i": 0
+          },
+          "slots": true
+         },
+         {
+          "type": "vars",
+          "items": {
+           "swaps:": "2"
+          }
+         }
+        ]
+       },
+       {
+        "text": "Index 0 holds 2, whose home is index 1. Swap: 2 goes home, and 1 comes back to index 0 to be looked at next.",
+        "panels": [
+         {
+          "type": "row",
+          "cells": [
+           1,
+           2,
+           3,
+           4,
+           5
+          ],
+          "states": {
+           "0": "found",
+           "1": "new",
+           "2": "found",
+           "3": "found",
+           "4": "found"
+          },
+          "pointers": {
+           "i": 0
+          },
+          "slots": true
+         },
+         {
+          "type": "vars",
+          "items": {
+           "swaps:": "3"
+          }
+         }
+        ]
+       },
+       {
+        "text": "Index 0 holds 1, which is already home. Move on to index 1.",
+        "panels": [
+         {
+          "type": "row",
+          "cells": [
+           1,
+           2,
+           3,
+           4,
+           5
+          ],
+          "states": {
+           "0": "found",
+           "1": "found",
+           "2": "found",
+           "3": "found",
+           "4": "found"
+          },
+          "pointers": {
+           "i": 0
+          },
+          "slots": true
+         },
+         {
+          "type": "vars",
+          "items": {
+           "swaps:": "3"
+          }
+         }
+        ]
+       },
+       {
+        "text": "Index 1 holds 2, which is already home. Move on to index 2.",
+        "panels": [
+         {
+          "type": "row",
+          "cells": [
+           1,
+           2,
+           3,
+           4,
+           5
+          ],
+          "states": {
+           "0": "found",
+           "1": "found",
+           "2": "found",
+           "3": "found",
+           "4": "found"
+          },
+          "pointers": {
+           "i": 1
+          },
+          "slots": true
+         },
+         {
+          "type": "vars",
+          "items": {
+           "swaps:": "3"
+          }
+         }
+        ]
+       },
+       {
+        "text": "Index 2 holds 3, which is already home. Move on to index 3.",
+        "panels": [
+         {
+          "type": "row",
+          "cells": [
+           1,
+           2,
+           3,
+           4,
+           5
+          ],
+          "states": {
+           "0": "found",
+           "1": "found",
+           "2": "found",
+           "3": "found",
+           "4": "found"
+          },
+          "pointers": {
+           "i": 2
+          },
+          "slots": true
+         },
+         {
+          "type": "vars",
+          "items": {
+           "swaps:": "3"
+          }
+         }
+        ]
+       },
+       {
+        "text": "Index 3 holds 4, which is already home. Move on to index 4.",
+        "panels": [
+         {
+          "type": "row",
+          "cells": [
+           1,
+           2,
+           3,
+           4,
+           5
+          ],
+          "states": {
+           "0": "found",
+           "1": "found",
+           "2": "found",
+           "3": "found",
+           "4": "found"
+          },
+          "pointers": {
+           "i": 3
+          },
+          "slots": true
+         },
+         {
+          "type": "vars",
+          "items": {
+           "swaps:": "3"
+          }
+         }
+        ]
+       },
+       {
+        "text": "Index 4 holds 5, which is already home. Move on to index 5. Every value is home: sorted.",
+        "panels": [
+         {
+          "type": "row",
+          "cells": [
+           1,
+           2,
+           3,
+           4,
+           5
+          ],
+          "states": {
+           "0": "found",
+           "1": "found",
+           "2": "found",
+           "3": "found",
+           "4": "found"
+          },
+          "pointers": {
+           "i": 4
+          },
+          "slots": true
+         },
+         {
+          "type": "vars",
+          "items": {
+           "swaps:": "3"
+          }
+         }
+        ]
+       }
+      ],
+      "title": "`cyclic_place([3, 1, 5, 4, 2])`. Value v belongs at index v - 1. Swap each value home until index i holds the right thing."
+     }
+    },
+    {
+     "md": "Now with repeats and gaps. The interesting moment is when a value's home already holds a copy of it:"
+    },
+    {
+     "walk": {
+      "steps": [
+       {
+        "text": "Same rule. This time two values (2 and 5) are missing and two (3 and 4) appear twice.",
+        "panels": [
+         {
+          "type": "row",
+          "cells": [
+           4,
+           3,
+           4,
+           1,
+           3
+          ],
+          "slots": true
+         }
+        ]
+       },
+       {
+        "text": "Index 0: 4 goes home to index 3, and 1 comes back to index 0.",
+        "panels": [
+         {
+          "type": "row",
+          "cells": [
+           1,
+           3,
+           4,
+           4,
+           3
+          ],
+          "states": {
+           "0": "found",
+           "3": "new"
+          },
+          "pointers": {
+           "i": 0
+          },
+          "slots": true
+         }
+        ]
+       },
+       {
+        "text": "Index 0 holds 1, already home. Move on.",
+        "panels": [
+         {
+          "type": "row",
+          "cells": [
+           1,
+           3,
+           4,
+           4,
+           3
+          ],
+          "states": {
+           "0": "found",
+           "3": "found"
+          },
+          "pointers": {
+           "i": 0
+          },
+          "slots": true
+         }
+        ]
+       },
+       {
+        "text": "Index 1: 3 goes home to index 2, and 4 comes back to index 1.",
+        "panels": [
+         {
+          "type": "row",
+          "cells": [
+           1,
+           4,
+           3,
+           4,
+           3
+          ],
+          "states": {
+           "0": "found",
+           "2": "new",
+           "3": "found"
+          },
+          "pointers": {
+           "i": 1
+          },
+          "slots": true
+         }
+        ]
+       },
+       {
+        "text": "Index 1 holds 4, but its home (index 3) already has a 4. This one is an extra copy: leave it here and move on. Without this check the loop would swap the two equal values forever.",
+        "panels": [
+         {
+          "type": "row",
+          "cells": [
+           1,
+           4,
+           3,
+           4,
+           3
+          ],
+          "states": {
+           "0": "found",
+           "2": "found",
+           "3": "found",
+           "1": "mark"
+          },
+          "pointers": {
+           "i": 1
+          },
+          "slots": true
+         }
+        ]
+       },
+       {
+        "text": "Index 2 holds 3, already home. Move on.",
+        "panels": [
+         {
+          "type": "row",
+          "cells": [
+           1,
+           4,
+           3,
+           4,
+           3
+          ],
+          "states": {
+           "0": "found",
+           "2": "found",
+           "3": "found"
+          },
+          "pointers": {
+           "i": 2
+          },
+          "slots": true
+         }
+        ]
+       },
+       {
+        "text": "Index 3 holds 4, already home. Move on.",
+        "panels": [
+         {
+          "type": "row",
+          "cells": [
+           1,
+           4,
+           3,
+           4,
+           3
+          ],
+          "states": {
+           "0": "found",
+           "2": "found",
+           "3": "found"
+          },
+          "pointers": {
+           "i": 3
+          },
+          "slots": true
+         }
+        ]
+       },
+       {
+        "text": "Index 4 holds 3, but its home (index 2) already has a 3. This one is an extra copy: leave it here and move on. Without this check the loop would swap the two equal values forever.",
+        "panels": [
+         {
+          "type": "row",
+          "cells": [
+           1,
+           4,
+           3,
+           4,
+           3
+          ],
+          "states": {
+           "0": "found",
+           "2": "found",
+           "3": "found",
+           "4": "mark"
+          },
+          "pointers": {
+           "i": 4
+          },
+          "slots": true
+         }
+        ]
+       }
+      ],
+      "title": "`cyclic_place([4, 3, 4, 1, 3])`. Some values repeat and some are missing. What happens to the extra copies?"
+     }
+    },
+    {
+     "md": "The result is `[1, 4, 3, 4, 3]`. The slots that don't hold their own number are index 1 (holding 4), index 4 (holding 3).\nSo 2, 5 are missing, and the values sitting there are the extra copies."
+    }
+   ]
+  },
+  {
+   "id": "examples",
+   "title": "More examples",
+   "blocks": [
+    {
+     "md": "### Values that start at 0\n\nFor values 0 to `n - 1`, the home of `v` is index `v` itself. Everything else is identical. In general, for any\nblock of `n` consecutive numbers starting at `lo`, the home of `v` is `v - lo`.\n\n### Junk values\n\nIf the array can hold 0, negatives or numbers bigger than `n`, they have no home. Add a check before the swap:\nif `v < 1 or v > n`, treat it like a duplicate and move on. After the pass, those junk values sit in the slots\nof missing numbers, just like extra copies.\n\n### Rearranging by a list of destinations\n\nSay each item must move to a given index: item `k` goes to `dest[k]`. With a second array that's trivial. With\none spare variable, follow the cycles: pick up an item, drop it at its destination, pick up the one that was\nthere, and keep going until the loop comes back to where it started."
+    },
+    {
+     "walk": {
+      "steps": [
+       {
+        "text": "Each item has a destination. Following destinations from any index goes round a loop and comes back.",
+        "panels": [
+         {
+          "type": "row",
+          "cells": [
+           10,
+           20,
+           30,
+           40,
+           50,
+           60
+          ],
+          "label": "items",
+          "slots": true
+         },
+         {
+          "type": "row",
+          "cells": [
+           2,
+           0,
+           1,
+           5,
+           4,
+           3
+          ],
+          "label": "dest",
+          "slots": true
+         }
+        ]
+       },
+       {
+        "text": "Start a loop at index 0: pick up 10 (it's going to index 2).",
+        "panels": [
+         {
+          "type": "row",
+          "cells": [
+           10,
+           20,
+           30,
+           40,
+           50,
+           60
+          ],
+          "states": {
+           "0": "mark"
+          },
+          "label": "items",
+          "slots": true
+         },
+         {
+          "type": "vars",
+          "items": {
+           "carrying:": "10"
+          }
+         }
+        ]
+       },
+       {
+        "text": "Put it down at index 2 and pick up the 30 that was there.",
+        "panels": [
+         {
+          "type": "row",
+          "cells": [
+           10,
+           20,
+           10,
+           40,
+           50,
+           60
+          ],
+          "states": {
+           "2": "new"
+          },
+          "pointers": {
+           "j": 2
+          },
+          "label": "items",
+          "slots": true
+         },
+         {
+          "type": "vars",
+          "items": {
+           "carrying:": "30"
+          }
+         }
+        ]
+       },
+       {
+        "text": "Put it down at index 1 and pick up the 20 that was there.",
+        "panels": [
+         {
+          "type": "row",
+          "cells": [
+           10,
+           30,
+           10,
+           40,
+           50,
+           60
+          ],
+          "states": {
+           "1": "new"
+          },
+          "pointers": {
+           "j": 1
+          },
+          "label": "items",
+          "slots": true
+         },
+         {
+          "type": "vars",
+          "items": {
+           "carrying:": "20"
+          }
+         }
+        ]
+       },
+       {
+        "text": "The loop is back at index 0: put down 20. This loop is done.",
+        "panels": [
+         {
+          "type": "row",
+          "cells": [
+           20,
+           30,
+           10,
+           40,
+           50,
+           60
+          ],
+          "states": {
+           "0": "new"
+          },
+          "label": "items",
+          "slots": true
+         },
+         {
+          "type": "vars",
+          "items": {
+           "carrying:": "nothing"
+          }
+         }
+        ]
+       },
+       {
+        "text": "Start a loop at index 3: pick up 40 (it's going to index 5).",
+        "panels": [
+         {
+          "type": "row",
+          "cells": [
+           20,
+           30,
+           10,
+           40,
+           50,
+           60
+          ],
+          "states": {
+           "3": "mark"
+          },
+          "label": "items",
+          "slots": true
+         },
+         {
+          "type": "vars",
+          "items": {
+           "carrying:": "40"
+          }
+         }
+        ]
+       },
+       {
+        "text": "Put it down at index 5 and pick up the 60 that was there.",
+        "panels": [
+         {
+          "type": "row",
+          "cells": [
+           20,
+           30,
+           10,
+           40,
+           50,
+           40
+          ],
+          "states": {
+           "5": "new"
+          },
+          "pointers": {
+           "j": 5
+          },
+          "label": "items",
+          "slots": true
+         },
+         {
+          "type": "vars",
+          "items": {
+           "carrying:": "60"
+          }
+         }
+        ]
+       },
+       {
+        "text": "The loop is back at index 3: put down 60. This loop is done.",
+        "panels": [
+         {
+          "type": "row",
+          "cells": [
+           20,
+           30,
+           10,
+           60,
+           50,
+           40
+          ],
+          "states": {
+           "3": "new"
+          },
+          "label": "items",
+          "slots": true
+         },
+         {
+          "type": "vars",
+          "items": {
+           "carrying:": "nothing"
+          }
+         }
+        ]
+       },
+       {
+        "text": "Start a loop at index 4: pick up 50 (it's going to index 4).",
+        "panels": [
+         {
+          "type": "row",
+          "cells": [
+           20,
+           30,
+           10,
+           60,
+           50,
+           40
+          ],
+          "states": {
+           "4": "mark"
+          },
+          "label": "items",
+          "slots": true
+         },
+         {
+          "type": "vars",
+          "items": {
+           "carrying:": "50"
+          }
+         }
+        ]
+       },
+       {
+        "text": "The loop is back at index 4: put down 50. This loop is done.",
+        "panels": [
+         {
+          "type": "row",
+          "cells": [
+           20,
+           30,
+           10,
+           60,
+           50,
+           40
+          ],
+          "states": {
+           "4": "new"
+          },
+          "label": "items",
+          "slots": true
+         },
+         {
+          "type": "vars",
+          "items": {
+           "carrying:": "nothing"
+          }
+         }
+        ]
+       }
+      ],
+      "title": "Moving `[10, 20, 30, 40, 50, 60]` so item k lands at index dest[k] = `[2, 0, 1, 5, 4, 3]`, with one spare variable."
+     }
+    }
+   ]
+  },
+  {
+   "id": "variations",
+   "title": "Variations",
+   "blocks": [
+    {
+     "md": "### Applying a reordering in place\n\nThe routine from *More examples*. To know which items have already moved, it marks visited destinations with\n`~` (bitwise NOT, which turns 0 into -1 so even index 0 can be marked) and restores them at the end."
+    },
+    {
+     "code": {
+      "python": "def apply_in_place(items, dest):\n    n = len(items)\n    for start in range(n):\n        if dest[start] < 0:\n            continue\n        carry = items[start]\n        j = dest[start]\n        dest[start] = ~dest[start]\n        while j != start:\n            items[j], carry = carry, items[j]\n            nxt = dest[j]\n            dest[j] = ~dest[j]\n            j = nxt\n        items[start] = carry\n    for i in range(n):\n        dest[i] = ~dest[i]\n    return items\n",
+      "java": "static int[] applyInPlace(int[] items, int[] dest) {\n    int n = items.length;\n    for (int start = 0; start < n; start++) {\n        if (dest[start] < 0) continue;\n        int carry = items[start];\n        int j = dest[start];\n        dest[start] = ~dest[start];\n        while (j != start) {\n            int t = items[j];\n            items[j] = carry;\n            carry = t;\n            int nxt = dest[j];\n            dest[j] = ~dest[j];\n            j = nxt;\n        }\n        items[start] = carry;\n    }\n    for (int i = 0; i < n; i++) dest[i] = ~dest[i];\n    return items;\n}\n",
+      "cpp": "vector<int>& applyInPlace(vector<int>& items, vector<int>& dest) {\n    int n = items.size();\n    for (int start = 0; start < n; start++) {\n        if (dest[start] < 0) continue;\n        int carry = items[start];\n        int j = dest[start];\n        dest[start] = ~dest[start];\n        while (j != start) {\n            swap(items[j], carry);\n            int nxt = dest[j];\n            dest[j] = ~dest[j];\n            j = nxt;\n        }\n        items[start] = carry;\n    }\n    for (int& d : dest) d = ~d;\n    return items;\n}\n",
+      "c": "void applyInPlace(int* items, int* dest, int n) {\n    for (int start = 0; start < n; start++) {\n        if (dest[start] < 0) continue;\n        int carry = items[start];\n        int j = dest[start];\n        dest[start] = ~dest[start];\n        while (j != start) {\n            int t = items[j];\n            items[j] = carry;\n            carry = t;\n            int nxt = dest[j];\n            dest[j] = ~dest[j];\n            j = nxt;\n        }\n        items[start] = carry;\n    }\n    for (int i = 0; i < n; i++) dest[i] = ~dest[i];\n}\n"
+     },
+     "title": "Move every item to its destination, in place",
+     "lines": [
+      {
+       "text": "The number of items.",
+       "at": {
+        "python": [
+         [
+          2,
+          2
+         ]
+        ],
+        "java": [
+         [
+          2,
+          2
+         ]
+        ],
+        "cpp": [
+         [
+          2,
+          2
+         ]
+        ]
+       }
+      },
+      {
+       "text": "Try every index as the start of a cycle.",
+       "at": {
+        "python": [
+         [
+          3,
+          3
+         ]
+        ],
+        "java": [
+         [
+          3,
+          3
+         ]
+        ],
+        "cpp": [
+         [
+          3,
+          3
+         ]
+        ],
+        "c": [
+         [
+          2,
+          2
+         ]
+        ]
+       }
+      },
+      {
+       "text": "A negative destination means this index was already handled as part of an earlier cycle.",
+       "at": {
+        "python": [
+         [
+          4,
+          5
+         ]
+        ],
+        "java": [
+         [
+          4,
+          4
+         ]
+        ],
+        "cpp": [
+         [
+          4,
+          4
+         ]
+        ],
+        "c": [
+         [
+          3,
+          3
+         ]
+        ]
+       }
+      },
+      {
+       "text": "Pick up the item at `start`. `j` is where it's going. Mark `start` as visited.",
+       "at": {
+        "python": [
+         [
+          6,
+          8
+         ]
+        ],
+        "java": [
+         [
+          5,
+          7
+         ]
+        ],
+        "cpp": [
+         [
+          5,
+          7
+         ]
+        ],
+        "c": [
+         [
+          4,
+          6
+         ]
+        ]
+       }
+      },
+      {
+       "text": "Walk around the cycle until it comes back to `start`.",
+       "at": {
+        "python": [
+         [
+          9,
+          9
+         ]
+        ],
+        "java": [
+         [
+          8,
+          8
+         ]
+        ],
+        "cpp": [
+         [
+          8,
+          8
+         ]
+        ],
+        "c": [
+         [
+          7,
+          7
+         ]
+        ]
+       }
+      },
+      {
+       "text": "Put the carried item down at `j`, and pick up the item that was there.",
+       "at": {
+        "python": [
+         [
+          10,
+          10
+         ]
+        ],
+        "java": [
+         [
+          9,
+          11
+         ]
+        ],
+        "cpp": [
+         [
+          9,
+          9
+         ]
+        ],
+        "c": [
+         [
+          8,
+          10
+         ]
+        ]
+       },
+       "notes": {
+        "cpp": "`swap(items[j], carry)` does both at once."
+       }
+      },
+      {
+       "text": "Go to where the newly carried item is heading, marking this index as visited.",
+       "at": {
+        "python": [
+         [
+          11,
+          13
+         ]
+        ],
+        "java": [
+         [
+          12,
+          14
+         ]
+        ],
+        "cpp": [
+         [
+          10,
+          12
+         ]
+        ],
+        "c": [
+         [
+          11,
+          13
+         ]
+        ]
+       }
+      },
+      {
+       "text": "Back at the start: the carried item is the one whose destination is `start`.",
+       "at": {
+        "python": [
+         [
+          14,
+          14
+         ]
+        ],
+        "java": [
+         [
+          16,
+          16
+         ]
+        ],
+        "cpp": [
+         [
+          14,
+          14
+         ]
+        ],
+        "c": [
+         [
+          15,
+          15
+         ]
+        ]
+       }
+      },
+      {
+       "text": "Undo the `~` marks so `dest` is unchanged for the caller.",
+       "at": {
+        "python": [
+         [
+          15,
+          16
+         ]
+        ],
+        "java": [
+         [
+          18,
+          18
+         ]
+        ],
+        "cpp": [
+         [
+          16,
+          16
+         ]
+        ],
+        "c": [
+         [
+          17,
+          17
+         ]
+        ]
+       },
+       "notes": {
+        "c": "C rearranges the caller's array in place and returns nothing."
+       }
+      },
+      {
+       "text": "The rearranged items.",
+       "at": {
+        "python": [
+         [
+          17,
+          17
+         ]
+        ],
+        "java": [
+         [
+          19,
+          19
+         ]
+        ],
+        "cpp": [
+         [
+          17,
+          17
+         ]
+        ]
+       }
+      }
+     ],
+     "run": {
+      "call": "apply_in_place([10, 20, 30, 40, 50, 60], dest=[2, 0, 1, 5, 4, 3]); then print dest",
+      "output": "20 30 10 60 50 40\n2 0 1 5 4 3"
+     }
+    },
+    {
+     "md": "The second line of output shows `dest` came back exactly as it went in.\n\n### Cyclic sort or index marking?\n\nBoth use \"value v belongs at index v - 1\", both are O(n) time and O(1) extra space, and both work on the\nsame kinds of question. Marking leaves the array in place and only flips signs, so it's easy to restore.\nCyclic sort moves values, so afterwards you can read off which value sits where, which is sometimes exactly\nwhat the answer needs. If you're unsure, try both on a small example and see which makes the answer easier\nto read."
+    }
+   ]
+  },
+  {
+   "id": "complexity",
+   "title": "What it costs",
+   "blocks": [
+    {
+     "md": "Each swap places one value for good, so there are at most `n - 1` swaps. The index moves forward `n` times. So\nthe loop runs at most about `2n` times: O(n) time. Extra memory is O(1): an index and a temporary for the\nswap. The scan afterwards is another O(n).\n\nThe in-place reordering visits every index once as part of exactly one cycle, so it's O(n) too, with O(1)\nextra memory (the marks live in `dest` and are undone)."
+    },
+    {
+     "table": {
+      "head": [
+       "Approach",
+       "Time",
+       "Extra space"
+      ],
+      "rows": [
+       [
+        "Comparison sort, then scan",
+        "O(n log n)",
+        "O(1) to O(n)"
+       ],
+       [
+        "Hash set of values",
+        "O(n) on average",
+        "O(n)"
+       ],
+       [
+        "Index marking",
+        "O(n)",
+        "O(1)"
+       ],
+       [
+        "Cyclic sort",
+        "O(n)",
+        "O(1)"
+       ]
+      ]
+     }
+    }
+   ]
+  },
+  {
+   "id": "languages",
+   "title": "In your language",
+   "blocks": [
+    {
+     "md": "### Python\n\nCompute the home index into a variable before swapping: `nums[i], nums[home] = nums[home], nums[i]`. Writing\n`nums[i], nums[nums[i] - 1] = …` is a classic bug, because Python assigns left to right and `nums[i]` has already\nchanged by the time the second target is worked out.\n\n### Java\n\nNo built-in swap for arrays; use a temporary. For-each loops can't be used here, because the index doesn't\nalways advance.\n\n### C++\n\n`std::swap(nums[i], nums[home])`. Use an index loop (`while`), not a range-for, for the same reason as Java.\n\n### C\n\nA temporary for the swap. Pass `n` explicitly, and check `1 ≤ v ≤ n` before indexing if junk values are\npossible."
+    }
+   ]
+  },
+  {
+   "id": "pitfalls",
+   "title": "Pitfalls and edge cases",
+   "blocks": [
+    {
+     "md": "- Infinite loops on duplicates. Always compare `nums[home]` with `nums[i]`, not `home` with `i`.\n- Advancing `i` after a swap. The value that came back to `i` hasn't been placed yet; stay on `i`.\n- Values with no home (0, negatives, larger than `n`). Check the range before using a value as an index.\n- Mixing up 1-based and 0-based homes: `v - 1` versus `v`.\n- Python's swap with a computed index on the left side.\n- Modifying the caller's array when that's not allowed. Copy it first."
+    }
+   ]
+  },
+  {
+   "id": "check",
+   "title": "Check yourself",
+   "blocks": [
+    {
+     "quiz": [
+      {
+       "q": "Why is cyclic sort O(n) even though it has a loop that can stay on the same index several times?",
+       "a": "Every swap puts one value in its final place, and placed values never move again, so there are at most n - 1 swaps in total. The index moves forward n times. So the total number of iterations is at most about 2n."
+      },
+      {
+       "q": "What happens without the `nums[home] != nums[i]` check when a value is duplicated?",
+       "a": "The two equal values would be swapped with each other forever, since swapping them changes nothing and the loop never advances."
+      },
+      {
+       "q": "After cyclic placement of [2, 2, 3, 3], what's in the array and what does it tell you?",
+       "a": "It stays [2, 2, 3, 3]. The 2 at index 0 finds a 2 already at its home (index 1), so it's an extra copy and stays put; the 3 at index 3 does the same. Indices 0 and 3 hold the wrong numbers, so 1 and 4 are missing, and 2 and 3 are the doubled values."
+      },
+      {
+       "q": "Values are 0 to n - 1. What changes?",
+       "a": "Only the home: value v belongs at index v instead of v - 1."
+      },
+      {
+       "q": "In `apply_in_place`, why mark with `~` rather than making the destination negative?",
+       "a": "Destination 0 can't be made negative (-0 is 0), so index 0 couldn't be marked. `~0` is -1, and applying `~` again restores it."
+      }
+     ]
+    }
+   ]
+  }
+ ]
+}

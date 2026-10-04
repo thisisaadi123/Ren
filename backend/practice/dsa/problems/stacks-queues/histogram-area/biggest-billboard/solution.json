@@ -4,80 +4,119 @@
  "question": [
   {
    "md": "Buildings of width 1 stand side by side. Choose a run of neighbouring buildings and paint a rectangle from the\nground up, no taller than any building in the run. Return the largest area.\n\n- **Height-0 buildings exist**: nothing can be painted across them.\n- **Heights reach 10⁹ and there are up to 10⁵ buildings**, so areas reach 10¹⁴: the answer is a `long`."
+  },
+  {
+   "md": "**Edge cases to keep in mind**\n\n- Buildings of height 0 split the row.\n- All equal heights: the whole row.\n- Areas reach `10⁹ × 10⁵ = 10¹⁴`: use 64 bits."
   }
  ],
  "think": [
   {
-   "md": "Heights `[2, 4, 5, 3, 1, 3]`. The run 4, 5, 3 gives height 3 × width 3 = 9. The run 4, 5 gives 4 × 2 = 8; all six give\n1 × 6 = 6. The best is **9**."
+   "md": "**How far can a bar reach?** For bar `i` with height `h`, the widest stretch where every bar is at least `h` runs from\njust after the **nearest shorter bar on the left** to just before the **nearest shorter bar on the right**. Both\n\"nearest shorter\" positions come from a monotonic stack in one pass each: pop bars that are not shorter than the\ncurrent one; what's left on top is the nearest shorter bar.\n\n**Why this finds the best rectangle.** Any rectangle under a histogram is limited by its lowest bar. Taking each bar as\nthe lowest and stretching as far as possible covers the best rectangle for that height, so the best of these is the\nbest overall."
   },
   {
-   "panels": [
-    {
-     "type": "row",
-     "cells": [
-      2,
-      4,
-      5,
-      3,
-      1,
-      3
-     ],
-     "states": {
-      "1": "found",
-      "2": "found",
-      "3": "found"
-     }
-    }
-   ],
-   "caption": "Height 3 across buildings 1–3: area 9."
-  },
-  {
-   "md": "For a best billboard, look at the shortest building under it. The billboard's height is that building's\nheight, and it can't be any wider than that building's reach (until a strictly shorter building on each side),\notherwise it would be wider at the same height. So **the answer is the best of n candidates**, one per building:\n`height[i] × reach[i]`. That's the poster-reach problem, plus a multiplication."
+   "md": "**Each building as the lowest point of the billboard, for `[2, 4, 5, 3, 1, 3]`:**"
   },
   {
    "table": {
     "head": [
      "building",
      "height",
-     "reach",
+     "stretch",
      "area"
     ],
     "rows": [
      [
       "0",
       "2",
-      "4",
+      "0 … 3",
       "8"
      ],
      [
       "1",
       "4",
-      "2",
+      "1 … 2",
       "8"
      ],
      [
       "2",
       "5",
-      "1",
+      "2 … 2",
       "5"
      ],
      [
       "3",
       "3",
-      "3",
+      "1 … 3",
       "9"
      ],
      [
       "4",
       "1",
-      "6",
+      "0 … 5",
       "6"
      ],
      [
       "5",
       "3",
-      "1",
+      "5 … 5",
       "3"
+     ]
+    ]
+   }
+  },
+  {
+   "md": "Largest **9**.\n\n**One pass instead of two.** Keep a stack of buildings with increasing heights. When a building arrives that is\nnot taller than the top, the top's right boundary has just been found (this building), and its left boundary is\nthe building below it on the stack. So measure it as it's popped. A height-0 sentinel at the end flushes\neverything:"
+  },
+  {
+   "table": {
+    "head": [
+     "i",
+     "height",
+     "measured when popped (height × width)",
+     "stack heights after"
+    ],
+    "rows": [
+     [
+      "0",
+      "2",
+      "—",
+      "[2]"
+     ],
+     [
+      "1",
+      "4",
+      "—",
+      "[2, 4]"
+     ],
+     [
+      "2",
+      "5",
+      "—",
+      "[2, 4, 5]"
+     ],
+     [
+      "3",
+      "3",
+      "5×1=5, 4×2=8",
+      "[2, 3]"
+     ],
+     [
+      "4",
+      "1",
+      "3×3=9, 2×4=8",
+      "[1]"
+     ],
+     [
+      "5",
+      "3",
+      "—",
+      "[1, 3]"
+     ],
+     [
+      "6",
+      "0 (sentinel)",
+      "3×1=3, 1×6=6",
+      "[0]"
      ]
     ]
    }
@@ -91,13 +130,13 @@
    "space": "O(1)",
    "idea": [
     {
-     "md": "For each start, extend right one building at a time, keeping the shortest height so far; each run's area is `shortest × width`. Keep the maximum."
+     "md": "Try every run of neighbouring buildings with a running minimum height; area = min × width."
     }
    ],
    "build": [
-    "For each start `i`, `low = heights[i]`.",
-    "For each end `j`, `low = min(low, heights[j])`, area `low × (j − i + 1)`.",
-    "Return the largest area."
+    "Every start.",
+    "Extend with a running minimum.",
+    "Track the best area."
    ],
    "code": {
     "python": "class Solution:\n    def biggestBillboard(self, heights: List[int]) -> int:\n        best = 0\n        for i in range(len(heights)):\n            low = heights[i]\n            for j in range(i, len(heights)):\n                low = min(low, heights[j])\n                best = max(best, low * (j - i + 1))\n        return best\n",
@@ -254,7 +293,7 @@
    ],
    "complexity": [
     {
-     "md": "**Time O(n²)** runs. **Space O(1).**"
+     "md": "**Time O(n²).** **Space O(1).**"
     }
    ],
    "walk": {
@@ -491,7 +530,7 @@
    },
    "limits": [
     {
-     "md": "About 5 × 10⁹ runs for 10⁵ buildings. Only n runs can be the answer (each building's full reach), so there's no need to look at the rest."
+     "md": "Quadratic. Each building's best rectangle is determined by its two nearest shorter neighbours."
     }
    ],
    "slow": true
@@ -503,13 +542,13 @@
    "space": "O(n)",
    "idea": [
     {
-     "md": "Compute every building's nearest strictly shorter neighbour on the left and on the right with monotonic stacks (exactly as in poster reach). Building `i`'s billboard has area `heights[i] × (right[i] − left[i] − 1)`. Return the largest."
+     "md": "Two monotonic-stack passes give each building's nearest shorter neighbours; area = height × (right − left − 1)."
     }
    ],
    "build": [
-    "Left pass: nearest shorter on the left (−1 if none).",
-    "Right pass: nearest shorter on the right (`n` if none), computing the area as you go.",
-    "Keep the maximum."
+    "Left boundaries.",
+    "Right boundaries and areas.",
+    "Maximum."
    ],
    "code": {
     "python": "class Solution:\n    def biggestBillboard(self, heights: List[int]) -> int:\n        n = len(heights)\n        left, stack = [-1] * n, []\n        for i in range(n):\n            while stack and heights[stack[-1]] >= heights[i]:\n                stack.pop()\n            left[i] = stack[-1] if stack else -1\n            stack.append(i)\n        best, stack = 0, []\n        for i in range(n - 1, -1, -1):\n            while stack and heights[stack[-1]] >= heights[i]:\n                stack.pop()\n            right = stack[-1] if stack else n\n            best = max(best, heights[i] * (right - left[i] - 1))\n            stack.append(i)\n        return best\n",
@@ -682,7 +721,7 @@
    ],
    "complexity": [
     {
-     "md": "**Time O(n).** **Space O(n)** for the left stoppers and the stack."
+     "md": "**Time O(n).** **Space O(n).**"
     }
    ],
    "walk": {
@@ -894,7 +933,7 @@
    },
    "limits": [
     {
-     "md": "Already linear, but it needs two passes and an extra array. In the left pass, the moment a building is **popped**, the building popping it is its right stopper and the new top is its left stopper: one pass is enough."
+     "md": "Two passes and a boundary array; one pass can measure each building at the moment it's popped."
     }
    ]
   },
@@ -905,13 +944,13 @@
    "space": "O(n)",
    "idea": [
     {
-     "md": "Keep a stack of indices with increasing heights. When building `i` is no taller than the top, the top's reach ends at `i − 1` on the right, and on the left it ends just after the next index down the stack. Pop it and record `height × (i − newTop − 1)`. A height-0 sentinel after the last building pops everything left at the end."
+     "md": "One left-to-right pass with an increasing stack and a 0 sentinel at the end. When a building is popped, the\ncurrent index is its right boundary and the new stack top is its left boundary; measure it then.\n\n**Equal heights.** Popping on `≥` measures an earlier equal building too narrowly, but the last one of the\nequal group is measured with the full width, so the maximum is still right."
     }
    ],
    "build": [
-    "Loop `i` from 0 to `n`, with height 0 at `i = n`.",
-    "While the top is at least as tall as the current height: pop it, width = `i − (new top or −1) − 1`, update the best.",
-    "Push `i`."
+    "Stack of indices, sentinel 0 appended.",
+    "Pop and measure while the top isn't shorter.",
+    "Push the current index."
    ],
    "code": {
     "python": "class Solution:\n    def biggestBillboard(self, heights: List[int]) -> int:\n        best, stack = 0, []\n        for i, h in enumerate(heights + [0]):\n            while stack and heights[stack[-1]] >= h:\n                height = heights[stack.pop()]\n                left = stack[-1] if stack else -1\n                best = max(best, height * (i - left - 1))\n            stack.append(i)\n        return best\n",
@@ -1100,7 +1139,7 @@
    ],
    "complexity": [
     {
-     "md": "**Time O(n):** each index is pushed and popped once. **Space O(n)** for the stack."
+     "md": "**Time O(n).** **Space O(n).**"
     }
    ],
    "walk": {
@@ -1525,7 +1564,7 @@
  ],
  "takeaways": [
   {
-   "md": "- **Largest rectangle under a histogram:** the answer is some bar's height times that bar's reach.\n- One pass: a bar's reach is known the moment it's popped (right stopper = the popper, left stopper = the new\n  top). A 0-height sentinel flushes the stack.\n- Use 64-bit areas when heights and widths are both large."
+   "md": "- **Largest rectangle in a histogram:** increasing stack; measure each bar when it's popped.\n- The sentinel 0 forces every remaining bar to be measured.\n- **Pitfall:** computing the width as `i − popped_index` instead of `i − new_top − 1`."
   }
  ]
 }

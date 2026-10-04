@@ -4,33 +4,69 @@
  "question": [
   {
    "md": "`#` is a backspace that deletes the previous character, if any. Return whether both keystroke sequences produce\nthe same text.\n\n- **Backspace on empty text does nothing:** `\"##a\"` shows `a`.\n- **Several backspaces chain:** `\"ab##\"` shows nothing.\n- **Only the final text matters**, not how it was typed."
+  },
+  {
+   "md": "**Edge cases to keep in mind**\n\n- A backspace on an empty box does nothing.\n- Several backspaces in a row delete several characters.\n- Both boxes may end empty (equal)."
   }
  ],
  "think": [
   {
-   "md": "Take `a = \"xy#z##w\"` and `b = \"q#xw\"`. Typing `a`: x, y, ⌫ (removes y), z, ⌫ (removes z), ⌫ (removes x), w → \"w\".\nTyping `b`: q, ⌫, x, w → \"xw\". Different."
+   "md": "**Building text with a stack.** When later characters can undo or combine with the most recent ones (a backspace, a\nrun of equal tiles, a `..` in a path, a closing bracket), the most recent output is exactly what's affected next. A\nstack of output pieces handles that: push to append, pop to undo, and modify the top to combine."
   },
   {
-   "panels": [
-    {
-     "type": "row",
-     "cells": [
-      "w"
-     ],
-     "label": "a shows"
-    },
-    {
-     "type": "row",
-     "cells": [
+   "md": "**Typing `xy#z##w`:**"
+  },
+  {
+   "table": {
+    "head": [
+     "key",
+     "x",
+     "y",
+     "#",
+     "z",
+     "#",
+     "#",
+     "w"
+    ],
+    "rows": [
+     [
+      "box shows",
       "x",
+      "xy",
+      "x",
+      "xz",
+      "x",
+      "(empty)",
       "w"
-     ],
-     "label": "b shows"
-    }
-   ]
+     ]
+    ]
+   }
   },
   {
-   "md": "The forward simulation is a stack. For O(1) space, notice that a character's fate depends only on what comes\n**after** it: it survives unless there are more unconsumed `#` to its right. So scan from the end, counting\npending backspaces, and you meet the surviving characters last-to-first."
+   "md": "**Typing `q#xw`:**"
+  },
+  {
+   "table": {
+    "head": [
+     "key",
+     "q",
+     "#",
+     "x",
+     "w"
+    ],
+    "rows": [
+     [
+      "box shows",
+      "q",
+      "(empty)",
+      "x",
+      "xw"
+     ]
+    ]
+   }
+  },
+  {
+   "md": "`\"w\"` vs `\"xw\"`: **false**.\n\n**Reading from the end.** A character survives exactly when the backspaces after it don't reach it. Scanning\nbackwards with a counter of pending backspaces finds the surviving characters one by one, without building the\ntexts: compare them pairwise."
   }
  ],
  "approaches": [
@@ -41,12 +77,12 @@
    "space": "O(n + m)",
    "idea": [
     {
-     "md": "For each input: letters are pushed; `#` pops if the stack isn't empty. Compare the two stacks."
+     "md": "Build both final texts with a stack (push letters, pop on `#`) and compare."
     }
    ],
    "build": [
-    "Write `screen(keys)` with a stack.",
-    "Return `screen(a) == screen(b)`."
+    "Stack-based typing for each string.",
+    "Compare the results."
    ],
    "code": {
     "python": "class Solution:\n    def sameText(self, a: str, b: str) -> bool:\n        def screen(keys):\n            out = []\n            for c in keys:\n                if c == \"#\":\n                    if out:\n                        out.pop()\n                else:\n                    out.append(c)\n            return out\n        return screen(a) == screen(b)\n",
@@ -442,7 +478,7 @@
    },
    "limits": [
     {
-     "md": "Builds both texts in full even when they differ early at the end. Reading backwards needs no extra memory."
+     "md": "Builds both texts in full; walking from the end compares surviving characters with O(1) memory."
     }
    ]
   },
@@ -453,12 +489,13 @@
    "space": "O(1)",
    "idea": [
     {
-     "md": "Pointers i and j at the ends. For each, skip backwards over characters deleted by later `#` (count pending backspaces: `#` adds one, a letter consumes one). Compare the next survivors; move both on. Equal all the way, and both exhausted together, means equal texts."
+     "md": "From the end of each string, find the next surviving character: count `#` as pending deletions and skip\nthat many letters. Compare the two survivors; move both pointers on. Equal exactly when the survivors match\nall the way and both run out together."
     }
    ],
    "build": [
-    "Write `next(s, i)`: from i leftwards, return the index of the next surviving letter (or −1).",
-    "Loop: compare `a[i]` with `b[j]` at the survivors; stop on a mismatch or when either runs out."
+    "Helper: next surviving index going backwards.",
+    "Compare survivors pairwise.",
+    "Both must end together."
    ],
    "code": {
     "python": "class Solution:\n    def sameText(self, a: str, b: str) -> bool:\n        def survivor(s, i):\n            skip = 0\n            while i >= 0:\n                if s[i] == \"#\":\n                    skip += 1\n                elif skip:\n                    skip -= 1\n                else:\n                    return i\n                i -= 1\n            return -1\n        i, j = len(a) - 1, len(b) - 1\n        while True:\n            i, j = survivor(a, i), survivor(b, j)\n            if i < 0 or j < 0:\n                return i < 0 and j < 0\n            if a[i] != b[j]:\n                return False\n            i, j = i - 1, j - 1\n",
@@ -615,7 +652,7 @@
    ],
    "complexity": [
     {
-     "md": "**Time O(n + m):** each character is passed once. **Space O(1).**"
+     "md": "**Time O(n + m).** **Space O(1).**"
     }
    ],
    "walk": {
@@ -693,7 +730,7 @@
  ],
  "takeaways": [
   {
-   "md": "- Backspace processing is a stack; reading **backwards** with a pending-deletes counter avoids the stack.\n- When an element's fate depends on what comes after it, try scanning from the end."
+   "md": "- **Backspace strings:** stack to build, or scan from the end with a skip counter.\n- Reading backwards turns \"deletes the previous character\" into \"skip the next character\".\n- **Pitfall:** popping from an empty stack on a leading backspace."
   }
  ]
 }

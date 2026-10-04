@@ -4,32 +4,117 @@
  "question": [
   {
    "md": "A triangular stack with r rows holds r(r + 1)/2 cans. Return the smallest r that holds at least `cans`.\n\n- **At least:** 7 cans need 4 rows (3 rows hold only 6).\n- **cans up to 9 × 10¹⁵**, so the answer is about 1.3 × 10⁸. Counting rows one at a time is slow, and computing\n  r(r + 1) for r as large as `cans` overflows 64 bits."
+  },
+  {
+   "md": "**Edge cases to keep in mind**\n\n- Exactly triangular numbers (like 1, 3, 6, 10): the answer fits exactly.\n- Up to 9 × 10¹⁵ cans: the answer is about 1.34 × 10⁸, and `r(r + 1)/2` must be computed without overflow.\n- 1 can → 1 row."
   }
  ],
  "think": [
   {
-   "md": "Take 1000 cans. 44 rows hold 990, 45 rows hold 1035, so the answer is 45.\n\n\"Does r rows hold enough?\" is false for small r and true from the answer on: binary search on r. The question\nis the range. Searching `[1, cans]` is valid but squaring numbers near 9 × 10¹⁵ overflows. Two fixes:\n\n- **Work out a safe bound by hand:** r = 2 × 10⁸ already holds 2 × 10¹⁶ > 9 × 10¹⁵ cans.\n- **Find a bound automatically:** try r = 1, 2, 4, 8, … until it's enough. The first r that works is less than\n  twice the answer, so it never overshoots by much (and never overflows). Then binary-search between r/2 and r."
+   "md": "**When there's no upper bound: double first.** If the answer could be anywhere up to a huge or unknown limit, start\nwith `hi = 1` and double it until the test is true. That takes about `log₂(answer)` steps and gives a range\n`[hi / 2, hi]` that contains the answer, which an ordinary binary search then narrows down. Total O(log answer),\nand the values tested never get much larger than the answer (no overflow from a huge guessed bound)."
   },
   {
-   "panels": [
-    {
-     "type": "row",
-     "cells": [
+   "md": "**Monotone question:** \"do `r` rows hold at least `cans`?\" For 1000 cans, doubling first:"
+  },
+  {
+   "table": {
+    "head": [
+     "rows",
+     "cans held",
+     "decision"
+    ],
+    "rows": [
+     [
       "1",
-      "2",
-      "4",
-      "8",
-      "16",
-      "32",
-      "64"
+      "1",
+      "not enough: double"
      ],
-     "states": {
-      "6": "answer"
-     },
-     "label": "r tried while doubling"
-    }
-   ],
-   "caption": "64 rows is the first power of two holding ≥ 1000 cans; the answer is in (32, 64]."
+     [
+      "2",
+      "3",
+      "not enough: double"
+     ],
+     [
+      "4",
+      "10",
+      "not enough: double"
+     ],
+     [
+      "8",
+      "36",
+      "not enough: double"
+     ],
+     [
+      "16",
+      "136",
+      "not enough: double"
+     ],
+     [
+      "32",
+      "528",
+      "not enough: double"
+     ],
+     [
+      "64",
+      "2080",
+      "enough: range found"
+     ]
+    ]
+   }
+  },
+  {
+   "md": "**Then binary search inside `[hi / 2, hi]`:**"
+  },
+  {
+   "table": {
+    "head": [
+     "lo",
+     "hi",
+     "mid",
+     "cans held",
+     "decision"
+    ],
+    "rows": [
+     [
+      "32",
+      "64",
+      "48",
+      "1176",
+      "enough: hi = mid"
+     ],
+     [
+      "32",
+      "48",
+      "40",
+      "820",
+      "not enough: lo = mid + 1"
+     ],
+     [
+      "41",
+      "48",
+      "44",
+      "990",
+      "not enough: lo = mid + 1"
+     ],
+     [
+      "45",
+      "48",
+      "46",
+      "1081",
+      "enough: hi = mid"
+     ],
+     [
+      "45",
+      "46",
+      "45",
+      "1035",
+      "enough: hi = mid"
+     ]
+    ]
+   }
+  },
+  {
+   "md": "Answer **45** rows."
   }
  ],
  "approaches": [
@@ -40,13 +125,12 @@
    "space": "O(1)",
    "idea": [
     {
-     "md": "Keep adding rows (1 can, 2 cans, 3 cans, …) until the running total reaches `cans`."
+     "md": "Add rows one at a time until the total reaches `cans`."
     }
    ],
    "build": [
-    "`rows = 0`, `total = 0`.",
-    "While `total < cans`: `rows += 1`, `total += rows`.",
-    "Return `rows`."
+    "Rows and total start at 0.",
+    "Add the next row until enough."
    ],
    "code": {
     "python": "class Solution:\n    def rowsNeeded(self, cans: int) -> int:\n        rows = total = 0\n        while total < cans:\n            rows += 1\n            total += rows\n        return rows\n",
@@ -145,7 +229,7 @@
    ],
    "complexity": [
     {
-     "md": "**Time O(√cans):** about 1.3 × 10⁸ iterations at the limit. **Space O(1).**"
+     "md": "**Time O(√cans):** about 1.3 × 10⁸ steps at the limit. **Space O(1).**"
     }
    ],
    "walk": {
@@ -216,7 +300,7 @@
    },
    "limits": [
     {
-     "md": "One row per step, while the capacity check is monotonic in r and could be bisected."
+     "md": "Linear in the answer. The question is monotone, so binary search applies."
     }
    ],
    "slow": true
@@ -228,13 +312,13 @@
    "space": "O(1)",
    "idea": [
     {
-     "md": "Search r in `[1, 2 × 10⁸]`, a range worked out from the constraint (2 × 10⁸ rows hold more than 9 × 10¹⁵ cans, and mid(mid + 1) stays below 4 × 10¹⁶, inside 64 bits). Lower bound: first r with r(r + 1)/2 ≥ cans."
+     "md": "Binary search `r` in a hand-derived range `[1, 2 × 10⁸]` (enough because `2 × 10⁸` rows hold far more than 9 × 10¹⁵ cans)."
     }
    ],
    "build": [
-    "`lo = 1`, `hi = 2 × 10⁸`.",
-    "If `mid(mid + 1)/2 ≥ cans`, `hi = mid`; else `lo = mid + 1`.",
-    "Return `lo`."
+    "Range from a worked-out bound.",
+    "Test `mid(mid + 1)/2 ≥ cans`.",
+    "Standard smallest-yes search."
    ],
    "code": {
     "python": "class Solution:\n    def rowsNeeded(self, cans: int) -> int:\n        lo, hi = 1, 200_000_000\n        while lo < hi:\n            mid = (lo + hi) // 2\n            if mid * (mid + 1) // 2 >= cans:\n                hi = mid\n            else:\n                lo = mid + 1\n        return lo\n",
@@ -362,7 +446,7 @@
    ],
    "complexity": [
     {
-     "md": "**Time O(log B)** with B = 2 × 10⁸: about 28 steps. **Space O(1).**"
+     "md": "**Time O(log(2 × 10⁸)) ≈ 28 steps.** **Space O(1).**"
     }
    ],
    "walk": {
@@ -527,7 +611,7 @@
    },
    "limits": [
     {
-     "md": "It relies on working out a bound by hand. If the limits change (or the function is harder to invert), a wrong bound silently breaks it. Exponential search finds a tight bound by itself."
+     "md": "Relies on a bound computed by hand; doubling finds a tight bound automatically."
     }
    ]
   },
@@ -538,14 +622,12 @@
    "space": "O(1)",
    "idea": [
     {
-     "md": "Double `hi` from 1 until `hi(hi + 1)/2 ≥ cans`. The answer is then in `(hi/2, hi]`, because `hi/2` was still too small. Binary-search that interval. Since `hi < 2r`, every product stays far below the overflow limit."
+     "md": "Double `hi` until `hi` rows are enough, then binary search in `[hi / 2, hi]`."
     }
    ],
    "build": [
-    "`hi = 1`; while it's not enough, `hi *= 2`.",
-    "`lo = hi / 2`.",
-    "Lower-bound binary search in `[lo, hi]`.",
-    "Return `lo`."
+    "Doubling phase.",
+    "Binary search in the last doubling interval."
    ],
    "code": {
     "python": "class Solution:\n    def rowsNeeded(self, cans: int) -> int:\n        hi = 1\n        while hi * (hi + 1) // 2 < cans:\n            hi *= 2\n        lo = hi // 2\n        while lo < hi:\n            mid = (lo + hi) // 2\n            if mid * (mid + 1) // 2 >= cans:\n                hi = mid\n            else:\n                lo = mid + 1\n        return lo\n",
@@ -644,7 +726,7 @@
    ],
    "complexity": [
     {
-     "md": "**Time O(log r):** doubling plus bisecting. **Space O(1).**"
+     "md": "**Time O(log answer).** **Space O(1).**"
     }
    ],
    "walk": {
@@ -799,7 +881,7 @@
  ],
  "takeaways": [
   {
-   "md": "- **Exponential (galloping) search:** when the range is unknown, double an upper bound until the condition\n  holds, then binary-search the last doubling interval. Cost O(log answer).\n- It also keeps intermediate values close to the answer's size, which avoids overflow."
+   "md": "- **Unknown or huge upper bound:** exponential (doubling) search, then binary search.\n- Doubling keeps tested values close to the answer, avoiding overflow.\n- **Pitfall:** searching `[1, cans]`, where `mid²` overflows 64 bits for large inputs."
   }
  ]
 }

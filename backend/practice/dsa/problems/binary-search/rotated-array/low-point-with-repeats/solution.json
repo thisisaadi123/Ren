@@ -4,51 +4,54 @@
  "question": [
   {
    "md": "The readings were non-decreasing (repeats allowed), then rotated. Return the smallest reading.\n\n- **Repeats break the simple rule:** with `[3, 1, 3, 3, 3]`, mid and hi both hold 3, and the drop could be on\n  either side.\n- **Worst case O(n) is expected:** `[1, 1, …, 1, 0, 1, …, 1]` hides the 0 anywhere; any algorithm must look at\n  almost every element."
+  },
+  {
+   "md": "**Edge cases to keep in mind**\n\n- Ties between `a[mid]` and `a[hi]` hide the side of the drop.\n- All readings equal.\n- Not rotated."
   }
  ],
  "think": [
   {
-   "md": "Take `[4, 4, 5, 6, 1, 2, 2, 4, 4, 4]`. When `a[mid] > a[hi]` or `a[mid] < a[hi]`, the old reasoning still holds. The trouble is\n`a[mid] == a[hi]`: in `[3, 1, 3, 3, 3]` the minimum is left of mid, while in `[3, 3, 3, 1, 3]` it's right of mid,\nyet both look identical at mid and hi."
+   "md": "**A rotated sorted array is two sorted runs.** `[21, 25, 30, 34, 2, 7, 11, 16]` is the run `21 … 34` followed by the\nrun `2 … 16`; every value in the first run is larger than every value in the second. Binary search still works if each\nstep can tell **which side of the drop** the middle is on:\n\n- comparing `a[mid]` with `a[hi]` (the last element of the range): `a[mid] > a[hi]` means `mid` is in the first run,\n  so the drop (and the minimum) is to the right; otherwise `mid` is in the second run;\n- of the two halves around `mid`, **at least one is completely sorted**, and a sorted half lets us check directly\n  whether the target could be inside it."
   },
   {
-   "panels": [
-    {
-     "type": "row",
-     "cells": [
-      3,
-      1,
-      3,
-      3,
-      3
-     ],
-     "states": {
-      "1": "answer",
-      "2": "active",
-      "4": "mark"
-     },
-     "slots": true
-    },
-    {
-     "type": "row",
-     "cells": [
-      3,
-      3,
-      3,
-      1,
-      3
-     ],
-     "states": {
-      "3": "answer",
-      "2": "active",
-      "4": "mark"
-     },
-     "slots": true
-    }
-   ],
-   "caption": "Same values at mid and hi, opposite answers."
+   "md": "**Handling a tie safely.** When `a[mid] = a[hi]`, the minimum could be on either side (`[3, 1, 3, 3, 3]` vs\n`[3, 3, 3, 1, 3]`). But removing `hi` is safe: its value also sits at `mid`, which stays in the range, so if\n`a[hi]` were the minimum value, it would still be present. Shrink `hi` by one and continue. For `[4, 4, 5, 6, 1, 2, 2, 4, 4, 4]`:"
   },
   {
-   "md": "The fix: when they're equal, drop just `hi`. That's safe because if `a[hi]` were the minimum, an equal copy\nstill exists at mid, which stays in range. Each such step only shrinks the range by one, which is where the\nO(n) worst case comes from."
+   "table": {
+    "head": [
+     "lo",
+     "hi",
+     "mid",
+     "a[mid]",
+     "decision"
+    ],
+    "rows": [
+     [
+      "0",
+      "9",
+      "4",
+      "1",
+      "< a[hi] = 4: minimum at mid or left"
+     ],
+     [
+      "0",
+      "4",
+      "2",
+      "5",
+      "> a[hi] = 1: minimum right of mid"
+     ],
+     [
+      "3",
+      "4",
+      "3",
+      "6",
+      "> a[hi] = 1: minimum right of mid"
+     ]
+    ]
+   }
+  },
+  {
+   "md": "Minimum **1**."
   }
  ],
  "approaches": [
@@ -59,12 +62,12 @@
    "space": "O(1)",
    "idea": [
     {
-     "md": "The minimum is right after the first drop; if there's no drop, it's the first element."
+     "md": "Scan for the first drop (a reading smaller than the previous one); if none, the first reading is the minimum."
     }
    ],
    "build": [
-    "For k from 1: if `a[k] < a[k − 1]`, return `a[k]`.",
-    "Return `a[0]`."
+    "Scan for a drop.",
+    "Return the reading after it, or the first one."
    ],
    "code": {
     "python": "class Solution:\n    def lowestWithRepeats(self, readings: List[int]) -> int:\n        for k in range(1, len(readings)):\n            if readings[k] < readings[k - 1]:\n                return readings[k]\n        return readings[0]\n",
@@ -241,7 +244,7 @@
    },
    "limits": [
     {
-     "md": "Always linear, even when the values are distinct enough for binary search to work."
+     "md": "Always linear; the comparison with `a[hi]` halves the range except on ties."
     }
    ]
   },
@@ -252,13 +255,13 @@
    "space": "O(1)",
    "idea": [
     {
-     "md": "`a[mid] > a[hi]` → `lo = mid + 1`; `a[mid] < a[hi]` → `hi = mid`; equal → `hi −= 1`. Return `a[lo]`."
+     "md": "The low-point search with a third case: on `a[mid] = a[hi]`, do `hi −= 1`."
     }
    ],
    "build": [
-    "Same loop as the distinct case.",
-    "Add the tie case: `hi −= 1`.",
-    "Return `a[lo]`."
+    "Range over the log.",
+    "Bigger → go right; smaller → keep left including mid.",
+    "Equal → drop `hi`."
    ],
    "code": {
     "python": "class Solution:\n    def lowestWithRepeats(self, readings: List[int]) -> int:\n        lo, hi = 0, len(readings) - 1\n        while lo < hi:\n            mid = (lo + hi) // 2\n            if readings[mid] > readings[hi]:\n                lo = mid + 1\n            elif readings[mid] < readings[hi]:\n                hi = mid\n            else:\n                hi -= 1\n        return readings[lo]\n",
@@ -444,7 +447,7 @@
    ],
    "complexity": [
     {
-     "md": "**Time O(log n)** when ties are rare; **O(n)** worst case (e.g. almost all values equal). **Space O(1).**"
+     "md": "**Time O(log n)** typically, **O(n)** worst case (many equal readings). **Space O(1).**"
     }
    ],
    "walk": {
@@ -584,7 +587,7 @@
  ],
  "takeaways": [
   {
-   "md": "- With duplicates, `a[mid] == a[hi]` gives no direction; shrink by one (`hi −= 1`), which is safe because an\n  equal value stays in range.\n- Some worst cases are unavoidable: when the input can hide the answer anywhere, O(n) is a lower bound."
+   "md": "- **Minimum of a rotated array with duplicates:** on a tie with `a[hi]`, drop `hi`.\n- Dropping is safe because the same value remains at `mid`.\n- **Pitfall:** dropping `lo` instead (it can remove the only copy of the minimum)."
   }
  ]
 }

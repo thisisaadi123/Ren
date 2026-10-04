@@ -4,42 +4,61 @@
  "question": [
   {
    "md": "Cell (i, j) of a `rows × cols` table holds `i × j` (both from 1). Return the k-th smallest value, counting\nequal values in different cells separately.\n\n- **Duplicates count:** in a 3 × 3 table, 2 appears twice (1×2 and 2×1), 3 twice, and so on.\n- **Up to 3 × 10⁴ × 3 × 10⁴ = 9 × 10⁸ cells**, so building or sorting the table is impossible.\n- **The answer is at most rows × cols ≤ 9 × 10⁸**, inside a 32-bit `int`; counts (up to 9 × 10⁸) fit too."
+  },
+  {
+   "md": "**Edge cases to keep in mind**\n\n- Equal products in different cells count separately.\n- Tables up to 3 × 10⁴ by 3 × 10⁴: listing all 9 × 10⁸ products is impossible.\n- `k = rows · cols` is the largest product."
   }
  ],
  "think": [
   {
-   "md": "Take a 3 × 4 table and k = 7. Sorted, its products are `[1, 2, 2, 3, 3, 4, 4, 6, 6, 8, 9, 12]`; the 7-th is 4."
+   "md": "**K-th element by counting or partitioning.** The k-th smallest of a structure we can't (or don't want to) sort can be\nfound two ways:\n\n- **Binary search on the value:** count how many elements are `≤ v` (fast because of the structure) and find the\n  smallest `v` whose count reaches `k`;\n- **Binary search on a split:** decide how many of the first `k` elements come from each part, and check the split\n  with a couple of comparisons."
   },
   {
-   "panels": [
-    {
-     "type": "grid",
-     "cells": [
-      [
-       1,
-       2,
-       3,
-       4
-      ],
-      [
-       2,
-       4,
-       6,
-       8
-      ],
-      [
-       3,
-       6,
-       9,
-       12
-      ]
+   "md": "**Counting cells `≤ v`.** Row `i` holds `i, 2i, 3i, …`, so it has `min(⌊v / i⌋, cols)` cells `≤ v`. Summing over the\n(shorter) dimension counts the whole table in O(rows). The k-th smallest is the smallest `v` with count `≥ k`.\nFor a 3 × 4 table, sorted products `[1, 2, 2, 3, 3, 4, 4, 6, 6, 8, 9, 12]`, `k = 7`:"
+  },
+  {
+   "table": {
+    "head": [
+     "lo",
+     "hi",
+     "mid",
+     "cells ≤ mid (row by row)",
+     "decision"
+    ],
+    "rows": [
+     [
+      "1",
+      "12",
+      "6",
+      "4 + 3 + 2 = 9",
+      "≥ k: hi = mid"
+     ],
+     [
+      "1",
+      "6",
+      "3",
+      "3 + 1 + 1 = 5",
+      "< k: lo = mid + 1"
+     ],
+     [
+      "4",
+      "6",
+      "5",
+      "4 + 2 + 1 = 7",
+      "≥ k: hi = mid"
+     ],
+     [
+      "4",
+      "5",
+      "4",
+      "4 + 2 + 1 = 7",
+      "≥ k: hi = mid"
      ]
-    }
-   ],
-   "caption": "Row i is the i-times table: i, 2i, 3i, …"
+    ]
+   }
   },
   {
-   "md": "Instead of finding the k-th value directly, ask a yes/no question about a candidate v: **are at least k cells\n≤ v?** For small v the answer is no, for large v it's yes, and it flips exactly at the k-th smallest value.\n(The k-th value v* has at least k cells ≤ it; any smaller v has fewer.)\n\nThe count is cheap: row i contains i, 2i, …, cols·i, and `i·j ≤ v` means `j ≤ v // i`, capped at cols. Summing\nover rows takes O(rows). Binary search over v in [1, rows · cols] needs about 30 such counts."
+   "md": "Answer **4**."
   }
  ],
  "approaches": [
@@ -50,13 +69,13 @@
    "space": "O(rc)",
    "idea": [
     {
-     "md": "Generate all r · c products, sort them, return the one at index k − 1."
+     "md": "List all products, sort, take the k-th."
     }
    ],
    "build": [
-    "Collect `i × j` for all cells.",
+    "All `rows · cols` products.",
     "Sort.",
-    "Return element k − 1."
+    "Index `k − 1`."
    ],
    "code": {
     "python": "class Solution:\n    def kthInTable(self, rows: int, cols: int, k: int) -> int:\n        vals = sorted(i * j for i in range(1, rows + 1) for j in range(1, cols + 1))\n        return vals[k - 1]\n",
@@ -130,7 +149,7 @@
    ],
    "complexity": [
     {
-     "md": "**Time O(rc log(rc)).** **Space O(rc):** up to 9 × 10⁸ numbers, about 3.6 GB. Hopeless at full size."
+     "md": "**Time O(rc log(rc)).** **Space O(rc):** up to 9 × 10⁸ values."
     }
    ],
    "walk": {
@@ -195,7 +214,7 @@
    },
    "limits": [
     {
-     "md": "Materialising the table is the problem. A min-heap that merges the sorted rows (pop k times) avoids\nstoring everything, but k can still be 9 × 10⁸ pops. The structure we actually need is cheaper: the\n*number* of cells ≤ v can be computed without listing them."
+     "md": "Impossible at full size; counting cells ≤ v takes O(min(rows, cols))."
     }
    ],
    "slow": 28
@@ -207,14 +226,13 @@
    "space": "O(1)",
    "idea": [
     {
-     "md": "Search v in [1, r · c]. `count(v) = Σ min(v // i, cols)` over rows i. If `count(mid) ≥ k`, the answer is ≤ mid (`hi = mid`); else `lo = mid + 1`. Swapping so that rows ≤ cols makes each count loop as short as possible."
+     "md": "Make `rows` the smaller dimension; binary search `v` in `[1, rows · cols]` with `count(v) = Σ min(v // i, cols)`."
     }
    ],
    "build": [
-    "Make `rows ≤ cols` (the table is symmetric).",
-    "`lo = 1`, `hi = rows × cols`.",
-    "Count cells ≤ mid row by row; move the bounds.",
-    "Return `lo`."
+    "Use the smaller dimension for the loop.",
+    "Count cells ≤ mid.",
+    "Smallest value with count ≥ k."
    ],
    "code": {
     "python": "class Solution:\n    def kthInTable(self, rows: int, cols: int, k: int) -> int:\n        if rows > cols:\n            rows, cols = cols, rows\n        lo, hi = 1, rows * cols\n        while lo < hi:\n            mid = (lo + hi) // 2\n            count = sum(min(mid // i, cols) for i in range(1, rows + 1))\n            if count >= k:\n                hi = mid\n            else:\n                lo = mid + 1\n        return lo\n",
@@ -400,7 +418,7 @@
    ],
    "complexity": [
     {
-     "md": "**Time O(r · log(rc))** with r the smaller side: about 30 × 3 × 10⁴ = 9 × 10⁵ steps. **Space O(1).**"
+     "md": "**Time O(min(r, c) · log(rc)).** **Space O(1).**"
     }
    ],
    "walk": {
@@ -625,7 +643,7 @@
  ],
  "takeaways": [
   {
-   "md": "- **k-th smallest without listing:** binary-search the *value* v and count elements ≤ v. The answer is the\n  smallest v whose count reaches k.\n- It works whenever counting \"≤ v\" is cheap, even if the elements themselves are too many to store.\n- The smallest such v is always an actual element, because the count only increases at element values."
+   "md": "- **k-th smallest in a multiplication table:** binary search on the value; row `i` contributes `min(v // i, cols)`.\n- Loop over the smaller dimension.\n- **Pitfall:** forgetting the `min(…, cols)` cap."
   }
  ]
 }

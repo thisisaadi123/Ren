@@ -4,45 +4,103 @@
  "question": [
   {
    "md": "Return the length of the longest **contiguous** piece of `s` that is balanced.\n\n- **Contiguous:** `()(()` has `()` and the inner `()`; the longest is 2, not 4.\n- **Balanced pieces can sit side by side:** `()()` is one balanced stretch of length 4.\n- **Size:** up to 10⁵ characters, so trying all O(n²) pieces is too slow."
+  },
+  {
+   "md": "**Edge cases to keep in mind**\n\n- No balanced stretch at all: 0.\n- Several balanced pieces next to each other form one longer stretch (`()()`).\n- An unmatched bracket splits the string into independent parts."
   }
  ],
  "think": [
   {
-   "md": "Take `)(()())(()`. The `)` at position 0 can never be matched, and neither can the `(` at position 7. Everything else is\nmatched, so the balanced stretches are positions 1…6 (`(()())`, length 6) and 8…9 (`()`, length 2). The answer is\n6."
+   "md": "**Why a stack.** In a well-formed bracket string, the bracket opened most recently must be closed first: brackets\nnest, they never cross. \"Most recent first\" is exactly last-in, first-out, so keep the open brackets on a stack: push\non an opener, and on a closer check (and pop) the top. With a single kind of bracket the stack only ever holds `(`,\nso a **counter** of open brackets can replace it."
   },
   {
-   "panels": [
-    {
-     "type": "row",
-     "cells": [
+   "md": "**Walls.** An unmatched `)` or `(` can never be inside a balanced stretch, so the answer is the longest piece\nbetween those unmatched brackets. Keep a stack of **positions**, with a \"wall\" at the bottom: start with `−1`\n(before the string). Push each `(`'s position. On `)`, pop; if the stack becomes empty, this `)` is unmatched and\nbecomes the new wall; otherwise the current balanced stretch runs from just after the new top to here.\nFor `)(()())(()`:"
+  },
+  {
+   "table": {
+    "head": [
+     "i",
+     "char",
+     "stack (positions)",
+     "best",
+     "action"
+    ],
+    "rows": [
+     [
+      "0",
       ")",
-      "(",
-      "(",
-      ")",
-      "(",
-      ")",
-      ")",
-      "(",
-      "(",
-      ")"
+      "[0]",
+      "0",
+      "unmatched: becomes the new wall"
      ],
-     "states": {
-      "0": "mark",
-      "7": "mark",
-      "1": "answer",
-      "2": "answer",
-      "3": "answer",
-      "4": "answer",
-      "5": "answer",
-      "6": "answer"
-     },
-     "slots": true
-    }
-   ],
-   "caption": "Unmatched brackets (marked) act as walls; the longest balanced run between walls wins."
+     [
+      "1",
+      "(",
+      "[0, 1]",
+      "0",
+      "push position"
+     ],
+     [
+      "2",
+      "(",
+      "[0, 1, 2]",
+      "0",
+      "push position"
+     ],
+     [
+      "3",
+      ")",
+      "[0, 1]",
+      "2",
+      "matched: stretch length 3 − 1 = 2"
+     ],
+     [
+      "4",
+      "(",
+      "[0, 1, 4]",
+      "2",
+      "push position"
+     ],
+     [
+      "5",
+      ")",
+      "[0, 1]",
+      "4",
+      "matched: stretch length 5 − 1 = 4"
+     ],
+     [
+      "6",
+      ")",
+      "[0]",
+      "6",
+      "matched: stretch length 6 − 0 = 6"
+     ],
+     [
+      "7",
+      "(",
+      "[0, 7]",
+      "6",
+      "push position"
+     ],
+     [
+      "8",
+      "(",
+      "[0, 7, 8]",
+      "6",
+      "push position"
+     ],
+     [
+      "9",
+      ")",
+      "[0, 7]",
+      "6",
+      "matched: stretch length 9 − 7 = 2"
+     ]
+    ]
+   }
   },
   {
-   "md": "So the job is: find which brackets are unmatched, and measure the gaps between them. A stack of indices does\nthis naturally if it keeps, at its bottom, the position of the last \"wall\" (unmatched `)`, or −1 at the start):\nafter any `)` is matched, the current balanced run reaches back to just after the index on top of the stack."
+   "md": "Longest: **6**.\n\n**The two-pass counter alternative.** Scan left to right counting `(` and `)`; equal counts mark a balanced\nstretch, and more `)` than `(` means a wall, so reset. This misses stretches where `(` stays ahead (like `(()`),\nso scan right to left too with the roles swapped. Every balanced stretch is caught by one of the two passes."
   }
  ],
  "approaches": [
@@ -53,12 +111,13 @@
    "space": "O(1)",
    "idea": [
     {
-     "md": "For each start i, walk right keeping the depth (+1 for `(`, −1 for `)`). If it goes negative, nothing starting at i can extend further: stop. Whenever it's 0, `i … j` is balanced."
+     "md": "From every start, extend with a depth counter; stop when it goes negative; record lengths where it returns to 0."
     }
    ],
    "build": [
-    "For each i: depth 0.",
-    "For each j ≥ i: update depth; stop if negative; record `j − i + 1` when depth is 0."
+    "Every start.",
+    "Depth counter while extending.",
+    "Record balanced lengths."
    ],
    "code": {
     "python": "class Solution:\n    def longestBalanced(self, s: str) -> int:\n        best = 0\n        for i in range(len(s)):\n            depth = 0\n            for j in range(i, len(s)):\n                depth += 1 if s[j] == \"(\" else -1\n                if depth < 0:\n                    break\n                if depth == 0:\n                    best = max(best, j - i + 1)\n        return best\n",
@@ -282,7 +341,7 @@
    },
    "limits": [
     {
-     "md": "Each start re-reads the same characters. Matching brackets once with a stack gives every balanced run directly."
+     "md": "Restarts at every position. Walls (unmatched brackets) split the string so one pass suffices."
     }
    ],
    "slow": true
@@ -294,14 +353,13 @@
    "space": "O(n)",
    "idea": [
     {
-     "md": "Start the stack with −1 (a virtual wall). `(` → push its index. `)` → pop; if the stack is now empty, this `)` is unmatched: push its index as the new wall; otherwise the balanced run ending here starts right after the index on top, so its length is `i − top`."
+     "md": "Stack of positions with a wall at the bottom (initially −1). Push `(`; on `)` pop, then either reset the wall (empty stack) or measure `i − top`."
     }
    ],
    "build": [
-    "Stack = [−1], best = 0.",
-    "For each i: `(` → push i.",
-    "`)` → pop; empty → push i; else best = max(best, i − top).",
-    "Return best."
+    "Stack `[-1]`.",
+    "Push `(` positions.",
+    "On `)`, pop; empty → new wall; else measure."
    ],
    "code": {
     "python": "class Solution:\n    def longestBalanced(self, s: str) -> int:\n        stack = [-1]\n        best = 0\n        for i, c in enumerate(s):\n            if c == \"(\":\n                stack.append(i)\n            else:\n                stack.pop()\n                if not stack:\n                    stack.append(i)\n                else:\n                    best = max(best, i - stack[-1])\n        return best\n",
@@ -908,7 +966,7 @@
    },
    "limits": [
     {
-     "md": "The stack can hold up to n indices. With one bracket kind, counts of `(` and `)` can find the same runs in O(1) space, at the cost of a second pass."
+     "md": "O(n) stack memory; two counter passes need O(1)."
     }
    ]
   },
@@ -919,12 +977,12 @@
    "space": "O(1)",
    "idea": [
     {
-     "md": "Left to right, count `open` and `close`. When equal, the piece since the last reset is balanced: record\n`2 × close`. When `close > open`, reset both (that `)` is a wall).\n\nThat pass misses pieces where `(` stays ahead until the end, like `(()`. So do a mirror pass right to left:\nrecord when equal, reset when `open > close`. The best of both passes is the answer."
+     "md": "Forward pass with counters `opened`, `closed`: equal → record `2 · closed`; `closed > opened` → reset both.\nBackward pass the same way with the roles of `(` and `)` swapped (reset when `opened > closed`).\n\n**Why both passes.** The forward pass never resets while `(` is ahead, so a stretch inside an unfinished\n`((…` region is missed; reading backwards, those extra `(` are the ones that trigger resets, and the\nstretch is found."
     }
    ],
    "build": [
-    "Left-to-right pass with the reset rule `close > open`.",
-    "Right-to-left pass with the reset rule `open > close`.",
+    "Forward counting pass.",
+    "Backward counting pass.",
     "Return the best length seen."
    ],
    "code": {
@@ -1024,7 +1082,7 @@
    ],
    "complexity": [
     {
-     "md": "**Time O(n):** two passes. **Space O(1).**"
+     "md": "**Time O(n).** **Space O(1).**"
     }
    ],
    "walk": {
@@ -1118,7 +1176,7 @@
  ],
  "takeaways": [
   {
-   "md": "- Keep a **sentinel index** (−1 or the last unmatched `)`) at the bottom of an index stack to measure balanced runs.\n- With a single bracket kind, two counter passes in opposite directions replace the stack.\n- Unmatched brackets are walls: no balanced stretch can cross one."
+   "md": "- **Longest valid bracket substring:** stack of positions with a wall, or two counter passes.\n- Unmatched brackets act as walls that split the problem.\n- **Pitfall:** forgetting the initial wall `−1` (off-by-one for stretches starting at 0)."
   }
  ]
 }
