@@ -4,42 +4,130 @@
  "question": [
   {
    "md": "Tiles sit in a circle. From each tile, walk clockwise and report the first strictly bigger number; −1 if no\ntile on the ring is bigger.\n\n- **Wrap-around:** after the last tile comes tile 0.\n- **Strictly bigger:** equal numbers don't count, so every copy of the maximum gets −1.\n- **Up to 10⁵ tiles.**"
+  },
+  {
+   "md": "**Edge cases to keep in mind**\n\n- The maximum value (and its copies) gets −1.\n- Wrap-around: the answer for a tile near the end may come from the beginning.\n- One tile: −1."
   }
  ],
  "think": [
   {
-   "md": "Ring `[4, 2, 7, 3, 7, 1]`. Tile 0 (4) finds 7 two steps on. Tile 5 (1) wraps around and finds 4 at tile 0. Both 7s are the\nmaximum, so they get −1. Answer: `[7, 7, -1, 7, -1, 4]`."
+   "md": "**The monotonic stack idea.** Keep a stack of items that are still **waiting for an answer** (for example \"the next\nwarmer day\"). When a new item arrives, it answers every waiting item it beats; those are popped. Because each popped\nitem was beaten by the new one, the items left on the stack are always in sorted order (that's the \"monotonic\" part),\nso the new item only needs to look at the top.\n\n**Why it's O(n).** Every item is pushed once and popped at most once, so all the `while` loops together do at most\n`n` pops, even though a single step may pop many."
   },
   {
-   "panels": [
-    {
-     "type": "row",
-     "cells": [
-      4,
-      2,
-      7,
-      3,
-      7,
-      1
-     ],
-     "label": "ring"
-    },
-    {
-     "type": "row",
-     "cells": [
-      7,
-      7,
-      -1,
-      7,
-      -1,
-      4
-     ],
-     "label": "next bigger"
-    }
-   ]
+   "md": "**Handling the circle.** Walk the tiles **twice** (`i` from 0 to `2n − 1`, tile `i mod n`). During the first lap,\npush every tile; during the second lap, only answer waiting tiles, without pushing again. Any tile's next bigger\nvalue is at most `n − 1` steps away, so two laps reach it. For `[4, 2, 7, 3, 7, 1]`:"
   },
   {
-   "md": "Without the wrap this is the classic next-greater problem: keep a stack of tiles waiting for an answer, and let\neach new tile answer the smaller ones on top. With the wrap, any tile still waiting at the end of the array\nneeds to keep looking from the start. Simply **replay the array a second time**: during the second lap, tiles\nonly answer, they don't join the stack again. Anything still waiting after two laps has nothing bigger anywhere."
+   "table": {
+    "head": [
+     "step",
+     "tile",
+     "value",
+     "answers given",
+     "push?",
+     "stack after"
+    ],
+    "rows": [
+     [
+      "0",
+      "0",
+      "4",
+      "—",
+      "push",
+      "[0]"
+     ],
+     [
+      "1",
+      "1",
+      "2",
+      "—",
+      "push",
+      "[0, 1]"
+     ],
+     [
+      "2",
+      "2",
+      "7",
+      "tile 1 → 7; tile 0 → 7",
+      "push",
+      "[2]"
+     ],
+     [
+      "3",
+      "3",
+      "3",
+      "—",
+      "push",
+      "[2, 3]"
+     ],
+     [
+      "4",
+      "4",
+      "7",
+      "tile 3 → 7",
+      "push",
+      "[2, 4]"
+     ],
+     [
+      "5",
+      "5",
+      "1",
+      "—",
+      "push",
+      "[2, 4, 5]"
+     ],
+     [
+      "6",
+      "0",
+      "4",
+      "tile 5 → 4",
+      "second lap: no push",
+      "[2, 4]"
+     ],
+     [
+      "7",
+      "1",
+      "2",
+      "—",
+      "second lap: no push",
+      "[2, 4]"
+     ],
+     [
+      "8",
+      "2",
+      "7",
+      "—",
+      "second lap: no push",
+      "[2, 4]"
+     ],
+     [
+      "9",
+      "3",
+      "3",
+      "—",
+      "second lap: no push",
+      "[2, 4]"
+     ],
+     [
+      "10",
+      "4",
+      "7",
+      "—",
+      "second lap: no push",
+      "[2, 4]"
+     ],
+     [
+      "11",
+      "5",
+      "1",
+      "—",
+      "second lap: no push",
+      "[2, 4]"
+     ]
+    ]
+   }
+  },
+  {
+   "md": "Answers: **[7, 7, -1, 7, -1, 4]**."
   }
  ],
  "approaches": [
@@ -50,13 +138,12 @@
    "space": "O(1)",
    "idea": [
     {
-     "md": "For each tile `i`, check tiles `(i + d) mod n` for `d = 1 .. n−1` and stop at the first bigger number."
+     "md": "From each tile, walk up to `n − 1` steps clockwise (with `mod n`) until a bigger value appears."
     }
    ],
    "build": [
-    "For each `i`, loop `d` from 1 to `n − 1`.",
-    "Index `(i + d) % n` wraps around.",
-    "First bigger number is the answer; otherwise −1."
+    "For each tile, walk around the ring.",
+    "Record the first bigger value."
    ],
    "code": {
     "python": "class Solution:\n    def nextBiggerOnRing(self, ring: List[int]) -> List[int]:\n        n = len(ring)\n        res = [-1] * n\n        for i in range(n):\n            for d in range(1, n):\n                if ring[(i + d) % n] > ring[i]:\n                    res[i] = ring[(i + d) % n]\n                    break\n        return res\n",
@@ -213,7 +300,7 @@
    ],
    "complexity": [
     {
-     "md": "**Time O(n²)** (e.g. all equal: every walk goes all the way round). **Space O(1).**"
+     "md": "**Time O(n²).** **Space O(1)** besides the output."
     }
    ],
    "walk": {
@@ -429,7 +516,7 @@
    },
    "limits": [
     {
-     "md": "Every tile re-walks the ring. The stack method answers each tile exactly once; the only twist is the wrap, handled by a second lap."
+     "md": "Walks overlap heavily. A stack over two laps answers each tile once."
     }
    ],
    "slow": true
@@ -441,14 +528,13 @@
    "space": "O(n)",
    "idea": [
     {
-     "md": "Loop `i` from 0 to `2n − 1` with value `ring[i % n]`. Pop and answer every waiting tile with a smaller number. Push `i` only when `i < n`. Tiles never popped keep −1."
+     "md": "Monotonic stack of waiting tile indices over two laps. Pop and answer smaller tiles whenever a bigger value\nappears; push only during the first lap.\n\n**Why two laps suffice.** The second lap shows every tile again, so a tile waiting at the end of the first\nlap sees all tiles after it around the ring."
     }
    ],
    "build": [
-    "Answers default to −1; empty stack.",
-    "For `i` in `0 .. 2n−1`: `v = ring[i % n]`.",
-    "While the top's number < `v`: answer it with `v`.",
-    "If `i < n`, push `i`."
+    "Loop `i` over `2n` steps using `i mod n`.",
+    "Answer smaller waiting tiles.",
+    "Push only when `i < n`."
    ],
    "code": {
     "python": "class Solution:\n    def nextBiggerOnRing(self, ring: List[int]) -> List[int]:\n        n = len(ring)\n        res, stack = [-1] * n, []\n        for i in range(2 * n):\n            v = ring[i % n]\n            while stack and ring[stack[-1]] < v:\n                res[stack.pop()] = v\n            if i < n:\n                stack.append(i)\n        return res\n",
@@ -605,7 +691,7 @@
    ],
    "complexity": [
     {
-     "md": "**Time O(n):** 2n iterations, each tile pushed and popped at most once. **Space O(n).**"
+     "md": "**Time O(n):** `2n` steps, each tile pushed and popped once. **Space O(n).**"
     }
    ],
    "walk": {
@@ -898,7 +984,7 @@
  ],
  "takeaways": [
   {
-   "md": "- **Circular arrays: iterate twice** (`i mod n`) instead of copying the array.\n- Push only in the first lap so each element waits once.\n- Elements left on the stack have no answer anywhere: they're the maximum."
+   "md": "- **Circular next greater:** iterate twice, push only in the first pass.\n- Two laps are enough because the answer is within `n − 1` steps.\n- **Pitfall:** pushing again in the second lap (answers would be overwritten)."
   }
  ]
 }

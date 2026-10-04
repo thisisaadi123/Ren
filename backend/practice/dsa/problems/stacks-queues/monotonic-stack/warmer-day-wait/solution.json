@@ -4,46 +4,80 @@
  "question": [
   {
    "md": "For every day, how many days until a strictly warmer one? If none comes, 0.\n\n- **Strictly warmer:** an equal temperature doesn't count.\n- **The last day always gets 0.**\n- **Up to 10⁵ days**; temperatures are between −100 and 100."
+  },
+  {
+   "md": "**Edge cases to keep in mind**\n\n- Strictly warmer: an equal temperature doesn't end the wait.\n- Days never followed by a warmer one keep 0.\n- Temperatures range only over −100 … 100, which a value-indexed approach can use."
   }
  ],
  "think": [
   {
-   "md": "Temperatures `[30, 28, 31, 27, 27, 29, 33, 26]`. Day 0 (30°) waits 2 days for 31°. Days 3 and 4 (27°, 27°) both get settled by day 5\n(29°). Day 6 (33°) never sees anything warmer. Waits: `[2, 1, 4, 2, 1, 1, 0, 0]`."
+   "md": "**The monotonic stack idea.** Keep a stack of items that are still **waiting for an answer** (for example \"the next\nwarmer day\"). When a new item arrives, it answers every waiting item it beats; those are popped. Because each popped\nitem was beaten by the new one, the items left on the stack are always in sorted order (that's the \"monotonic\" part),\nso the new item only needs to look at the top.\n\n**Why it's O(n).** Every item is pushed once and popped at most once, so all the `while` loops together do at most\n`n` pops, even though a single step may pop many."
   },
   {
-   "panels": [
-    {
-     "type": "row",
-     "cells": [
-      30,
-      28,
-      31,
-      27,
-      27,
-      29,
-      33,
-      26
-     ],
-     "label": "temps"
-    },
-    {
-     "type": "row",
-     "cells": [
-      2,
-      1,
-      4,
-      2,
-      1,
-      1,
-      0,
-      0
-     ],
-     "label": "wait"
-    }
-   ]
+   "md": "**Waiting days.** The stack holds days still waiting for something warmer; their temperatures never increase from\nbottom to top (a warmer day would have settled the ones before it). When a new day is warmer than the top, it is\nthe first warmer day for that top day: record the wait and pop, repeatedly. For `[30, 28, 31, 27, 27, 29, 33, 26]`:"
   },
   {
-   "md": "Turn it around: instead of each day searching forward, let each new day **answer the earlier days that were\nwaiting for it**. Which days are still waiting when day `i` arrives? Only ones that haven't seen anything warmer\nyet, so each waiting day is at least as warm as every waiting day after it. That means the coolest waiting days\nare the most recent ones, on top of a stack. Day `i` pops them while it's warmer, and stops at the first one\nthat's at least as warm: everything below is warmer still."
+   "table": {
+    "head": [
+     "day",
+     "temp",
+     "days settled now",
+     "stack after (day:temp)"
+    ],
+    "rows": [
+     [
+      "0",
+      "30°",
+      "—",
+      "['0:30°']"
+     ],
+     [
+      "1",
+      "28°",
+      "—",
+      "['0:30°', '1:28°']"
+     ],
+     [
+      "2",
+      "31°",
+      "day 1 (28°) waits 1; day 0 (30°) waits 2",
+      "['2:31°']"
+     ],
+     [
+      "3",
+      "27°",
+      "—",
+      "['2:31°', '3:27°']"
+     ],
+     [
+      "4",
+      "27°",
+      "—",
+      "['2:31°', '3:27°', '4:27°']"
+     ],
+     [
+      "5",
+      "29°",
+      "day 4 (27°) waits 1; day 3 (27°) waits 2",
+      "['2:31°', '5:29°']"
+     ],
+     [
+      "6",
+      "33°",
+      "day 5 (29°) waits 1; day 2 (31°) waits 4",
+      "['6:33°']"
+     ],
+     [
+      "7",
+      "26°",
+      "—",
+      "['6:33°', '7:26°']"
+     ]
+    ]
+   }
+  },
+  {
+   "md": "Waits: **[2, 1, 4, 2, 1, 1, 0, 0]**."
   }
  ],
  "approaches": [
@@ -54,13 +88,12 @@
    "space": "O(1)",
    "idea": [
     {
-     "md": "For each day `i`, scan `j = i+1, i+2, …` until `temps[j] > temps[i]`; the wait is `j − i`, or 0 if the scan runs out."
+     "md": "From each day, scan forward to the first warmer day."
     }
    ],
    "build": [
-    "For each `i`, scan forward.",
-    "Stop at the first warmer day and record the gap.",
-    "Leave 0 if none."
+    "For each day, scan forward.",
+    "Record the distance to the first warmer day."
    ],
    "code": {
     "python": "class Solution:\n    def daysUntilWarmer(self, temps: List[int]) -> List[int]:\n        n = len(temps)\n        wait = [0] * n\n        for i in range(n):\n            for j in range(i + 1, n):\n                if temps[j] > temps[i]:\n                    wait[i] = j - i\n                    break\n        return wait\n",
@@ -217,7 +250,7 @@
    ],
    "complexity": [
     {
-     "md": "**Time O(n²)**, e.g. for steadily cooling temperatures, where every scan runs to the end. **Space O(1)** beyond the answer."
+     "md": "**Time O(n²)** (e.g. decreasing temperatures). **Space O(1)** besides the output."
     }
    ],
    "walk": {
@@ -524,7 +557,7 @@
    },
    "limits": [
     {
-     "md": "A long cooling stretch makes every day scan the same days again. Either use the small temperature range, or let each warm day settle the waiting days itself."
+     "md": "Scans the same stretch from many days. A stack answers each day exactly once, when its warmer day arrives."
     }
    ],
    "slow": true
@@ -536,13 +569,13 @@
    "space": "O(W)",
    "idea": [
     {
-     "md": "Temperatures only take W = 201 values. Walk the days backwards, keeping `next[t]` = the nearest later day with temperature `t`. For day `i`, the first warmer day is the smallest `next[t]` over all `t > temps[i]`. Then set `next[temps[i]] = i`."
+     "md": "Walk from the back, remembering for each temperature the nearest later day with it (`nxt[t]`). A day's\nanswer is the smallest `nxt[t']` over all warmer temperatures `t'`, which is at most 200 values to check."
     }
    ],
    "build": [
-    "`next[t] = ∞` for all 201 temperatures (offset by 100).",
-    "From the last day back: take the min of `next[t]` for `t > temps[i]`.",
-    "Record the wait (or 0), then `next[temps[i]] = i`."
+    "Array `nxt` over the 201 temperatures.",
+    "From the back, take the nearest warmer day.",
+    "Record this day's temperature."
    ],
    "code": {
     "python": "class Solution:\n    def daysUntilWarmer(self, temps: List[int]) -> List[int]:\n        n = len(temps)\n        wait = [0] * n\n        INF = n\n        nxt = [INF] * 201\n        for i in range(n - 1, -1, -1):\n            first = INF\n            for t in range(temps[i] + 101, 201):\n                first = min(first, nxt[t])\n            if first < INF:\n                wait[i] = first - i\n            nxt[temps[i] + 100] = i\n        return wait\n",
@@ -728,7 +761,7 @@
    ],
    "complexity": [
     {
-     "md": "**Time O(n·W)** with W = 201 temperatures: about 2 × 10⁷ steps, fine here. **Space O(W).**"
+     "md": "**Time O(n · 201).** **Space O(201).**"
     }
    ],
    "walk": {
@@ -1029,7 +1062,7 @@
    },
    "limits": [
     {
-     "md": "It leans on the tiny temperature range: with values up to 10⁹ it would be hopeless. The stack method doesn't care about the range at all."
+     "md": "Depends on the small temperature range; with arbitrary values it fails. The stack works for any values in O(n)."
     }
    ]
   },
@@ -1040,14 +1073,13 @@
    "space": "O(n)",
    "idea": [
     {
-     "md": "Keep a stack of indices still waiting for a warmer day. For each day `i`: while the top's temperature is lower than `temps[i]`, pop it and set its wait to `i − top`. Then push `i`. Days left on the stack at the end keep wait 0."
+     "md": "Scan forward with a stack of waiting days. Each new day pops every waiting day that is colder, setting its\nwait, then joins the stack.\n\n**Invariant.** Temperatures on the stack are non-increasing from bottom to top, and every day still on the\nstack hasn't seen a warmer day yet."
     }
    ],
    "build": [
-    "Waits default to 0; an empty stack.",
-    "For each day, pop and settle every cooler waiting day.",
-    "Push the day.",
-    "Return the waits."
+    "Empty stack, waits all 0.",
+    "Pop colder days and set their waits.",
+    "Push today."
    ],
    "code": {
     "python": "class Solution:\n    def daysUntilWarmer(self, temps: List[int]) -> List[int]:\n        wait = [0] * len(temps)\n        stack = []\n        for i, t in enumerate(temps):\n            while stack and temps[stack[-1]] < t:\n                j = stack.pop()\n                wait[j] = i - j\n            stack.append(i)\n        return wait\n",
@@ -1204,7 +1236,7 @@
    ],
    "complexity": [
     {
-     "md": "**Time O(n):** each day is pushed once and popped at most once. **Space O(n)** for the stack (a steadily cooling run keeps everything waiting)."
+     "md": "**Time O(n).** **Space O(n).**"
     }
    ],
    "walk": {
@@ -1569,7 +1601,7 @@
  ],
  "takeaways": [
   {
-   "md": "- **\"Next greater element\" = monotonic stack:** each new element settles the waiting elements it beats.\n- The stack is never increasing from bottom to top, which is why one comparison with the top decides when to\n  stop.\n- A small value range can give a simple alternative (one slot per value), but don't depend on it."
+   "md": "- **Next greater element:** stack of waiting indices; a new value settles all smaller ones on top.\n- Store **indices**, so distances can be computed.\n- **Pitfall:** `≤` instead of `<` (equal temperatures aren't warmer)."
   }
  ]
 }

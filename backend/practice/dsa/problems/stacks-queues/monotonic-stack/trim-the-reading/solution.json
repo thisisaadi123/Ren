@@ -4,40 +4,77 @@
  "question": [
   {
    "md": "Erase exactly `k` digits from the string `num`, keeping the rest in order, so the result is as small as possible.\nDrop leading zeros; return `\"0\"` if nothing (or only zeros) remains.\n\n- **Same length after erasing**, so comparing results is comparing digit by digit from the left.\n- **Erasing a digit can expose zeros** at the front, which disappear and make the number much shorter.\n- **Up to 10⁵ digits**: far too many to try subsets."
+  },
+  {
+   "md": "**Edge cases to keep in mind**\n\n- Leading zeros after erasing are dropped; an empty or all-zero result is `\"0\"`.\n- Non-decreasing digits (like `\"12345\"`): erase from the end.\n- `k = n`: everything erased, `\"0\"`."
   }
  ],
  "think": [
   {
-   "md": "Take `4205318` with `k = 3`. Erase 4 (the 2 after it is smaller), then 2 (the 0 after it is smaller), then 5 (the\n3 after it is smaller): `0318`, which is **318**.\n\nAll results have the same length, so the smallest one has the smallest first digit, then the smallest second\ndigit, and so on. Look at the first place where the digits go down, `d > next`. Erasing `d` puts the smaller\n`next` in its spot, and nothing earlier changes. Erasing anything else leaves `d` where it is or later digits\nchange, which only affects less important positions. So: **erase the first digit that's bigger than its\nsuccessor**, then repeat."
+   "md": "**The monotonic stack idea.** Keep a stack of items that are still **waiting for an answer** (for example \"the next\nwarmer day\"). When a new item arrives, it answers every waiting item it beats; those are popped. Because each popped\nitem was beaten by the new one, the items left on the stack are always in sorted order (that's the \"monotonic\" part),\nso the new item only needs to look at the top.\n\n**Why it's O(n).** Every item is pushed once and popped at most once, so all the `while` loops together do at most\n`n` pops, even though a single step may pop many."
   },
   {
-   "panels": [
-    {
-     "type": "row",
-     "cells": [
+   "md": "**Greedy from the left.** All results have the same length, so the smallest one has the smallest first digit, then\nthe smallest second digit, and so on. Scanning left to right, if the last kept digit is bigger than the incoming\ndigit, erasing the kept one makes the number smaller in an earlier position, which always beats anything later. So\npop bigger digits while erasures remain. The kept digits end up non-decreasing; if erasures are left over, cut them\nfrom the end (the largest digits)."
+  },
+  {
+   "md": "**Trace on `4205318`, k = 3:**"
+  },
+  {
+   "table": {
+    "head": [
+     "digit",
+     "erased now",
+     "erasures left",
+     "kept so far"
+    ],
+    "rows": [
+     [
+      "4",
+      "—",
+      "3",
+      "4"
+     ],
+     [
+      "2",
       "4",
       "2",
+      "2"
+     ],
+     [
       "0",
+      "2",
+      "1",
+      "0"
+     ],
+     [
       "5",
-      "3",
+      "—",
       "1",
-      "8"
+      "05"
      ],
-     "label": "reading"
-    },
-    {
-     "type": "row",
-     "cells": [
+     [
       "3",
-      "1",
-      "8"
+      "5",
+      "0",
+      "03"
      ],
-     "label": "smallest"
-    }
-   ]
+     [
+      "1",
+      "—",
+      "0",
+      "031"
+     ],
+     [
+      "8",
+      "—",
+      "0",
+      "0318"
+     ]
+    ]
+   }
   },
   {
-   "md": "Doing that literally restarts the scan each time. But after erasing a digit, the only new 'drop' can appear\njust before the erased spot, between the previous kept digit and the next one. So a stack of kept digits handles\nall the rounds in a single left-to-right pass."
+   "md": "Result **`318`**."
   }
  ],
  "approaches": [
@@ -48,13 +85,12 @@
    "space": "O(n)",
    "idea": [
     {
-     "md": "Repeat `k` times: find the first `i` with `num[i] > num[i+1]` (or the last digit if the digits never decrease) and erase it. Finally strip leading zeros."
+     "md": "`k` times, erase the first digit that's bigger than the next one (or the last digit if none is), then strip leading zeros."
     }
    ],
    "build": [
-    "Copy the digits.",
-    "k rounds: scan for the first drop, erase that digit.",
-    "Strip leading zeros; empty → `\"0\"`."
+    "Repeat `k` times: find the first drop, erase it.",
+    "Strip leading zeros."
    ],
    "code": {
     "python": "class Solution:\n    def trimReading(self, num: str, k: int) -> str:\n        s = num\n        for _ in range(k):\n            i = 0\n            while i + 1 < len(s) and s[i] <= s[i + 1]:\n                i += 1\n            s = s[:i] + s[i + 1:]\n        return s.lstrip(\"0\") or \"0\"\n",
@@ -214,7 +250,7 @@
    ],
    "complexity": [
     {
-     "md": "**Time O(n·k):** each round rescans from the start and shifts the string. **Space O(n).**"
+     "md": "**Time O(n · k).** **Space O(n).**"
     }
    ],
    "walk": {
@@ -313,7 +349,7 @@
    },
    "limits": [
     {
-     "md": "With `k` near `n`, that's ~10¹⁰ steps. After an erasure, only the spot just before it can become a new drop, so a stack can continue where it left off instead of restarting."
+     "md": "Each round rescans from the start. A stack finds all the drops in one pass."
     }
    ],
    "slow": true
@@ -325,14 +361,14 @@
    "space": "O(n)",
    "idea": [
     {
-     "md": "For each digit `d`: while erasures remain and the top of the stack is bigger than `d`, pop it (erase it) and decrement `k`. Push `d`. If erasures remain at the end, the kept digits never decrease, so drop the last `k`. Strip leading zeros."
+     "md": "Push digits onto a stack; before pushing, pop while erasures remain and the top is bigger than the new\ndigit. Cut any remaining erasures from the end, then strip leading zeros (empty → `\"0\"`)."
     }
    ],
    "build": [
-    "An empty stack (a char buffer).",
-    "For each digit: pop bigger tops while `k > 0`; push.",
-    "Remove `k` digits from the end.",
-    "Skip leading zeros; empty → `\"0\"`."
+    "Stack of kept digits.",
+    "Pop bigger digits while `k > 0`.",
+    "Cut leftovers from the end.",
+    "Strip leading zeros."
    ],
    "code": {
     "python": "class Solution:\n    def trimReading(self, num: str, k: int) -> str:\n        stack = []\n        for d in num:\n            while k and stack and stack[-1] > d:\n                stack.pop()\n                k -= 1\n            stack.append(d)\n        if k:\n            stack = stack[:-k]\n        return \"\".join(stack).lstrip(\"0\") or \"0\"\n",
@@ -518,7 +554,7 @@
    ],
    "complexity": [
     {
-     "md": "**Time O(n):** each digit is pushed once and popped at most once. **Space O(n)** for the kept digits."
+     "md": "**Time O(n).** **Space O(n).**"
     }
    ],
    "walk": {
@@ -742,7 +778,7 @@
  ],
  "takeaways": [
   {
-   "md": "- **Smallest subsequence of fixed length:** greedily remove a digit when a smaller one follows, using a stack.\n- The kept digits end up non-decreasing; leftover removals come off the end.\n- Watch the edge cases: leading zeros and an empty result."
+   "md": "- **Smallest number after removing k digits:** monotonic increasing stack, pop larger tops.\n- Leftover removals come off the end.\n- **Pitfall:** forgetting to strip leading zeros or to return `\"0\"` for an empty result."
   }
  ]
 }
