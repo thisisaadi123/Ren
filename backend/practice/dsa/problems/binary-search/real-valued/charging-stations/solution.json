@@ -4,29 +4,114 @@
  "question": [
   {
    "md": "Stations are at sorted integer positions. Add `extra` stations anywhere (fractional positions allowed) to make\nthe **largest gap between neighbours** as small as possible; return that gap within 10⁻⁶.\n\n- **Only gaps matter**, not absolute positions.\n- **New stations within a gap are best spread evenly:** k stations split a gap g into k + 1 pieces of g/(k+1).\n- **extra can be 10⁶**, so placing stations one at a time can be slow."
+  },
+  {
+   "md": "**Edge cases to keep in mind**\n\n- New stations can be at non-integer positions.\n- Spreading `s` new stations evenly in a gap `g` splits it into `s + 1` equal parts.\n- Answers within 10⁻⁶ are accepted."
   }
  ],
  "think": [
   {
-   "md": "Take stations `[0, 4, 15, 21]` (gaps `[4, 11, 6]`) and 4 extra stations. The longest gap is 11. Putting one\nstation in its middle halves it to 5.5; now the gap of 6 might be the longest, and\nso on."
+   "md": "**Binary search on real numbers (bisection).** When the answer is a real number, keep an interval `[lo, hi]` that\nsurely contains it and halve it with a monotone test, exactly like the integer version, except that `lo = mid` and\n`hi = mid` (no `± 1`). Instead of looping \"until close enough\" with an epsilon, which can get stuck because of\nfloating-point rounding, run a **fixed number of halvings**: 100 halvings shrink the interval by 2¹⁰⁰, far below any\nrequired precision."
   },
   {
-   "panels": [
-    {
-     "type": "row",
-     "cells": [
-      4,
-      11,
-      6
+   "md": "**Check a target maximum gap `D`.** A gap `g` needs `⌈g / D⌉ − 1` new stations to bring every piece down to at\nmost `D`. Summing over the gaps gives the stations needed; `D` is achievable when that's at most `extra`. A larger\n`D` never needs more stations, so find the smallest achievable `D`. Gaps `[4, 11, 6]`, 4 extra stations:"
+  },
+  {
+   "table": {
+    "head": [
+     "step",
+     "lo",
+     "hi",
+     "mid",
+     "stations needed",
+     "decision"
+    ],
+    "rows": [
+     [
+      "1",
+      "0.0000",
+      "11.0000",
+      "5.5000",
+      "2",
+      "possible: hi = mid"
      ],
-     "label": "gaps",
-     "slots": true
-    }
-   ],
-   "caption": "k stations inside a gap g leave pieces of g / (k + 1)."
+     [
+      "2",
+      "0.0000",
+      "5.5000",
+      "2.7500",
+      "6",
+      "needs too many: lo = mid"
+     ],
+     [
+      "3",
+      "2.7500",
+      "5.5000",
+      "4.1250",
+      "3",
+      "possible: hi = mid"
+     ],
+     [
+      "4",
+      "2.7500",
+      "4.1250",
+      "3.4375",
+      "5",
+      "needs too many: lo = mid"
+     ],
+     [
+      "5",
+      "3.4375",
+      "4.1250",
+      "3.7812",
+      "4",
+      "possible: hi = mid"
+     ],
+     [
+      "6",
+      "3.4375",
+      "3.7812",
+      "3.6094",
+      "5",
+      "needs too many: lo = mid"
+     ],
+     [
+      "7",
+      "3.6094",
+      "3.7812",
+      "3.6953",
+      "4",
+      "possible: hi = mid"
+     ],
+     [
+      "8",
+      "3.6094",
+      "3.6953",
+      "3.6523",
+      "5",
+      "needs too many: lo = mid"
+     ],
+     [
+      "9",
+      "3.6523",
+      "3.6953",
+      "3.6738",
+      "4",
+      "possible: hi = mid"
+     ],
+     [
+      "10",
+      "3.6523",
+      "3.6738",
+      "3.6631",
+      "5",
+      "needs too many: lo = mid"
+     ]
+    ]
+   }
   },
   {
-   "md": "Flip the question: **for a given maximum D, how many stations are needed?** Gap g needs pieces of length ≤ D,\ni.e. at least ⌈g / D⌉ pieces, which takes ⌈g / D⌉ − 1 stations. Summing over gaps gives the total, and a\nlarger D never needs more stations. So \"D is achievable with `extra` stations\" is monotonic: false for tiny D,\ntrue from the answer upward. Binary search on D finds the boundary."
+   "md": "The interval converges to **3.6738** (after 100 steps, within 10⁻⁶)."
   }
  ],
  "approaches": [
@@ -37,13 +122,13 @@
    "space": "O(n)",
    "idea": [
     {
-     "md": "Track how many stations each gap has received. Each time, scan all gaps for the one with the longest current piece `gap / (added + 1)`, and add a station there. After all stations, return the longest piece. (Adding to the worst gap is always optimal: no other choice can reduce the maximum.)"
+     "md": "Place the stations one at a time, each into the gap whose current pieces are longest (a gap `g` with `a`\nstations added has pieces of `g / (a + 1)`). After all are placed, the largest piece is the answer."
     }
    ],
    "build": [
-    "`added[i] = 0` for each gap.",
-    "Repeat `extra` times: find the gap with the largest `gap / (added + 1)` and increment its count.",
-    "Return the largest `gap / (added + 1)`."
+    "Gaps and a count of stations added to each.",
+    "Each new station goes to the gap with the longest pieces.",
+    "Report the longest piece."
    ],
    "code": {
     "python": "class Solution:\n    def smallestMaxGap(self, stations: List[int], extra: int) -> float:\n        gaps = [b - a for a, b in zip(stations, stations[1:])]\n        added = [0] * len(gaps)\n        for _ in range(extra):\n            i = max(range(len(gaps)), key=lambda q: gaps[q] / (added[q] + 1))\n            added[i] += 1\n        return max(g / (a + 1) for g, a in zip(gaps, added))\n",
@@ -142,7 +227,7 @@
    ],
    "complexity": [
     {
-     "md": "**Time O(extra · n):** up to 10⁶ × 2000 = 2 × 10⁹. **Space O(n).**"
+     "md": "**Time O(extra · n)** with a linear scan per station. **Space O(n).**"
     }
    ],
    "walk": {
@@ -299,7 +384,7 @@
    },
    "limits": [
     {
-     "md": "One full scan per station. A max-heap of gaps would make each placement O(log n), but the work still grows with `extra` (10⁶). Binary search on the answer doesn't depend on `extra` at all."
+     "md": "One step per extra station; with up to 10⁶ stations that's slow. Bisection on the answer checks a target in O(n)."
     }
    ],
    "slow": true
@@ -311,14 +396,13 @@
    "space": "O(n)",
    "idea": [
     {
-     "md": "`lo = 0`, `hi = largest gap`. Repeat 100 times: `mid = (lo + hi) / 2`; `need = Σ (⌈gap / mid⌉ − 1)`; if `need ≤ extra`, mid is achievable (`hi = mid`), else `lo = mid`. Return `hi`."
+     "md": "Bisection on `D` in `[0, max gap]` for 100 steps: stations needed = `Σ (⌈g / D⌉ − 1)`; feasible → `hi = D`, else `lo = D`."
     }
    ],
    "build": [
-    "Bracket `[0, max gap]` (with no extra stations the max gap is achievable).",
-    "For mid: stations needed = Σ ⌈gap / mid⌉ − 1.",
-    "Achievable → `hi = mid`; else `lo = mid`. 100 rounds.",
-    "Return `hi` (always achievable)."
+    "Gaps between stations.",
+    "Stations needed for a target D.",
+    "Bisection toward the smallest feasible D."
    ],
    "code": {
     "python": "import math\n\nclass Solution:\n    def smallestMaxGap(self, stations: List[int], extra: int) -> float:\n        gaps = [b - a for a, b in zip(stations, stations[1:])]\n        lo, hi = 0.0, float(max(gaps))\n        for _ in range(100):\n            mid = (lo + hi) / 2\n            need = sum(math.ceil(g / mid) - 1 for g in gaps)\n            if need <= extra:\n                hi = mid\n            else:\n                lo = mid\n        return hi\n",
@@ -475,7 +559,7 @@
    ],
    "complexity": [
     {
-     "md": "**Time O(n · 100).** **Space O(1)** (the Python version builds the gap list: O(n))."
+     "md": "**Time O(100 · n).** **Space O(n)** for the gaps."
     }
    ],
    "walk": {
@@ -779,7 +863,7 @@
  ],
  "takeaways": [
   {
-   "md": "- **Minimise the maximum** problems often invert well: fix the maximum D, compute the cost to achieve it, and\n  binary-search D.\n- Cost for a gap: `⌈g / D⌉ − 1` cuts. Monotonic in D, which is all binary search needs.\n- Greedy placement is correct but scales with the number of items placed; searching on the answer doesn't."
+   "md": "- **Minimise the maximum gap by adding points:** bisection on the gap; each gap needs `⌈g / D⌉ − 1` points.\n- Fixed iteration counts beat epsilon loops for floats.\n- **Pitfall:** `⌈g / D⌉` instead of `⌈g / D⌉ − 1` (counts pieces, not added stations)."
   }
  ]
 }

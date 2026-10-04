@@ -4,47 +4,107 @@
  "question": [
   {
    "md": "`taken` is a strictly increasing list of positive numbers. Return the k-th smallest positive number **not** in\nit.\n\n- **k can be 10⁹**, far beyond the list, so counting free numbers one at a time is too slow.\n- **The answer may be before, between or after** the taken numbers: `[5]` with k = 3 gives 3; `[1, 2, 3, 4]`\n  with k = 2 gives 6.\n- **The answer fits in 32 bits:** it is at most k + n ≤ 10⁹ + 10⁵."
+  },
+  {
+   "md": "**Edge cases to keep in mind**\n\n- The answer may be before the first taken number, between two, or after the last.\n- `k` up to 10⁹, so listing free numbers is too slow.\n- Taken numbers are strictly increasing."
   }
  ],
  "think": [
   {
-   "md": "Take `taken = [2, 3, 4, 7, 11, 12, 15]`, k = 6. The free numbers are [1, 5, 6, 8, 9, 10, 13, 14]…, so the 6-th is 10.\n\nHow many free numbers are below `taken[i]`? There are `taken[i] − 1` positive numbers below it, and i of them\nare taken (the ones before it in the list), so `taken[i] − 1 − i` are free."
+   "md": "**K-th element by counting or partitioning.** The k-th smallest of a structure we can't (or don't want to) sort can be\nfound two ways:\n\n- **Binary search on the value:** count how many elements are `≤ v` (fast because of the structure) and find the\n  smallest `v` whose count reaches `k`;\n- **Binary search on a split:** decide how many of the first `k` elements come from each part, and check the split\n  with a couple of comparisons."
   },
   {
-   "panels": [
-    {
-     "type": "row",
-     "cells": [
-      2,
-      3,
-      4,
-      7,
-      11,
-      12,
-      15
-     ],
-     "label": "taken",
-     "slots": true
-    },
-    {
-     "type": "row",
-     "cells": [
-      1,
-      1,
-      1,
-      3,
-      6,
-      6,
-      8
-     ],
-     "label": "free below it",
-     "slots": true
-    }
-   ],
-   "caption": "The free count only grows, so it can be binary-searched."
+   "md": "**Free numbers before each taken one.** Before `taken[i]` there are `taken[i] − 1` positive numbers, of which `i`\nare taken, so `taken[i] − (i + 1)` are free. This count never decreases with `i`. For `[2, 3, 4, 7, 11, 12, 15]`:"
   },
   {
-   "md": "Find the first index i where at least k numbers below `taken[i]` are free. Then the answer is below `taken[i]`\nbut above all earlier taken numbers, so exactly i taken numbers are smaller than it. Among the first `k + i`\npositive numbers, i are taken and k are free, which makes `k + i` the k-th free one. If no index qualifies,\ni = n and the same formula holds. Here i = 4, giving 10."
+   "table": {
+    "head": [
+     "i",
+     "taken[i]",
+     "free numbers below it"
+    ],
+    "rows": [
+     [
+      "0",
+      "2",
+      "1"
+     ],
+     [
+      "1",
+      "3",
+      "1"
+     ],
+     [
+      "2",
+      "4",
+      "1"
+     ],
+     [
+      "3",
+      "7",
+      "3"
+     ],
+     [
+      "4",
+      "11",
+      "6"
+     ],
+     [
+      "5",
+      "12",
+      "6"
+     ],
+     [
+      "6",
+      "15",
+      "8"
+     ]
+    ]
+   }
+  },
+  {
+   "md": "**Binary search** for the first index with at least `k = 6` free numbers before it:"
+  },
+  {
+   "table": {
+    "head": [
+     "lo",
+     "hi",
+     "mid",
+     "taken[mid]",
+     "free below",
+     "decision"
+    ],
+    "rows": [
+     [
+      "0",
+      "7",
+      "3",
+      "7",
+      "3",
+      "fewer than k free before it: go right"
+     ],
+     [
+      "4",
+      "7",
+      "5",
+      "12",
+      "6",
+      "at least k free before it: hi = mid"
+     ],
+     [
+      "4",
+      "5",
+      "4",
+      "11",
+      "6",
+      "at least k free before it: hi = mid"
+     ]
+    ]
+   }
+  },
+  {
+   "md": "With `lo = 4` taken numbers before the answer, the answer is `lo + k = 10`: counting `k` free numbers plus\nthe `lo` taken numbers that sit among them."
   }
  ],
  "approaches": [
@@ -55,13 +115,13 @@
    "space": "O(1)",
    "idea": [
     {
-     "md": "Go through the taken numbers keeping `prev` (the last taken number, starting at 0). The gap before `t` holds `t − prev − 1` free numbers. If that covers the remaining count, the answer is `prev + remaining`; otherwise subtract and move on. After the list, the answer is `prev + remaining`."
+     "md": "Walk the gaps between consecutive taken numbers, subtracting each gap's free count from `k` until the k-th free number falls inside a gap (or after the last taken number)."
     }
    ],
    "build": [
-    "`prev = 0`, `left = k`.",
-    "For each t: `gap = t − prev − 1`. If `gap ≥ left`, return `prev + left`. Else `left −= gap`, `prev = t`.",
-    "Return `prev + left`."
+    "Previous taken number and remaining `k`.",
+    "Each gap holds `t − prev − 1` free numbers.",
+    "Answer inside a gap or after the end."
    ],
    "code": {
     "python": "class Solution:\n    def kthFree(self, taken: List[int], k: int) -> int:\n        prev, left = 0, k\n        for t in taken:\n            gap = t - prev - 1\n            if gap >= left:\n                return prev + left\n            left -= gap\n            prev = t\n        return prev + left\n",
@@ -364,7 +424,7 @@
    },
    "limits": [
     {
-     "md": "Visits every taken number, but the \"free numbers below\" count is monotonic, so the right gap can be found by binary search."
+     "md": "Linear in the number of taken values; the free-before count is monotone, so binary search finds the right gap in O(log n)."
     }
    ]
   },
@@ -375,12 +435,12 @@
    "space": "O(1)",
    "idea": [
     {
-     "md": "Find the first index i with `taken[i] − (i + 1) ≥ k` (lower-bound template over `[0, n)`). Return `k + i`."
+     "md": "Binary search the first index `i` with `taken[i] − (i + 1) ≥ k`; the answer is `i + k`."
     }
    ],
    "build": [
-    "`lo = 0`, `hi = n`.",
-    "If `taken[mid] − (mid + 1) < k`, `lo = mid + 1`; else `hi = mid`.",
+    "Half-open range `[0, n)`.",
+    "Compare the free count before `taken[mid]` with `k`.",
     "Return `lo + k`."
    ],
    "code": {
@@ -658,7 +718,7 @@
  ],
  "takeaways": [
   {
-   "md": "- In a sorted list of distinct positives, `a[i] − (i + 1)` counts the missing numbers below `a[i]`: a\n  monotonic quantity, so binary-searchable.\n- Once you know how many taken numbers precede the answer, the answer is just `k + that count`."
+   "md": "- **k-th missing number:** `taken[i] − (i + 1)` free numbers precede `taken[i]`; binary search on that count.\n- Answer = (taken numbers before it) + k.\n- **Pitfall:** off-by-one in the free count (`taken[i] − i` counts the number itself)."
   }
  ]
 }
