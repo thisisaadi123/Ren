@@ -1,5 +1,5 @@
 """Lesson: Group by key (Arrays & Hashing, pattern 3)."""
-from lesson import M, Row, Steps, code, fig, key, lesson, py, quiz, table, walk
+from lesson import Bars, Grid, M, Row, Steps, code, fig, key, lesson, py, quiz, table, walk
 
 # ---------------------------------------------------------------- the code
 
@@ -163,27 +163,72 @@ group_by_digits = py(GROUP["python"], "group_by_digits")
 DEMO = [123, 45, 321, 100, 54, 10, 213, 1, 10]
 GROUPS = group_by_digits(DEMO)
 assert [len(g) for g in GROUPS] == [3, 2, 1, 2, 1]
+DEMO_KEYS = [digit_key(x) for x in DEMO]
 
-steps = Steps(f"`group_by_digits({DEMO})`: compute each number's key, then file it under that key.")
-steps.step("No groups yet. The table maps a key to the index of its group in `groups`.", Row(DEMO, slots=True), M({"groups": "[ ]"}))
+steps = Steps(f"`group_by_digits({DEMO})`. Work out each number's key, then file the number under it.")
+steps.step("No groups yet. The table maps each key to the position of its group in the `groups` list.", Row(DEMO, slots=True), M({"groups": "[ ]"}))
 gof, gs = {}, []
 for j, x in enumerate(DEMO):
     k = digit_key(x)
     if k not in gof:
         gof[k] = len(gs)
         gs.append([])
-        msg = f"{x} has key {k}. That key is new: open group {gof[k]} for it."
+        msg = f"{x} has key {k}. We haven't seen that key, so it gets a new group, number {gof[k]}."
     else:
-        msg = f"{x} has key {k}, already seen: it joins group {gof[k]}, next to {', '.join(map(str, gs[gof[k]]))}."
+        msg = f"{x} has key {k}. We've seen it before, so {x} joins group {gof[k]} alongside {', '.join(map(str, gs[gof[k]]))}."
     gs[gof[k]].append(x)
-    st = {i: "found" for i in range(j) if digit_key(DEMO[i]) == k}
+    st = {i: "found" for i in range(j) if DEMO_KEYS[i] == k}
     st[j] = "active"
     steps.step(msg, Row(DEMO, st=st, ptr={"x": j}, slots=True), M({f"{kk}": str(gs[g]) for kk, g in gof.items()}, "key → group"))
-steps.step(f"{len(gs)} groups. Items with equal keys ended up together, in the order they first appeared.", M({f"group {i}": str(g) for i, g in enumerate(gs)}), result=len(gs))
+steps.step(f"That's {len(gs)} groups. Numbers with equal keys ended up together, and the groups are in the order their first member appeared.",
+           M({f"group {i}": str(g) for i, g in enumerate(gs)}), result=len(gs))
 
-trace_rows = []
-for x in DEMO:
-    trace_rows.append((str(x), "".join(sorted(str(x), reverse=True)), str(digit_key(x))))
+trace_rows = [(str(x), "".join(sorted(str(x), reverse=True)), str(digit_key(x))) for x in DEMO]
+
+# Building one key, digit by digit.
+KX = 20301
+kc = [0] * 10
+for ch in str(KX):
+    kc[int(ch)] += 1
+KEYX = digit_key(KX)
+assert KEYX == 32100
+kwalk = Steps(f"Building the key for {KX}: count its digits, then read them back out from 9 down to 0.")
+kwalk.step("Ten counters, one for each digit.", Bars([0] * 10, labels=range(10), label="how many of each digit", top=2))
+cnt = [0] * 10
+x = KX
+while x > 0:
+    d = x % 10
+    cnt[d] += 1
+    x //= 10
+    kwalk.step(f"The last digit is {d} (that's x % 10). Count it, then drop it with x // 10, leaving {x}.",
+               Bars(list(cnt), labels=range(10), st={d: "new"}, label="how many of each digit", top=2), M({"x": x}))
+built = ""
+for d in range(9, -1, -1):
+    if cnt[d]:
+        built += str(d) * cnt[d]
+        kwalk.step(f"Reading from the top: {cnt[d]} × digit {d}. The key so far is {built}.",
+                   Bars(list(cnt), labels=range(10), st={d: "answer"}, label="how many of each digit", top=2), M({"key": built}))
+assert int(built) == KEYX
+
+# Rotation groups.
+ROTS = ["cab", "bca", "acb", "abc", "bac", "cba"]
+
+
+def min_rot(w):
+    return min(w[i:] + w[:i] for i in range(len(w)))
+
+
+rot_rows = [(f'"{w}"', ", ".join(f'"{w[i:] + w[:i]}"' for i in range(len(w))), f'"{min_rot(w)}"') for w in ROTS]
+ROT_GROUPS = {}
+for w in ROTS:
+    ROT_GROUPS.setdefault(min_rot(w), []).append(w)
+assert len(ROT_GROUPS) == 2
+
+# Unordered pairs: friendships listed both ways.
+FR = [(3, 1), (1, 3), (2, 5), (4, 4), (5, 2), (1, 3)]
+fr_keys = [tuple(sorted(p)) for p in FR]
+FR_DISTINCT = len(set(fr_keys))
+assert FR_DISTINCT == 3
 
 
 def shape(w):
@@ -195,25 +240,21 @@ def shift_sig(w):
     return tuple((ord(b) - ord(a)) % 26 for a, b in zip(w, w[1:]))
 
 
-def min_rot(w):
-    return min(w[i:] + w[:i] for i in range(len(w)))
-
-
 CATALOG = [
-    ("rearrangements (anagrams)", '"listen", "silent"', "letters sorted", f'"{"".join(sorted("listen"))}"'),
-    ("rearrangements, faster key", '"listen", "silent"', "26 letter counts", "(0,0,0,0,1,0,0,0,1,…)"),
-    ("same letter pattern", '"moon", "feet"', "first-seen index of each letter", str(shape("moon")).replace(" ", "")),
-    ("same up to a shift of the alphabet", '"abc", "xyz"', "gaps between neighbours, mod 26", str(shift_sig("abc")).replace(" ", "")),
-    ("same up to rotation", '"cab", "bca"', "smallest rotation", f'"{min_rot("cab")}"'),
-    ("unordered pairs", "(3, 1), (1, 3)", "the pair sorted", "(1, 3)"),
+    ("same letters in any order", '"listen", "silent"', "the letters, sorted", f'"{"".join(sorted("listen"))}"'),
+    ("same letters, faster", '"listen", "silent"', "how many of each of the 26 letters", "(0,0,0,0,1,0,0,0,1,…)"),
+    ("same letter pattern", '"moon", "feet"', "where each letter first appeared", str(shape("moon")).replace(" ", "")),
+    ("same up to shifting the alphabet", '"abc", "xyz"', "gaps between neighbours, mod 26", str(shift_sig("abc")).replace(" ", "")),
+    ("same up to rotation", '"cab", "bca"', "the smallest rotation", f'"{min_rot("cab")}"'),
+    ("the same pair, either way round", "(3, 1), (1, 3)", "the pair, sorted", "(1, 3)"),
     ("same digits (this lesson's code)", "123, 321", "digits sorted high to low", "321"),
 ]
 assert shape("moon") == shape("feet") and shift_sig("abc") == shift_sig("xyz") and min_rot("cab") == min_rot("bca")
 
-# A key that is sound but not complete: the sum of letter codes.
-SUMS = {w: sum(map(ord, w)) for w in ["ad", "bc", "da"]}
-assert SUMS["ad"] == SUMS["bc"] == SUMS["da"]
-# Ambiguous concatenation without separators.
+# A key that's right in one direction only: the sum of letter codes.
+SUMW = ["ad", "bc", "da", "cb"]
+SUMS = {w: sum(map(ord, w)) for w in SUMW}
+assert len(set(SUMS.values())) == 1
 AMB_A, AMB_B = [1, 11], [11, 1]
 assert "".join(map(str, AMB_A)) == "".join(map(str, AMB_B))
 
@@ -221,258 +262,306 @@ lesson(
     "arrays-hashing",
     "group-by-key",
     """
-    When items belong together under some rule (same letters, same shape, same digits), give every item a **key**
-    that is equal exactly when the rule says they belong together. Then a hash map from key to list does all the
-    grouping in one pass.
+    When items belong together under some rule (same letters, same digits, same pattern), give each one a label
+    that comes out the same exactly when the rule says they belong together. Then a hash map from label to list sorts
+    everything into groups in one pass.
     """,
     [
         ("idea", "The idea", [
             """
-            A post office doesn't compare every letter with every other letter to decide which ones go to the same
-            street. It reads one thing off each envelope, the **postcode**, and drops the letter into that postcode's
-            bag. Letters that belong together end up in the same bag without ever being compared to each other.
+            Think about how a post office sorts mail. Nobody holds two envelopes side by side and asks "do these go to
+            the same street?". Each envelope has a postcode, the sorter reads it, and the envelope goes into that
+            postcode's bag. Letters for the same street end up together without ever being compared to each other.
 
-            Group by key is that idea for data:
-
-            1. Design a **key function** `key(item)`: a value that is the same for two items exactly when they belong in
-               the same group.
-            2. Walk the items once. For each, compute its key and append the item to `groups[key]`, creating the list
-               the first time a key is seen.
-
-            All the difficulty lives in step 1. Step 2 is the same few lines every time.
+            Group by key is the same thing for data. You come up with a **key** for each item, something you can work
+            out from the item alone, which comes out identical for items that belong together and different for items
+            that don't. Then you go through the items once and drop each one into the list for its key.
             """,
+            fig(Row(DEMO, slots=True, label="numbers"), Row(DEMO_KEYS, slots=True, label="their keys (digits sorted, high to low)"),
+                M({str(k): str(g) for k, g in zip(dict.fromkeys(DEMO_KEYS), GROUPS)}, "key → group"),
+                caption="Two numbers share a key exactly when they use the same digits. The map does the rest."),
             key("""
-            Don't compare items with each other. Map each item to a **canonical key**, so that "these two belong
-            together" becomes "these two keys are equal", which a hash map checks in O(1).
+            Don't compare items with each other. Turn each item into a key, so that "do these belong together?"
+            becomes "are these keys equal?", which a hash map answers instantly.
             """),
-            fig(Row([123, 321, 45, 54], slots=False, label="items"), M({"321": "[123, 321]", "54": "[45, 54]"}, "key → group"),
-                caption="`123` and `321` share the key `321` (their digits, sorted), so they land in the same group."),
+            """
+            The second half, filing items under their keys, is the same few lines every time. All the thinking goes
+            into the key. Most of this lesson is about how to design a good one.
+            """,
         ]),
         ("signals", "When to reach for it", [
             """
-            - "Group the words / items / rows that are …" (anagrams of each other, the same up to a shift, isomorphic).
-            - "How many **different kinds** / classes / families are there?" (the number of distinct keys).
-            - "Count pairs that are equivalent" (group, then each group of size `s` gives `s(s - 1)/2` pairs; the counting
-              trick from *Frequency counting*, applied to keys).
-            - "Find all duplicates up to …" (rotation, reordering, case).
+            Watch for problems that talk about items being "the same" in some loose sense: words that are anagrams of
+            each other, strings that are rotations or shifts of each other, rows that match columns. Phrases like
+            "group the …", "how many different kinds / families are there?" or "count the pairs that are equivalent"
+            are strong hints.
 
-            The tell-tale sign is an **equivalence**: a "same as" rule where the problem doesn't care which member of a
-            group you pick.
+            What these have in common is a "same as" rule where the problem doesn't care which member of a group you
+            pick. That's what makes a key possible.
 
-            **When it's the wrong tool**
-
-            - **"Similar", not "same".** If the rule is "within distance 2" or "differs in at most one letter", it isn't
-              an equivalence (A ~ B and B ~ C doesn't give A ~ C), and no single key can capture it. That's union-find
-              or graph search.
-            - **No cheap canonical form.** Some equivalences (graphs that are the same up to relabelling) have no known
-              fast key. For array and string problems you'll almost always find one.
+            It doesn't work for "similar" rules like "differ in at most one letter" or "within 2 of each other". Those
+            aren't proper "same as" rules: `cat` is close to `cot`, and `cot` is close to `dot`, but `cat` and `dot`
+            differ in two places. No single key can capture that, and you'd need union-find or a graph search instead.
             """,
         ]),
         ("theory", "Designing the key", [
             """
-            ### Equivalence classes
+            ### What makes a rule "groupable"
 
-            The rule "belongs with" has to be an **equivalence relation**:
+            For a rule to split items into neat, non-overlapping groups, three things have to be true:
 
-            - **reflexive:** every item belongs with itself;
-            - **symmetric:** if A belongs with B, then B belongs with A;
-            - **transitive:** if A belongs with B and B with C, then A belongs with C.
+            1. Every item belongs with itself.
+            2. If A belongs with B, then B belongs with A.
+            3. If A belongs with B and B belongs with C, then A belongs with C.
 
-            Exactly those rules split the items into non-overlapping **classes**. Group by key finds the classes.
+            Rules like that are called **equivalence relations**, and the groups are called **equivalence classes**.
+            "Is an anagram of" passes all three. "Differs by one letter" fails the third, which is exactly why it can't
+            be grouped by key.
 
-            ### The two properties of a good key
+            ### Two ways a key can go wrong
 
-            For every pair of items A, B:
+            A good key has to get both directions right:
 
-            1. **Sound:** if A and B belong together, then `key(A) = key(B)`. Otherwise one class gets split across
-               two groups.
-            2. **Complete:** if `key(A) = key(B)`, then A and B belong together. Otherwise two classes get merged.
+            - If two items belong together, their keys must be **equal**. Get this wrong and one real group gets split
+              into two.
+            - If two keys are equal, the items must really **belong together**. Get this wrong and two different groups
+              get merged into one.
 
-            A key with both properties is a **canonical form**: one standard representative per class. The usual
-            recipe is "pick the representative by a fixed rule": sort the letters, start the pattern numbering at 0,
-            shift so the first letter is `a`, rotate to the smallest rotation.
+            A key that gets both right is called a **canonical form**: one standard representative for each group. The
+            usual way to build one is to pick a fixed rule for choosing the representative. Sort the letters. Number
+            the letters in order of first appearance. Shift everything so the word starts with `a`. Take the smallest
+            rotation. Here are some you'll meet:
             """,
-            table(["Belong together when…", "Example", "Canonical key", "Key of the example"], *CATALOG),
+            table(["Items belong together when…", "example", "key", "key for the example"], *CATALOG),
             f"""
-            **A sound but incomplete key.** For anagrams, the sum of the letter codes is equal for any two anagrams
-            (sound), but `"ad"`, `"bc"` and `"da"` all sum to {SUMS["ad"]} even though `"bc"` is not an anagram of
-            `"ad"`. A key that loses information merges classes. Hashes have this problem too, which is why a hash map
-            stores the full key and compares it on a hash match: the key itself must be complete.
+            ### A key that's only half right
 
-            ### Keys must be immutable and unambiguous
+            Here's a tempting key for anagrams: add up the letter codes. Anagrams have the same letters, so they always
+            get the same sum, which is the first direction. But look what happens with these four words:
+            """,
+            fig(M({f'"{w}"': SUMS[w] for w in SUMW}, "sum of letter codes"),
+                caption='All four get the same key, so they\'d land in one group, even though "bc" isn\'t an anagram of "ad".'),
+            f"""
+            The sum throws information away, so different groups collide. Hash values have the same problem, which is
+            why a hash map always keeps the full key and checks it after the hash matches. Your key has to be complete
+            on its own.
 
-            - **Immutable:** a hash map hashes the key once, when it's inserted. If the key object changes afterwards,
-              it's in the wrong slot. Python refuses lists as keys for this reason; use a tuple or a string. In Java, a
-              `List` key is allowed but dangerous if you modify it.
-            - **Unambiguous:** when you flatten a structured key into a string, use separators. Without them, counts
-              `{AMB_A}` and `{AMB_B}` both become `"{"".join(map(str, AMB_A))}"`: two different keys collide into one.
-              Write `"1#11"` and `"11#1"` instead, or use a tuple.
+            ### Keys have to be fixed and unambiguous
 
-            ### Choosing between equally correct keys
+            A hash map works out where to put a key once, when you insert it. If the key changes afterwards, it's now
+            sitting in the wrong slot and you'll never find it again. That's why Python won't let you use a list as a
+            dict key; use a tuple or a string. Java will let you use a `List`, which is worse, because nothing stops you
+            changing it later.
 
-            For anagrams of words of length `L`, two keys are both canonical:
+            When you squash a structured key into a string, put separators in. The counts `{AMB_A}` and `{AMB_B}` both
+            turn into `"{"".join(map(str, AMB_A))}"` if you just glue the numbers together, so two different keys
+            collide. Write `"1#11"` and `"11#1"`, or use a tuple.
 
-            - **sorted letters:** O(L log L) to build, key length `L`;
-            - **26 counts:** O(L + 26) to build, fixed key size.
+            ### Picking between two correct keys
 
-            For short words, either is fine. For long strings over a small alphabet, the counts win. Pick by the
-            constraints, not by habit.
+            For anagrams of words of length `L`, both "sorted letters" and "26 letter counts" are correct. Sorting
+            costs O(L log L) per word; counting costs O(L + 26). For short words it hardly matters. For long strings
+            over a small alphabet, counting wins. Let the constraints decide.
 
             ### Numbers can be keys too
 
-            A key doesn't have to be a string. This lesson's code groups numbers that use the same digits: its key is
-            the digits **sorted from high to low, read as a number** (`213 → 321`, `100 → 100`, `10 → 10`). It's sound
-            (same digits, same sorted order) and complete (zeros sort last, so the digit count is preserved: `100` and
-            `10` stay apart). An integer key is cheap to hash and easy to store, even in C.
+            A key doesn't have to be a string. This lesson's code groups numbers made of the same digits, and its key
+            is the digits sorted from high to low, read back as a number: 213 becomes 321. It gets both directions
+            right. Same digits always give the same key. And different digit counts always give different keys,
+            because the zeros sort to the end and stay there, so 100 (key 100) and 10 (key 10) don't get mixed up. An
+            integer key is cheap to hash and easy to store, even in C.
             """,
         ]),
         ("template", "The template", [
             """
-            Group non-negative integers that are made of the same digits, keeping groups in the order they first
-            appear and items in input order within each group.
+            Group non-negative integers that use the same digits. Keep the groups in the order their first member
+            appeared, and keep the numbers inside each group in input order.
 
-            The map goes from key to the **index** of its group in a list. That small choice keeps the groups in
-            first-appearance order in every language (a plain hash map would not), and the list of groups is the
-            answer.
+            One small trick here: the map goes from key to the *position* of its group in a list, rather than straight
+            to the group. That keeps the groups in first-seen order in every language. A plain hash map wouldn't, and
+            the list of groups is the answer anyway.
             """,
             code(
                 "Group numbers by their digits",
                 GROUP,
                 [
-                    ("digits", "Count each digit 0–9: the key only depends on how many of each digit there are.",
-                     {"c": "For `x = 0` the loop doesn't run and the key is 0, which no positive number shares."}),
-                    ("build", "Read the digits out from 9 down to 0. Any two numbers with the same digit counts produce "
-                              "the same number here, and different counts produce different numbers. A 10-digit input "
-                              "makes a 10-digit key, beyond 32 bits, so the key is 64-bit."),
-                    ("make", "`key → group index`, plus the list of groups itself.",
-                     {"c": "The table's arrays (keys, group ids, used flags) and `groupOfItem`, the group of every input position."}),
+                    ("digits", "Count each digit from 0 to 9. The key only depends on how many of each digit there are, "
+                               "not where they are.",
+                     {"c": "For `x = 0` the loop never runs and the key is 0, which no positive number shares."}),
+                    ("build", "Read the digits back out from 9 down to 0. Numbers with the same digits produce the same "
+                              "result, and different digits produce different results. A 10-digit number makes a "
+                              "10-digit key, which is too big for 32 bits, so the key is 64-bit."),
+                    ("make", "A map from key to group position, and the list of groups itself.",
+                     {"c": "The table's arrays (keys, group ids, used flags), plus `groupOfItem`, which remembers the group of every input position."}),
                     ("loop", "One pass over the input."),
-                    ("sig", "The canonical key for this item."),
-                    ("new", "A key seen for the first time opens a new, empty group at the end of the list.",
-                     {"cpp": "`emplace` inserts only if the key is new and tells us which happened (`isNew`), with one hash lookup.",
-                      "java": "`get` returns `null` for an unseen key; that's when we open a group."}),
-                    ("put", "Append the item to its group. Equal keys always reach the same list.",
-                     {"c": "C can't grow lists easily, so record the item's group now and lay the groups out afterwards."}),
-                    ("probe", "Hash the 64-bit key (multiply by a large odd constant, keep high bits) and probe linearly "
+                    ("sig", "Work out this number's key."),
+                    ("new", "A key we haven't seen before gets a new, empty group at the end of the list.",
+                     {"cpp": "`emplace` only inserts if the key is new, and `isNew` tells us which happened, all with one lookup.",
+                      "java": "`get` gives back `null` for a key we haven't seen, and that's when we start a new group."}),
+                    ("put", "Add the number to its group. Equal keys always lead to the same list.",
+                     {"c": "Growing lists in C is fiddly, so we just note each number's group now and lay the groups out at the end."}),
+                    ("probe", "Hash the 64-bit key (multiply by a big odd constant, keep the high bits) and walk forward "
                               "to the key or an empty slot."),
-                    ("place", "Lay the groups out contiguously: count each group's size, turn the sizes into start "
-                              "offsets (a prefix sum), then drop each item into its group's next free spot. Items keep "
-                              "their input order."),
-                    ("free", "Release the temporary arrays."),
-                    ("ret", "The groups, in order of first appearance.",
-                     {"c": "Returns the number of groups; the grouped items are in `out`, delimited by `start`."}),
+                    ("place", "Lay the groups out one after another. Count how big each group is, turn those sizes into "
+                              "starting positions (a running total, which you'll see properly in *Prefix sums*), then "
+                              "drop each number into the next free spot in its group. Numbers keep their input order."),
+                    ("free", "Free the temporary arrays."),
+                    ("ret", "The groups, in the order their first member appeared.",
+                     {"c": "Returns how many groups there are. The grouped numbers are in `out`, and `start` says where each group begins."}),
                 ],
                 GROUP_RUN,
                 "group_by_digits([123, 45, 321, 100, 54, 10, 213, 1, 10])",
             ),
         ]),
         ("trace", "Trace it by hand", [
-            table(["x", "digits sorted high → low", "key"], *trace_rows),
+            f"""
+            First, here's how one key gets built. Take {KX}. We count its digits by peeling them off the end one at a
+            time, then read them back from the biggest digit down:
+            """,
+            walk(kwalk),
+            "And here are the keys for every number in the example:",
+            table(["x", "digits sorted high to low", "key"], *trace_rows),
+            "Now the grouping itself:",
             walk(steps),
             f"""
-            Notice what never happened: no two numbers were compared. Every number met only the table. `100` and `10`
-            share digits `1` and `0` but have different keys ({digit_key(100)} and {digit_key(10)}), because the key
-            remembers how many zeros there are.
+            Notice that no two numbers were ever compared. Each one only met the table. Also notice 100 and 10. They
+            share the digits 1 and 0, but they have different keys ({digit_key(100)} and {digit_key(10)}), because the
+            key remembers how many zeros there are.
+            """,
+        ]),
+        ("examples", "More examples", [
+            """
+            ### Grouping words by rotation
+
+            A rotation moves some letters from the front of a word to the back: `cab` → `abc` → `bca`. Which of these
+            words are rotations of each other? The key is the smallest of all its rotations (the one that comes first
+            alphabetically). Every word in a rotation group has the same set of rotations, so they all pick the same
+            smallest one.
+            """,
+            table(["word", "all its rotations", "key"], *rot_rows),
+            fig(M({f'"{k}"': str(v).replace("'", '"') for k, v in ROT_GROUPS.items()}, "key → group"),
+                caption="Six words, two groups. Notice `acb` isn't a rotation of `abc`, and the keys keep them apart."),
+            f"""
+            ### Friendships listed both ways round
+
+            A list of friendships `{FR}` mentions some of them twice, once as `(a, b)` and once as `(b, a)`. How many
+            different friendships are there? The key is the pair sorted, so `(3, 1)` and `(1, 3)` both become `(1, 3)`:
+            """,
+            table(["pair", "key"], *[(str(p), str(k)) for p, k in zip(FR, fr_keys)]),
+            f"""
+            Put the keys in a set and count them: {FR_DISTINCT}. You don't even need lists of members here, because the
+            question only asks how many groups there are.
+
+            ### When you only care about one group
+
+            "How many words have the same pattern as `moon`?" There's only one group you care about. Work out
+            `moon`'s key once, (0, 1, 1, 2), then count the words whose key matches. No map needed at all.
             """,
         ]),
         ("variations", "Variations", [
             """
-            ### Count classes, not members
+            ### Counting groups, not members
 
-            "How many different families are there?" only needs a **set of keys**: insert every key, then return the
-            set's size. No lists at all.
+            "How many different families are there?" only needs a set of keys. Add every key, then return the size of
+            the set. No lists.
 
-            ### Count equivalent pairs
+            ### Counting matching pairs
 
-            Count how many items share each key (a count map instead of lists), then add `c(c - 1)/2` for every count
-            `c`, or use the one-pass "add the count before incrementing" trick from *Frequency counting*.
+            Count how many items share each key (a count map instead of lists). A key with `c` items gives
+            `c × (c - 1) / 2` pairs. Or use the one-pass "add the count, then bump it" trick from *Frequency counting*.
 
-            ### Match against one reference
+            ### Keys built from other structures
 
-            "How many words have the same shape as this pattern?" There's only one class you care about: compute the
-            pattern's key once and count the items whose key equals it. No map needed.
+            The key can be a whole row of a grid, as a tuple in Python or a string with separators elsewhere. Then
+            "does this row match that column?" becomes "do they have the same key?". It can be several attributes at
+            once: group people by `(city, age)`, and that tuple is the key. Or it can be a cleaned-up version of the
+            item, like a lower-cased word with the punctuation stripped, when the rule is "the same, ignoring case".
 
-            ### Keys made of other structures
+            ### Sorting instead of hashing
 
-            - **Rows or columns of a grid:** the whole row as a tuple (Python) or a joined string with separators.
-              Matching a row to a column then becomes "same key".
-            - **Several attributes:** group people by `(city, age)`: the tuple of attributes is the key.
-            - **Normalised strings:** lower-case, trim, remove punctuation; for "same up to case", the lower-cased word
-              is canonical.
-
-            ### Sort instead of hashing
-
-            Sort the items by key; equal keys become neighbours, and each run is a group. O(n log n) comparisons of
-            keys, no hash map, and the groups come out ordered by key. Useful in C, or when the output must be sorted
-            anyway.
+            You can also sort the items by their key. Items with equal keys end up next to each other, and each run of
+            equal keys is a group. That's O(n log n) key comparisons and no hash map, and the groups come out sorted by
+            key. Handy in C, or when the answer has to be sorted anyway.
             """,
         ]),
         ("complexity", "What it costs", [
             """
-            Let `n` be the number of items and `K` the cost of computing one key (for strings of length `L`: O(L log L)
-            to sort the letters, O(L) to count them).
+            Say there are `n` items and building one key costs `K` (for strings of length `L`, O(L log L) to sort the
+            letters, or O(L) to count them).
 
-            - **Time:** O(n · K) for the keys, plus O(n) expected hash-map operations. But hashing a key of length `L`
-              costs O(L) too, so for strings the total is O(n · (K + L)). For words up to length `L`: O(n · L log L)
-              with sorted keys, O(n · L) with counts.
-            - **Space:** O(n · L) for the keys and the groups (every item is stored once in some group).
+            Computing all the keys costs O(n · K). Then there are `n` hash map operations, which are O(1) on average,
+            except that hashing a key of length `L` itself costs O(L). So for words it's O(n · (K + L)) overall: O(n ·
+            L log L) with sorted-letter keys, or O(n · L) with counts. Memory is O(n · L), since every item and its key
+            are stored once.
 
-            The alternative, comparing every pair of items for equivalence, is O(n²) comparisons, each O(L) or more.
+            The alternative, checking every pair of items to see whether they belong together, is O(n²) comparisons,
+            each costing at least O(L).
             """,
             table(
-                ["Approach", "Time (n words, length L)", "Extra space"],
+                ["Approach", "Time (n words of length L)", "Extra space"],
                 ["Compare every pair", "O(n² · L log L)", "O(n)"],
-                ["Sort-letters key + hash map", "O(n · L log L)", "O(n · L)"],
+                ["Sorted-letters key + hash map", "O(n · L log L)", "O(n · L)"],
                 ["Letter-counts key + hash map", "O(n · (L + 26))", "O(n · (L + 26))"],
-                ["Sort items by key, then scan runs", "O(n · K + n log n · L)", "O(n · L)"],
+                ["Sort the items by key, read off runs", "O(n · K + n log n · L)", "O(n · L)"],
             ),
         ]),
         ("languages", "In your language", [
             """
-            **Python:** `defaultdict(list)` with `groups[key].append(item)`. Keys must be hashable: `tuple(...)` or
-            `"".join(sorted(word))`, never a list. Dicts keep insertion order, so `list(groups.values())` is in
-            first-appearance order.
+            ### Python
 
-            **Java:** `map.computeIfAbsent(key, k -> new ArrayList<>()).add(item)`. A `String` key compares by content;
-            an `int[]` key compares by **identity** (two equal arrays are different keys), so convert to
-            `Arrays.toString(arr)` or `new String(charArray)`. `HashMap` order is arbitrary; use `LinkedHashMap` for
-            insertion order, or the index map in the template.
+            `defaultdict(list)` with `groups[key].append(item)`. Keys have to be hashable, so use `tuple(...)` or
+            `"".join(sorted(word))`, never a list. Dicts remember insertion order, so `list(groups.values())` comes out
+            in first-seen order.
 
-            **C++:** `unordered_map<string, vector<string>>`; `groups[key].push_back(item)` creates the list. A
-            `vector<int>` or `pair` key works with `std::map` (ordered) but needs a custom hash for `unordered_map`, so
-            people often convert to a string with separators. `std::array<int, 26>` keys work in `map`.
+            ### Java
 
-            **C:** an integer key (like this lesson's) is the easiest: open addressing on 64-bit keys. For string keys,
-            either hash the string yourself (FNV-1a, comparing with `strcmp` on collision) or sort an array of
-            `(key, index)` pairs with `qsort` and read off runs.
+            `map.computeIfAbsent(key, k -> new ArrayList<>()).add(item)`. A `String` key is compared by its contents,
+            but an `int[]` key is compared by identity, so two arrays with the same numbers count as different keys.
+            Convert with `Arrays.toString(arr)` or `new String(charArray)`. `HashMap` doesn't keep any order; use
+            `LinkedHashMap` for insertion order, or the position trick from the template.
+
+            ### C++
+
+            `unordered_map<string, vector<string>>`, and `groups[key].push_back(item)` creates the list for you. A
+            `vector<int>` or `pair` key works in `std::map` (which is sorted) but needs a custom hash for
+            `unordered_map`, so people often turn it into a string with separators. `std::array<int, 26>` works as a
+            `map` key.
+
+            ### C
+
+            An integer key, like this lesson's, is the easiest: an open-addressing table on 64-bit keys. For string
+            keys, either hash the string yourself (FNV-1a is a simple choice, checking with `strcmp` when hashes match)
+            or sort an array of `(key, index)` pairs with `qsort` and read off the runs.
             """,
         ]),
         ("pitfalls", "Pitfalls and edge cases", [
             """
-            - **Key not complete.** Sums, lengths, or a hash of the item alone merge different classes. Test your key on
-              two items that *shouldn't* group.
-            - **Key not sound.** For shift families, using the raw gaps without `mod 26` splits `"az"` (gap 25) from
-              `"ba"` (gap -1). Normalise every part of the key.
-            - **Ambiguous string keys.** Join numbers with a separator: `"1#11"`, not `"111"`.
-            - **Mutable keys.** Never modify a list or array after using it as a key.
-            - **Output order.** If the answer must be in a particular order (sorted groups, sorted inside each group),
-              sort explicitly at the end. Don't rely on the map's iteration order.
-            - **Empty items and duplicates.** An empty string has an empty key and forms its own group. Identical items
-              have identical keys and belong to the same group; keep both copies if the problem says so.
+            Things to watch for:
+
+            - A key that merges groups it shouldn't. Sums, lengths or a hash on its own do this. Test your key on two
+              items that *shouldn't* end up together.
+            - A key that splits a group. For shifted words, the gaps between letters have to be taken mod 26, or `"az"`
+              (gap 25) and `"ba"` (gap -1) end up in different groups. Normalise every part of the key.
+            - Ambiguous string keys. Join numbers with a separator: `"1#11"`, not `"111"`.
+            - Changing a key after it's been used. Never modify a list or array you've already used as a key.
+            - Output order. If the answer has to be sorted (groups, or items inside groups), sort it yourself at the
+              end. Don't rely on the order the map gives you.
+            - Empty items and duplicates. An empty string has an empty key and forms a group of its own. Identical
+              items have identical keys and belong in the same group; keep both copies if the problem says to.
             """,
         ]),
         ("check", "Check yourself", [
             quiz(
-                ("Why isn't \"the number of distinct letters\" a valid key for grouping anagrams?",
-                 "It's sound (anagrams have the same distinct letters) but not complete: `\"ab\"` and `\"cd\"` both have 2 distinct letters and would be grouped together."),
-                ("Two words have the same shape if one maps to the other by a consistent one-to-one letter replacement. Give a canonical key.",
-                 "Replace each letter with the index of its first appearance: `\"moon\"` → (0, 1, 1, 2), `\"feet\"` → (0, 1, 1, 2). Same tuple exactly when the shapes match."),
-                ("Why does the template map a key to a group **index** instead of directly to a list?",
-                 "So the groups live in one list in order of first appearance, in every language. Iterating a Java `HashMap` or C++ `unordered_map` would give an arbitrary order."),
-                ("Rows `[1, 11]` and `[11, 1]` are turned into string keys by joining the numbers. What can go wrong?",
-                 "Both become `\"111\"` and are wrongly grouped together. Join with a separator (`\"1#11\"`, `\"11#1\"`) or use a tuple."),
-                ("\"Group words that differ in at most one letter.\" Can a key do it?",
-                 "No: that relation isn't transitive (`cat` ~ `cot` ~ `dot`, but `cat` and `dot` differ in two letters), so it doesn't split words into classes. It needs union-find or a graph search."),
+                ("Why isn't \"the number of different letters\" a good key for grouping anagrams?",
+                 "It gets one direction right (anagrams always have the same number of different letters) but not the other: `\"ab\"` and `\"cd\"` both have two different letters, so they'd be grouped together even though they aren't anagrams."),
+                ("Two words have the same pattern if you can turn one into the other by swapping letters consistently, one for one. What's a good key?",
+                 "Replace each letter with the order it first appeared in: `\"moon\"` becomes (0, 1, 1, 2), and so does `\"feet\"`. Two words get the same tuple exactly when their patterns match."),
+                ("Why does the template map each key to a group *position* rather than straight to a list?",
+                 "So all the groups live in one list, in the order they first appeared, in every language. Looping over a Java `HashMap` or C++ `unordered_map` would give you the groups in some arbitrary order."),
+                ("Rows `[1, 11]` and `[11, 1]` are turned into keys by gluing the numbers together. What goes wrong?",
+                 "Both become `\"111\"`, so they're wrongly grouped together. Use a separator (`\"1#11\"` and `\"11#1\"`) or a tuple."),
+                ("\"Group words that differ in at most one letter.\" Can a key do this?",
+                 "No. That rule doesn't chain properly: `cat` is one letter from `cot`, and `cot` is one from `dot`, but `cat` and `dot` differ in two letters. So it doesn't split words into clean groups. You'd need union-find or a graph search."),
             ),
         ]),
     ],

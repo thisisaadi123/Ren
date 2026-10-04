@@ -1,5 +1,5 @@
 """Lesson: Prefix sums (Arrays & Hashing, pattern 4)."""
-from lesson import Grid, M, Row, Steps, code, fig, key, lesson, py, quiz, table, walk
+from lesson import Bars, Grid, M, Row, Steps, code, fig, key, lesson, py, quiz, table, walk
 
 # ---------------------------------------------------------------- the code
 
@@ -319,35 +319,52 @@ QUERIES = [(1, 3), (0, 6), (4, 4), (2, 5)]
 q_rows = [(f"[{l}, {r}]", f"P[{r + 1}] - P[{l}] = {P[r + 1]} - {P[l]}", str(range_sum(P, l, r))) for l, r in QUERIES]
 for l, r in QUERIES:
     assert range_sum(P, l, r) == sum(RAIN[l:r + 1])
+TOP = P[-1]
 
-build = Steps(f"Building `P` for `{RAIN}`, then answering the question \"total from day {QL} to day {QR}\".")
-build.step("P has one more slot than the input. P[0] = 0: the sum of no elements.", Row(RAIN, slots=True, label="nums"),
-           Row([0] + [None] * len(RAIN), st={0: "new"}, slots=True, label="P"))
+build = Steps(f"Building `P` for `{RAIN}`, then using it to answer \"how much rain from day {QL} to day {QR}?\".")
+build.step("P has one more slot than the input. P[0] = 0, because before day 0 no rain has fallen.",
+           Row(RAIN, slots=True, label="rain"), Bars([0] + [None] * len(RAIN), st={0: "new"}, label="P", top=TOP))
 for i, x in enumerate(RAIN):
     cells = P[:i + 2] + [None] * (len(RAIN) - i - 1)
-    build.step(f"P[{i + 1}] = P[{i}] + nums[{i}] = {P[i]} + {x} = {P[i + 1]}: the total of the first {i + 1} element{'s' if i else ''}.",
-               Row(RAIN, st={j: ("active" if j == i else "dim") for j in range(i + 1)}, ptr={"i": i}, slots=True, label="nums"),
-               Row(cells, st={i + 1: "new", i: "found"}, slots=True, label="P"))
-build.step(f"Sum of nums[{QL}..{QR}]: everything up to day {QR} is P[{QR + 1}] = {P[QR + 1]}; the part before day {QL} is P[{QL}] = {P[QL]}. "
-           f"Subtract: {P[QR + 1]} - {P[QL]} = {QS}.",
-           Row(RAIN, st={j: "answer" for j in range(QL, QR + 1)}, ptr={"l": QL, "r": QR}, slots=True, label="nums"),
-           Row(P, st={QR + 1: "found", QL: "mark"}, slots=True, label="P"), result=QS)
+    build.step(f"P[{i + 1}] = P[{i}] + rain[{i}] = {P[i]} + {x} = {P[i + 1]}. That's all the rain up to the end of day {i}.",
+               Row(RAIN, st={j: ("active" if j == i else "dim") for j in range(i + 1)}, ptr={"i": i}, slots=True, label="rain"),
+               Bars(cells, st={i + 1: "new"}, label="P", top=TOP))
+build.step(f"Days {QL} to {QR}: all the rain up to the end of day {QR} is P[{QR + 1}] = {P[QR + 1]}, and the rain before day {QL} is P[{QL}] = {P[QL]}. "
+           f"Subtract and you get {P[QR + 1]} - {P[QL]} = {QS}.",
+           Row(RAIN, st={j: "answer" for j in range(QL, QR + 1)}, ptr={"l": QL, "r": QR}, slots=True, label="rain"),
+           Bars(P, st={QR + 1: "answer", QL: "mark"}, label="P", top=TOP), result=QS)
 
+# Longest stretch with sum k, as a walkthrough.
 LD, LK = [2, -1, 3, 1, -2, 4], 4
 LANS = longest_with_sum(LD, LK)
 assert LANS == max((j - i + 1 for i in range(len(LD)) for j in range(i, len(LD)) if sum(LD[i:j + 1]) == LK), default=0)
-l_rows = []
+lwalk = Steps(f"`longest_with_sum({LD}, {LK})`. The map remembers the first index where each running total showed up.")
 first, pre, best = {0: -1}, 0, 0
+lwalk.step("Before we start, the running total is 0, and we pretend it was reached at index -1 (just before the array).",
+           Row(LD, slots=True), M({f"{k}": f"index {v}" for k, v in first.items()}, "first time each total appeared"), M({"best": 0}))
+l_rows = []
 for j, x in enumerate(LD):
     pre += x
     hit = first.get(pre - LK)
-    note = "—"
+    st = {j: "active"}
     if hit is not None:
         cand = j - hit
-        note = f"stretch {hit + 1}..{j}, length {cand}"
         best = max(best, cand)
-    kept = "keep" if pre not in first else "already there"
-    first.setdefault(pre, j)
+        for t in range(hit + 1, j + 1):
+            st[t] = "answer"
+        msg = f"Running total {pre}. We want an earlier total of {pre} - {LK} = {pre - LK}, and it first appeared at index {hit}. So indices {hit + 1}..{j} add up to {LK}: length {cand}."
+        note = f"{hit + 1}..{j}, length {cand}"
+    else:
+        msg = f"Running total {pre}. We'd need an earlier total of {pre - LK}; there isn't one."
+        note = "—"
+    if pre not in first:
+        first[pre] = j
+        msg += f" {pre} is new, so remember index {j}."
+        kept = "keep"
+    else:
+        msg += f" {pre} was already seen at index {first[pre]}; keep the older index."
+        kept = "already there"
+    lwalk.step(msg, Row(LD, st=st, ptr={"j": j}, slots=True), M({f"{k}": f"index {v}" for k, v in first.items()}, "first time each total appeared"), M({"best": best}))
     l_rows.append((str(j), str(x), str(pre), str(pre - LK), note, str(best), kept))
 assert best == LANS
 
@@ -357,320 +374,396 @@ R1, C1, R2, C2 = 1, 1, 2, 2
 GS = rect_sum(GP, R1, C1, R2, C2)
 assert GS == sum(G[r][c] for r in range(R1, R2 + 1) for c in range(C1, C2 + 1))
 
-# Counting stretches with a given sum: the {0: 1} seed, shown on a small case.
+
+def region(r_hi, c_hi, state):
+    return {(r, c): state for r in range(r_hi + 1) for c in range(c_hi + 1)}
+
+
+q2 = Steps(f"Sum of rows {R1}–{R2}, columns {C1}–{C2}, using four values from P.")
+big, top, left, corner = GP[R2 + 1][C2 + 1], GP[R1][C2 + 1], GP[R2 + 1][C1], GP[R1][C1]
+q2.step(f"Start with everything from the top-left corner down to ({R2}, {C2}): P[{R2 + 1}][{C2 + 1}] = {big}.",
+        Grid(G, st=region(R2, C2, "found")))
+q2.step(f"Take away the rows above row {R1}: P[{R1}][{C2 + 1}] = {top}. That leaves {big - top}.",
+        Grid(G, st={**region(R2, C2, "found"), **region(R1 - 1, C2, "dim")}))
+q2.step(f"Take away the columns left of column {C1}: P[{R2 + 1}][{C1}] = {left}. But the top-left corner has now been taken away twice.",
+        Grid(G, st={**region(R2, C2, "found"), **region(R1 - 1, C2, "dim"), **region(R2, C1 - 1, "dim"), **region(R1 - 1, C1 - 1, "mark")}))
+q2.step(f"So add the corner back once: P[{R1}][{C1}] = {corner}. {big} - {top} - {left} + {corner} = {GS}.",
+        Grid(G, st={**{(r, c): "answer" for r in range(R1, R2 + 1) for c in range(C1, C2 + 1)}}), result=GS)
+
+# Counting stretches with sum k: the {0: 1} seed, as a table and a walkthrough.
 CD, CK = [1, 2, 1, 3, -3, 3], 3
 c_rows, cnt, pre, tot = [], {0: 1}, 0, 0
+cwalk = Steps(f"Counting stretches of `{CD}` that add up to {CK}. The map counts how often each running total has appeared.")
+cwalk.step("The empty prefix (total 0) has appeared once, before we start.", Row(CD, slots=True), M({k: v for k, v in cnt.items()}, "running total → times seen"), M({"stretches": 0}))
 for j, x in enumerate(CD):
     pre += x
     add = cnt.get(pre - CK, 0)
     tot += add
     c_rows.append((str(j), str(x), str(pre), str(pre - CK), str(add), str(tot)))
     cnt[pre] = cnt.get(pre, 0) + 1
+    cwalk.step(f"Running total {pre}. Earlier totals equal to {pre} - {CK} = {pre - CK}: {add}. " + (f"Each one starts a stretch ending here, so add {add}." if add else "Nothing ends here."),
+               Row(CD, st={j: "active"}, ptr={"j": j}, slots=True), M({k: v for k, v in cnt.items()}, "running total → times seen"), M({"stretches": tot}))
 assert tot == sum(1 for i in range(len(CD)) for j in range(i, len(CD)) if sum(CD[i:j + 1]) == CK)
+
+# Example: balance point.
+W = [2, 7, 1, 4, 5]
+WT = sum(W)
+w_rows, left_sum, BAL = [], 0, -1
+for i, x in enumerate(W):
+    right = WT - left_sum - x
+    w_rows.append((str(i), str(x), str(left_sum), str(right), "balanced" if left_sum == right else ""))
+    if left_sum == right and BAL < 0:
+        BAL = i
+    left_sum += x
+assert BAL == 2
+
+# Example: equal 0s and 1s through ±1.
+BITS = [1, 1, 0, 1, 0, 0, 1, 1]
+PM = [1 if b else -1 for b in BITS]
+PP = [0]
+for v in PM:
+    PP.append(PP[-1] + v)
+seen_at, BEST01, B01 = {}, 0, None
+for i, v in enumerate(PP):
+    if v in seen_at:
+        if i - seen_at[v] > BEST01:
+            BEST01, B01 = i - seen_at[v], (seen_at[v], i)
+    else:
+        seen_at[v] = i
+assert BEST01 == max(j - i for i in range(len(PP)) for j in range(i, len(PP)) if PP[i] == PP[j])
 
 N = 10**5
 lesson(
     "arrays-hashing",
     "prefix-sums",
     """
-    Precompute running totals once, and the sum of any stretch of the array becomes one subtraction. Combined with a
-    hash map, the same idea counts or finds stretches with a given sum, negatives included, in a single pass.
+    Work out the running totals once, and the sum of any stretch of the array becomes a single subtraction. Add a
+    hash map, and the same idea finds or counts stretches with a given sum in one pass, even when some numbers are
+    negative.
     """,
     [
         ("idea", "The idea", [
             """
-            A car's odometer shows the total distance driven since the car was new. Nobody resets it at every town.
-            Still, to know how far it is from town A to town B, you just subtract: reading at B minus reading at A.
+            A car's odometer shows how far the car has gone since it was new. Nobody resets it in every town. But if
+            you want to know how far it is from one town to the next, you just subtract: the reading when you arrive,
+            minus the reading when you set off.
 
-            A **prefix sum** array is an odometer for an array. `P[i]` is the total of the first `i` elements:
+            A **prefix sum** array is an odometer for an array. `P[i]` is the total of the first `i` elements. `P[0]`
+            is 0 (nothing added yet), and each next entry adds one more element: `P[i + 1] = P[i] + nums[i]`.
 
-            - `P[0] = 0` (nothing added yet),
-            - `P[i + 1] = P[i] + nums[i]`.
+            Once you have that, the sum of any stretch `nums[l..r]` is just two readings subtracted:
 
-            Then the sum of any stretch `nums[l..r]` (inclusive) is a difference of two readings:
-
-            `sum(nums[l..r]) = P[r + 1] - P[l]`
+            `sum of nums[l..r] = P[r + 1] - P[l]`
             """,
-            fig(Row(RAIN, st={j: "answer" for j in range(QL, QR + 1)}, ptr={"l": QL, "r": QR}, slots=True, label="nums"),
-                Row(P, st={QR + 1: "found", QL: "mark"}, slots=True, label="P"),
-                caption=f"Total of `nums[{QL}..{QR}]` = `P[{QR + 1}] - P[{QL}]` = {P[QR + 1]} - {P[QL]} = {QS}. "
-                        f"One subtraction, however long the stretch."),
+            fig(Bars(RAIN, label="daily rain"), Bars(P, st={QR + 1: "answer", QL: "mark"}, label="P: rain so far, like an odometer"),
+                caption=f"The rain on days {QL} to {QR} is the reading after day {QR} ({P[QR + 1]}) minus the reading before day {QL} ({P[QL]}): {QS}. It doesn't matter how long the stretch is."),
             key("""
-            Pay O(n) once to build `P`; afterwards every range sum is O(1): `P[r + 1] - P[l]`. And "some stretch sums to
-            `k`" becomes "two prefix values differ by `k`", which is a complement lookup.
+            Spend O(n) once building `P`, and every range sum after that costs O(1): `P[r + 1] - P[l]`. And "some
+            stretch adds up to `k`" turns into "two running totals differ by `k`", which is a complement lookup.
             """),
         ]),
         ("signals", "When to reach for it", [
             table(
-                ["The problem says…", "What prefix sums give you"],
-                ["many questions \"sum / count from `l` to `r`\" on a fixed array", "each answer in O(1) after O(n) setup"],
-                ["count (or find longest / shortest) **subarrays** with sum `k`", "`P[j] - P[i] = k`: look up `P[j] - k` in a map"],
-                ["balance point, left total equals right total", "left = `P[i]`, right = `total - P[i + 1]`"],
-                ["equal number of 0s and 1s, of A and B", "map one to `-1`, the other to `+1`; look for sum 0"],
-                ["subarray sum divisible by `k`", "equal remainders `P[j] % k == P[i] % k`"],
+                ["The problem says…", "what prefix sums give you"],
+                ["lots of questions like \"sum from `l` to `r`\" on an array that doesn't change", "each answer in O(1) after O(n) setup"],
+                ["count (or find the longest / shortest) **subarrays** that add up to `k`", "`P[j] - P[i] = k`, so look up `P[j] - k` in a map"],
+                ["a balance point where the left side equals the right side", "left = `P[i]`, right = `total - P[i + 1]`"],
+                ["as many 0s as 1s, as many A's as B's", "turn one into `-1` and the other into `+1`, then look for a sum of 0"],
+                ["subarray sum divisible by `k`", "two running totals with the same remainder"],
                 ["running balance, cumulative totals", "`P` itself is the answer"],
-                ["sum over a rectangle of a grid, many times", "2D prefix sums, O(1) per rectangle"],
+                ["sums over rectangles in a grid, many times", "2D prefix sums, O(1) per rectangle"],
             ),
             """
-            **The key phrase is "contiguous".** Prefix sums answer questions about *stretches* (subarrays,
-            consecutive days, ranges of indices), never about arbitrary subsets.
+            The word to look for is "contiguous" (or "subarray", "consecutive days", "a range of indices"). Prefix
+            sums are about stretches, never about picking arbitrary elements.
 
-            **When it is the wrong tool**
+            They're the wrong tool when the array keeps changing between questions, because one update can change
+            every running total after it. A Fenwick tree or segment tree handles that in O(log n) per update. They also
+            can't do max, min or gcd over a range, because you can't "subtract" a maximum. Knowing the biggest value in
+            `[0..r]` and in `[0..l-1]` doesn't tell you the biggest in `[l..r]`.
 
-            - **The array changes between questions.** One update can change `n` prefix values. Use a Fenwick tree or
-              segment tree (O(log n) per update and query).
-            - **Max, min or gcd of a range.** These can't be "subtracted": knowing the max of `[0..r]` and of `[0..l-1]`
-              doesn't give the max of `[l..r]`. Use a sparse table or segment tree.
-            - **All values are positive and you need a window.** A sliding window with two pointers is often simpler
-              and uses O(1) memory. Prefix sums with a hash map are the tool when values can be **negative**, which
-              breaks the window's "growing it only increases the sum" logic.
+            And if every value is positive and you need a window, a sliding window with two pointers is often simpler.
+            Prefix sums plus a hash map are what you want when values can be **negative**, which is exactly when the
+            sliding window's "make it bigger and the sum goes up" logic stops working.
             """,
         ]),
         ("theory", "Why it works", [
             """
-            ### Telescoping
+            ### Things cancel out
 
-            By definition `P[i] = nums[0] + nums[1] + … + nums[i - 1]`. Write out `P[r + 1] - P[l]`:
+            `P[i]` is `nums[0] + nums[1] + … + nums[i - 1]`. Write out `P[r + 1] - P[l]` in full:
 
             `(nums[0] + … + nums[l - 1] + nums[l] + … + nums[r]) - (nums[0] + … + nums[l - 1])`
 
-            The first `l` terms cancel, leaving exactly `nums[l] + … + nums[r]`. That cancellation (each term appears once
-            with `+` and once with `-`) is called **telescoping**, and it's the whole proof.
+            The first `l` terms appear once with a plus and once with a minus, so they cancel, and you're left with
+            exactly `nums[l] + … + nums[r]`. And that's the proof. (This kind of cancelling is called
+            **telescoping**, like a telescope folding up.)
 
-            ### Why `P` has `n + 1` entries
+            ### Why `P` has one extra slot
 
-            `P[i]` is the sum of the first `i` elements, so `i` runs from 0 to `n`. The extra `P[0] = 0` means a stretch
-            that starts at index 0 needs no special case: `sum(nums[0..r]) = P[r + 1] - P[0]`. Think of `P[i]` as sitting
-            on the **boundary** before index `i`; a stretch `[l, r]` runs from boundary `l` to boundary `r + 1`.
+            `P[i]` is the sum of the first `i` elements, so `i` goes from 0 to `n`. That's `n + 1` values. The extra
+            `P[0] = 0` means a stretch starting at index 0 doesn't need a special case: its sum is `P[r + 1] - P[0]`.
+            It helps to picture `P[i]` sitting on the *gap* just before index `i`. A stretch `[l, r]` runs from gap `l`
+            to gap `r + 1`.
 
-            ### Stretches with a given sum
+            ### Finding stretches with a given sum
 
-            A stretch `nums[i..j-1]` sums to `k` exactly when `P[j] - P[i] = k`, that is when
+            A stretch `nums[i..j-1]` adds up to `k` exactly when `P[j] - P[i] = k`, which is the same as
 
             `P[i] = P[j] - k`
 
-            So: walk `j` from left to right, keep a running prefix, and ask a hash map about **earlier** prefix values.
-            That's complement lookup, applied to prefix values instead of array values. The same invariant applies: the
-            map holds only boundaries before `j`, so each stretch is found once, at its right end.
+            So walk `j` from left to right, keep a running total, and ask a hash map whether an earlier running total
+            equals `P[j] - k`. That's complement lookup again, just on running totals instead of on the values
+            themselves. And the same reasoning applies: the map only holds totals from before `j`, so each stretch is
+            found once, when you reach its end.
 
-            What the map stores depends on the question:
+            What you keep in the map depends on the question. To **count** stretches, store how many times each total
+            has appeared, and start the map with `{0: 1}` for the empty prefix, so stretches starting at index 0 get
+            counted. For the **longest** stretch, store the *first* index where each total appeared (starting with
+            `{0: -1}`). For the **shortest**, store the *latest* index.
 
-            - **count** the stretches: prefix value → how many times seen; seed it with `{0: 1}` (the empty prefix
-              `P[0]`), so stretches that start at index 0 are counted;
-            - **longest** stretch: prefix value → **first** index where it occurred; seed with `{0: -1}`, keep only the
-              first occurrence, length `j - first[P[j] - k]`;
-            - **shortest** stretch: prefix value → **latest** index (overwrite on every occurrence).
-
-            Here is the counting version on `{CD}`, `k = {CK}`. The table is seeded with `0 → 1`:
-            """.replace("{CD}", str(CD)).replace("{CK}", str(CK)),
-            table(["j", "x", "prefix", "need prefix - k", "earlier prefixes equal to it", "stretches so far"], *c_rows),
+            Here's the counting version, step by step:
+            """,
+            walk(cwalk),
+            table(["j", "x", "running total", "looking for", "earlier matches", "stretches so far"], *c_rows),
             f"""
-            Every row adds the number of earlier boundaries that close a stretch summing to {CK} at `j`. Total:
-            **{tot}**, which matches checking all {len(CD) * (len(CD) + 1) // 2} stretches one by one.
+            Each step adds the number of earlier gaps that start a stretch summing to {CK} and ending at `j`. That gives
+            **{tot}**, the same as checking all {len(CD) * (len(CD) + 1) // 2} stretches one by one.
 
-            ### Why negatives are fine here (and not for sliding windows)
+            ### Why negative numbers are fine
 
-            A sliding window grows on the right and shrinks on the left, relying on "adding an element increases the sum".
-            With negative numbers that's false, and the window gets stuck. Prefix sums make no such assumption: the
-            identity `P[r + 1] - P[l]` holds for any integers, and the hash map finds matching boundaries wherever they
-            are.
+            A sliding window grows on the right and shrinks on the left, and it relies on "adding an element makes the
+            sum bigger". With negative numbers that's just not true, and the window gets stuck. Prefix sums don't
+            assume anything like that. `P[r + 1] - P[l]` is true for any integers, and the hash map finds matching
+            totals wherever they are.
 
-            ### Remainders: divisible by `k`
+            ### Divisible by `k`
 
-            `sum(nums[i..j-1])` is divisible by `k` exactly when `P[j]` and `P[i]` leave the **same remainder** mod `k`
-            (their difference is a multiple of `k`). Count remainders instead of prefix values; the map has at most `k`
-            keys. Normalise negative remainders with `((p % k) + k) % k`.
+            A stretch's sum is divisible by `k` exactly when the two running totals at its ends leave the **same
+            remainder** when divided by `k` (their difference is then a multiple of `k`). So count remainders instead
+            of totals. The map has at most `k` keys. Watch out for negative remainders and fix them with
+            `((p % k) + k) % k`.
 
-            ### Beyond sums
+            ### Not just sums
 
-            The trick works for any operation you can **undo**: XOR (`X[r + 1] ^ X[l]`, since XOR undoes itself),
-            counts of a category (a prefix count of vowels), products when no element is 0. It does **not** work for
-            max, min or gcd, which can't be undone.
+            This works for anything you can undo. XOR undoes itself, so `X[r + 1] ^ X[l]` gives the XOR of a range.
+            Prefix counts of a category ("how many vowels so far?") work the same way. Products work too, as long as
+            there are no zeros. Max, min and gcd don't, because they can't be undone.
 
             ### Two dimensions
 
-            For a grid, let `P[r][c]` be the sum of the rectangle from `(0, 0)` to `(r - 1, c - 1)`. By
-            **inclusion–exclusion**:
-
-            - building: `P[r+1][c+1] = grid[r][c] + P[r][c+1] + P[r+1][c] - P[r][c]` (the top-left part was added twice);
-            - querying rows `r1..r2`, columns `c1..c2`:
-              `P[r2+1][c2+1] - P[r1][c2+1] - P[r2+1][c1] + P[r1][c1]` (the top-left part was subtracted twice).
+            For a grid, let `P[r][c]` be the sum of the rectangle from the top-left corner down to `(r - 1, c - 1)`.
+            Building it: `P[r+1][c+1] = grid[r][c] + P[r][c+1] + P[r+1][c] - P[r][c]`. The bit above and the bit to the
+            left both include the top-left block, so it gets added twice and you take it away once. Querying works the
+            other way round. Here's a query, one step at a time:
             """,
+            walk(q2),
         ]),
         ("template", "The template", [
             """
-            Build the prefix array once, then answer each range question with one subtraction. The example: daily
-            rainfall, and questions "how much rain fell from day `l` to day `r`?".
+            Build the prefix array once, then answer each "how much from `l` to `r`?" with one subtraction. The
+            example uses daily rainfall.
             """,
             code(
                 "Prefix array and range sums",
                 RANGE,
                 [
-                    ("make", "One more slot than the input; `P[0] = 0` is the sum of nothing. Totals are 64-bit: "
-                             "10⁵ values of 10⁹ add up to 10¹⁴.",
-                     {"c": "`malloc` doesn't zero memory, so `P[0]` is set explicitly."}),
-                    ("fill", "Each prefix is the previous one plus one element: O(1) per entry, O(n) in total."),
-                    ("ret", "The prefix array, `n + 1` entries."),
-                    ("query", "Everything up to and including `r`, minus everything before `l`. The `+ 1` turns the "
-                              "inclusive `r` into the boundary after it."),
+                    ("make", "One more slot than the input, and `P[0] = 0`, the sum of nothing. The totals are 64-bit, "
+                             "because 100,000 values of a billion each add up to 10¹⁴.",
+                     {"c": "`malloc` doesn't zero memory, so we set `P[0]` ourselves."}),
+                    ("fill", "Each entry is the one before plus one element. O(1) each, O(n) in total."),
+                    ("ret", "The prefix array, with `n + 1` entries."),
+                    ("query", "Everything up to and including `r`, minus everything before `l`. The `+ 1` is because "
+                              "`r` is included, so we want the gap just after it."),
                 ],
                 RANGE_RUN,
                 "build_prefix([3, 0, 5, 2, 7, 1, 4]); range_sum for [1, 3], [0, 6], [4, 4], [2, 5]",
             ),
-            table(["query [l, r]", "computed as", "answer"], *q_rows),
+            table(["question [l, r]", "worked out as", "answer"], *q_rows),
         ]),
         ("trace", "Trace it by hand", [
+            "Watch `P` grow, one bar per day, and then answer a question with two of its bars:",
             walk(build),
             """
-            ### A prefix walk with a hash map
+            ### Running totals plus a hash map
 
-            Find the length of the longest stretch with sum exactly `k`. Values can be negative, so a sliding window
-            won't work. For each `j`, the best stretch ending at `j` starts right after the **earliest** boundary `i`
-            with `P[i] = P[j] - k`: so remember the first index of every prefix value.
+            Now something harder: the longest stretch that adds up to exactly `k`. Some values are negative, so a
+            sliding window won't work. For each `j`, the longest stretch ending at `j` starts just after the
+            **earliest** gap where the running total was `P[j] - k`. So the map remembers the first index of every
+            running total.
             """,
+            walk(lwalk),
             code(
                 "Longest stretch with a given sum",
                 LONGEST,
                 [
-                    ("seed", "The empty prefix (sum 0) sits at boundary `-1`, before the first element, so a stretch "
-                             "starting at index 0 is found too. `best = 0` means \"none found yet\"."),
-                    ("loop", "`j` is the right end of the stretches we look for."),
+                    ("seed", "The empty prefix (total 0) sits at index -1, just before the array, so a stretch starting "
+                             "at index 0 can be found too. `best = 0` means we haven't found one yet."),
+                    ("loop", "`j` is the end of the stretches we're looking for."),
                     ("run", "`prefix` is the sum of `nums[0..j]`. Keep it 64-bit."),
-                    ("look", "If some earlier boundary has prefix `prefix - k`, the stretch after it up to `j` sums to "
-                             "`k`. Its first occurrence gives the longest such stretch ending at `j`.",
-                     {"cpp": "`find` doesn't insert."}),
-                    ("keep", "Record the prefix only the first time it appears. A later boundary with the same value "
-                             "would only give shorter stretches."),
-                    ("ret", "The longest length over all right ends, or 0."),
-                    ("table", "An open-addressing table on 64-bit prefix values, storing the first index of each."),
-                    ("free", "Release the table."),
+                    ("look", "If an earlier gap had a running total of `prefix - k`, then everything after it up to `j` "
+                             "adds up to `k`. Using its first appearance gives the longest such stretch ending at `j`.",
+                     {"cpp": "`find` doesn't insert anything."}),
+                    ("keep", "Only store a running total the first time it appears. A later gap with the same total "
+                             "could only give shorter stretches."),
+                    ("ret", "The longest length found, or 0 if there wasn't one."),
+                    ("table", "An open-addressing table on 64-bit totals, storing the first index for each."),
+                    ("free", "Free the table."),
                 ],
                 LONGEST_RUN,
                 "longest_with_sum([2, -1, 3, 1, -2, 4], 4); longest_with_sum([5, -5, 5, -5], 0); longest_with_sum([1, 2], 7)",
             ),
-            f"For `{LD}` with `k = {LK}` (the map starts as `0 → -1`):",
-            table(["j", "x", "prefix", "need", "stretch found", "best", "map"], *l_rows),
+            table(["j", "x", "running total", "looking for", "stretch found", "best", "map"], *l_rows),
             f"""
-            The answer is {LANS}. Notice the row where the prefix value repeats: the map keeps the **older** index, which
-            is exactly what makes stretches long.
+            The answer is {LANS}. Look at the row where a running total shows up a second time: the map keeps the
+            older index, and that's what makes the stretches as long as possible.
+            """,
+        ]),
+        ("examples", "More examples", [
+            f"""
+            ### Finding a balance point
+
+            Weights `{W}` sit in a row. Is there a position where everything to its left weighs the same as everything
+            to its right? You don't even need the whole `P` array. Work out the total once ({WT}), keep a running left
+            sum, and the right side is just `total - left - weight`:
+            """,
+            table(["i", "weight", "left of it", "right of it", ""], *w_rows),
+            fig(Bars(W, st={BAL: "answer", **{i: "found" for i in range(BAL)}, **{i: "mark" for i in range(BAL + 1, len(W))}}, label="weights"),
+                caption=f"At index {BAL}, the left side ({sum(W[:BAL])}) and the right side ({sum(W[BAL + 1:])}) balance."),
+            f"""
+            ### As many 0s as 1s
+
+            What's the longest stretch of `{BITS}` with the same number of 0s and 1s? Counting 0s and 1s for every
+            stretch would be slow. Instead, turn every 0 into -1. A stretch with equal numbers then adds up to 0, and
+            a stretch adds up to 0 exactly when the running total is the same at both ends:
+            """,
+            fig(Row(BITS, label="bits"), Row(PM, label="0 → -1"),
+                Bars(PP, st={B01[0]: "answer", B01[1]: "answer"}, label="running total (gap 0 to gap 8)"),
+                caption=f"The running total is {PP[B01[0]]} at gap {B01[0]} and again at gap {B01[1]}, so the {BEST01} elements in between are balanced."),
+            f"""
+            That's {BEST01}. Rewriting the input so that the condition becomes a sum is a trick worth remembering.
+            Whenever a problem says "as many X as Y", try +1 and -1.
             """,
         ]),
         ("variations", "Variations", [
             """
             ### Two dimensions
 
-            Sums of rectangles in a grid, many times over. Build `P` with one extra row and column of zeros, then use
-            inclusion–exclusion.
+            For sums over rectangles in a grid, asked many times. Build `P` with an extra row and column of zeros,
+            then each query uses four values.
             """,
             code(
                 "2D prefix sums",
                 GRID,
                 [
-                    ("make", "An `(rows + 1) × (cols + 1)` table of zeros. Row 0 and column 0 stay 0, like `P[0]` in 1D.",
-                     {"c": "One flat block of memory, indexed `r * (cols + 1) + c`; `calloc` zeroes it."}),
-                    ("fill", "Fill row by row, so the three neighbours a cell needs are already done."),
-                    ("cell", "This cell, plus the rectangle above, plus the rectangle to the left, minus their overlap "
-                             "(the top-left rectangle, added twice)."),
+                    ("make", "A `(rows + 1) × (cols + 1)` table of zeros. Row 0 and column 0 stay 0, just like `P[0]` in 1D.",
+                     {"c": "One flat block of memory, where `(r, c)` lives at `r * (cols + 1) + c`. `calloc` zeroes it."}),
+                    ("fill", "Fill it row by row, so the three neighbours each cell needs are already done."),
+                    ("cell", "This cell, plus the rectangle above, plus the rectangle to the left, minus the top-left "
+                             "block, which got added twice."),
                     ("ret", "The table."),
                     ("query", "The big rectangle down to `(r2, c2)`, minus the strip above row `r1`, minus the strip left "
-                              "of column `c1`, plus the corner that both strips removed."),
+                              "of column `c1`, plus the corner that both strips took away."),
                 ],
                 GRID_RUN,
                 "rect_sum on [[2, 0, 1, 3], [4, 1, 0, 2], [1, 5, 2, 1]] for (0,0)-(2,3), (1,1)-(2,2), (0,2)-(1,3), (2,0)-(2,0)",
             ),
             fig(Grid(G, st={(r, c): "answer" for r in range(R1, R2 + 1) for c in range(C1, C2 + 1)}, label="grid"),
                 Grid(GP, st={(R2 + 1, C2 + 1): "found", (R1, C2 + 1): "mark", (R2 + 1, C1): "mark", (R1, C1): "found"}, label="P"),
-                caption=f"Rows {R1}–{R2}, columns {C1}–{C2}: "
-                        f"{GP[R2 + 1][C2 + 1]} - {GP[R1][C2 + 1]} - {GP[R2 + 1][C1]} + {GP[R1][C1]} = {GS}."),
+                caption=f"The four values from P: {GP[R2 + 1][C2 + 1]} - {GP[R1][C2 + 1]} - {GP[R2 + 1][C1]} + {GP[R1][C1]} = {GS}."),
             """
             ### Counting stretches with sum `k`
 
-            Same loop as *longest*, but the map holds **counts** of each prefix value, seeded with `{0: 1}`, and each
-            step adds `count[prefix - k]` before incrementing `count[prefix]` (the table in *Why it works* traces it).
-
-            ### Equal numbers of two kinds
-
-            "Longest stretch with as many A's as B's": replace A with `+1` and B with `-1`. Equal counts means sum 0, so
-            it's *longest with sum 0*. Rewriting the input so a condition becomes a sum is a very common move.
-
-            ### Balance points
-
-            With the total `T` known, the sum left of `i` is `P[i]` and the sum right of `i` is `T - P[i + 1]`. You don't
-            even need the array: keep a running left sum while scanning.
+            Same loop as *longest*, but the map stores how many times each total has appeared, starting with `{0: 1}`.
+            At each step, add `count[prefix - k]` to the answer, then bump `count[prefix]`. The walkthrough in *Why it
+            works* shows it running.
 
             ### Prefix of anything you can undo
 
-            - **XOR:** `X[r + 1] ^ X[l]` is the XOR of a range; "stretches with XOR `k`" looks up `X[j] ^ k`.
-            - **Counts per category:** 26 prefix arrays (one per letter) answer "how many `e`s in `s[l..r]`?" in O(1).
-            - **Prefix maximum** is still useful, but only for prefixes: "the best so far" (it can't answer ranges).
+            XOR: `X[r + 1] ^ X[l]` is the XOR of a range, and "stretches with XOR `k`" looks up `X[j] ^ k`. Counts per
+            category: 26 prefix arrays, one per letter, answer "how many `e`s are in `s[l..r]`?" in O(1). A running
+            maximum is still useful, but only for prefixes ("the best so far"); it can't answer ranges.
 
-            ### The inverse: difference arrays
+            ### Going the other way
 
-            Prefix sums turn an array into running totals. The opposite operation, differences of neighbours, turns
-            "add `v` to a whole range" into two point changes. That's the next pattern, *Difference arrays*.
+            Prefix sums turn an array into running totals. The reverse, taking differences between neighbours, turns
+            "add `v` to a whole range" into two small changes. That's the next pattern, *Difference arrays*.
             """,
         ]),
         ("complexity", "What it costs", [
             f"""
-            - **Building:** O(n) time, O(n) space for `P` (O(rows · cols) in 2D).
-            - **Each range query:** O(1).
-            - **Stretch search with a hash map:** O(n) expected time, O(n) space for the map.
+            Building `P` takes O(n) time and O(n) memory (O(rows × cols) in 2D). Each range question after that is
+            O(1). Finding stretches with a hash map is O(n) on average, with O(n) memory for the map.
 
-            **Compared with summing each range directly:** `q` queries over ranges of length up to `n` cost O(q · n).
-            With `n = q = 10⁵` that's up to {N * N:,} additions, versus {2 * N:,} with prefix sums. For "count the
-            stretches with sum `k`", the brute force checks all n(n + 1)/2 stretches; the prefix + map version does one
-            lookup per element.
+            Without prefix sums, `q` questions over ranges of length up to `n` cost O(q × n). With `n` and `q` both
+            100,000, that's up to {N * N:,} additions, against about {2 * N:,} with prefix sums. For "count the
+            stretches that add up to `k`", brute force looks at all n(n + 1)/2 stretches, while the prefix-and-map
+            version does one lookup per element.
             """,
             table(
-                ["Task", "Direct", "With prefix sums"],
+                ["Task", "Without", "With prefix sums"],
                 ["q range sums", "O(q · n)", "O(n + q)"],
-                ["count stretches with sum k", "O(n²) (running sums)", "O(n) expected"],
-                ["longest stretch with sum k", "O(n²)", "O(n) expected"],
+                ["count stretches with sum k", "O(n²)", "O(n) on average"],
+                ["longest stretch with sum k", "O(n²)", "O(n) on average"],
                 ["q rectangle sums in an R × C grid", "O(q · R · C)", "O(R · C + q)"],
             ),
         ]),
         ("languages", "In your language", [
             """
-            **Python:** `itertools.accumulate(nums, initial=0)` builds `P` in one call (Python 3.8+). Integers never
-            overflow. For the stretch search, `dict.get(prefix - k, 0)` and `setdefault(prefix, j)` (keeps the first).
+            ### Python
 
-            **Java:** use `long[]` for `P`: an `int` prefix overflows past about 2.1 · 10⁹. A `Map<Long, Integer>` key must
-            be a `Long`: `first.put(0L, -1)` with the `L`, since `0` alone would box to an `Integer`, a different key.
+            `itertools.accumulate(nums, initial=0)` builds `P` in one go (Python 3.8 and later). Integers never
+            overflow. For the stretch search, `dict.get(prefix - k, 0)` and `setdefault(prefix, j)` (which keeps the
+            first index).
 
-            **C++:** `std::partial_sum` exists, but writing the loop with an explicit `P[0] = 0` is clearer. Use
-            `long long`. `unordered_map<long long, int>` with `emplace` (keeps the first) and `find` (no insertion).
+            ### Java
 
-            **C:** `long long` prefixes; for 2D, one flat `calloc` block indexed `r * (cols + 1) + c`. The hash map for
+            Use `long[]` for `P`, since an `int` total overflows past about 2.1 billion. A `Map<Long, Integer>` needs
+            `Long` keys, so write `first.put(0L, -1)` with the `L`. A plain `0` would turn into an `Integer`, which is a
+            different key, and your lookups would quietly miss it.
+
+            ### C++
+
+            `std::partial_sum` exists, but writing the loop yourself with an explicit `P[0] = 0` is clearer. Use
+            `long long`. For the map, `unordered_map<long long, int>` with `emplace` (keeps the first) and `find` (doesn't
+            insert).
+
+            ### C
+
+            `long long` totals. For 2D, one flat `calloc` block indexed `r * (cols + 1) + c`. The hash map for the
             stretch problems is the same open-addressing table as before, on 64-bit keys.
             """,
         ]),
         ("pitfalls", "Pitfalls and edge cases", [
             """
-            - **Off by one.** `sum(l..r)` inclusive is `P[r + 1] - P[l]`, not `P[r] - P[l]`. Draw the boundaries if in
-              doubt.
-            - **Forgetting the seed.** Without `{0: 1}` (count) or `{0: -1}` (longest), stretches that start at index 0
-              are missed.
-            - **First vs last index.** For the longest stretch keep the first occurrence; overwriting gives shorter ones.
-            - **Overflow.** Sums of many large values need 64 bits, in `P` and in the running prefix.
-            - **Negative remainders.** In Java, C and C++, `-1 % 5 == -1`. Normalise before using a remainder as a key.
-            - **Using a sliding window with negatives.** Shrinking the window no longer reduces the sum; use prefix sums
-              with a map instead.
-            - **Trying to "subtract" maxima.** Range max/min need other structures.
-            - **2D inclusion–exclusion signs.** Build: `+ above + left - corner`. Query: `- above - left + corner`.
+            Where prefix-sum code usually goes wrong:
+
+            - Off by one. The sum of `l..r` including both ends is `P[r + 1] - P[l]`, not `P[r] - P[l]`. If you're
+              unsure, draw the gaps.
+            - Forgetting to seed the map. Without `{0: 1}` (counting) or `{0: -1}` (longest), stretches that start at
+              index 0 get missed.
+            - Keeping the wrong index. For the longest stretch keep the first one; overwriting gives you shorter ones.
+            - Overflow. Adding up lots of big values needs 64 bits, both in `P` and in the running total.
+            - Negative remainders. In Java, C and C++, `-1 % 5` is `-1`. Fix it before using a remainder as a key.
+            - Using a sliding window when there are negatives. Shrinking the window doesn't reliably lower the sum any
+              more. Use prefix sums with a map.
+            - Trying to subtract maximums. Range max and min need different tools.
+            - Signs in 2D. Building: plus above, plus left, minus corner. Querying: minus above, minus left, plus
+              corner.
             """,
         ]),
         ("check", "Check yourself", [
             quiz(
-                ("With `P` built from `nums`, what is the sum of `nums[2..5]`?",
-                 "`P[6] - P[2]`: everything before boundary 6 (indices 0–5) minus everything before boundary 2 (indices 0–1)."),
-                ("Why does counting stretches with sum `k` seed the map with `{0: 1}`?",
-                 "`P[0] = 0` is the boundary before the first element. A stretch starting at index 0 ending at `j` sums to `k` exactly when `P[j + 1] - 0 = k`; without the seed, the lookup for `0` would miss it."),
-                ("Values can be negative. Why does a sliding window fail for \"longest stretch with sum k\", while prefix sums work?",
-                 "The window shrinks when the sum is too big, assuming that removing elements lowers the sum. Negative values break that. Prefix sums rely only on `P[r + 1] - P[l]`, which holds for any integers."),
-                ("Can you answer \"maximum of `nums[l..r]`\" with prefix maxima?",
-                 "No. The max of `[0..r]` might sit before `l`, and there's no way to subtract it out. Max isn't invertible; use a sparse table or segment tree."),
-                ("Longest stretch with equally many 0s and 1s: how do you turn it into a prefix-sum problem?",
-                 "Replace each 0 with -1. A stretch has equal counts exactly when its sum is 0, i.e. two boundaries with the same prefix value. Keep the first index of each prefix value."),
+                ("With `P` built from `nums`, what's the sum of `nums[2..5]`?",
+                 "`P[6] - P[2]`. That's everything before gap 6 (indices 0 to 5) minus everything before gap 2 (indices 0 and 1)."),
+                ("Why does counting stretches with sum `k` start the map at `{0: 1}`?",
+                 "`P[0] = 0` is the gap before the first element. A stretch from index 0 to `j` adds up to `k` exactly when `P[j + 1] - 0 = k`. Without the seed, the lookup for 0 would miss it."),
+                ("Some values are negative. Why does a sliding window fail for \"longest stretch with sum k\", when prefix sums work?",
+                 "The window shrinks when the sum gets too big, assuming that dropping elements makes the sum smaller. Negative values break that. Prefix sums only rely on `P[r + 1] - P[l]`, which is true for any integers."),
+                ("Can you answer \"what's the biggest value in `nums[l..r]`?\" with running maximums?",
+                 "No. The maximum of `[0..r]` might be before `l`, and there's no way to subtract it back out. You'd use a sparse table or a segment tree."),
+                ("Longest stretch with as many 0s as 1s: how do you turn it into a prefix-sum problem?",
+                 "Turn every 0 into -1. A stretch has equal counts exactly when it adds up to 0, which means the running total is the same at both ends. Keep the first index where each total appeared."),
             ),
         ]),
     ],

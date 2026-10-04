@@ -1,5 +1,5 @@
 """Lesson: Frequency counting (Arrays & Hashing, pattern 1)."""
-from lesson import M, Row, Steps, code, fig, key, lesson, py, quiz, table, walk
+from lesson import Bars, Grid, M, Row, Steps, code, fig, key, lesson, py, quiz, table, walk
 
 # ---------------------------------------------------------------- the code
 
@@ -263,6 +263,7 @@ EQUAL_PAIRS_RUN = {
 
 first_unique = py(FIRST_UNIQUE["python"], "first_unique")
 equal_pairs = py(EQUAL_PAIRS["python"], "equal_pairs")
+same_letters = py(SAME_LETTERS["python"], "same_letters")
 
 DEMO = [4, 7, 4, 9, 7, 2]
 TALLY = {}
@@ -270,22 +271,28 @@ for x in DEMO:
     TALLY[x] = TALLY.get(x, 0) + 1
 ANSWER = first_unique(DEMO)
 assert ANSWER == 9
+KEYS = list(TALLY)
+
+# How much work re-scanning does: for each element, a full pass.
+RESCAN = len(DEMO) * len(DEMO)
 
 # The walkthrough: tally pass, then the scan in input order.
-steps = Steps(f"`first_unique({DEMO})`: tally every value, then scan in the original order.")
-steps.step("Start with an empty table. Nothing has been counted yet.", Row(DEMO, slots=True), M({"count": "{ }"}))
+steps = Steps(f"`first_unique({DEMO})`. First we tally, then we walk the list again with the counts in hand.")
+steps.step("Nothing counted yet. The table is empty.", Row(DEMO, slots=True), Bars([0] * len(KEYS), labels=KEYS, label="count", top=2))
 seen = {}
 for i, x in enumerate(DEMO):
     seen[x] = seen.get(x, 0) + 1
-    what = "new, so it enters the table with 1" if seen[x] == 1 else f"already in the table, so its count goes up to {seen[x]}"
-    steps.step(f"Pass 1, index {i}: value {x} is {what}.", Row(DEMO, st={i: "active"}, ptr={"x": i}, slots=True), M(seen, "count"))
+    what = f"We haven't met {x} before, so it goes in with a count of 1." if seen[x] == 1 else f"We've met {x} before. Its count goes up to {seen[x]}."
+    steps.step(f"Index {i} holds {x}. {what}", Row(DEMO, st={i: "active"}, ptr={"x": i}, slots=True),
+               Bars([seen.get(k, 0) for k in KEYS], labels=KEYS, st={KEYS.index(x): "new"}, label="count", top=2))
 for i, x in enumerate(DEMO):
+    st_b = {KEYS.index(x): "answer" if TALLY[x] == 1 else "active"}
     if TALLY[x] == 1:
-        steps.step(f"Pass 2, index {i}: count[{x}] is 1. This is the first value, in input order, that appears exactly once: return {x}.",
-                   Row(DEMO, st={**{j: "dim" for j in range(i)}, i: "answer"}, ptr={"x": i}, slots=True), M(TALLY, "count"), result=x)
+        steps.step(f"Second pass, index {i}: {x} has a count of 1. Nothing before it qualified, so {x} is our answer.",
+                   Row(DEMO, st={**{j: "dim" for j in range(i)}, i: "answer"}, ptr={"x": i}, slots=True), Bars([TALLY[k] for k in KEYS], labels=KEYS, st=st_b, label="count", top=2), result=x)
         break
-    steps.step(f"Pass 2, index {i}: count[{x}] is {TALLY[x]}, so {x} repeats somewhere. Skip it.",
-               Row(DEMO, st={**{j: "dim" for j in range(i)}, i: "active"}, ptr={"x": i}, slots=True), M(TALLY, "count"))
+    steps.step(f"Second pass, index {i}: {x} has a count of {TALLY[x]}, so it repeats somewhere. Move on.",
+               Row(DEMO, st={**{j: "dim" for j in range(i)}, i: "active"}, ptr={"x": i}, slots=True), Bars([TALLY[k] for k in KEYS], labels=KEYS, st=st_b, label="count", top=2))
 
 trace_rows = []
 run = {}
@@ -294,31 +301,102 @@ for i, x in enumerate(DEMO):
     run[x] = before + 1
     trace_rows.append((str(i), str(x), str(before), str(run[x]), "{" + ", ".join(f"{k}: {v}" for k, v in run.items()) + "}"))
 
-# Linear probing into 8 slots with hash(k) = k mod 8, for the theory section.
+# Linear probing into 8 slots with hash(k) = k mod 8, step by step.
 PROBE_KEYS = [12, 5, 20, 13]
+probe = Steps("Inserting `12, 5, 20, 13` into 8 slots, using the toy hash `key mod 8`.")
 slots = [None] * 8
+probe.step("Eight empty slots. Each key's home slot is `key mod 8`.", Row(slots, slots=True, label="slots"))
 probe_rows = []
 for k in PROBE_KEYS:
     home = k % 8
     i, tried = home, []
     while slots[i] is not None:
-        tried.append(str(i))
+        tried.append(i)
         i = (i + 1) % 8
     slots[i] = k
-    probe_rows.append((str(k), f"{k} mod 8 = {home}", ", ".join(tried) if tried else "none", str(i)))
+    if tried:
+        msg = f"{k} mod 8 = {home}, but slot {home} is taken" + (f", and so is {', '.join(map(str, tried[1:]))}" if len(tried) > 1 else "") + f". It walks forward and settles in slot {i}."
+    else:
+        msg = f"{k} mod 8 = {home}. Slot {home} is free, so {k} goes straight in."
+    probe.step(msg, Row(list(slots), st={**{t: "dim" for t in tried}, i: "new"}, ptr={"home": home}, slots=True, label="slots"))
+    probe_rows.append((str(k), f"{k} mod 8 = {home}", ", ".join(map(str, tried)) if tried else "none", str(i)))
+probe.step("Looking up 13 later follows the same path: start at slot 5, step past 5 and 20, find 13 in slot 7. "
+           "Looking up 4 would start at slot 4 and keep walking until it hits an empty slot, which tells us 4 isn't there.",
+           Row(list(slots), st={5: "dim", 6: "dim", 7: "found"}, ptr={"home": 5}, slots=True, label="slots"))
 PROBE_FINAL = list(slots)
 
 PAIRS_DEMO = [3, 1, 3, 3, 1]
 pair_rows = []
+pairs_walk = Steps(f"`equal_pairs({PAIRS_DEMO})`: read how many copies came before, then add this one.")
 s_seen, total = {}, 0
+PK = sorted(set(PAIRS_DEMO))
+pairs_walk.step("No values seen yet, no pairs yet.", Row(PAIRS_DEMO, slots=True), Bars([0] * len(PK), labels=PK, label="seen", top=3), M({"pairs": 0}))
 for i, x in enumerate(PAIRS_DEMO):
     add = s_seen.get(x, 0)
     total += add
     s_seen[x] = add + 1
     pair_rows.append((str(i), str(x), str(add), str(total)))
+    earlier = [j for j in range(i) if PAIRS_DEMO[j] == x]
+    msg = (f"{x} has {add} earlier cop{'y' if add == 1 else 'ies'} (index {', '.join(map(str, earlier))}), so it makes {add} new pair{'s' if add != 1 else ''}. "
+           if add else f"No earlier {x}, so no new pairs. ") + f"Then seen[{x}] becomes {add + 1}."
+    pairs_walk.step(msg, Row(PAIRS_DEMO, st={**{j: "found" for j in earlier}, i: "active"}, ptr={"x": i}, slots=True),
+                    Bars([s_seen.get(k, 0) for k in PK], labels=PK, st={PK.index(x): "new"}, label="seen", top=3), M({"pairs": total}))
 assert total == equal_pairs(PAIRS_DEMO) == 4
 BIG = equal_pairs([7] * 100000)
 assert BIG == 100000 * 99999 // 2 > 2**31
+
+# Worked example: same letters, drawn as the +1 / -1 table.
+SA, SB = "dusty", "study"
+assert same_letters(SA, SB)
+LETTERS = sorted(set(SA + SB))
+diff = {c: 0 for c in LETTERS}
+for c in SA:
+    diff[c] += 1
+AFTER_A = [diff[c] for c in LETTERS]
+for c in SB:
+    diff[c] -= 1
+AFTER_B = [diff[c] for c in LETTERS]
+assert AFTER_B == [0] * len(LETTERS)
+NA, NB = "seen", "sene"
+nd = {}
+for c in NA:
+    nd[c] = nd.get(c, 0) + 1
+bad = None
+for c in NB:
+    nd[c] = nd.get(c, 0) - 1
+    if nd[c] < 0:
+        bad = c
+        break
+assert same_letters(NA, NB) and bad is None
+XA, XB = "aab", "abb"
+xd = {c: 0 for c in "ab"}
+for c in XA:
+    xd[c] += 1
+stop = None
+for c in XB:
+    xd[c] -= 1
+    if xd[c] < 0:
+        stop = c
+        break
+assert stop == "b" and not same_letters(XA, XB)
+
+# Worked example: most common rating.
+RATINGS = [4, 5, 4, 3, 5, 4, 2, 4, 5]
+RC = {r: RATINGS.count(r) for r in range(1, 6)}
+TOP = max(RC, key=lambda r: (RC[r], -r))
+assert TOP == 4 and RC[4] == 4
+
+# Worked example: first value whose second copy shows up earliest.
+REP = [3, 8, 1, 8, 3]
+seen_set, rep_rows, FIRST_REPEAT = [], [], None
+for i, x in enumerate(REP):
+    if x in seen_set:
+        rep_rows.append((str(i), str(x), "{" + ", ".join(map(str, seen_set)) + "}", "seen it: stop"))
+        FIRST_REPEAT = x
+        break
+    rep_rows.append((str(i), str(x), "{" + ", ".join(map(str, seen_set)) + "}" if seen_set else "{ }", "new: remember it"))
+    seen_set.append(x)
+assert FIRST_REPEAT == 8
 
 N = 10**5
 NAIVE = N * (N - 1) // 2
@@ -327,372 +405,406 @@ lesson(
     "arrays-hashing",
     "frequency-counting",
     """
-    Walk the input once and keep a tally per value. Every question of the form "how many times", "is there a
-    repeat", "which is most common" or "are these the same items in a different order" then becomes a table lookup
-    instead of another scan.
+    Read the input once and keep a running count for each value. After that, questions like "how many times does
+    this appear?", "is anything repeated?" or "are these two lists the same items shuffled?" stop needing another
+    scan. You just look the answer up.
     """,
     [
         ("idea", "The idea", [
             """
-            Picture an election count. Nobody re-reads the whole pile of ballots every time someone asks "how many
-            votes does Asha have?". The counter reads each ballot **once** and adds a mark next to the name on a tally
-            sheet. After that, any question about votes is answered by looking at the sheet.
+            Think about how votes get counted after a class election. The teacher doesn't reread the whole pile every
+            time someone asks how Asha is doing. They go through the ballots once, put a tick next to the name on each
+            one, and from then on any question about the result is answered by glancing at the ticks.
 
-            Frequency counting is exactly that, for arrays and strings:
-
-            1. **Tally pass.** Walk the input once. For each value `x`, add 1 to `count[x]`.
-            2. **Answer pass.** Read the answer off the table, or walk the input (or the table) a second time with the
-               counts in hand.
-
-            The table is the whole trick. Without it, "how many times does `x` appear?" costs a full scan, O(n), and
-            asking it for every element costs O(n²). With it, the same question costs O(1).
+            That's frequency counting. You walk through the array once, and every time you see a value `x` you add 1
+            to `count[x]`. Then you answer the question from that table, sometimes with a second walk through the
+            input.
             """,
-            fig(Row(DEMO, slots=True, label="input"), M(TALLY, "count after one pass"),
-                caption=f"One pass over `{DEMO}` builds the whole tally. Every value's count is now one lookup away."),
+            fig(Row(DEMO, slots=True, label="input"), Bars([TALLY[k] for k in KEYS], labels=KEYS, label="count after one pass"),
+                caption=f"One pass over `{DEMO}` and we know how often every value appears: two 4s, two 7s, one 9, one 2."),
+            f"""
+            Why bother? Without the table, "how many times does `x` appear?" means scanning the whole list. Ask it for
+            each of the `n` elements and you've done about `n × n` steps. For our six numbers that's {RESCAN} looks,
+            which is nothing. For 100,000 numbers it's ten billion, and your program sits there for minutes. With the
+            table, each of those questions costs one lookup.
+            """,
             key("""
-            Turn "how many times?" into a lookup: one O(n) pass builds `value → count`, and every later question about
-            counts costs O(1).
+            Count once, then look things up. One pass builds `value → count`, and every question about counts after
+            that is a single lookup instead of another scan.
             """),
             """
-            **What the table forgets, and why that's the point.** A count table keeps *which* values appear and *how
-            often*, and throws away *where* and *in what order*. Mathematicians call that a **multiset**. Many problems
-            secretly only care about the multiset: "can this word be rearranged into that one?", "can I build the sign
-            from these tiles?", "is there a duplicate?". For those, the order is noise and the table is the exact
-            information you need, in the smallest form.
+            It helps to notice what the table throws away. It keeps which values appear and how often, and forgets
+            where they were and in what order. A lot of problems only care about that much. "Can this word be
+            rearranged into that one?" doesn't care where the letters sit, only how many of each there are. For
+            questions like that, the table holds exactly the information you need and nothing else.
 
-            When the order *does* matter (the first value that appears once, the earliest repeat), keep the table for
-            the counts and use the original array for the order: that's what the second pass is for.
+            When order does matter, say you want the *first* value that appears once, you still build the table, but
+            you answer by walking the original array again. The table tells you the counts and the array tells you
+            the order.
             """,
         ]),
         ("signals", "When to reach for it", [
             """
-            Reach for a count table when the problem statement talks about **how often** rather than **where**:
+            The giveaway is a problem that's about *how often* something happens rather than *where*. Here are the
+            phrasings you'll keep running into:
             """,
             table(
-                ["The problem says…", "Count what", "Then"],
-                ["appears twice / any duplicate / all distinct", "each value (or just presence)", "stop at the first count of 2"],
-                ["most / least frequent, top k, majority", "each value", "rank the table's entries by count"],
-                ["rearrange, anagram, permutation, same characters", "each character in both strings", "compare the two tables"],
-                ["can A be built / spelled / paid from B", "what B offers", "spend it while walking A; fail below 0"],
-                ["first / last unique, appears exactly k times", "each value", "second pass in input order"],
-                ["number of equal pairs, how many share a value", "each value as you go", "add the count before incrementing"],
+                ["If the problem says…", "count this", "and then"],
+                ["any duplicate / all distinct", "each value (or just whether you've seen it)", "stop at the first repeat"],
+                ["most / least frequent, top k, majority", "each value", "pick the entries with the biggest counts"],
+                ["anagram, rearrangement, permutation", "each character, in both strings", "check the counts match"],
+                ["can A be made from B", "what B has to offer", "use it up while walking A; fail if anything runs out"],
+                ["first / last unique, appears exactly k times", "each value", "walk the input again in order"],
+                ["number of equal pairs", "each value as you go", "add the count before bumping it"],
             ),
             """
-            **Quick self-test.** If you could shuffle the input and the answer would not change (or would only change in
-            an order-dependent tie-break), counting is very likely part of the solution.
+            A quick test I like: imagine shuffling the input. If the answer wouldn't change (apart from maybe a
+            tie-break), counting is almost certainly part of the solution.
 
-            **When it is the wrong tool**
-
-            - **The position or order is the question**, as in "is `a` a subsequence of `b`?" A count table can't see
-              order. That's two pointers.
-            - **The counts are needed for every window of a fixed or moving size.** You still count, but you update
-              the table as the window slides instead of recounting. That's the Sliding Window topic, built on this one.
-            - **The value range is huge and you only need sorted order.** Sometimes sorting and reading off runs of
-              equal values is simpler and uses O(1) extra memory (see *Sort then scan*).
+            It's the wrong tool when position is the whole point. "Is `abc` a subsequence of `aXbYc`?" depends on
+            order, and a count table can't see order, so that one's two pointers. If you need counts for every window
+            of a moving range, you'll still count, but you'll update the table as the window slides instead of
+            starting over (that's the Sliding Window topic). And sometimes sorting the array and reading off runs of
+            equal values is simpler and needs no extra memory at all.
             """,
         ]),
         ("theory", "How the table works", [
             """
-            Every counting solution makes one decision: **what is the table?** There are two answers, and knowing how
-            each works tells you when it's safe and what it costs.
+            Every counting solution makes one choice up front: what is the table? You've got two options, and it's
+            worth understanding both, because they fail in different ways.
 
-            **1. A plain array (direct addressing).** If every value is an integer in a small known range `lo..hi`,
-            use an array of size `R = hi - lo + 1` and store the count of `v` at index `v - lo`. Lowercase letters
-            map to `ch - 'a'` (R = 26), ASCII characters to their code (R = 128), ratings 1..5 to `v - 1`.
+            ### Option 1: a plain array
 
-            - Every update and lookup is **one memory access, worst case O(1)**. No hashing, no collisions.
-            - The array costs O(R) memory and O(R) time to create (and to scan or compare). That's free when R is 26,
-              and impossible when values go up to 10⁹.
-            - Negative values need the offset `v - lo`; forgetting it is the classic out-of-bounds bug.
+            If the values are small whole numbers in a known range, use an array and let the value be the index. For
+            lowercase letters, `ch - 'a'` turns `'a'..'z'` into `0..25`, so 26 slots cover everything. Ratings from 1
+            to 5 fit in 5 (or 6) slots. Every update is one memory access, guaranteed. No hashing, no surprises.
+
+            The catch is the range. An array of 26 is free. An array big enough for values up to a billion is not. And
+            if values can be negative you need to shift them first (`count[v - lowest]`), or you'll index outside the
+            array.
+
+            ### Option 2: a hash map
+
+            When values are huge, negative, or not numbers at all (words, pairs), you want a hash map. It only stores
+            the keys that actually show up. Underneath, though, it's still an array of slots. A **hash function** turns
+            each key into a number, and that number (mod the number of slots) says which slot the key should live in.
+
+            Two different keys can want the same slot. That's a **collision**, and one common fix is to just walk
+            forward to the next free slot. This is called linear probing, and it's what Python's dict does (in a
+            fancier form) and what our C code below does. Step through it:
             """,
+            walk(probe),
+            table(["key", "home slot", "already taken", "ends up in"], *probe_rows),
             """
-            **2. A hash map.** When values are large, sparse, negative or not integers at all (strings, tuples), a hash
-            map stores only the keys that actually occur. Inside, it is still an array of **slots**:
+            The table can't be allowed to fill up, or those walks get long. So it tracks how full it is (the **load
+            factor**, keys divided by slots) and when that passes a limit it doubles in size and re-inserts everything.
+            Java's HashMap does this at 75% full, Python's dict at about two thirds, C++'s `unordered_map` at 100% by
+            default.
 
-            1. A **hash function** turns the key into a big integer, and `hash mod capacity` picks a home slot.
-            2. Two different keys can land on the same slot: a **collision**. *Chaining* keeps a small list per slot;
-               *open addressing* (used by Python's dict and by the C code below) walks to the next free slot.
-            3. The **load factor** α = keys / slots measures how full it is. Lookups stay short while α is bounded,
-               so the table **grows (usually doubles) and re-inserts everything** when α passes a threshold: about
-               0.75 for Java's HashMap, 2/3 for Python's dict, 1.0 by default for C++'s `unordered_map`.
-            """,
-            f"Here is open addressing with linear probing, inserting `{PROBE_KEYS}` into 8 slots with the toy hash `key mod 8`:",
-            table(["key", "home slot", "slots already taken", "lands in"], *probe_rows),
-            fig(Row(PROBE_FINAL, st={i: "new" for i, v in enumerate(PROBE_FINAL) if v is not None}, slots=True, label="slots after inserting"),
-                caption="Collisions push keys to the next free slot. A lookup follows the same path and stops at the key or at an empty slot."),
-            """
-            **Why "O(1)" is an *expected* cost.** With a hash function that spreads keys well and α kept below a
-            constant, the expected number of slots a lookup inspects is a small constant (about `1 + α` with chaining).
-            That's where "O(1) average" comes from. Two honest caveats:
+            ### So is it really O(1)?
 
-            - **Worst case is O(n) per operation.** If many keys share a home slot (a weak hash, or inputs crafted
-              against a known hash), every lookup walks a long chain. Java turns long chains into balanced trees
-              (O(log n)); C++'s `unordered_map` does not, which is why competitive programmers sometimes add a random
-              salt to the hash.
-            - **Growing is occasionally expensive, but cheap on average.** A resize re-inserts every key, O(n). But
-              doubling means resizes happen at sizes 8, 16, 32, …, n, and those costs add up to less than 2n in total.
-              Spread over n insertions, that is O(1) **amortised** per insertion.
+            On average, yes. With a decent hash function and the table kept from getting too full, a lookup touches a
+            small, constant number of slots. That's what people mean by "O(1) expected".
 
-            **What a hash map does not give you:** any useful order. Iterating over a hash map visits keys in slot
-            order, which depends on hashes and history. Python's dict happens to remember insertion order; Java's
-            HashMap and C++'s `unordered_map` do not. If the answer needs an order (by value, by count, by first
-            appearance), impose it yourself: sort the entries, or walk the original array.
+            Two caveats are worth knowing, because interviewers like asking about them. First, the worst case is bad: if
+            lots of keys land on the same slot, a lookup can walk past all of them, which is O(n). That can happen by
+            bad luck, or on purpose if someone builds inputs against a known hash function. (Java switches long chains
+            into trees to soften this; C++ doesn't.) Second, the doubling is expensive when it happens, because every
+            key moves. But it happens at sizes 8, 16, 32, 64… and all those moves add up to less than twice the final
+            size. Spread over every insertion, that's still O(1) each. This is called **amortised** cost.
+
+            One more thing a hash map doesn't give you is order. Iterating over it visits keys in whatever order the
+            slots happen to be in. Python's dict remembers insertion order as a bonus; Java's HashMap and C++'s
+            `unordered_map` don't. If your answer needs an order, sort the entries or walk the original array.
             """,
             table(
-                ["", "Array (direct addressing)", "Hash map"],
-                ["Keys allowed", "small integer range lo..hi", "anything hashable"],
-                ["Update / lookup", "O(1) worst case", "O(1) expected, O(n) worst"],
-                ["Memory", "O(R), even for absent values", "O(distinct keys), with a constant factor"],
-                ["Order of keys", "by value, for free", "none you can rely on"],
-                ["Use it for", "letters, digits, small ids", "big or negative numbers, strings, tuples"],
+                ["", "Plain array", "Hash map"],
+                ["Works for", "small whole numbers in a known range", "anything you can hash"],
+                ["Each update", "O(1), always", "O(1) on average, O(n) worst case"],
+                ["Memory", "one slot per possible value", "roughly one slot per value that appears"],
+                ["Order", "by value, for free", "none you can rely on"],
+                ["Good for", "letters, digits, small ids", "big or negative numbers, strings, tuples"],
             ),
             """
-            **One invariant to lean on.** After the tally pass, the counts add up to exactly `n`, and the number of
-            keys is at most `min(n, R)`. Two consequences show up all the time:
+            ### A fact you'll use a lot
 
-            - If two strings have the same length and you add 1 per character of one and subtract 1 per character of
-              the other, the table sums to 0. So **if no entry ever goes negative, every entry is exactly 0**, and the
-              strings are rearrangements of each other. You don't need a final scan for positive leftovers.
-            - A count can never exceed `n`, which bounds things like "bucket by frequency": the buckets are 1..n.
+            After the tally, the counts add up to `n`, the length of the input. That sounds obvious, but it's handy.
+            Say two strings have the same length and you add 1 for every letter of the first and subtract 1 for every
+            letter of the second. When you're done, the table adds up to zero. So if nothing ever went below zero,
+            nothing can be above zero either, and every count is exactly zero. You'll see this used in the
+            *same letters* code below, where it saves a final check.
             """,
         ]),
         ("template", "The template", [
             """
-            The template is two passes over the same array: **tally**, then **use the tally**. The example below returns
-            the first value (in input order) that appears exactly once, or `-1` if every value repeats. It's small, but
-            it has every part: the table, the tally loop, and a second pass that reads counts while keeping the input's
-            order.
+            Almost every counting solution has the same two parts: build the table, then use it. Here's a small but
+            complete example. It returns the first value in the list that appears exactly once, or `-1` if every value
+            repeats.
             """,
             code(
                 "First value that appears once",
                 FIRST_UNIQUE,
                 [
-                    ("make", "Create the empty table. In Python a dict, in Java a `HashMap`, in C++ an `unordered_map`. "
-                             "The values here can be any integers, so a plain array won't do.",
-                     {"c": "C has no hash map, so `cm_new` (above) builds one: an array of slots sized to at least twice the input, which keeps the load factor at or below 1/2."}),
-                    ("reserve", "Reserving room for twice as many entries as there are values means the table never "
-                                "has to grow mid-loop. It's an optimisation, not a requirement."),
-                    ("tally", "**Pass 1, the tally.** One update per element: increment `x`'s count, creating it at 0 the "
-                              "first time.",
-                     {"python": "`count.get(x, 0)` returns 0 for a key that isn't there yet, so new and old keys take the same path.",
-                      "java": "`merge(x, 1, Integer::sum)` puts 1 for a new key and otherwise adds 1 to the old value.",
-                      "cpp": "`count[x]` inserts `x` with value 0 if it's missing, then `++` makes it 1. Handy for tallying, a trap for reading (see *Pitfalls*).",
-                      "c": "`cm_add` finds the key's slot (or the empty slot where it belongs), marks it used and increments its count."}),
-                    ("scan", "**Pass 2, in input order.** Walk the original array again, not the table. The table "
-                             "doesn't remember order; the array does, which is how we find the *first* unique value."),
-                    ("hit", "The first `x` whose count is exactly 1 is the answer. Every value before it has a count of 2 "
-                            "or more, so none of them qualifies."),
-                    ("none", "Every value repeats. `-1` is a sentinel that works when values are known to be "
-                             "non-negative; otherwise return a flag or an optional instead."),
-                    ("struct", "The table's storage: parallel arrays of keys and counts, a `used` flag per slot, and "
-                               "`mask = capacity - 1` (capacity is a power of two, so `& mask` is a fast `mod`)."),
-                    ("cap", "Pick a power of two at least twice the number of values. With at most n keys in 2n slots, the "
-                            "load factor stays at or below 1/2, so probe chains stay short."),
-                    ("alloc", "`calloc` zeroes the counts and the `used` flags; the keys array needs no zeroing because a "
-                              "slot's key is only read when its `used` flag is set."),
-                    ("hash", "Multiplicative hashing: multiply by a large odd constant (close to 2³² divided by the golden "
-                             "ratio) and keep the low bits. It scatters nearby keys like 1, 2, 3 across the table."),
-                    ("probe", "**Linear probing.** Walk forward until we find the key or an empty slot. The empty slot is "
-                              "where the key would go, so the same function serves both lookup and insert."),
-                    ("add", "Find the slot, claim it, store the key, bump the count."),
-                    ("get", "A key that was never inserted ends at an empty slot, so its count is 0."),
-                    ("free", "Release the three arrays. In C, the table's memory is yours to give back."),
+                    ("make", "An empty table. The values can be any integers, so we use a hash map rather than an array.",
+                     {"c": "C doesn't come with a hash map, so `cm_new` (above) builds a small one: an array of slots at least twice as big as the input, so it never gets more than half full."}),
+                    ("reserve", "This tells the map how big it'll get, so it doesn't have to stop and grow halfway "
+                                "through. Nice to have, not required."),
+                    ("tally", "The first pass. Each value bumps its own count, starting from 0 the first time we see it.",
+                     {"python": "`count.get(x, 0)` gives 0 for a key that isn't there yet, so new and old keys are handled the same way.",
+                      "java": "`merge(x, 1, Integer::sum)` stores 1 for a new key and adds 1 to an existing one.",
+                      "cpp": "`count[x]` quietly creates `x` with a value of 0 if it's missing, then `++` makes it 1. Convenient here, but watch out when you only want to read (see *Pitfalls*).",
+                      "c": "`cm_add` finds the key's slot, or the empty slot where it should go, marks it used and bumps its count."}),
+                    ("scan", "The second pass goes over the original array, not the table. The table doesn't know the "
+                             "order things came in; the array does."),
+                    ("hit", "The first value with a count of 1 is the answer. Everything before it had a count of 2 or "
+                            "more."),
+                    ("none", "Nothing appeared exactly once. Returning `-1` only works if real values can't be `-1`; "
+                             "otherwise return something like `None` or a flag."),
+                    ("struct", "The table's storage: keys and counts side by side, a `used` flag for each slot, and a "
+                               "`mask`. The slot count is a power of two, so `& mask` does the same job as `% size`, "
+                               "only faster."),
+                    ("cap", "Pick a power of two that's at least twice the number of values, so the table stays at most "
+                            "half full and probe walks stay short."),
+                    ("alloc", "`calloc` starts the counts and `used` flags at zero. The keys don't need zeroing, because "
+                              "we only read a slot's key after checking that it's used."),
+                    ("hash", "Multiply by a big odd number and keep the low bits. This spreads nearby keys like 1, 2, 3 "
+                             "far apart in the table."),
+                    ("probe", "Walk forward until we find the key or hit an empty slot. If we hit an empty slot, that's "
+                              "where the key would go, so the same walk works for both looking up and inserting."),
+                    ("add", "Find the slot, claim it, write the key, bump the count."),
+                    ("get", "A key that was never added ends at an empty slot, so its count is 0."),
+                    ("free", "In C you give memory back yourself."),
                 ],
                 FIRST_UNIQUE_RUN,
                 "first_unique([4, 7, 4, 9, 7, 2]); first_unique([5, 5])",
             ),
             """
-            **The shape to remember** is the two loops: build, then query. Most frequency problems differ only in the
-            second loop: compare two tables, find the max, bucket by count, or stop at a threshold.
+            If you remember one shape from this lesson, make it those two loops. Most counting problems only change
+            what the second loop does: compare two tables, find the biggest count, or stop as soon as something runs
+            out.
             """,
         ]),
         ("trace", "Trace it by hand", [
             f"""
-            Step through `first_unique({DEMO})`. Watch the table fill during pass 1, then watch pass 2 use it. Notice
-            that pass 2 never asks "how many 4s are there?" by scanning; it reads `count[4]` directly.
+            Here's `first_unique({DEMO})` one step at a time. Watch the bars grow during the first pass. Then notice
+            that the second pass never counts anything. It just reads the bar.
             """,
             walk(steps),
-            "The same tally as a table. Each row is one iteration of pass 1:",
-            table(["i", "x", "count[x] before", "count[x] after", "table after the step"], *trace_rows),
+            "The same first pass written out as a table:",
+            table(["i", "x", "count before", "count after", "table so far"], *trace_rows),
             f"""
-            Pass 2 then checks `count[4] = {TALLY[4]}` (skip), `count[7] = {TALLY[7]}` (skip), `count[9] = {TALLY[9]}`:
-            the answer is **{ANSWER}**. Note that `2` is also unique, but it comes later in the input, and the table on
-            its own could not have told us which unique value comes first.
+            In the second pass, 4 has a count of {TALLY[4]} (skip), 7 has {TALLY[7]} (skip), and 9 has {TALLY[9]}, so
+            the answer is **{ANSWER}**. The 2 at the end also appears once, but it comes later. The table alone
+            couldn't have told us which of the two comes first, which is exactly why the second pass walks the array.
+            """,
+        ]),
+        ("examples", "More examples", [
+            f"""
+            ### Is `"{SB}"` a rearrangement of `"{SA}"`?
+
+            Same length, so it's possible. Add 1 for each letter of `"{SA}"`, then take 1 away for each letter of
+            `"{SB}"`. If they hold the same letters, everything cancels:
+            """,
+            fig(Bars(AFTER_A, labels=LETTERS, label=f'after "{SA}"', height=48),
+                Bars(AFTER_B, labels=LETTERS, label=f'after "{SB}"', height=48),
+                caption="Every letter of the first word went up by one, and the second word took each one back down. All zeros: yes."),
+            f"""
+            Now try `"{XA}"` and `"{XB}"`. After the first word, `a` is at 2 and `b` is at 1. The second word takes
+            `a` down to 1, then `b` to 0, then wants another `b`, and the count drops to -1. We can stop right there:
+            the second word uses `b` more often than the first one has it.
+
+            ### What's the most common rating?
+
+            The ratings are `{RATINGS}`. Ratings only go from 1 to 5, so an array of five counters does the job:
+            """,
+            fig(Bars([RC[r] for r in range(1, 6)], labels=range(1, 6), st={TOP - 1: "answer"}, label="how many of each rating"),
+                caption=f"Rating {TOP} shows up {RC[TOP]} times, more than any other."),
+            f"""
+            If two ratings tied, you'd need a rule for which one wins (the problem will usually tell you, like "the
+            smaller one"). Write that rule into your comparison instead of hoping the table's order matches it.
+
+            ### Which value repeats first?
+
+            In `{REP}`, which value is the first to show up a second time? You don't need counts at all here, just
+            "have I seen this before?", so a set is enough. And you can stop as soon as you get a hit:
+            """,
+            table(["i", "x", "seen so far", "what happens"], *rep_rows),
+            f"""
+            The answer is {FIRST_REPEAT}. Notice that 3 also repeats, and it appeared first, but its second copy comes
+            later. Reading the question carefully decides which loop you write.
             """,
         ]),
         ("variations", "Variations", [
             """
-            ### Fixed alphabet: an array instead of a map
+            ### Small alphabets: use an array
 
-            When keys are lowercase letters, a 26-slot array beats a hash map: no hashing, no allocation per key,
-            worst-case O(1). The function below asks whether `b` is a rearrangement of `a`. It uses **one** table:
-            +1 for each letter of `a`, −1 for each letter of `b`.
+            When the values are lowercase letters, 26 counters beat a hash map. There's no hashing, nothing to
+            allocate per key, and every step costs the same. Here's the rearrangement check from the examples, written
+            with a single table: up for each letter of `a`, down for each letter of `b`.
             """,
             code(
                 "Same letters, different order",
                 SAME_LETTERS,
                 [
-                    ("len", "Different lengths can never be rearrangements. This check also makes the early exit "
-                            "below correct (see the invariant in *How the table works*)."),
-                    ("make", "26 counters, one per letter, all 0. `ch - 'a'` maps `'a'..'z'` to `0..25`."),
-                    ("up", "Count every letter of `a` up."),
-                    ("down", "Spend letters of `b` against those counts."),
-                    ("neg", "A count below zero means `b` uses some letter more often than `a` has it. Stop now."),
-                    ("ok", "Same length, and no count ever went negative. The counts add up to 0 and none is negative, "
-                           "so all of them are 0: the two strings hold the same letters the same number of times."),
+                    ("len", "If the lengths differ, one string has a letter the other doesn't. This check also makes "
+                            "the early exit below safe, for the reason in *How the table works*."),
+                    ("make", "26 counters, one for each letter, all starting at 0."),
+                    ("up", "Count every letter of `a`."),
+                    ("down", "Use those letters up while reading `b`."),
+                    ("neg", "If a count drops below zero, `b` used some letter more times than `a` had it. We can stop "
+                            "right away."),
+                    ("ok", "Same length and nothing went negative. The counts add up to zero and none is negative, so "
+                           "they're all zero, which means the letters match exactly."),
                 ],
                 SAME_LETTERS_RUN,
                 'same_letters("listen", "silent"), ("table", "bleat"), ("loop", "polo"), ("eel", "lee"), ("seen", "sene"), ("aab", "abb")',
             ),
             """
-            ### Count while you scan: equal pairs
+            ### Counting as you go: pairs of equal values
 
-            How many pairs of positions `i < j` hold equal values? You could count everything first and then add
-            `c · (c − 1) / 2` for each count `c` (choose 2 of the `c` copies). There is a neater one-pass form that
-            reappears in later patterns:
+            How many pairs of positions `i < j` hold the same value? One way is to count everything first and then use
+            a bit of maths: a value that appears `c` times can be paired up in `c × (c - 1) / 2` ways. There's a neater
+            way that does it in the same pass, and you'll see it again in the next two lessons:
 
-            > When you reach `x`, every earlier copy of `x` forms a new pair with it. So **add `seen[x]` first, then
-            > increment it.**
+            > When you reach `x`, every earlier copy of `x` makes a new pair with it. So add `seen[x]` to the answer
+            > first, and only then add 1 to `seen[x]`.
 
-            The order of those two lines is the whole correctness argument. Read first, and `x` pairs only with copies
-            strictly before it (so `i < j`, and nothing pairs with itself). Increment first, and every element pairs
-            with itself.
+            Those two lines have to be in that order. Read first, and `x` only pairs with copies that came before it,
+            so each pair is counted once and nothing pairs with itself. Swap them, and every element also pairs with
+            itself, so you'd be off by `n`.
             """,
+            walk(pairs_walk),
             code(
                 "Pairs of equal values (values 0..100)",
                 EQUAL_PAIRS,
                 [
-                    ("make", "Values are known to be in 0..100, so an array of 101 counters is the table. The total "
-                             "needs 64 bits (see the second example run)."),
+                    ("make", "The values are between 0 and 100, so 101 counters are enough. The total gets a 64-bit "
+                             "type, because there can be a lot of pairs (look at the second example run)."),
                     ("loop", "One pass, left to right."),
-                    ("read", "**Read before write.** `seen[x]` copies of `x` came earlier; `x` forms a pair with each."),
-                    ("write", "Now count this copy, so later copies pair with it too."),
-                    ("ret", "Every pair `(i, j)` with `i < j` was counted exactly once: at `j`, when `i` was already in the table."),
+                    ("read", "Read before you write. `seen[x]` copies of `x` came earlier, and each one pairs with this `x`."),
+                    ("write", "Now count this copy too, so later copies can pair with it."),
+                    ("ret", "Every pair got counted exactly once, at the moment we reached its second element."),
                 ],
                 EQUAL_PAIRS_RUN,
                 "equal_pairs([3, 1, 3, 3, 1]); equal_pairs([7] * 100000)",
             ),
-            f"For `{PAIRS_DEMO}`:",
-            table(["i", "x", "pairs added (seen[x] before)", "running total"], *pair_rows),
             f"""
-            The second run is 100,000 copies of one value: {BIG:,} pairs, more than a 32-bit `int` can hold
-            (2,147,483,647). That's why the total is a `long`.
+            The second run is 100,000 copies of the same number. That's {BIG:,} pairs, which doesn't fit in a 32-bit
+            `int` (the limit is 2,147,483,647). That's why the total is a `long`.
 
-            ### Spend-down: can A be paid from B?
+            ### Spending down: can A be paid for out of B?
 
-            Count what the *supply* offers, then walk the *demand* and decrement. The first count to drop below 0 is
-            a shortfall, and you can stop there. The *same letters* code above is this idea plus a length check. Use it
-            for "build a word from tiles", "pay with these coins", "cover these requirements".
+            Count what you have, then walk through what you need and subtract. The first count that goes negative is
+            the thing you're short of. The rearrangement check above is exactly this, plus a length check. The same
+            idea answers "can I build this word from these tiles?" or "do these coins cover the bill?".
 
-            ### Rank by count: most common first, top k
+            ### Ranking by count: most common first, top k
 
-            Tally, then order the distinct values by count:
+            Build the table, then put the distinct values in order of their counts. The simple way is to sort the
+            entries by count (biggest first), breaking ties however the problem says. That costs O(n + d log d) for `d`
+            distinct values.
 
-            - **Sort the entries** by `(−count, tie-break)`: O(n + d log d) for `d` distinct values. Simple, and the
-              usual choice.
-            - **Bucket by count:** a count is between 1 and n, so make n + 1 buckets and drop each value into
-              `bucket[count]`. Reading buckets from high to low gives values from most to least frequent in O(n + d),
-              no comparison sort. Ties inside a bucket still need the problem's tie-break.
-            - **A heap of size k** keeps only the k best while scanning the entries: O(d log k), handy when k is tiny.
+            There's a cute trick when you want to avoid sorting. A count can only be between 1 and `n`, so make `n + 1`
+            buckets and drop each value into `bucket[count]`. Reading the buckets from the top down gives you values
+            from most to least common in O(n). You still need the tie-break rule inside each bucket. And if you only
+            need the top few, a small heap that keeps the best `k` while you scan works well too.
 
-            ### Presence only: a set
+            ### Just "seen or not": a set
 
-            If you only need "seen or not" (duplicates, distinctness), a hash set is a count table with counts capped
-            at 1. It saves memory and states the intent. The early exit (stop at the first repeat) often matters more
-            than the asymptotics.
+            For "is there a duplicate?" or "are all of these different?", you don't need counts, only whether you've
+            met a value before. A set says that directly, uses less memory, and lets you stop at the first repeat,
+            which on real data often means you barely scan anything.
             """,
         ]),
         ("complexity", "What it costs", [
             f"""
-            Let `n` be the input length, `d` the number of distinct values and `R` the size of the value range.
+            Let's say the input has `n` values, `d` of them distinct, and (for the array version) the values range over
+            `R` possibilities.
 
-            **Time.** The tally pass does `n` table updates. With an array, each is one memory access, so it's O(n)
-            worst case, plus O(R) to create the array. With a hash map, each is O(1) expected, so O(n) expected in
-            total, and O(n) amortised once resizing is included. The second pass is another O(n) (over the array) or
-            O(d) (over the table). Two passes are still O(n): constants don't change the class.
+            The first pass does `n` updates. With an array each one is a single memory access, so that's O(n), plus
+            O(R) to set the array up. With a hash map each update is O(1) on average, so O(n) on average overall, even
+            counting the occasional resize. The second pass is another O(n) over the array, or O(d) over the table.
+            Two passes are still O(n); constants don't change the big picture.
 
-            **Space.** O(R) for the array, O(d) for a map, where `d ≤ n`.
+            Memory is O(R) for the array or O(d) for the map, and `d` can't be bigger than `n`.
 
-            **Compared with re-scanning.** Counting by re-scanning asks, for each element, "how many times does this
-            appear?", which compares every pair: for n = 10⁵ that's {NAIVE:,} comparisons against about
-            {2 * N:,} table operations. That's the difference between minutes and milliseconds.
+            The contrast with re-scanning is the whole reason this pattern exists. Comparing every pair of elements for
+            `n = 100,000` is {NAIVE:,} comparisons. Counting is about {2 * N:,} table operations.
             """,
             table(
                 ["Method", "Time", "Extra space", "Notes"],
                 ["Re-scan for every element", "O(n²)", "O(1)", "only for tiny inputs"],
-                ["Sort, then count runs of equal values", "O(n log n)", "O(1) to O(n)", "changes the input order"],
-                ["Array tally (range R)", "O(n + R)", "O(R)", "worst-case guarantees"],
-                ["Hash map tally", "O(n) expected", "O(d)", "any key type"],
+                ["Sort, then count runs of equal values", "O(n log n)", "O(1) to O(n)", "reorders the input"],
+                ["Array tally (range R)", "O(n + R)", "O(R)", "guaranteed speed"],
+                ["Hash map tally", "O(n) on average", "O(d)", "any kind of key"],
             ),
         ]),
         ("languages", "In your language", [
             """
-            **Python**
+            ### Python
 
-            - `count[x] = count.get(x, 0) + 1` works everywhere. `collections.Counter(nums)` does the whole tally in
-              one call and returns 0 for missing keys instead of raising.
-            - `Counter.most_common(k)` gives the k largest counts; ties come out in first-seen order, so don't rely on
-              it when the problem defines its own tie-break.
-            - `Counter` subtraction (`a - b`) silently drops counts that fall to 0 or below. Great for "what's left",
-              wrong if you need to detect a shortfall.
-            - For letters, `[0] * 26` with `ord(ch) - ord('a')` is faster than a dict in tight loops.
+            `count[x] = count.get(x, 0) + 1` works everywhere. `collections.Counter(nums)` does the whole tally in one
+            call and returns 0 for keys it hasn't seen instead of raising an error. `Counter.most_common(k)` hands you
+            the top `k`, but its ties come out in first-seen order, so don't lean on it if the problem has its own
+            tie-break rule. Also, `Counter` subtraction (`a - b`) quietly throws away anything that drops to zero or
+            below, which is great for "what's left over" and wrong for "did anything run out". For letters in a tight
+            loop, `[0] * 26` with `ord(ch) - ord('a')` is faster than a dict.
 
-            **Java**
+            ### Java
 
-            - `map.merge(x, 1, Integer::sum)` or `map.put(x, map.getOrDefault(x, 0) + 1)`.
-            - `HashMap<Integer, Integer>` boxes every key and count into objects. For small ranges, an `int[]` is
-              several times faster and far smaller.
-            - Comparing two `Integer` values with `==` compares object identity, which only happens to work for -128..127.
-              Use `.equals`, or compare against an `int` so it unboxes (as the template does).
-            - `TreeMap` keeps keys sorted, at O(log n) per operation.
+            `map.merge(x, 1, Integer::sum)` or `map.put(x, map.getOrDefault(x, 0) + 1)`. A `HashMap<Integer, Integer>`
+            wraps every key and count in an object, so for small ranges a plain `int[]` is much faster and smaller.
+            Watch out for comparing two `Integer`s with `==`: it compares the objects, not the numbers, and only
+            happens to work for values between -128 and 127. Use `.equals`, or compare with an `int` so Java unboxes
+            it, like the template does. If you need keys in sorted order, `TreeMap` keeps them that way at O(log n)
+            per operation.
 
-            **C++**
+            ### C++
 
-            - `count[x]++` on an `unordered_map` inserts `x` with 0 when missing, then increments.
-            - **Reading with `[]` also inserts.** `if (count[y] == 0)` adds `y` to the map. To only look, use
-              `count.find(y)` or `count.count(y)` (C++20: `contains`).
-            - `reserve(n)` up front avoids rehashing. `std::map` is the sorted, O(log n) alternative.
-            - For letters: `int cnt[26] = {0};` or `array<int, 26>{}`.
+            `count[x]++` on an `unordered_map` creates `x` at 0 if it's missing, then increments. That's handy for
+            counting and a trap for reading: `if (count[y] == 0)` silently adds `y` to the map. To look without
+            touching, use `count.find(y)` or `count.count(y)` (or `contains` in C++20). Call `reserve(n)` up front to
+            avoid rehashing. For letters, `int cnt[26] = {0};` or `array<int, 26>{}`.
 
-            **C**
+            ### C
 
-            - Small ranges: `int cnt[26] = {0};` (zero-initialised), or `calloc(R, sizeof(int))` for a range known at
-              run time.
-            - Arbitrary integers: there is no standard hash map. The open-addressing table in the template (about 25
-              lines) is a solid default; sorting with `qsort` and counting runs is the other common route.
-            - `char` may be signed: index with `(unsigned char)ch` when the input can contain bytes above 127.
+            For small ranges, `int cnt[26] = {0};` or `calloc(R, sizeof(int))` when the range is only known at run
+            time. For arbitrary integers there's no built-in map, so either use the little open-addressing table from
+            the template or sort with `qsort` and count runs of equal values. One gotcha: `char` can be signed, so
+            cast to `unsigned char` before using it as an index if the input might contain bytes above 127.
             """,
         ]),
         ("pitfalls", "Pitfalls and edge cases", [
             """
-            - **Wrong offset.** `ch - 'a'` assumes lowercase letters. Uppercase, digits or spaces index out of bounds.
-              Check the constraints, or size the table for all of ASCII (128).
-            - **Negative values in an array table.** Shift by the minimum: `cnt[v - lo]`.
-            - **Reading creates entries.** C++'s `map[key]` (and Python's `defaultdict` on read) inserts missing keys.
-              That can grow the table, break a later `size()` check, or change iteration while you're iterating.
-            - **Relying on map order.** Iterating a hash map is not "in order of first appearance" (except Python's
-              dict) and not "sorted". When ties matter, sort explicitly with the stated tie-break.
-            - **Overflowing counts of pairs.** `c · (c − 1) / 2` for c = 10⁵ is about 5 · 10⁹. Use 64-bit totals.
-            - **Comparing tables of different alphabets.** Two maps can be equal in every key they share and still
-              differ because one has an extra key. Comparing sizes first, or using one table with +1/−1, avoids that.
-            - **Forgetting the early exit.** For "any duplicate?" or "can we pay?", stop at the first repeat or the first
-              shortfall. Same O(n) worst case, much faster on typical inputs.
-            - **Empty input and single elements.** One element has no duplicates and no pairs; make sure your loops
-              and sentinels handle `n = 0` and `n = 1`.
+            Most bugs in counting code come from a handful of places:
+
+            - `ch - 'a'` assumes lowercase letters. One capital letter, digit or space and you're indexing outside the
+              array. Check the constraints, or size the table for all 128 ASCII characters.
+            - Negative values in an array table need shifting: `cnt[v - lowest]`.
+            - Reading can create entries. C++'s `map[key]` (and Python's `defaultdict`) insert missing keys when you
+              read them. That can make the table grow, break a later size check, or change it while you're looping
+              over it.
+            - Don't rely on the order a hash map gives you. When ties matter, sort with the rule the problem gives.
+            - Pair counts get big fast. `c × (c - 1) / 2` for `c = 100,000` is about five billion, which needs 64 bits.
+            - When comparing two separate tables, one can have a key the other doesn't. Compare sizes too, or use a
+              single table with +1 and -1 like the template does.
+            - For "is there a duplicate?" or "can we afford it?", stop as soon as you know. Same worst case, much
+              faster on real inputs.
+            - Try your code on an empty list and on a single element. One element has no duplicates and no pairs.
             """,
         ]),
         ("check", "Check yourself", [
             quiz(
-                ("Values are ids up to 10⁹, and you need to know whether any id repeats. Array or hash set, and why?",
-                 "A hash set. An array indexed by id would need 10⁹ slots. A set stores only the ids that occur, with O(1) expected per check, and you can stop at the first id already in the set."),
-                ("Why does *same letters* return true without scanning the table for leftover positive counts?",
-                 "The lengths are equal, so after both loops the counts add up to 0. If none went negative, a positive entry would force a negative one somewhere to keep the sum at 0. So every entry is 0."),
+                ("The values are ids up to a billion, and you need to know whether any id repeats. Array or hash set?",
+                 "A hash set. An array would need a billion slots. A set only stores the ids that actually appear, each check is O(1) on average, and you can stop as soon as you see an id that's already in it."),
+                ("Why can *same letters* return true without checking the table for leftover positive counts at the end?",
+                 "The strings have the same length, so after both loops the counts add up to zero. If none of them went negative, none can be positive either (it would need a negative somewhere to balance it). So they're all zero."),
                 ("In *equal pairs*, what goes wrong if you swap the two lines inside the loop?",
-                 "Incrementing first means `seen[x]` already includes the current element, so every element also pairs with itself. The result grows by exactly n."),
+                 "Incrementing first means `seen[x]` already includes the current element, so every element pairs with itself once. The answer comes out `n` too big."),
                 ("Why does the template's second pass walk `nums` instead of the table?",
-                 "The question asks for the *first* unique value in input order. The table keeps counts, not positions, and a hash map's iteration order is not the input order."),
-                ("A hash map lookup is \"O(1)\". What's hidden behind that word?",
-                 "It's an expected cost, assuming a hash that spreads keys and a load factor kept bounded by resizing. A single lookup can be O(n) in the worst case, and resizes cost O(n) occasionally but O(1) amortised per insertion."),
+                 "We want the *first* unique value in the order of the input. The table knows counts but not positions, and a hash map won't give you its keys in input order."),
+                ("People say a hash map lookup is O(1). What are they leaving out?",
+                 "That it's an average. It assumes a hash that spreads keys out and a table that resizes before it gets too full. A single lookup can be O(n) in a bad case, and a resize costs O(n) when it happens, though only O(1) per insertion when you average it out."),
             ),
         ]),
     ],

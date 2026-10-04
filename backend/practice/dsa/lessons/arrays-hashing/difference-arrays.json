@@ -2,60 +2,71 @@
  "version": 1,
  "id": "difference-arrays",
  "topic": "arrays-hashing",
- "summary": "When many updates each add a value to a whole range, don't touch every element. Record only where each change\n**starts** and where it **stops**, then rebuild the array with one running total at the end.",
- "minutes": 12,
+ "summary": "When lots of updates each add something to a whole range, don't touch every element. Just write down where each\nchange starts and where it stops, then rebuild the whole array with one running total at the end.",
+ "minutes": 16,
  "sections": [
   {
    "id": "idea",
    "title": "The idea",
    "blocks": [
     {
-     "md": "A bus driver doesn't count every passenger at every stop. They note two events: \"3 got on at stop 2\",\n\"3 got off at stop 6\". The number of people on board at any stop is just the running total of those\nevents up to that stop.\n\nA difference array applies that to range updates. To \"add `v` to every element from `l` to `r`\":\n\n1. `diff[l] += v` (from here on, everything is `v` higher),\n2. `diff[r + 1] -= v` (and from here on, it isn't any more).\n\nAfter all the updates, a single running total over `diff` (a prefix sum) gives the final array."
+     "md": "Picture a bus driver who wants to know how many people were on board between each pair of stops. They\ndon't count heads at every stop. They just note who got on and who got off. The number on board at any\npoint is then a running total: everyone who's got on so far, minus everyone who's got off.\n\nHere are four groups riding a bus with 7 stops. A group of 3 gets on at stop 1 and off at stop 4, a\ngroup of 2 rides from 0 to 2, and so on:"
     },
     {
      "panels": [
       {
-       "type": "row",
-       "cells": [
-        0,
+       "type": "bars",
+       "values": [
         2,
+        3,
+        4,
+        1,
         0,
+        0,
+        0
+       ],
+       "label": "getting on at each stop"
+      },
+      {
+       "type": "bars",
+       "values": [
         0,
         0,
         -2,
-        0
+        0,
+        -3,
+        -1,
+        -4
        ],
-       "label": "diff after +2 on [1, 4]",
-       "slots": true
+       "label": "getting off"
       },
       {
-       "type": "row",
-       "cells": [
-        0,
+       "type": "bars",
+       "values": [
         2,
-        2,
-        2,
-        2,
-        0,
+        5,
+        7,
+        8,
+        5,
+        4,
         0
        ],
        "states": {
-        "1": "new",
-        "2": "new",
-        "3": "new",
-        "4": "new"
+        "3": "answer"
        },
-       "label": "running total",
-       "slots": true
+       "label": "on board after each stop"
       }
      ],
-     "caption": "Two writes describe the whole update. The running total spreads it across `[1, 4]` and cancels it at 5."
+     "caption": "Only the ons and offs are written down. The running total gives the load everywhere, and it peaks at 8."
     },
     {
-     "key": "A range update is two point updates on the difference array: `+v` where it starts, `-v` just after it ends.\nApply all updates in O(1) each, then rebuild everything with one O(n) prefix sum."
+     "md": "A **difference array** does exactly that for \"add `v` to every element from `l` to `r`\". Instead of\nlooping over the range, you make two changes:\n\n1. `diff[l] += v`, which means \"from here on, everything is `v` higher\";\n2. `diff[r + 1] -= v`, which means \"and from here on, it isn't any more\".\n\nAfter all the updates, one running total over `diff` gives you the final array."
     },
     {
-     "md": "This is the **mirror image of prefix sums**. Prefix sums make range *queries* cheap on an array that doesn't\nchange. Difference arrays make range *updates* cheap, as long as you only need to read the result at the end."
+     "key": "A range update becomes two point updates: `+v` where it starts, `-v` just after it ends. Do every update\nin O(1), then rebuild everything with one O(n) running total."
+    },
+    {
+     "md": "If you've done *Prefix sums*, this is its mirror image. Prefix sums make range *questions* cheap on an array\nthat doesn't change. Difference arrays make range *updates* cheap, as long as you only need to read the\nresult at the end."
     }
    ]
   },
@@ -67,34 +78,34 @@
      "table": {
       "head": [
        "The problem says…",
-       "Each event becomes"
+       "each event becomes"
       ],
       "rows": [
        [
-        "add / increase every element from `l` to `r`, many times",
+        "add to every element from `l` to `r`, many times",
         "`diff[l] += v`, `diff[r + 1] -= v`"
        ],
        [
         "bookings, reservations, passengers between stops",
-        "`+count` at start, `-count` at end"
+        "`+count` at the start, `-count` at the end"
        ],
        [
-        "how many intervals cover each point / the busiest point",
-        "`+1` at start, `-1` after end"
+        "how many ranges cover each point, or the busiest point",
+        "`+1` at the start, `-1` just after the end"
        ],
        [
         "lamps, ranges of influence, coverage",
-        "`+1` on `[p - reach, p + reach]`"
+        "`+1` over `[p - reach, p + reach]`"
        ],
        [
-        "many rectangles painted on a grid",
-        "four corners in a 2D difference array"
+        "lots of rectangles painted on a grid",
+        "four corners in a 2D difference grid"
        ]
       ]
      }
     },
     {
-     "md": "**The shape to recognise:** *many updates first, all reads afterwards*, and each update touches a contiguous\nrange.\n\n**When it is the wrong tool**\n\n- **Reads between updates.** If the problem asks \"what is `a[i]` now?\" after each update, the running total\n  would have to be recomputed every time. Use a Fenwick tree over the difference array (range update, point\n  query in O(log n)), or a segment tree with lazy propagation.\n- **Coordinates are huge.** An array indexed up to 10⁹ won't fit. Keep only the events, **sort** them, and\n  sweep (the *sweep line* variation below).\n- **Updates that aren't additions.** \"Set every element in `[l, r]` to `v`\" or \"take the max with `v`\" can't be\n  expressed as start/stop differences."
+     "md": "The shape to spot is *all the updates first, all the reading afterwards*, with every update covering a\ncontiguous range.\n\nIf the problem mixes them, asking \"what's `a[i]` now?\" after each update, you'd have to redo the running\ntotal every time. That's where a Fenwick tree on the difference array comes in (O(log n) for both), or a\nsegment tree with lazy updates.\n\nIf positions are huge, like times up to a billion, you can't make an array that big. Keep just the events,\nsort them, and sweep through them in order (shown below). And if an update isn't an addition, like \"set\neverything in `[l, r]` to `v`\" or \"take the max with `v`\", you can't describe it with a start and a stop,\nso this doesn't apply."
     }
    ]
   },
@@ -103,14 +114,43 @@
    "title": "Why it works",
    "blocks": [
     {
-     "md": "### Differences and their running total\n\nFor an array `A`, define the **difference array** `D[0] = A[0]` and `D[i] = A[i] - A[i - 1]`. Then the prefix\nsums of `D` give back `A`, by telescoping:\n\n`D[0] + D[1] + … + D[i] = A[0] + (A[1] - A[0]) + … + (A[i] - A[i - 1]) = A[i]`\n\nFor `A = [4, 4, 7, 7, 7, 2]`:"
+     "md": "### Differences, and getting the array back\n\nFor an array `A`, the **difference array** is `D[0] = A[0]` and `D[i] = A[i] - A[i - 1]`: how much each\nelement changes from the one before. If you take running totals of `D`, you get `A` back, because the\nin-between terms cancel out:\n\n`D[0] + D[1] + … + D[i] = A[0] + (A[1] - A[0]) + … + (A[i] - A[i - 1]) = A[i]`\n\nFor `A = [4, 4, 7, 7, 7, 2]`:"
+    },
+    {
+     "panels": [
+      {
+       "type": "bars",
+       "values": [
+        4,
+        4,
+        7,
+        7,
+        7,
+        2
+       ],
+       "label": "A"
+      },
+      {
+       "type": "bars",
+       "values": [
+        4,
+        0,
+        3,
+        0,
+        0,
+        -5
+       ],
+       "label": "D: change from the previous element"
+      }
+     ],
+     "caption": "D is zero wherever A stays flat, and non-zero only where A steps up or down."
     },
     {
      "table": {
       "head": [
        "i",
        "A[i]",
-       "D[i] = A[i] - A[i-1]",
+       "D[i]",
        "running total of D"
       ],
       "rows": [
@@ -154,13 +194,195 @@
      }
     },
     {
-     "md": "`D` is non-zero only where `A` **changes**. A long flat stretch in `A` is a run of zeros in `D`. That's why a\nrange update is cheap in `D`.\n\n### A range update touches two differences\n\nAdd `v` to `A[l..r]`. Which neighbour differences change?\n\n- Inside the range, both neighbours went up by `v`: `A[i] - A[i - 1]` is unchanged for `l < i ≤ r`.\n- At `i = l`, only `A[l]` went up: `D[l]` grows by `v`.\n- At `i = r + 1`, only `A[r]` went up: `D[r + 1]` shrinks by `v`.\n- Everywhere else nothing changed.\n\nSo the update is exactly `D[l] += v; D[r + 1] -= v`. If `r` is the last index, `D[r + 1]` is a spare slot\npast the end (size `n + 1`) that the rebuild never reads.\n\n### Many updates\n\nEach update is a change to `D`, and additions can be done in any order, so all `m` updates simply add up in\n`D`. One prefix sum at the end applies all of them at once. Starting from an all-zero array, `D` starts at all\nzeros too; starting from an existing array, start with its differences (or add the result to it).\n\n### Events: the same idea without an array\n\nRead `D[l] += v` as an **event** \"`+v` happens at position `l`\" and `D[r + 1] -= v` as \"`-v` happens at\n`r + 1`\". The running total at a position is the sum of all events at or before it. If positions are huge\nor not integers (times, coordinates), keep only the `2m` events, sort them by position, and sweep. Between\ntwo consecutive events nothing changes, so you only need to look at event positions: O(m log m) regardless of\nhow far apart they are.\n\n### Inclusive or half-open?\n\n- Inclusive `[l, r]`: the change ends **after** `r`, so the `-v` goes at `r + 1`.\n- Half-open `[start, end)` (a meeting from 10:00 to 11:00 is over at 11:00): the `-v` goes at `end` itself.\n\nWith events, the tie-break at equal positions encodes the same choice: for half-open intervals process ends\nbefore starts (a meeting ending at 11:00 and one starting at 11:00 don't overlap); for inclusive ones, starts\nfirst.\n\n### Two dimensions\n\nIn 2D, adding `v` to the rectangle `(r1, c1)–(r2, c2)` is four corner updates, by the same reasoning applied\nalong rows and then columns:"
+     "md": "Long flat stretches in `A` turn into runs of zeros in `D`. That's the reason range updates are cheap there.\n\n### Why a range update only touches two entries\n\nAdd `v` to `A[l..r]`. Which of the differences change?\n\nInside the range, both neighbours went up by `v`, so their difference stays the same. At `l`, only `A[l]`\nwent up (its left neighbour didn't), so `D[l]` grows by `v`. At `r + 1`, only the left neighbour `A[r]` went\nup, so `D[r + 1]` shrinks by `v`. Nothing else changed.\n\nSo the whole update is `D[l] += v; D[r + 1] -= v`. If `r` is the last index, `D[r + 1]` is a spare slot past\nthe end, which is why the array has `n + 1` slots. The rebuild never reads it.\n\n### Lots of updates\n\nEach update is just a few additions to `D`, and additions can happen in any order, so all of them simply\npile up in `D`. One running total at the end applies every update at once. If you're starting from an\nexisting array instead of zeros, either start from its differences, or build the changes separately and\nadd them on at the end.\n\n### The same idea, without an array\n\nYou can read `D[l] += v` as an event: \"`+v` happens at position `l`\". And `D[r + 1] -= v` is \"`-v` happens at\n`r + 1`\". The value at any position is the sum of all events up to there. If positions are huge or not\nwhole numbers (times, coordinates), keep just the `2m` events, sort them by position, and walk through\nthem. Between two events nothing changes, so you only need to look at the events themselves. That's\nO(m log m), no matter how far apart they are.\n\n### Including the end, or not?\n\nIf the range includes `r`, the change stops *after* `r`, so the `-v` goes at `r + 1`. If it's half-open,\nlike a meeting from 10:00 to 11:00 that's over at 11:00, the `-v` goes at the end itself.\n\nWith sorted events, the same choice shows up as a tie-break. For half-open ranges, handle ends before\nstarts at the same time (a meeting ending at 11:00 and one starting at 11:00 don't overlap). For inclusive\nranges, handle starts first.\n\n### Two dimensions\n\nIn 2D, adding `v` to the rectangle from `(r1, c1)` to `(r2, c2)` takes four corner changes. Then running\ntotals along the rows and down the columns spread them into exactly the rectangle:"
+    },
+    {
+     "walk": {
+      "steps": [
+       {
+        "text": "Four corner changes: +v at the top-left, -v just right of the top-right, -v just below the bottom-left, +v diagonally past the bottom-right.",
+        "panels": [
+         {
+          "type": "grid",
+          "cells": [
+           [
+            0,
+            0,
+            0,
+            0,
+            0,
+            0
+           ],
+           [
+            0,
+            2,
+            0,
+            0,
+            -2,
+            0
+           ],
+           [
+            0,
+            0,
+            0,
+            0,
+            0,
+            0
+           ],
+           [
+            0,
+            0,
+            0,
+            0,
+            0,
+            0
+           ],
+           [
+            0,
+            -2,
+            0,
+            0,
+            2,
+            0
+           ]
+          ],
+          "states": {
+           "1,1": "new",
+           "1,4": "mark",
+           "4,1": "mark",
+           "4,4": "new"
+          }
+         }
+        ]
+       },
+       {
+        "text": "Running totals along each row: every +v spreads right until its -v cancels it. Now each row band is right, but it carries on below the rectangle.",
+        "panels": [
+         {
+          "type": "grid",
+          "cells": [
+           [
+            0,
+            0,
+            0,
+            0,
+            0,
+            0
+           ],
+           [
+            0,
+            2,
+            2,
+            2,
+            0,
+            0
+           ],
+           [
+            0,
+            0,
+            0,
+            0,
+            0,
+            0
+           ],
+           [
+            0,
+            0,
+            0,
+            0,
+            0,
+            0
+           ],
+           [
+            0,
+            -2,
+            -2,
+            -2,
+            0,
+            0
+           ]
+          ],
+          "states": {
+           "1,1": "found",
+           "1,2": "found",
+           "1,3": "found",
+           "4,1": "found",
+           "4,2": "found",
+           "4,3": "found"
+          }
+         }
+        ]
+       },
+       {
+        "text": "Running totals down each column: the bottom row of corners cancels what was spreading downwards. What's left is exactly the rectangle, all 2s.",
+        "panels": [
+         {
+          "type": "grid",
+          "cells": [
+           [
+            0,
+            0,
+            0,
+            0,
+            0,
+            0
+           ],
+           [
+            0,
+            2,
+            2,
+            2,
+            0,
+            0
+           ],
+           [
+            0,
+            2,
+            2,
+            2,
+            0,
+            0
+           ],
+           [
+            0,
+            2,
+            2,
+            2,
+            0,
+            0
+           ],
+           [
+            0,
+            0,
+            0,
+            0,
+            0,
+            0
+           ]
+          ],
+          "states": {
+           "1,1": "answer",
+           "1,2": "answer",
+           "1,3": "answer",
+           "2,1": "answer",
+           "2,2": "answer",
+           "2,3": "answer",
+           "3,1": "answer",
+           "3,2": "answer",
+           "3,3": "answer"
+          }
+         }
+        ]
+       }
+      ],
+      "title": "Adding 2 to the rectangle from (1, 1) to (3, 3) in a 2D difference grid."
+     }
     },
     {
      "table": {
       "head": [
        "corner",
-       "update",
+       "change",
        "why"
       ],
       "rows": [
@@ -172,77 +394,20 @@
        [
         "`(r1, c2 + 1)`",
         "`-v`",
-        "stop to the right of the rectangle"
+        "stop to the right of it"
        ],
        [
         "`(r2 + 1, c1)`",
         "`-v`",
-        "stop below the rectangle"
+        "stop below it"
        ],
        [
         "`(r2 + 1, c2 + 1)`",
         "`+v`",
-        "the region right and below was subtracted twice"
+        "the area down and to the right got taken away twice"
        ]
       ]
      }
-    },
-    {
-     "panels": [
-      {
-       "type": "grid",
-       "cells": [
-        [
-         0,
-         0,
-         0,
-         0,
-         0,
-         0
-        ],
-        [
-         0,
-         2,
-         0,
-         0,
-         -2,
-         0
-        ],
-        [
-         0,
-         0,
-         0,
-         0,
-         0,
-         0
-        ],
-        [
-         0,
-         0,
-         0,
-         0,
-         0,
-         0
-        ],
-        [
-         0,
-         -2,
-         0,
-         0,
-         2,
-         0
-        ]
-       ],
-       "states": {
-        "1,1": "new",
-        "1,4": "mark",
-        "4,1": "mark",
-        "4,4": "new"
-       },
-       "label": "+2 on (1,1)–(3,3)"
-      }
-     ],
-     "caption": "Four writes. A 2D prefix sum (rows, then columns) spreads them over exactly the rectangle."
     }
    ]
   },
@@ -251,7 +416,7 @@
    "title": "The template",
    "blocks": [
     {
-     "md": "Apply `m` updates `[l, r, v]` (add `v` to every index from `l` to `r`, inclusive) to an array of `n` zeros,\nand return the final array. The example: a fence of 8 boards, and painting jobs that each add coats to a\nrun of boards."
+     "md": "Apply `m` updates `[l, r, v]` (add `v` to every index from `l` to `r`, including both) to an array of `n`\nzeros, and return the result. The example is a fence of 8 boards, where each painting job adds some coats to\na run of boards."
     },
     {
      "code": {
@@ -263,7 +428,7 @@
      "title": "Apply many range additions",
      "lines": [
       {
-       "text": "`n + 1` zeros. The extra slot takes the `-v` of updates that end at the last index.",
+       "text": "`n + 1` zeros. The extra slot catches the `-v` from updates that end at the last index.",
        "at": {
         "python": [
          [
@@ -291,11 +456,11 @@
         ]
        },
        "notes": {
-        "c": "`calloc` gives zeros."
+        "c": "`calloc` gives us zeros."
        }
       },
       {
-       "text": "Two writes per update, however long the range: the rise at `l`, the fall at `r + 1`.",
+       "text": "Two changes per update, however long the range: up at `l`, down at `r + 1`.",
        "at": {
         "python": [
          [
@@ -324,7 +489,7 @@
        }
       },
       {
-       "text": "One running total over `diff`. The total at index `i` is the sum of every `+v` that started at or before `i`, minus every `-v` of ranges that already ended: exactly the updates that cover `i`.",
+       "text": "One running total over `diff`. At index `i`, it's every `+v` that started at or before `i`, minus every `-v` from ranges that already finished. In other words, exactly the updates that cover `i`.",
        "at": {
         "python": [
          [
@@ -353,7 +518,7 @@
        }
       },
       {
-       "text": "The final values. Slot `n` of `diff` is never read: whatever it holds affects only positions past the end.",
+       "text": "The final values. Slot `n` of `diff` is never read; whatever ended up there would only affect positions past the end.",
        "at": {
         "python": [
          [
@@ -381,7 +546,7 @@
         ]
        },
        "notes": {
-        "c": "Free the difference array; the caller owns `result`."
+        "c": "Free the difference array. The caller owns `result`."
        }
       }
      ],
@@ -397,14 +562,17 @@
    "title": "Trace it by hand",
    "blocks": [
     {
+     "md": "Watch `diff` go up and down as each job is marked (bars below the line are negative), then watch the sweep\nturn it into the final array:"
+    },
+    {
      "walk": {
       "steps": [
        {
-        "text": "diff has n + 1 = 9 slots, all 0. Slot 8 is a spare: it absorbs updates that run to the last index.",
+        "text": "`diff` has 9 slots, all 0. The last one is a spare for updates that run right to the end.",
         "panels": [
          {
-          "type": "row",
-          "cells": [
+          "type": "bars",
+          "values": [
            0,
            0,
            0,
@@ -416,16 +584,17 @@
            0
           ],
           "label": "diff",
-          "slots": true
+          "max": 3,
+          "min": -4
          }
         ]
        },
        {
-        "text": "Add 2 to [1, 4]: diff[1] += 2 (the rise starts at 1), diff[5] -= 2 (it stops after 4). Two writes, whatever the length.",
+        "text": "Add 2 to boards 1 to 4: diff[1] goes up by 2 (that's where it starts) and diff[5] goes down by 2 (that's where it stops). Two changes, no matter how long the range is.",
         "panels": [
          {
-          "type": "row",
-          "cells": [
+          "type": "bars",
+          "values": [
            0,
            2,
            0,
@@ -438,19 +607,20 @@
           ],
           "states": {
            "1": "new",
-           "5": "new"
+           "5": "mark"
           },
           "label": "diff",
-          "slots": true
+          "max": 3,
+          "min": -4
          }
         ]
        },
        {
-        "text": "Add 1 to [3, 6]: diff[3] += 1 (the rise starts at 3), diff[7] -= 1 (it stops after 6). Two writes, whatever the length.",
+        "text": "Add 1 to boards 3 to 6: diff[3] goes up by 1 (that's where it starts) and diff[7] goes down by 1 (that's where it stops). Two changes, no matter how long the range is.",
         "panels": [
          {
-          "type": "row",
-          "cells": [
+          "type": "bars",
+          "values": [
            0,
            2,
            0,
@@ -463,19 +633,20 @@
           ],
           "states": {
            "3": "new",
-           "7": "new"
+           "7": "mark"
           },
           "label": "diff",
-          "slots": true
+          "max": 3,
+          "min": -4
          }
         ]
        },
        {
-        "text": "Add 3 to [0, 2]: diff[0] += 3 (the rise starts at 0), diff[3] -= 3 (it stops after 2). Two writes, whatever the length.",
+        "text": "Add 3 to boards 0 to 2: diff[0] goes up by 3 (that's where it starts) and diff[3] goes down by 3 (that's where it stops). Two changes, no matter how long the range is.",
         "panels": [
          {
-          "type": "row",
-          "cells": [
+          "type": "bars",
+          "values": [
            3,
            2,
            0,
@@ -488,19 +659,20 @@
           ],
           "states": {
            "0": "new",
-           "3": "new"
+           "3": "mark"
           },
           "label": "diff",
-          "slots": true
+          "max": 3,
+          "min": -4
          }
         ]
        },
        {
-        "text": "Add 4 to [5, 7]: diff[5] += 4 (the rise starts at 5), diff[8] -= 4 (it stops after 7). Two writes, whatever the length.",
+        "text": "Add 4 to boards 5 to 7: diff[5] goes up by 4 (that's where it starts) and diff[8] goes down by 4 (that's where it stops). Two changes, no matter how long the range is.",
         "panels": [
          {
-          "type": "row",
-          "cells": [
+          "type": "bars",
+          "values": [
            3,
            2,
            0,
@@ -513,19 +685,20 @@
           ],
           "states": {
            "5": "new",
-           "8": "new"
+           "8": "mark"
           },
           "label": "diff",
-          "slots": true
+          "max": 3,
+          "min": -4
          }
         ]
        },
        {
-        "text": "Sweep: running total after diff[0] = 3. That's the final value at index 0.",
+        "text": "Sweep: add diff[0] = 3 to the running total, which is now 3. That's the final value of board 0.",
         "panels": [
          {
-          "type": "row",
-          "cells": [
+          "type": "bars",
+          "values": [
            3,
            2,
            0,
@@ -539,15 +712,13 @@
           "states": {
            "0": "active"
           },
-          "pointers": {
-           "i": 0
-          },
           "label": "diff",
-          "slots": true
+          "max": 3,
+          "min": -4
          },
          {
-          "type": "row",
-          "cells": [
+          "type": "bars",
+          "values": [
            3,
            null,
            null,
@@ -561,16 +732,105 @@
            "0": "new"
           },
           "label": "result",
-          "slots": true
+          "max": 5
          }
         ]
        },
        {
-        "text": "Sweep: running total after diff[3] = 3. That's the final value at index 3.",
+        "text": "Sweep: add diff[1] = 2 to the running total, which is now 5. That's the final value of board 1.",
         "panels": [
          {
-          "type": "row",
-          "cells": [
+          "type": "bars",
+          "values": [
+           3,
+           2,
+           0,
+           -2,
+           0,
+           2,
+           0,
+           -1,
+           -4
+          ],
+          "states": {
+           "0": "dim",
+           "1": "active"
+          },
+          "label": "diff",
+          "max": 3,
+          "min": -4
+         },
+         {
+          "type": "bars",
+          "values": [
+           3,
+           5,
+           null,
+           null,
+           null,
+           null,
+           null,
+           null
+          ],
+          "states": {
+           "1": "new"
+          },
+          "label": "result",
+          "max": 5
+         }
+        ]
+       },
+       {
+        "text": "Sweep: add diff[2] = 0 to the running total, which is now 5. That's the final value of board 2.",
+        "panels": [
+         {
+          "type": "bars",
+          "values": [
+           3,
+           2,
+           0,
+           -2,
+           0,
+           2,
+           0,
+           -1,
+           -4
+          ],
+          "states": {
+           "0": "dim",
+           "1": "dim",
+           "2": "active"
+          },
+          "label": "diff",
+          "max": 3,
+          "min": -4
+         },
+         {
+          "type": "bars",
+          "values": [
+           3,
+           5,
+           5,
+           null,
+           null,
+           null,
+           null,
+           null
+          ],
+          "states": {
+           "2": "new"
+          },
+          "label": "result",
+          "max": 5
+         }
+        ]
+       },
+       {
+        "text": "Sweep: add diff[3] = -2 to the running total, which is now 3. That's the final value of board 3.",
+        "panels": [
+         {
+          "type": "bars",
+          "values": [
            3,
            2,
            0,
@@ -587,15 +847,13 @@
            "2": "dim",
            "3": "active"
           },
-          "pointers": {
-           "i": 3
-          },
           "label": "diff",
-          "slots": true
+          "max": 3,
+          "min": -4
          },
          {
-          "type": "row",
-          "cells": [
+          "type": "bars",
+          "values": [
            3,
            5,
            5,
@@ -609,16 +867,63 @@
            "3": "new"
           },
           "label": "result",
-          "slots": true
+          "max": 5
          }
         ]
        },
        {
-        "text": "Sweep: running total after diff[5] = 5. That's the final value at index 5.",
+        "text": "Sweep: add diff[4] = 0 to the running total, which is now 3. That's the final value of board 4.",
         "panels": [
          {
-          "type": "row",
-          "cells": [
+          "type": "bars",
+          "values": [
+           3,
+           2,
+           0,
+           -2,
+           0,
+           2,
+           0,
+           -1,
+           -4
+          ],
+          "states": {
+           "0": "dim",
+           "1": "dim",
+           "2": "dim",
+           "3": "dim",
+           "4": "active"
+          },
+          "label": "diff",
+          "max": 3,
+          "min": -4
+         },
+         {
+          "type": "bars",
+          "values": [
+           3,
+           5,
+           5,
+           3,
+           3,
+           null,
+           null,
+           null
+          ],
+          "states": {
+           "4": "new"
+          },
+          "label": "result",
+          "max": 5
+         }
+        ]
+       },
+       {
+        "text": "Sweep: add diff[5] = 2 to the running total, which is now 5. That's the final value of board 5.",
+        "panels": [
+         {
+          "type": "bars",
+          "values": [
            3,
            2,
            0,
@@ -637,15 +942,13 @@
            "4": "dim",
            "5": "active"
           },
-          "pointers": {
-           "i": 5
-          },
           "label": "diff",
-          "slots": true
+          "max": 3,
+          "min": -4
          },
          {
-          "type": "row",
-          "cells": [
+          "type": "bars",
+          "values": [
            3,
            5,
            5,
@@ -659,16 +962,65 @@
            "5": "new"
           },
           "label": "result",
-          "slots": true
+          "max": 5
          }
         ]
        },
        {
-        "text": "Sweep: running total after diff[7] = 4. That's the final value at index 7.",
+        "text": "Sweep: add diff[6] = 0 to the running total, which is now 5. That's the final value of board 6.",
         "panels": [
          {
-          "type": "row",
-          "cells": [
+          "type": "bars",
+          "values": [
+           3,
+           2,
+           0,
+           -2,
+           0,
+           2,
+           0,
+           -1,
+           -4
+          ],
+          "states": {
+           "0": "dim",
+           "1": "dim",
+           "2": "dim",
+           "3": "dim",
+           "4": "dim",
+           "5": "dim",
+           "6": "active"
+          },
+          "label": "diff",
+          "max": 3,
+          "min": -4
+         },
+         {
+          "type": "bars",
+          "values": [
+           3,
+           5,
+           5,
+           3,
+           3,
+           5,
+           5,
+           null
+          ],
+          "states": {
+           "6": "new"
+          },
+          "label": "result",
+          "max": 5
+         }
+        ]
+       },
+       {
+        "text": "Sweep: add diff[7] = -1 to the running total, which is now 4. That's the final value of board 7.",
+        "panels": [
+         {
+          "type": "bars",
+          "values": [
            3,
            2,
            0,
@@ -689,15 +1041,13 @@
            "6": "dim",
            "7": "active"
           },
-          "pointers": {
-           "i": 7
-          },
           "label": "diff",
-          "slots": true
+          "max": 3,
+          "min": -4
          },
          {
-          "type": "row",
-          "cells": [
+          "type": "bars",
+          "values": [
            3,
            5,
            5,
@@ -711,16 +1061,16 @@
            "7": "new"
           },
           "label": "result",
-          "slots": true
+          "max": 5
          }
         ]
        },
        {
-        "text": "Done: [3, 5, 5, 3, 3, 5, 5, 4]. 4 updates cost 8 writes; the sweep cost 8 steps.",
+        "text": "Done: [3, 5, 5, 3, 3, 5, 5, 4]. Four updates cost eight changes, and the sweep took 8 steps.",
         "panels": [
          {
-          "type": "row",
-          "cells": [
+          "type": "bars",
+          "values": [
            3,
            5,
            5,
@@ -741,17 +1091,17 @@
            "7": "answer"
           },
           "label": "result",
-          "slots": true
+          "max": 5
          }
         ],
         "result": "[3, 5, 5, 3, 3, 5, 5, 4]"
        }
       ],
-      "title": "`apply_ranges(8, [[1, 4, 2], [3, 6, 1], [0, 2, 3], [5, 7, 4]])`: mark both ends of every update, then sweep once."
+      "title": "`apply_ranges(8, [[1, 4, 2], [3, 6, 1], [0, 2, 3], [5, 7, 4]])`. Mark where each update starts and stops, then sweep once."
      }
     },
     {
-     "md": "The difference array after each update (index 0 to 8):"
+     "md": "Here's `diff` (indices 0 to 8) after each update:"
     },
     {
      "table": {
@@ -780,7 +1130,93 @@
      }
     },
     {
-     "md": "The running total of the last row is `[3, 5, 5, 3, 3, 5, 5, 4]`. Updating every element directly would have cost\n14 writes here; with ranges of length n and m updates that's up to `n · m`."
+     "md": "The running total of the last row is `[3, 5, 5, 3, 3, 5, 5, 4]`. Painting every board directly would have taken\n14 changes here. With `m` updates over long ranges that grows to `n × m`,\nwhile the difference array always takes `2m` changes plus one sweep."
+    }
+   ]
+  },
+  {
+   "id": "examples",
+   "title": "More examples",
+   "blocks": [
+    {
+     "md": "### Can the bus carry everyone?\n\nBack to the bus from the start. Say it has 6 seats. Mark `+people` where each group gets on and\n`-people` where it gets off, sweep, and check whether the running total ever goes above 6:"
+    },
+    {
+     "panels": [
+      {
+       "type": "bars",
+       "values": [
+        2,
+        5,
+        7,
+        8,
+        5,
+        4,
+        0
+       ],
+       "states": {
+        "0": "found",
+        "1": "found",
+        "2": "answer",
+        "3": "answer",
+        "4": "found",
+        "5": "found",
+        "6": "found"
+       },
+       "label": "on board after each stop"
+      }
+     ],
+     "caption": "At stop 2 there are 7 people on a 6-seat bus, so the answer is no. You can stop the sweep right there."
+    },
+    {
+     "md": "One detail: at a stop where some people get off and others get on, the running total applies both at\nonce, so the people leaving free their seats before the new ones sit down. If a problem said the opposite\n(everyone boards first), you'd check the load between the ons and the offs instead.\n\n### Lamps along a street, with negative positions"
+    },
+    {
+     "md": "Lamps at `(position, reach)` = `[(2, 3), (6, 1), (-1, 2)]` light every point from `position - reach` to `position + reach`.\nHow bright is each point? The leftmost lit point is -3, which is negative, so we can't use positions as\nindices directly. Shift everything by 3, so point -3 becomes index 0:"
+    },
+    {
+     "panels": [
+      {
+       "type": "bars",
+       "values": [
+        1,
+        1,
+        2,
+        2,
+        2,
+        1,
+        1,
+        1,
+        2,
+        1,
+        1
+       ],
+       "labels": [
+        "-3",
+        "-2",
+        "-1",
+        "0",
+        "1",
+        "2",
+        "3",
+        "4",
+        "5",
+        "6",
+        "7"
+       ],
+       "states": {
+        "2": "answer",
+        "3": "answer",
+        "4": "answer",
+        "8": "answer"
+       },
+       "label": "how many lamps light each point"
+      }
+     ],
+     "caption": "The brightest points (-1, 0, 1, 5) are lit by 2 lamps."
+    },
+    {
+     "md": "The shift is just `index = position - lowest`. Forgetting it is one of the most common bugs with\ndifference arrays, because negative indices either crash or (in Python) silently wrap around to the end of\nthe list."
     }
    ]
   },
@@ -789,7 +1225,395 @@
    "title": "Variations",
    "blocks": [
     {
-     "md": "### Sweep line: huge coordinates\n\nMeetings `[start, end)` with times up to 10⁹: what's the most that overlap at any moment? An array over all\ntimes is impossible, but there are only `2m` events. Sort them and keep the running total. Sorting `(time,\ndelta)` pairs puts `-1` before `+1` at the same time, which is exactly the half-open rule: a meeting that\nends at 11:00 frees its room before one that starts at 11:00 takes it."
+     "md": "### Sweeping sorted events\n\nMeetings `[start, end)` at times up to a billion: what's the most that are ever running at once? An array\ncovering every possible time is out of the question, but there are only `2m` events. Sort them and keep a\nrunning total. Sorting `(time, change)` pairs puts `-1` before `+1` at the same time, which is exactly what\nhalf-open meetings need: one that ends at 11:00 frees its room before one starting at 11:00 takes it."
+    },
+    {
+     "walk": {
+      "steps": [
+       {
+        "text": "Sort all starts (+1) and ends (-1) by time. At the same time, ends come first.",
+        "panels": [
+         {
+          "type": "vars",
+          "items": {
+           "events:": "900+, 1000+, 1015+, 1030−, 1030+, 1045−, 1100−, 1100+, 1130−, 1200−"
+          }
+         }
+        ]
+       },
+       {
+        "text": "900: a meeting starts. 1 running now, the most so far.",
+        "panels": [
+         {
+          "type": "bars",
+          "values": [
+           1,
+           null,
+           null,
+           null,
+           null,
+           null,
+           null,
+           null,
+           null,
+           null
+          ],
+          "labels": [
+           "900",
+           "1000",
+           "1015",
+           "1030",
+           "1030",
+           "1045",
+           "1100",
+           "1100",
+           "1130",
+           "1200"
+          ],
+          "states": {
+           "0": "answer"
+          },
+          "label": "meetings running after each event",
+          "max": 3
+         }
+        ]
+       },
+       {
+        "text": "1000: a meeting starts. 2 running now, the most so far.",
+        "panels": [
+         {
+          "type": "bars",
+          "values": [
+           1,
+           2,
+           null,
+           null,
+           null,
+           null,
+           null,
+           null,
+           null,
+           null
+          ],
+          "labels": [
+           "900",
+           "1000",
+           "1015",
+           "1030",
+           "1030",
+           "1045",
+           "1100",
+           "1100",
+           "1130",
+           "1200"
+          ],
+          "states": {
+           "1": "answer"
+          },
+          "label": "meetings running after each event",
+          "max": 3
+         }
+        ]
+       },
+       {
+        "text": "1015: a meeting starts. 3 running now, the most so far.",
+        "panels": [
+         {
+          "type": "bars",
+          "values": [
+           1,
+           2,
+           3,
+           null,
+           null,
+           null,
+           null,
+           null,
+           null,
+           null
+          ],
+          "labels": [
+           "900",
+           "1000",
+           "1015",
+           "1030",
+           "1030",
+           "1045",
+           "1100",
+           "1100",
+           "1130",
+           "1200"
+          ],
+          "states": {
+           "2": "answer"
+          },
+          "label": "meetings running after each event",
+          "max": 3
+         }
+        ]
+       },
+       {
+        "text": "1030: a meeting ends. 2 running now.",
+        "panels": [
+         {
+          "type": "bars",
+          "values": [
+           1,
+           2,
+           3,
+           2,
+           null,
+           null,
+           null,
+           null,
+           null,
+           null
+          ],
+          "labels": [
+           "900",
+           "1000",
+           "1015",
+           "1030",
+           "1030",
+           "1045",
+           "1100",
+           "1100",
+           "1130",
+           "1200"
+          ],
+          "states": {
+           "3": "active"
+          },
+          "label": "meetings running after each event",
+          "max": 3
+         }
+        ]
+       },
+       {
+        "text": "1030: a meeting starts. 3 running now, the most so far.",
+        "panels": [
+         {
+          "type": "bars",
+          "values": [
+           1,
+           2,
+           3,
+           2,
+           3,
+           null,
+           null,
+           null,
+           null,
+           null
+          ],
+          "labels": [
+           "900",
+           "1000",
+           "1015",
+           "1030",
+           "1030",
+           "1045",
+           "1100",
+           "1100",
+           "1130",
+           "1200"
+          ],
+          "states": {
+           "4": "answer"
+          },
+          "label": "meetings running after each event",
+          "max": 3
+         }
+        ]
+       },
+       {
+        "text": "1045: a meeting ends. 2 running now.",
+        "panels": [
+         {
+          "type": "bars",
+          "values": [
+           1,
+           2,
+           3,
+           2,
+           3,
+           2,
+           null,
+           null,
+           null,
+           null
+          ],
+          "labels": [
+           "900",
+           "1000",
+           "1015",
+           "1030",
+           "1030",
+           "1045",
+           "1100",
+           "1100",
+           "1130",
+           "1200"
+          ],
+          "states": {
+           "5": "active"
+          },
+          "label": "meetings running after each event",
+          "max": 3
+         }
+        ]
+       },
+       {
+        "text": "1100: a meeting ends. 1 running now.",
+        "panels": [
+         {
+          "type": "bars",
+          "values": [
+           1,
+           2,
+           3,
+           2,
+           3,
+           2,
+           1,
+           null,
+           null,
+           null
+          ],
+          "labels": [
+           "900",
+           "1000",
+           "1015",
+           "1030",
+           "1030",
+           "1045",
+           "1100",
+           "1100",
+           "1130",
+           "1200"
+          ],
+          "states": {
+           "6": "active"
+          },
+          "label": "meetings running after each event",
+          "max": 3
+         }
+        ]
+       },
+       {
+        "text": "1100: a meeting starts. 2 running now.",
+        "panels": [
+         {
+          "type": "bars",
+          "values": [
+           1,
+           2,
+           3,
+           2,
+           3,
+           2,
+           1,
+           2,
+           null,
+           null
+          ],
+          "labels": [
+           "900",
+           "1000",
+           "1015",
+           "1030",
+           "1030",
+           "1045",
+           "1100",
+           "1100",
+           "1130",
+           "1200"
+          ],
+          "states": {
+           "7": "active"
+          },
+          "label": "meetings running after each event",
+          "max": 3
+         }
+        ]
+       },
+       {
+        "text": "1130: a meeting ends. 1 running now.",
+        "panels": [
+         {
+          "type": "bars",
+          "values": [
+           1,
+           2,
+           3,
+           2,
+           3,
+           2,
+           1,
+           2,
+           1,
+           null
+          ],
+          "labels": [
+           "900",
+           "1000",
+           "1015",
+           "1030",
+           "1030",
+           "1045",
+           "1100",
+           "1100",
+           "1130",
+           "1200"
+          ],
+          "states": {
+           "8": "active"
+          },
+          "label": "meetings running after each event",
+          "max": 3
+         }
+        ]
+       },
+       {
+        "text": "1200: a meeting ends. 0 running now.",
+        "panels": [
+         {
+          "type": "bars",
+          "values": [
+           1,
+           2,
+           3,
+           2,
+           3,
+           2,
+           1,
+           2,
+           1,
+           0
+          ],
+          "labels": [
+           "900",
+           "1000",
+           "1015",
+           "1030",
+           "1030",
+           "1045",
+           "1100",
+           "1100",
+           "1130",
+           "1200"
+          ],
+          "states": {
+           "9": "active"
+          },
+          "label": "meetings running after each event",
+          "max": 3
+         }
+        ]
+       }
+      ],
+      "title": "Five meetings, as ten sorted events. `live` is how many meetings are running right now."
+     }
     },
     {
      "code": {
@@ -830,7 +1654,7 @@
        }
       },
       {
-       "text": "Sort by time; at equal times, `-1` (an end) sorts before `+1` (a start).",
+       "text": "Sort by time. At equal times, `-1` (an end) comes before `+1` (a start).",
        "at": {
         "python": [
          [
@@ -862,12 +1686,12 @@
         ]
        },
        "notes": {
-        "c": "The comparator orders by time with `(a > b) - (a < b)`, which can't overflow the way `a - b` can for large values, then by delta.",
-        "java": "Comparing with `Long.compare` avoids the overflow that `a[0] - b[0]` would risk."
+        "c": "The comparator orders by time with `(a > b) - (a < b)`. Writing `a - b` can overflow for big values.",
+        "java": "`Long.compare` avoids the overflow that `a[0] - b[0]` could cause."
        }
       },
       {
-       "text": "Walk the events in order; `live` is how many meetings are running right after this event.",
+       "text": "Go through the events in order. `live` is how many meetings are running just after this event.",
        "at": {
         "python": [
          [
@@ -896,7 +1720,7 @@
        }
       },
       {
-       "text": "The busiest moment is the largest `live` seen. Between events nothing changes, so checking only at events is enough.",
+       "text": "The busiest moment is the biggest `live` we see. Nothing changes between events, so checking at the events is enough.",
        "at": {
         "python": [
          [
@@ -925,7 +1749,7 @@
        }
       },
       {
-       "text": "The maximum overlap.",
+       "text": "The most meetings at once.",
        "at": {
         "python": [
          [
@@ -967,9 +1791,9 @@
       "head": [
        "time",
        "event",
-       "delta",
-       "live",
-       "best"
+       "change",
+       "running",
+       "most so far"
       ],
       "rows": [
        [
@@ -1046,7 +1870,7 @@
      }
     },
     {
-     "md": "At 10:30 one meeting ends and another starts: the end goes first, so `live` dips before it rises, and the\nanswer is 3. Back-to-back meetings `(1, 2), (2, 3), (3, 4)` never overlap: 1.\n\n### Rectangles on a grid\n\nFour corner updates per rectangle, then a prefix sum along each row and one along each column."
+     "md": "At 10:30 one meeting ends and another starts. The end goes first, so the count dips before it rises, and\nthe answer is 3. Back-to-back meetings `(1, 2), (2, 3), (3, 4)` never overlap, so that one's 1.\n\n### Rectangles on a grid\n\nFour corner changes per rectangle, then running totals along each row and down each column."
     },
     {
      "code": {
@@ -1058,7 +1882,7 @@
      "title": "Add values to many rectangles",
      "lines": [
       {
-       "text": "An `(rows + 1) × (cols + 1)` difference grid of zeros; the extra row and column catch the corners just past the edge.",
+       "text": "An `(rows + 1) × (cols + 1)` grid of zeros. The extra row and column catch the corners that land just past the edge.",
        "at": {
         "python": [
          [
@@ -1116,7 +1940,7 @@
        }
       },
       {
-       "text": "Running totals along each row spread every `+v` rightwards until its `-v`.",
+       "text": "Running totals along each row spread every `+v` to the right until its `-v`.",
        "at": {
         "python": [
          [
@@ -1145,7 +1969,7 @@
        }
       },
       {
-       "text": "Then running totals down each column spread them downwards. Together this is a 2D prefix sum.",
+       "text": "Then running totals down each column spread them downwards. Together that's a 2D prefix sum.",
        "at": {
         "python": [
          [
@@ -1202,7 +2026,7 @@
         ]
        },
        "notes": {
-        "c": "Copy the `rows × cols` part out and free the work grid."
+        "c": "Copy out the `rows × cols` part and free the working grid."
        }
       }
      ],
@@ -1248,10 +2072,10 @@
        "label": "result"
       }
      ],
-     "caption": "Three rectangles, twelve corner writes, one 2D sweep."
+     "caption": "Three rectangles, twelve corner changes, one 2D sweep."
     },
     {
-     "md": "### Checking a limit\n\n\"Can a shuttle with `c` seats carry every booking?\" Build the occupancy with a difference array (or events),\nthen check that the running total never exceeds `c`. You can stop at the first position where it does.\n\n### Interleaved updates and queries\n\nIf you must read values between updates, keep the difference array in a **Fenwick tree**: a range update is\nstill two point updates, and reading `A[i]` is a prefix-sum query, both O(log n)."
+     "md": "### Updates and questions mixed together\n\nIf you need to read values between updates, keep the difference array inside a **Fenwick tree**. A range\nupdate is still two point changes, and reading `A[i]` is a running-total query. Both take O(log n)."
     }
    ]
   },
@@ -1260,7 +2084,7 @@
    "title": "What it costs",
    "blocks": [
     {
-     "md": "- **Direct updates:** each update loops over its range, O(n) worst case, so O(n · m) in total. For\n  n = m = 10⁵ that's up to 10,000,000,000 additions.\n- **Difference array:** O(1) per update, plus one O(n) rebuild: **O(n + m)** time, O(n) space.\n- **Sweep line:** O(m log m) for sorting `2m` events, O(m) space, independent of how large the coordinates are.\n- **2D:** O(1) per rectangle, O(rows · cols) to rebuild."
+     "md": "Updating every element directly costs up to O(n) per update, so O(n × m) for `m` updates. With `n` and `m`\nboth 100,000, that's up to 10,000,000,000 additions.\n\nA difference array costs O(1) per update plus one O(n) rebuild, so **O(n + m)** time and O(n) memory.\nSweeping sorted events costs O(m log m) to sort `2m` events and O(m) memory, however large the positions\nare. In 2D, it's O(1) per rectangle and O(rows × cols) to rebuild."
     },
     {
      "table": {
@@ -1268,14 +2092,14 @@
        "Approach",
        "Time",
        "Extra space",
-       "Use when"
+       "Use it when"
       ],
       "rows": [
        [
         "Update every element",
         "O(n · m)",
         "O(1)",
-        "tiny inputs"
+        "the input is tiny"
        ],
        [
         "Difference array",
@@ -1287,13 +2111,13 @@
         "Sorted events (sweep)",
         "O(m log m)",
         "O(m)",
-        "huge or real-valued positions"
+        "positions are huge or not whole numbers"
        ],
        [
-        "Fenwick tree on differences",
+        "Fenwick tree on the differences",
         "O((m + q) log n)",
         "O(n)",
-        "reads between updates"
+        "you read values between updates"
        ]
       ]
      }
@@ -1305,7 +2129,7 @@
    "title": "In your language",
    "blocks": [
     {
-     "md": "**Python:** `diff = [0] * (n + 1)`; `itertools.accumulate(diff[:n])` rebuilds in one line. For events, sorting\ntuples `(time, delta)` gives the \"ends before starts\" order for free, since `-1 < 1`.\n\n**Java:** `long[] diff = new long[n + 1]` (sums of many updates overflow `int`). Sort events with a comparator\nthat uses `Integer.compare` / `Long.compare`, never `a - b`.\n\n**C++:** `vector<long long> diff(n + 1)`; `partial_sum` can rebuild. A `vector<pair<int, int>>` of events\nsorts by time then delta with the default `<`. With sparse coordinates, a `std::map<int, long long>` of\ndeltas iterated in order is a sweep with no explicit sort.\n\n**C:** `calloc(n + 1, sizeof(long long))`; for events, a `struct` array and `qsort` with a comparator that\ndoesn't overflow."
+     "md": "### Python\n\n`diff = [0] * (n + 1)`, and `itertools.accumulate(diff[:n])` rebuilds it in one line. For events, sorting\n`(time, change)` tuples puts ends before starts automatically, since `-1 < 1`. Be careful with negative\nindices: `diff[-1]` doesn't crash, it quietly changes the last element.\n\n### Java\n\n`long[] diff = new long[n + 1]`, because lots of updates on one index can overflow an `int`. Sort events\nwith a comparator that uses `Integer.compare` or `Long.compare`, never `a - b`.\n\n### C++\n\n`vector<long long> diff(n + 1)`, and `partial_sum` can do the rebuild. A `vector<pair<int, int>>` of events\nsorts by time and then by change with the default `<`. When positions are sparse, a `std::map<int, long\nlong>` of changes, walked in order, is a sweep without an explicit sort.\n\n### C\n\n`calloc(n + 1, sizeof(long long))`. For events, an array of structs and `qsort` with a comparator that\ncan't overflow."
     }
    ]
   },
@@ -1314,7 +2138,7 @@
    "title": "Pitfalls and edge cases",
    "blocks": [
     {
-     "md": "- **No spare slot.** `diff[r + 1]` with `r = n - 1` writes out of bounds unless `diff` has `n + 1` entries.\n- **Inclusive vs half-open.** Inclusive ranges stop at `r + 1`; half-open ones at `end`. Mixing them up\n  shifts every boundary by one.\n- **Tie order in sweeps.** At equal positions, decide whether ends or starts go first, from the problem's\n  wording (does a range ending at 5 overlap one starting at 5?).\n- **Reading before rebuilding.** `diff` holds changes, not values. Only the running total gives values.\n- **Overflow.** Many large updates on the same index overflow 32 bits.\n- **Negative or shifted positions.** A lamp at position 2 with reach 5 covers -3..7. Offset positions so the\n  smallest maps to 0, or use events.\n- **Counter-comparators.** `return a.at - b.at` overflows for values near ±2³¹; compare instead."
+     "md": "The usual suspects:\n\n- No spare slot. With `r = n - 1`, `diff[r + 1]` writes past the end unless `diff` has `n + 1` entries.\n- Mixing up inclusive and half-open ranges. Inclusive ranges stop at `r + 1`, half-open ones at `end`. Get\n  it wrong and every boundary moves by one.\n- The tie-break in sweeps. At the same position, decide from the problem's wording whether ends or starts\n  go first. Does a range ending at 5 overlap one starting at 5?\n- Reading `diff` before the rebuild. It holds changes, not values. Only the running total gives you values.\n- Overflow. Lots of big updates on the same spot need 64 bits.\n- Negative or shifted positions. A lamp at 2 with reach 5 covers -3 to 7. Shift positions so the smallest\n  becomes 0, or switch to events.\n- Comparators written as `a - b`. They overflow for values near ±2³¹. Compare instead."
     }
    ]
   },
@@ -1326,23 +2150,23 @@
      "quiz": [
       {
        "q": "Why does `diff` need `n + 1` slots?",
-       "a": "An update ending at the last index `r = n - 1` writes its `-v` at `n`. The rebuild never reads slot `n`, but it must exist."
+       "a": "An update ending at the last index, `r = n - 1`, puts its `-v` at index `n`. The rebuild never reads that slot, but it has to exist."
       },
       {
-       "q": "Prove that adding `v` to `A[l..r]` changes only `D[l]` and `D[r + 1]`.",
-       "a": "`D[i] = A[i] - A[i - 1]`. For `l < i ≤ r` both terms rose by `v`, so the difference is unchanged. At `i = l` only `A[l]` rose (`D[l] += v`); at `i = r + 1` only `A[r]` rose (`D[r + 1] -= v`). Elsewhere nothing changed."
+       "q": "Show that adding `v` to `A[l..r]` only changes `D[l]` and `D[r + 1]`.",
+       "a": "`D[i] = A[i] - A[i - 1]`. Inside the range both terms went up by `v`, so the difference didn't change. At `l`, only `A[l]` went up, so `D[l]` grows by `v`. At `r + 1`, only `A[r]` went up, so `D[r + 1]` shrinks by `v`. Nothing else changed."
       },
       {
-       "q": "Meetings `[10, 11)` and `[11, 12)`. With events sorted by `(time, delta)`, what's the maximum overlap, and why?",
-       "a": "1. At time 11 the end (`-1`) sorts before the start (`+1`), so the count goes 1 → 0 → 1 and never reaches 2. That matches half-open intervals."
+       "q": "Meetings `[10, 11)` and `[11, 12)`. With events sorted by `(time, change)`, what's the most running at once, and why?",
+       "a": "1. At 11, the end (`-1`) sorts before the start (`+1`), so the count goes 1, then 0, then 1, and never hits 2. That's right for half-open meetings."
       },
       {
-       "q": "Updates and \"what is `a[i]` now?\" questions are interleaved, 10⁵ of each. Is a plain difference array enough?",
-       "a": "No: each question would need an O(n) rebuild. Put the difference array in a Fenwick tree: two O(log n) point updates per range update, and `a[i]` is an O(log n) prefix sum."
+       "q": "There are 100,000 updates and 100,000 \"what's `a[i]` now?\" questions, mixed together. Is a plain difference array enough?",
+       "a": "No. Each question would need an O(n) rebuild. Put the difference array in a Fenwick tree instead: two O(log n) changes per update, and `a[i]` is an O(log n) running-total query."
       },
       {
-       "q": "How is a difference array related to prefix sums?",
-       "a": "They're inverses. The prefix sum of the difference array gives back the array, and the difference array of the prefix array gives back the original values. Differences make range updates cheap; prefix sums make range queries cheap."
+       "q": "How are difference arrays and prefix sums related?",
+       "a": "They undo each other. The running total of the difference array gives you back the array, and the differences of the prefix array give you back the original values. Differences make range updates cheap; prefix sums make range questions cheap."
       }
      ]
     }

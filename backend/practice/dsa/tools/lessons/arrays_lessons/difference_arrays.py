@@ -1,5 +1,5 @@
 """Lesson: Difference arrays (Arrays & Hashing, pattern 5)."""
-from lesson import Grid, M, Row, Steps, code, fig, key, lesson, py, quiz, table, walk
+from lesson import Bars, Grid, M, Row, Steps, code, fig, key, lesson, py, quiz, table, walk
 
 # ---------------------------------------------------------------- the code
 
@@ -330,24 +330,35 @@ for l, r, v in JOBS:
     for i in range(l, r + 1):
         naive[i] += v
 assert FINAL == naive
+TOPV = max(FINAL)
 
-steps = Steps(f"`apply_ranges({N8}, {JOBS})`: mark both ends of every update, then sweep once.")
+# Final diff, for scaling.
+DF = [0] * (N8 + 1)
+for l, r, v in JOBS:
+    DF[l] += v
+    DF[r + 1] -= v
+DTOP = max(max(DF), max(abs(sum(DF[:k + 1])) for k in range(N8)))
+DBOT = min(DF)
+
+steps = Steps(f"`apply_ranges({N8}, {JOBS})`. Mark where each update starts and stops, then sweep once.")
 diff = [0] * (N8 + 1)
-steps.step(f"diff has n + 1 = {N8 + 1} slots, all 0. Slot {N8} is a spare: it absorbs updates that run to the last index.", Row(diff, slots=True, label="diff"))
+steps.step(f"`diff` has {N8 + 1} slots, all 0. The last one is a spare for updates that run right to the end.",
+           Bars(diff, label="diff", top=max(DF), bottom=DBOT))
 for l, r, v in JOBS:
     diff[l] += v
     diff[r + 1] -= v
-    steps.step(f"Add {v} to [{l}, {r}]: diff[{l}] += {v} (the rise starts at {l}), diff[{r + 1}] -= {v} (it stops after {r}). Two writes, whatever the length.",
-               Row(list(diff), st={l: "new", r + 1: "new"}, slots=True, label="diff"))
+    steps.step(f"Add {v} to boards {l} to {r}: diff[{l}] goes up by {v} (that's where it starts) and diff[{r + 1}] goes down by {v} (that's where it stops). "
+               f"Two changes, no matter how long the range is.",
+               Bars(list(diff), st={l: "new", r + 1: "mark"}, label="diff", top=max(DF), bottom=DBOT))
 run, out = 0, [None] * N8
 for i in range(N8):
     run += diff[i]
     out[i] = run
-    if i in (0, 3, N8 - 1) or i == 5:
-        steps.step(f"Sweep: running total after diff[{i}] = {run}. That's the final value at index {i}.",
-                   Row(list(diff), st={**{j: "dim" for j in range(i)}, i: "active"}, ptr={"i": i}, slots=True, label="diff"),
-                   Row(list(out), st={i: "new"}, slots=True, label="result"))
-steps.step(f"Done: {FINAL}. {len(JOBS)} updates cost {2 * len(JOBS)} writes; the sweep cost {N8} steps.", Row(FINAL, st={i: "answer" for i in range(N8)}, slots=True, label="result"), result=FINAL)
+    steps.step(f"Sweep: add diff[{i}] = {diff[i]} to the running total, which is now {run}. That's the final value of board {i}.",
+               Bars(list(diff), st={**{j: "dim" for j in range(i)}, i: "active"}, label="diff", top=max(DF), bottom=DBOT),
+               Bars(list(out), st={i: "new"}, label="result", top=TOPV))
+steps.step(f"Done: {FINAL}. Four updates cost eight changes, and the sweep took {N8} steps.",
+           Bars(FINAL, st={i: "answer" for i in range(N8)}, label="result", top=TOPV), result=FINAL)
 
 d_rows = []
 d = [0] * (N8 + 1)
@@ -356,7 +367,7 @@ for l, r, v in JOBS:
     d[r + 1] -= v
     d_rows.append((f"+{v} on [{l}, {r}]", " ".join(f"{x:+d}" if x else "0" for x in d)))
 
-# Differences of an array and its recovery.
+# Differences of an array and getting it back.
 A = [4, 4, 7, 7, 7, 2]
 DA = [A[0]] + [A[i] - A[i - 1] for i in range(1, len(A))]
 rec, s = [], 0
@@ -365,309 +376,416 @@ for x in DA:
     rec.append(s)
 assert rec == A
 
+# The bus.
+STOPS = 7
+TRIPS = [(3, 1, 4), (2, 0, 2), (4, 2, 6), (1, 3, 5)]  # (people, on at, off at)
+ons = [0] * STOPS
+offs = [0] * STOPS
+for p, a, b in TRIPS:
+    ons[a] += p
+    offs[b] += p
+board, cur = [], 0
+for s_ in range(STOPS):
+    cur += ons[s_] - offs[s_]
+    board.append(cur)
+BUS_MAX = max(board)
+check = [sum(p for p, a, b in TRIPS if a <= s_ < b) for s_ in range(STOPS)]
+assert board == check
+CAP = 6
+OVER = next((s_ for s_ in range(STOPS) if board[s_] > CAP), None)
+
 MEET = [(900, 1030), (1000, 1100), (1030, 1200), (1015, 1045), (1100, 1130)]
 MANS = max_overlap(MEET)
 ev = sorted([(a, +1) for a, b in MEET] + [(b, -1) for a, b in MEET])
 ev_rows, live, best = [], 0, 0
-for at, dlt in ev:
+sweep = Steps("Five meetings, as ten sorted events. `live` is how many meetings are running right now.")
+lives = []
+sweep.step("Sort all starts (+1) and ends (-1) by time. At the same time, ends come first.", M({"events": ", ".join(f"{t}{'+' if d_ > 0 else '−'}" for t, d_ in ev)}))
+for k, (at, dlt) in enumerate(ev):
     live += dlt
     best = max(best, live)
+    lives.append(live)
     ev_rows.append((str(at), "start" if dlt > 0 else "end", f"{dlt:+d}", str(live), str(best)))
-assert best == MANS
-assert max_overlap([(1, 2), (2, 3), (3, 4)]) == 1
+    times = [str(t) for t, _ in ev]
+    sweep.step(f"{at}: a meeting {'starts' if dlt > 0 else 'ends'}. {live} running now" + (f", the most so far." if live == best and dlt > 0 else "."),
+               Bars(lives + [None] * (len(ev) - len(lives)), labels=times, st={k: "answer" if live == best and dlt > 0 else "active"}, label="meetings running after each event", top=MANS))
+assert best == MANS and max_overlap([(1, 2), (2, 3), (3, 4)]) == 1
 
 RECTS = [[0, 0, 1, 2, 1], [1, 1, 3, 3, 2], [2, 4, 3, 4, 5]]
 PAINT = paint_rects(4, 5, RECTS)
 chk = [[0] * 5 for _ in range(4)]
-for r1, c1, r2, c2, v in RECTS:
-    for r in range(r1, r2 + 1):
-        for c in range(c1, c2 + 1):
-            chk[r][c] += v
+for r1_, c1_, r2_, c2_, v_ in RECTS:
+    for r in range(r1_, r2_ + 1):
+        for c in range(c1_, c2_ + 1):
+            chk[r][c] += v_
 assert PAINT == chk
-CORNERS = [[0] * 6 for _ in range(5)]
+
+# 2D walk for one rectangle: corners, then rows, then columns.
 r1, c1, r2, c2, v = RECTS[1]
+CORNERS = [[0] * 6 for _ in range(5)]
 CORNERS[r1][c1] += v
 CORNERS[r1][c2 + 1] -= v
 CORNERS[r2 + 1][c1] -= v
 CORNERS[r2 + 1][c2 + 1] += v
+ROWS = [row[:] for row in CORNERS]
+for r in range(5):
+    for c in range(1, 6):
+        ROWS[r][c] += ROWS[r][c - 1]
+COLS = [row[:] for row in ROWS]
+for r in range(1, 5):
+    for c in range(6):
+        COLS[r][c] += COLS[r - 1][c]
+assert all(COLS[r][c] == (v if r1 <= r <= r2 and c1 <= c <= c2 else 0) for r in range(5) for c in range(6))
+w2 = Steps(f"Adding {v} to the rectangle from ({r1}, {c1}) to ({r2}, {c2}) in a 2D difference grid.")
+w2.step("Four corner changes: +v at the top-left, -v just right of the top-right, -v just below the bottom-left, +v diagonally past the bottom-right.",
+        Grid(CORNERS, st={(r1, c1): "new", (r1, c2 + 1): "mark", (r2 + 1, c1): "mark", (r2 + 1, c2 + 1): "new"}))
+w2.step("Running totals along each row: every +v spreads right until its -v cancels it. Now each row band is right, but it carries on below the rectangle.",
+        Grid(ROWS, st={(r, c): "found" for r in range(5) for c in range(6) if ROWS[r][c]}))
+w2.step(f"Running totals down each column: the bottom row of corners cancels what was spreading downwards. What's left is exactly the rectangle, all {v}s.",
+        Grid(COLS, st={(r, c): "answer" for r in range(5) for c in range(6) if COLS[r][c]}))
+
+# Lamps with negative reach: offset positions.
+LAMPS = [(2, 3), (6, 1), (-1, 2)]  # (position, reach)
+lo = min(p - rch for p, rch in LAMPS)
+hi = max(p + rch for p, rch in LAMPS)
+ld = [0] * (hi - lo + 2)
+for p, rch in LAMPS:
+    ld[p - rch - lo] += 1
+    ld[p + rch - lo + 1] -= 1
+light, cur = [], 0
+for i in range(hi - lo + 1):
+    cur += ld[i]
+    light.append(cur)
+assert light == [sum(1 for p, rch in LAMPS if p - rch <= x <= p + rch) for x in range(lo, hi + 1)]
+BRIGHT = max(light)
+BRIGHT_AT = [x for x, b in zip(range(lo, hi + 1), light) if b == BRIGHT]
 
 N = 10**5
 lesson(
     "arrays-hashing",
     "difference-arrays",
     """
-    When many updates each add a value to a whole range, don't touch every element. Record only where each change
-    **starts** and where it **stops**, then rebuild the array with one running total at the end.
+    When lots of updates each add something to a whole range, don't touch every element. Just write down where each
+    change starts and where it stops, then rebuild the whole array with one running total at the end.
     """,
     [
         ("idea", "The idea", [
-            """
-            A bus driver doesn't count every passenger at every stop. They note two events: "3 got on at stop 2",
-            "3 got off at stop 6". The number of people on board at any stop is just the running total of those
-            events up to that stop.
+            f"""
+            Picture a bus driver who wants to know how many people were on board between each pair of stops. They
+            don't count heads at every stop. They just note who got on and who got off. The number on board at any
+            point is then a running total: everyone who's got on so far, minus everyone who's got off.
 
-            A difference array applies that to range updates. To "add `v` to every element from `l` to `r`":
-
-            1. `diff[l] += v` (from here on, everything is `v` higher),
-            2. `diff[r + 1] -= v` (and from here on, it isn't any more).
-
-            After all the updates, a single running total over `diff` (a prefix sum) gives the final array.
+            Here are four groups riding a bus with {STOPS} stops. A group of 3 gets on at stop 1 and off at stop 4, a
+            group of 2 rides from 0 to 2, and so on:
             """,
-            fig(Row([0, 2, 0, 0, 0, -2, 0], slots=True, label="diff after +2 on [1, 4]"),
-                Row([0, 2, 2, 2, 2, 0, 0], st={i: "new" for i in range(1, 5)}, slots=True, label="running total"),
-                caption="Two writes describe the whole update. The running total spreads it across `[1, 4]` and cancels it at 5."),
+            fig(Bars(ons, label="getting on at each stop"), Bars([-x for x in offs], label="getting off"),
+                Bars(board, st={board.index(BUS_MAX): "answer"}, label="on board after each stop"),
+                caption=f"Only the ons and offs are written down. The running total gives the load everywhere, and it peaks at {BUS_MAX}."),
+            """
+            A **difference array** does exactly that for "add `v` to every element from `l` to `r`". Instead of
+            looping over the range, you make two changes:
+
+            1. `diff[l] += v`, which means "from here on, everything is `v` higher";
+            2. `diff[r + 1] -= v`, which means "and from here on, it isn't any more".
+
+            After all the updates, one running total over `diff` gives you the final array.
+            """,
             key("""
-            A range update is two point updates on the difference array: `+v` where it starts, `-v` just after it ends.
-            Apply all updates in O(1) each, then rebuild everything with one O(n) prefix sum.
+            A range update becomes two point updates: `+v` where it starts, `-v` just after it ends. Do every update
+            in O(1), then rebuild everything with one O(n) running total.
             """),
             """
-            This is the **mirror image of prefix sums**. Prefix sums make range *queries* cheap on an array that doesn't
-            change. Difference arrays make range *updates* cheap, as long as you only need to read the result at the end.
+            If you've done *Prefix sums*, this is its mirror image. Prefix sums make range *questions* cheap on an array
+            that doesn't change. Difference arrays make range *updates* cheap, as long as you only need to read the
+            result at the end.
             """,
         ]),
         ("signals", "When to reach for it", [
             table(
-                ["The problem says…", "Each event becomes"],
-                ["add / increase every element from `l` to `r`, many times", "`diff[l] += v`, `diff[r + 1] -= v`"],
-                ["bookings, reservations, passengers between stops", "`+count` at start, `-count` at end"],
-                ["how many intervals cover each point / the busiest point", "`+1` at start, `-1` after end"],
-                ["lamps, ranges of influence, coverage", "`+1` on `[p - reach, p + reach]`"],
-                ["many rectangles painted on a grid", "four corners in a 2D difference array"],
+                ["The problem says…", "each event becomes"],
+                ["add to every element from `l` to `r`, many times", "`diff[l] += v`, `diff[r + 1] -= v`"],
+                ["bookings, reservations, passengers between stops", "`+count` at the start, `-count` at the end"],
+                ["how many ranges cover each point, or the busiest point", "`+1` at the start, `-1` just after the end"],
+                ["lamps, ranges of influence, coverage", "`+1` over `[p - reach, p + reach]`"],
+                ["lots of rectangles painted on a grid", "four corners in a 2D difference grid"],
             ),
             """
-            **The shape to recognise:** *many updates first, all reads afterwards*, and each update touches a contiguous
-            range.
+            The shape to spot is *all the updates first, all the reading afterwards*, with every update covering a
+            contiguous range.
 
-            **When it is the wrong tool**
+            If the problem mixes them, asking "what's `a[i]` now?" after each update, you'd have to redo the running
+            total every time. That's where a Fenwick tree on the difference array comes in (O(log n) for both), or a
+            segment tree with lazy updates.
 
-            - **Reads between updates.** If the problem asks "what is `a[i]` now?" after each update, the running total
-              would have to be recomputed every time. Use a Fenwick tree over the difference array (range update, point
-              query in O(log n)), or a segment tree with lazy propagation.
-            - **Coordinates are huge.** An array indexed up to 10⁹ won't fit. Keep only the events, **sort** them, and
-              sweep (the *sweep line* variation below).
-            - **Updates that aren't additions.** "Set every element in `[l, r]` to `v`" or "take the max with `v`" can't be
-              expressed as start/stop differences.
+            If positions are huge, like times up to a billion, you can't make an array that big. Keep just the events,
+            sort them, and sweep through them in order (shown below). And if an update isn't an addition, like "set
+            everything in `[l, r]` to `v`" or "take the max with `v`", you can't describe it with a start and a stop,
+            so this doesn't apply.
             """,
         ]),
         ("theory", "Why it works", [
             f"""
-            ### Differences and their running total
+            ### Differences, and getting the array back
 
-            For an array `A`, define the **difference array** `D[0] = A[0]` and `D[i] = A[i] - A[i - 1]`. Then the prefix
-            sums of `D` give back `A`, by telescoping:
+            For an array `A`, the **difference array** is `D[0] = A[0]` and `D[i] = A[i] - A[i - 1]`: how much each
+            element changes from the one before. If you take running totals of `D`, you get `A` back, because the
+            in-between terms cancel out:
 
             `D[0] + D[1] + … + D[i] = A[0] + (A[1] - A[0]) + … + (A[i] - A[i - 1]) = A[i]`
 
             For `A = {A}`:
             """,
-            table(["i", "A[i]", "D[i] = A[i] - A[i-1]", "running total of D"],
+            fig(Bars(A, label="A"), Bars(DA, label="D: change from the previous element"),
+                caption="D is zero wherever A stays flat, and non-zero only where A steps up or down."),
+            table(["i", "A[i]", "D[i]", "running total of D"],
                   *[(str(i), str(A[i]), f"{DA[i]:+d}" if i else str(DA[i]), str(rec[i])) for i in range(len(A))]),
             """
-            `D` is non-zero only where `A` **changes**. A long flat stretch in `A` is a run of zeros in `D`. That's why a
-            range update is cheap in `D`.
+            Long flat stretches in `A` turn into runs of zeros in `D`. That's the reason range updates are cheap there.
 
-            ### A range update touches two differences
+            ### Why a range update only touches two entries
 
-            Add `v` to `A[l..r]`. Which neighbour differences change?
+            Add `v` to `A[l..r]`. Which of the differences change?
 
-            - Inside the range, both neighbours went up by `v`: `A[i] - A[i - 1]` is unchanged for `l < i ≤ r`.
-            - At `i = l`, only `A[l]` went up: `D[l]` grows by `v`.
-            - At `i = r + 1`, only `A[r]` went up: `D[r + 1]` shrinks by `v`.
-            - Everywhere else nothing changed.
+            Inside the range, both neighbours went up by `v`, so their difference stays the same. At `l`, only `A[l]`
+            went up (its left neighbour didn't), so `D[l]` grows by `v`. At `r + 1`, only the left neighbour `A[r]` went
+            up, so `D[r + 1]` shrinks by `v`. Nothing else changed.
 
-            So the update is exactly `D[l] += v; D[r + 1] -= v`. If `r` is the last index, `D[r + 1]` is a spare slot
-            past the end (size `n + 1`) that the rebuild never reads.
+            So the whole update is `D[l] += v; D[r + 1] -= v`. If `r` is the last index, `D[r + 1]` is a spare slot past
+            the end, which is why the array has `n + 1` slots. The rebuild never reads it.
 
-            ### Many updates
+            ### Lots of updates
 
-            Each update is a change to `D`, and additions can be done in any order, so all `m` updates simply add up in
-            `D`. One prefix sum at the end applies all of them at once. Starting from an all-zero array, `D` starts at all
-            zeros too; starting from an existing array, start with its differences (or add the result to it).
+            Each update is just a few additions to `D`, and additions can happen in any order, so all of them simply
+            pile up in `D`. One running total at the end applies every update at once. If you're starting from an
+            existing array instead of zeros, either start from its differences, or build the changes separately and
+            add them on at the end.
 
-            ### Events: the same idea without an array
+            ### The same idea, without an array
 
-            Read `D[l] += v` as an **event** "`+v` happens at position `l`" and `D[r + 1] -= v` as "`-v` happens at
-            `r + 1`". The running total at a position is the sum of all events at or before it. If positions are huge
-            or not integers (times, coordinates), keep only the `2m` events, sort them by position, and sweep. Between
-            two consecutive events nothing changes, so you only need to look at event positions: O(m log m) regardless of
-            how far apart they are.
+            You can read `D[l] += v` as an event: "`+v` happens at position `l`". And `D[r + 1] -= v` is "`-v` happens at
+            `r + 1`". The value at any position is the sum of all events up to there. If positions are huge or not
+            whole numbers (times, coordinates), keep just the `2m` events, sort them by position, and walk through
+            them. Between two events nothing changes, so you only need to look at the events themselves. That's
+            O(m log m), no matter how far apart they are.
 
-            ### Inclusive or half-open?
+            ### Including the end, or not?
 
-            - Inclusive `[l, r]`: the change ends **after** `r`, so the `-v` goes at `r + 1`.
-            - Half-open `[start, end)` (a meeting from 10:00 to 11:00 is over at 11:00): the `-v` goes at `end` itself.
+            If the range includes `r`, the change stops *after* `r`, so the `-v` goes at `r + 1`. If it's half-open,
+            like a meeting from 10:00 to 11:00 that's over at 11:00, the `-v` goes at the end itself.
 
-            With events, the tie-break at equal positions encodes the same choice: for half-open intervals process ends
-            before starts (a meeting ending at 11:00 and one starting at 11:00 don't overlap); for inclusive ones, starts
-            first.
+            With sorted events, the same choice shows up as a tie-break. For half-open ranges, handle ends before
+            starts at the same time (a meeting ending at 11:00 and one starting at 11:00 don't overlap). For inclusive
+            ranges, handle starts first.
 
             ### Two dimensions
 
-            In 2D, adding `v` to the rectangle `(r1, c1)–(r2, c2)` is four corner updates, by the same reasoning applied
-            along rows and then columns:
+            In 2D, adding `v` to the rectangle from `(r1, c1)` to `(r2, c2)` takes four corner changes. Then running
+            totals along the rows and down the columns spread them into exactly the rectangle:
             """,
-            table(["corner", "update", "why"],
+            walk(w2),
+            table(["corner", "change", "why"],
                   ["`(r1, c1)`", "`+v`", "the rectangle starts here"],
-                  ["`(r1, c2 + 1)`", "`-v`", "stop to the right of the rectangle"],
-                  ["`(r2 + 1, c1)`", "`-v`", "stop below the rectangle"],
-                  ["`(r2 + 1, c2 + 1)`", "`+v`", "the region right and below was subtracted twice"]),
-            fig(Grid(CORNERS, st={(r1, c1): "new", (r1, c2 + 1): "mark", (r2 + 1, c1): "mark", (r2 + 1, c2 + 1): "new"}, label=f"+{v} on ({r1},{c1})–({r2},{c2})"),
-                caption="Four writes. A 2D prefix sum (rows, then columns) spreads them over exactly the rectangle."),
+                  ["`(r1, c2 + 1)`", "`-v`", "stop to the right of it"],
+                  ["`(r2 + 1, c1)`", "`-v`", "stop below it"],
+                  ["`(r2 + 1, c2 + 1)`", "`+v`", "the area down and to the right got taken away twice"]),
         ]),
         ("template", "The template", [
             """
-            Apply `m` updates `[l, r, v]` (add `v` to every index from `l` to `r`, inclusive) to an array of `n` zeros,
-            and return the final array. The example: a fence of 8 boards, and painting jobs that each add coats to a
-            run of boards.
+            Apply `m` updates `[l, r, v]` (add `v` to every index from `l` to `r`, including both) to an array of `n`
+            zeros, and return the result. The example is a fence of 8 boards, where each painting job adds some coats to
+            a run of boards.
             """,
             code(
                 "Apply many range additions",
                 APPLY,
                 [
-                    ("make", "`n + 1` zeros. The extra slot takes the `-v` of updates that end at the last index.",
-                     {"c": "`calloc` gives zeros."}),
-                    ("mark", "Two writes per update, however long the range: the rise at `l`, the fall at `r + 1`."),
-                    ("build", "One running total over `diff`. The total at index `i` is the sum of every `+v` that started "
-                              "at or before `i`, minus every `-v` of ranges that already ended: exactly the updates that "
-                              "cover `i`."),
-                    ("ret", "The final values. Slot `n` of `diff` is never read: whatever it holds affects only positions "
-                            "past the end.",
-                     {"c": "Free the difference array; the caller owns `result`."}),
+                    ("make", "`n + 1` zeros. The extra slot catches the `-v` from updates that end at the last index.",
+                     {"c": "`calloc` gives us zeros."}),
+                    ("mark", "Two changes per update, however long the range: up at `l`, down at `r + 1`."),
+                    ("build", "One running total over `diff`. At index `i`, it's every `+v` that started at or before `i`, "
+                              "minus every `-v` from ranges that already finished. In other words, exactly the updates "
+                              "that cover `i`."),
+                    ("ret", "The final values. Slot `n` of `diff` is never read; whatever ended up there would only "
+                            "affect positions past the end.",
+                     {"c": "Free the difference array. The caller owns `result`."}),
                 ],
                 APPLY_RUN,
                 "apply_ranges(8, [[1, 4, 2], [3, 6, 1], [0, 2, 3], [5, 7, 4]])",
             ),
         ]),
         ("trace", "Trace it by hand", [
+            """
+            Watch `diff` go up and down as each job is marked (bars below the line are negative), then watch the sweep
+            turn it into the final array:
+            """,
             walk(steps),
-            "The difference array after each update (index 0 to 8):",
+            "Here's `diff` (indices 0 to 8) after each update:",
             table(["update", "diff"], *d_rows),
             f"""
-            The running total of the last row is `{FINAL}`. Updating every element directly would have cost
-            {sum(r - l + 1 for l, r, _ in JOBS)} writes here; with ranges of length n and m updates that's up to `n · m`.
+            The running total of the last row is `{FINAL}`. Painting every board directly would have taken
+            {sum(r - l + 1 for l, r, _ in JOBS)} changes here. With `m` updates over long ranges that grows to `n × m`,
+            while the difference array always takes `2m` changes plus one sweep.
+            """,
+        ]),
+        ("examples", "More examples", [
+            f"""
+            ### Can the bus carry everyone?
+
+            Back to the bus from the start. Say it has {CAP} seats. Mark `+people` where each group gets on and
+            `-people` where it gets off, sweep, and check whether the running total ever goes above {CAP}:
+            """,
+            fig(Bars(board, st={i: ("answer" if b > CAP else "found") for i, b in enumerate(board)}, label="on board after each stop"),
+                caption=(f"At stop {OVER} there are {board[OVER]} people on a {CAP}-seat bus, so the answer is no. You can stop the sweep right there."
+                         if OVER is not None else f"The load never goes above {CAP}, so yes.")),
+            """
+            One detail: at a stop where some people get off and others get on, the running total applies both at
+            once, so the people leaving free their seats before the new ones sit down. If a problem said the opposite
+            (everyone boards first), you'd check the load between the ons and the offs instead.
+
+            ### Lamps along a street, with negative positions
+            """,
+            f"""
+            Lamps at `(position, reach)` = `{LAMPS}` light every point from `position - reach` to `position + reach`.
+            How bright is each point? The leftmost lit point is {lo}, which is negative, so we can't use positions as
+            indices directly. Shift everything by {-lo}, so point {lo} becomes index 0:
+            """,
+            fig(Bars(light, labels=range(lo, hi + 1), st={i: "answer" for i, b in enumerate(light) if b == BRIGHT}, label="how many lamps light each point"),
+                caption=f"The brightest points ({', '.join(map(str, BRIGHT_AT))}) are lit by {BRIGHT} lamps."),
+            """
+            The shift is just `index = position - lowest`. Forgetting it is one of the most common bugs with
+            difference arrays, because negative indices either crash or (in Python) silently wrap around to the end of
+            the list.
             """,
         ]),
         ("variations", "Variations", [
             """
-            ### Sweep line: huge coordinates
+            ### Sweeping sorted events
 
-            Meetings `[start, end)` with times up to 10⁹: what's the most that overlap at any moment? An array over all
-            times is impossible, but there are only `2m` events. Sort them and keep the running total. Sorting `(time,
-            delta)` pairs puts `-1` before `+1` at the same time, which is exactly the half-open rule: a meeting that
-            ends at 11:00 frees its room before one that starts at 11:00 takes it.
+            Meetings `[start, end)` at times up to a billion: what's the most that are ever running at once? An array
+            covering every possible time is out of the question, but there are only `2m` events. Sort them and keep a
+            running total. Sorting `(time, change)` pairs puts `-1` before `+1` at the same time, which is exactly what
+            half-open meetings need: one that ends at 11:00 frees its room before one starting at 11:00 takes it.
             """,
+            walk(sweep),
             code(
                 "Most meetings at once (sorted events)",
                 SWEEP,
                 [
                     ("events", "Two events per meeting: `+1` when it starts, `-1` when it ends."),
-                    ("sort", "Sort by time; at equal times, `-1` (an end) sorts before `+1` (a start).",
-                     {"c": "The comparator orders by time with `(a > b) - (a < b)`, which can't overflow the way `a - b` can for large values, then by delta.",
-                      "java": "Comparing with `Long.compare` avoids the overflow that `a[0] - b[0]` would risk."}),
-                    ("scan", "Walk the events in order; `live` is how many meetings are running right after this event."),
-                    ("best", "The busiest moment is the largest `live` seen. Between events nothing changes, so checking "
-                             "only at events is enough."),
-                    ("ret", "The maximum overlap.",
+                    ("sort", "Sort by time. At equal times, `-1` (an end) comes before `+1` (a start).",
+                     {"c": "The comparator orders by time with `(a > b) - (a < b)`. Writing `a - b` can overflow for big values.",
+                      "java": "`Long.compare` avoids the overflow that `a[0] - b[0]` could cause."}),
+                    ("scan", "Go through the events in order. `live` is how many meetings are running just after this event."),
+                    ("best", "The busiest moment is the biggest `live` we see. Nothing changes between events, so "
+                             "checking at the events is enough."),
+                    ("ret", "The most meetings at once.",
                      {"c": "Free the events first."}),
                 ],
                 SWEEP_RUN,
                 "max_overlap([(900, 1030), (1000, 1100), (1030, 1200), (1015, 1045), (1100, 1130)]); [(1, 2), (2, 3), (3, 4)]; huge times",
             ),
-            table(["time", "event", "delta", "live", "best"], *ev_rows),
+            table(["time", "event", "change", "running", "most so far"], *ev_rows),
             f"""
-            At 10:30 one meeting ends and another starts: the end goes first, so `live` dips before it rises, and the
-            answer is {MANS}. Back-to-back meetings `(1, 2), (2, 3), (3, 4)` never overlap: 1.
+            At 10:30 one meeting ends and another starts. The end goes first, so the count dips before it rises, and
+            the answer is {MANS}. Back-to-back meetings `(1, 2), (2, 3), (3, 4)` never overlap, so that one's 1.
 
             ### Rectangles on a grid
 
-            Four corner updates per rectangle, then a prefix sum along each row and one along each column.
+            Four corner changes per rectangle, then running totals along each row and down each column.
             """,
             code(
                 "Add values to many rectangles",
                 GRID2,
                 [
-                    ("make", "An `(rows + 1) × (cols + 1)` difference grid of zeros; the extra row and column catch the "
-                             "corners just past the edge."),
+                    ("make", "An `(rows + 1) × (cols + 1)` grid of zeros. The extra row and column catch the corners "
+                             "that land just past the edge."),
                     ("mark", "The four corners of every rectangle: `+v`, `-v`, `-v`, `+v`."),
-                    ("rows", "Running totals along each row spread every `+v` rightwards until its `-v`."),
-                    ("cols", "Then running totals down each column spread them downwards. Together this is a 2D prefix sum."),
+                    ("rows", "Running totals along each row spread every `+v` to the right until its `-v`."),
+                    ("cols", "Then running totals down each column spread them downwards. Together that's a 2D prefix sum."),
                     ("ret", "Drop the spare row and column.",
-                     {"c": "Copy the `rows × cols` part out and free the work grid."}),
+                     {"c": "Copy out the `rows × cols` part and free the working grid."}),
                 ],
                 GRID2_RUN,
                 "paint_rects(4, 5, [[0, 0, 1, 2, 1], [1, 1, 3, 3, 2], [2, 4, 3, 4, 5]])",
             ),
-            fig(Grid(PAINT, label="result"), caption="Three rectangles, twelve corner writes, one 2D sweep."),
+            fig(Grid(PAINT, label="result"), caption="Three rectangles, twelve corner changes, one 2D sweep."),
             """
-            ### Checking a limit
+            ### Updates and questions mixed together
 
-            "Can a shuttle with `c` seats carry every booking?" Build the occupancy with a difference array (or events),
-            then check that the running total never exceeds `c`. You can stop at the first position where it does.
-
-            ### Interleaved updates and queries
-
-            If you must read values between updates, keep the difference array in a **Fenwick tree**: a range update is
-            still two point updates, and reading `A[i]` is a prefix-sum query, both O(log n).
+            If you need to read values between updates, keep the difference array inside a **Fenwick tree**. A range
+            update is still two point changes, and reading `A[i]` is a running-total query. Both take O(log n).
             """,
         ]),
         ("complexity", "What it costs", [
             f"""
-            - **Direct updates:** each update loops over its range, O(n) worst case, so O(n · m) in total. For
-              n = m = 10⁵ that's up to {N * N:,} additions.
-            - **Difference array:** O(1) per update, plus one O(n) rebuild: **O(n + m)** time, O(n) space.
-            - **Sweep line:** O(m log m) for sorting `2m` events, O(m) space, independent of how large the coordinates are.
-            - **2D:** O(1) per rectangle, O(rows · cols) to rebuild.
+            Updating every element directly costs up to O(n) per update, so O(n × m) for `m` updates. With `n` and `m`
+            both 100,000, that's up to {N * N:,} additions.
+
+            A difference array costs O(1) per update plus one O(n) rebuild, so **O(n + m)** time and O(n) memory.
+            Sweeping sorted events costs O(m log m) to sort `2m` events and O(m) memory, however large the positions
+            are. In 2D, it's O(1) per rectangle and O(rows × cols) to rebuild.
             """,
             table(
-                ["Approach", "Time", "Extra space", "Use when"],
-                ["Update every element", "O(n · m)", "O(1)", "tiny inputs"],
+                ["Approach", "Time", "Extra space", "Use it when"],
+                ["Update every element", "O(n · m)", "O(1)", "the input is tiny"],
                 ["Difference array", "O(n + m)", "O(n)", "positions fit in an array"],
-                ["Sorted events (sweep)", "O(m log m)", "O(m)", "huge or real-valued positions"],
-                ["Fenwick tree on differences", "O((m + q) log n)", "O(n)", "reads between updates"],
+                ["Sorted events (sweep)", "O(m log m)", "O(m)", "positions are huge or not whole numbers"],
+                ["Fenwick tree on the differences", "O((m + q) log n)", "O(n)", "you read values between updates"],
             ),
         ]),
         ("languages", "In your language", [
             """
-            **Python:** `diff = [0] * (n + 1)`; `itertools.accumulate(diff[:n])` rebuilds in one line. For events, sorting
-            tuples `(time, delta)` gives the "ends before starts" order for free, since `-1 < 1`.
+            ### Python
 
-            **Java:** `long[] diff = new long[n + 1]` (sums of many updates overflow `int`). Sort events with a comparator
-            that uses `Integer.compare` / `Long.compare`, never `a - b`.
+            `diff = [0] * (n + 1)`, and `itertools.accumulate(diff[:n])` rebuilds it in one line. For events, sorting
+            `(time, change)` tuples puts ends before starts automatically, since `-1 < 1`. Be careful with negative
+            indices: `diff[-1]` doesn't crash, it quietly changes the last element.
 
-            **C++:** `vector<long long> diff(n + 1)`; `partial_sum` can rebuild. A `vector<pair<int, int>>` of events
-            sorts by time then delta with the default `<`. With sparse coordinates, a `std::map<int, long long>` of
-            deltas iterated in order is a sweep with no explicit sort.
+            ### Java
 
-            **C:** `calloc(n + 1, sizeof(long long))`; for events, a `struct` array and `qsort` with a comparator that
-            doesn't overflow.
+            `long[] diff = new long[n + 1]`, because lots of updates on one index can overflow an `int`. Sort events
+            with a comparator that uses `Integer.compare` or `Long.compare`, never `a - b`.
+
+            ### C++
+
+            `vector<long long> diff(n + 1)`, and `partial_sum` can do the rebuild. A `vector<pair<int, int>>` of events
+            sorts by time and then by change with the default `<`. When positions are sparse, a `std::map<int, long
+            long>` of changes, walked in order, is a sweep without an explicit sort.
+
+            ### C
+
+            `calloc(n + 1, sizeof(long long))`. For events, an array of structs and `qsort` with a comparator that
+            can't overflow.
             """,
         ]),
         ("pitfalls", "Pitfalls and edge cases", [
             """
-            - **No spare slot.** `diff[r + 1]` with `r = n - 1` writes out of bounds unless `diff` has `n + 1` entries.
-            - **Inclusive vs half-open.** Inclusive ranges stop at `r + 1`; half-open ones at `end`. Mixing them up
-              shifts every boundary by one.
-            - **Tie order in sweeps.** At equal positions, decide whether ends or starts go first, from the problem's
-              wording (does a range ending at 5 overlap one starting at 5?).
-            - **Reading before rebuilding.** `diff` holds changes, not values. Only the running total gives values.
-            - **Overflow.** Many large updates on the same index overflow 32 bits.
-            - **Negative or shifted positions.** A lamp at position 2 with reach 5 covers -3..7. Offset positions so the
-              smallest maps to 0, or use events.
-            - **Counter-comparators.** `return a.at - b.at` overflows for values near ±2³¹; compare instead.
+            The usual suspects:
+
+            - No spare slot. With `r = n - 1`, `diff[r + 1]` writes past the end unless `diff` has `n + 1` entries.
+            - Mixing up inclusive and half-open ranges. Inclusive ranges stop at `r + 1`, half-open ones at `end`. Get
+              it wrong and every boundary moves by one.
+            - The tie-break in sweeps. At the same position, decide from the problem's wording whether ends or starts
+              go first. Does a range ending at 5 overlap one starting at 5?
+            - Reading `diff` before the rebuild. It holds changes, not values. Only the running total gives you values.
+            - Overflow. Lots of big updates on the same spot need 64 bits.
+            - Negative or shifted positions. A lamp at 2 with reach 5 covers -3 to 7. Shift positions so the smallest
+              becomes 0, or switch to events.
+            - Comparators written as `a - b`. They overflow for values near ±2³¹. Compare instead.
             """,
         ]),
         ("check", "Check yourself", [
             quiz(
                 ("Why does `diff` need `n + 1` slots?",
-                 "An update ending at the last index `r = n - 1` writes its `-v` at `n`. The rebuild never reads slot `n`, but it must exist."),
-                ("Prove that adding `v` to `A[l..r]` changes only `D[l]` and `D[r + 1]`.",
-                 "`D[i] = A[i] - A[i - 1]`. For `l < i ≤ r` both terms rose by `v`, so the difference is unchanged. At `i = l` only `A[l]` rose (`D[l] += v`); at `i = r + 1` only `A[r]` rose (`D[r + 1] -= v`). Elsewhere nothing changed."),
-                ("Meetings `[10, 11)` and `[11, 12)`. With events sorted by `(time, delta)`, what's the maximum overlap, and why?",
-                 "1. At time 11 the end (`-1`) sorts before the start (`+1`), so the count goes 1 → 0 → 1 and never reaches 2. That matches half-open intervals."),
-                ("Updates and \"what is `a[i]` now?\" questions are interleaved, 10⁵ of each. Is a plain difference array enough?",
-                 "No: each question would need an O(n) rebuild. Put the difference array in a Fenwick tree: two O(log n) point updates per range update, and `a[i]` is an O(log n) prefix sum."),
-                ("How is a difference array related to prefix sums?",
-                 "They're inverses. The prefix sum of the difference array gives back the array, and the difference array of the prefix array gives back the original values. Differences make range updates cheap; prefix sums make range queries cheap."),
+                 "An update ending at the last index, `r = n - 1`, puts its `-v` at index `n`. The rebuild never reads that slot, but it has to exist."),
+                ("Show that adding `v` to `A[l..r]` only changes `D[l]` and `D[r + 1]`.",
+                 "`D[i] = A[i] - A[i - 1]`. Inside the range both terms went up by `v`, so the difference didn't change. At `l`, only `A[l]` went up, so `D[l]` grows by `v`. At `r + 1`, only `A[r]` went up, so `D[r + 1]` shrinks by `v`. Nothing else changed."),
+                ("Meetings `[10, 11)` and `[11, 12)`. With events sorted by `(time, change)`, what's the most running at once, and why?",
+                 "1. At 11, the end (`-1`) sorts before the start (`+1`), so the count goes 1, then 0, then 1, and never hits 2. That's right for half-open meetings."),
+                ("There are 100,000 updates and 100,000 \"what's `a[i]` now?\" questions, mixed together. Is a plain difference array enough?",
+                 "No. Each question would need an O(n) rebuild. Put the difference array in a Fenwick tree instead: two O(log n) changes per update, and `a[i]` is an O(log n) running-total query."),
+                ("How are difference arrays and prefix sums related?",
+                 "They undo each other. The running total of the difference array gives you back the array, and the differences of the prefix array give you back the original values. Differences make range updates cheap; prefix sums make range questions cheap."),
             ),
         ]),
     ],

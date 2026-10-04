@@ -10,6 +10,7 @@
 //   { type: "list",  label, values, states, pointers: { name: index }, links: [[from, to]], cycleAt }
 //   { type: "row",   label, cells, states, pointers, slots }
 //   { type: "grid",  label, cells: [[...]], states: { "r,c": state } }
+//   { type: "bars",  label, values, labels, states, pointers, height, max, min }  (max/min fix the scale across steps)
 //   { type: "ntree", label, nodes: [{ id, label, parent }], states: { id: state }, notes }
 //   { type: "vars",  label, items: { name: value } }
 // Tree states are keyed by the node's position in level order, counting real nodes only.
@@ -286,6 +287,46 @@
     return `<svg class="vz-cells" width="${w}" height="${h}" viewBox="0 0 ${w} ${h}" role="img" aria-label="${esc(opts.label || "grid")}">${out.join("")}</svg>`;
   }
 
+  /* Bars: counts, running totals, heights -------------------------------------- */
+
+  // Values as bars on a zero line (negative ones hang below it), each with its
+  // value and a label (the index, or labels[i]) underneath.
+  function barsSvg(values, opts = {}) {
+    const states = opts.states || {};
+    const pointers = opts.pointers || {};
+    const labels = opts.labels || values.map((_, i) => i);
+    const BW = Math.max(36, 8 * Math.max(...labels.map((l) => String(l).length), ...values.map((v) => String(v ?? "").length)) + 12);
+    const nums = values.map((v) => (typeof v === "number" ? v : 0));
+    const up = Math.max(0, opts.max || 0, ...nums);
+    const down = Math.max(0, opts.min ? -opts.min : 0, ...nums.map((v) => -v));
+    const scale = (opts.height || 96) / (up + down || 1);
+    const top = PAD + 16;
+    const base = top + up * scale;
+    const below = base + down * scale + (down ? 16 : 0);
+    const named = {};
+    for (const [name, i] of Object.entries(pointers)) if (i !== null && i !== undefined && i >= 0) (named[i] = named[i] || []).push(name);
+    const hasPtr = Object.keys(named).length > 0;
+    const w = values.length * BW + 2 * PAD;
+    const h = below + 18 + (hasPtr ? 16 : 0) + PAD;
+    const out = [`<line class="vz-axis" x1="${PAD}" y1="${base}" x2="${w - PAD}" y2="${base}"/>`];
+    values.forEach((v, i) => {
+      const x = PAD + i * BW;
+      const cx = x + BW / 2;
+      const empty = v === null || v === undefined;
+      const n = empty ? 0 : nums[i];
+      const len = Math.max(Math.abs(n) * scale, empty ? 0 : 1.5);
+      const y = n >= 0 ? base - len : base;
+      const valueY = n >= 0 ? y - 5 : base + len + 12;
+      out.push(`<g class="${cls("vz-bar", states[i])}">
+        ${empty ? "" : `<rect x="${x + 6}" y="${y.toFixed(1)}" width="${BW - 12}" height="${len.toFixed(1)}" rx="3"/>`}
+        ${empty ? "" : `<text class="vz-bar-v" x="${cx}" y="${valueY.toFixed(1)}">${esc(v)}</text>`}
+        <text class="vz-index" x="${cx}" y="${below + 13}">${esc(labels[i])}</text>
+        ${named[i] ? `<text class="vz-ptr" x="${cx}" y="${below + 29}">${esc(named[i].join(" · "))}</text>` : ""}
+      </g>`);
+    });
+    return `<svg class="vz-bars" width="${w}" height="${h}" viewBox="0 0 ${w} ${h}" role="img" aria-label="${esc(opts.label || "bars")}">${out.join("")}</svg>`;
+  }
+
   /* Panels ------------------------------------------------------------------------ */
 
   const figure = (svg, caption) =>
@@ -303,6 +344,8 @@
         return figure(rowSvg(p.cells || [], p), p.label);
       case "grid":
         return figure(gridSvg(p.cells || [], p), p.label);
+      case "bars":
+        return figure(barsSvg(p.values || [], p), p.label);
       case "vars": {
         const dl = `<dl class="vz-vars">${Object.entries(p.items || {})
           .map(([k, v]) => `<div><dt>${esc(k)}</dt><dd>${esc(typeof v === "string" ? v : JSON.stringify(v))}</dd></div>`)

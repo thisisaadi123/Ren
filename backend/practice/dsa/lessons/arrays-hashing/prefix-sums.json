@@ -2,21 +2,21 @@
  "version": 1,
  "id": "prefix-sums",
  "topic": "arrays-hashing",
- "summary": "Precompute running totals once, and the sum of any stretch of the array becomes one subtraction. Combined with a\nhash map, the same idea counts or finds stretches with a given sum, negatives included, in a single pass.",
- "minutes": 13,
+ "summary": "Work out the running totals once, and the sum of any stretch of the array becomes a single subtraction. Add a\nhash map, and the same idea finds or counts stretches with a given sum in one pass, even when some numbers are\nnegative.",
+ "minutes": 17,
  "sections": [
   {
    "id": "idea",
    "title": "The idea",
    "blocks": [
     {
-     "md": "A car's odometer shows the total distance driven since the car was new. Nobody resets it at every town.\nStill, to know how far it is from town A to town B, you just subtract: reading at B minus reading at A.\n\nA **prefix sum** array is an odometer for an array. `P[i]` is the total of the first `i` elements:\n\n- `P[0] = 0` (nothing added yet),\n- `P[i + 1] = P[i] + nums[i]`.\n\nThen the sum of any stretch `nums[l..r]` (inclusive) is a difference of two readings:\n\n`sum(nums[l..r]) = P[r + 1] - P[l]`"
+     "md": "A car's odometer shows how far the car has gone since it was new. Nobody resets it in every town. But if\nyou want to know how far it is from one town to the next, you just subtract: the reading when you arrive,\nminus the reading when you set off.\n\nA **prefix sum** array is an odometer for an array. `P[i]` is the total of the first `i` elements. `P[0]`\nis 0 (nothing added yet), and each next entry adds one more element: `P[i + 1] = P[i] + nums[i]`.\n\nOnce you have that, the sum of any stretch `nums[l..r]` is just two readings subtracted:\n\n`sum of nums[l..r] = P[r + 1] - P[l]`"
     },
     {
      "panels": [
       {
-       "type": "row",
-       "cells": [
+       "type": "bars",
+       "values": [
         3,
         0,
         5,
@@ -25,21 +25,11 @@
         1,
         4
        ],
-       "states": {
-        "1": "answer",
-        "2": "answer",
-        "3": "answer"
-       },
-       "pointers": {
-        "l": 1,
-        "r": 3
-       },
-       "label": "nums",
-       "slots": true
+       "label": "daily rain"
       },
       {
-       "type": "row",
-       "cells": [
+       "type": "bars",
+       "values": [
         0,
         3,
         3,
@@ -50,17 +40,16 @@
         22
        ],
        "states": {
-        "4": "found",
+        "4": "answer",
         "1": "mark"
        },
-       "label": "P",
-       "slots": true
+       "label": "P: rain so far, like an odometer"
       }
      ],
-     "caption": "Total of `nums[1..3]` = `P[4] - P[1]` = 10 - 3 = 7. One subtraction, however long the stretch."
+     "caption": "The rain on days 1 to 3 is the reading after day 3 (10) minus the reading before day 1 (3): 7. It doesn't matter how long the stretch is."
     },
     {
-     "key": "Pay O(n) once to build `P`; afterwards every range sum is O(1): `P[r + 1] - P[l]`. And \"some stretch sums to\n`k`\" becomes \"two prefix values differ by `k`\", which is a complement lookup."
+     "key": "Spend O(n) once building `P`, and every range sum after that costs O(1): `P[r + 1] - P[l]`. And \"some\nstretch adds up to `k`\" turns into \"two running totals differ by `k`\", which is a complement lookup."
     }
    ]
   },
@@ -72,42 +61,42 @@
      "table": {
       "head": [
        "The problem says…",
-       "What prefix sums give you"
+       "what prefix sums give you"
       ],
       "rows": [
        [
-        "many questions \"sum / count from `l` to `r`\" on a fixed array",
+        "lots of questions like \"sum from `l` to `r`\" on an array that doesn't change",
         "each answer in O(1) after O(n) setup"
        ],
        [
-        "count (or find longest / shortest) **subarrays** with sum `k`",
-        "`P[j] - P[i] = k`: look up `P[j] - k` in a map"
+        "count (or find the longest / shortest) **subarrays** that add up to `k`",
+        "`P[j] - P[i] = k`, so look up `P[j] - k` in a map"
        ],
        [
-        "balance point, left total equals right total",
+        "a balance point where the left side equals the right side",
         "left = `P[i]`, right = `total - P[i + 1]`"
        ],
        [
-        "equal number of 0s and 1s, of A and B",
-        "map one to `-1`, the other to `+1`; look for sum 0"
+        "as many 0s as 1s, as many A's as B's",
+        "turn one into `-1` and the other into `+1`, then look for a sum of 0"
        ],
        [
         "subarray sum divisible by `k`",
-        "equal remainders `P[j] % k == P[i] % k`"
+        "two running totals with the same remainder"
        ],
        [
         "running balance, cumulative totals",
         "`P` itself is the answer"
        ],
        [
-        "sum over a rectangle of a grid, many times",
+        "sums over rectangles in a grid, many times",
         "2D prefix sums, O(1) per rectangle"
        ]
       ]
      }
     },
     {
-     "md": "**The key phrase is \"contiguous\".** Prefix sums answer questions about *stretches* (subarrays,\nconsecutive days, ranges of indices), never about arbitrary subsets.\n\n**When it is the wrong tool**\n\n- **The array changes between questions.** One update can change `n` prefix values. Use a Fenwick tree or\n  segment tree (O(log n) per update and query).\n- **Max, min or gcd of a range.** These can't be \"subtracted\": knowing the max of `[0..r]` and of `[0..l-1]`\n  doesn't give the max of `[l..r]`. Use a sparse table or segment tree.\n- **All values are positive and you need a window.** A sliding window with two pointers is often simpler\n  and uses O(1) memory. Prefix sums with a hash map are the tool when values can be **negative**, which\n  breaks the window's \"growing it only increases the sum\" logic."
+     "md": "The word to look for is \"contiguous\" (or \"subarray\", \"consecutive days\", \"a range of indices\"). Prefix\nsums are about stretches, never about picking arbitrary elements.\n\nThey're the wrong tool when the array keeps changing between questions, because one update can change\nevery running total after it. A Fenwick tree or segment tree handles that in O(log n) per update. They also\ncan't do max, min or gcd over a range, because you can't \"subtract\" a maximum. Knowing the biggest value in\n`[0..r]` and in `[0..l-1]` doesn't tell you the biggest in `[l..r]`.\n\nAnd if every value is positive and you need a window, a sliding window with two pointers is often simpler.\nPrefix sums plus a hash map are what you want when values can be **negative**, which is exactly when the\nsliding window's \"make it bigger and the sum goes up\" logic stops working."
     }
    ]
   },
@@ -116,16 +105,287 @@
    "title": "Why it works",
    "blocks": [
     {
-     "md": "### Telescoping\n\nBy definition `P[i] = nums[0] + nums[1] + … + nums[i - 1]`. Write out `P[r + 1] - P[l]`:\n\n`(nums[0] + … + nums[l - 1] + nums[l] + … + nums[r]) - (nums[0] + … + nums[l - 1])`\n\nThe first `l` terms cancel, leaving exactly `nums[l] + … + nums[r]`. That cancellation (each term appears once\nwith `+` and once with `-`) is called **telescoping**, and it's the whole proof.\n\n### Why `P` has `n + 1` entries\n\n`P[i]` is the sum of the first `i` elements, so `i` runs from 0 to `n`. The extra `P[0] = 0` means a stretch\nthat starts at index 0 needs no special case: `sum(nums[0..r]) = P[r + 1] - P[0]`. Think of `P[i]` as sitting\non the **boundary** before index `i`; a stretch `[l, r]` runs from boundary `l` to boundary `r + 1`.\n\n### Stretches with a given sum\n\nA stretch `nums[i..j-1]` sums to `k` exactly when `P[j] - P[i] = k`, that is when\n\n`P[i] = P[j] - k`\n\nSo: walk `j` from left to right, keep a running prefix, and ask a hash map about **earlier** prefix values.\nThat's complement lookup, applied to prefix values instead of array values. The same invariant applies: the\nmap holds only boundaries before `j`, so each stretch is found once, at its right end.\n\nWhat the map stores depends on the question:\n\n- **count** the stretches: prefix value → how many times seen; seed it with `{0: 1}` (the empty prefix\n  `P[0]`), so stretches that start at index 0 are counted;\n- **longest** stretch: prefix value → **first** index where it occurred; seed with `{0: -1}`, keep only the\n  first occurrence, length `j - first[P[j] - k]`;\n- **shortest** stretch: prefix value → **latest** index (overwrite on every occurrence).\n\nHere is the counting version on `[1, 2, 1, 3, -3, 3]`, `k = 3`. The table is seeded with `0 → 1`:"
+     "md": "### Things cancel out\n\n`P[i]` is `nums[0] + nums[1] + … + nums[i - 1]`. Write out `P[r + 1] - P[l]` in full:\n\n`(nums[0] + … + nums[l - 1] + nums[l] + … + nums[r]) - (nums[0] + … + nums[l - 1])`\n\nThe first `l` terms appear once with a plus and once with a minus, so they cancel, and you're left with\nexactly `nums[l] + … + nums[r]`. And that's the proof. (This kind of cancelling is called\n**telescoping**, like a telescope folding up.)\n\n### Why `P` has one extra slot\n\n`P[i]` is the sum of the first `i` elements, so `i` goes from 0 to `n`. That's `n + 1` values. The extra\n`P[0] = 0` means a stretch starting at index 0 doesn't need a special case: its sum is `P[r + 1] - P[0]`.\nIt helps to picture `P[i]` sitting on the *gap* just before index `i`. A stretch `[l, r]` runs from gap `l`\nto gap `r + 1`.\n\n### Finding stretches with a given sum\n\nA stretch `nums[i..j-1]` adds up to `k` exactly when `P[j] - P[i] = k`, which is the same as\n\n`P[i] = P[j] - k`\n\nSo walk `j` from left to right, keep a running total, and ask a hash map whether an earlier running total\nequals `P[j] - k`. That's complement lookup again, just on running totals instead of on the values\nthemselves. And the same reasoning applies: the map only holds totals from before `j`, so each stretch is\nfound once, when you reach its end.\n\nWhat you keep in the map depends on the question. To **count** stretches, store how many times each total\nhas appeared, and start the map with `{0: 1}` for the empty prefix, so stretches starting at index 0 get\ncounted. For the **longest** stretch, store the *first* index where each total appeared (starting with\n`{0: -1}`). For the **shortest**, store the *latest* index.\n\nHere's the counting version, step by step:"
+    },
+    {
+     "walk": {
+      "steps": [
+       {
+        "text": "The empty prefix (total 0) has appeared once, before we start.",
+        "panels": [
+         {
+          "type": "row",
+          "cells": [
+           1,
+           2,
+           1,
+           3,
+           -3,
+           3
+          ],
+          "slots": true
+         },
+         {
+          "type": "vars",
+          "items": {
+           "0:": "1"
+          },
+          "label": "running total → times seen"
+         },
+         {
+          "type": "vars",
+          "items": {
+           "stretches:": "0"
+          }
+         }
+        ]
+       },
+       {
+        "text": "Running total 1. Earlier totals equal to 1 - 3 = -2: 0. Nothing ends here.",
+        "panels": [
+         {
+          "type": "row",
+          "cells": [
+           1,
+           2,
+           1,
+           3,
+           -3,
+           3
+          ],
+          "states": {
+           "0": "active"
+          },
+          "pointers": {
+           "j": 0
+          },
+          "slots": true
+         },
+         {
+          "type": "vars",
+          "items": {
+           "0:": "1",
+           "1:": "1"
+          },
+          "label": "running total → times seen"
+         },
+         {
+          "type": "vars",
+          "items": {
+           "stretches:": "0"
+          }
+         }
+        ]
+       },
+       {
+        "text": "Running total 3. Earlier totals equal to 3 - 3 = 0: 1. Each one starts a stretch ending here, so add 1.",
+        "panels": [
+         {
+          "type": "row",
+          "cells": [
+           1,
+           2,
+           1,
+           3,
+           -3,
+           3
+          ],
+          "states": {
+           "1": "active"
+          },
+          "pointers": {
+           "j": 1
+          },
+          "slots": true
+         },
+         {
+          "type": "vars",
+          "items": {
+           "0:": "1",
+           "1:": "1",
+           "3:": "1"
+          },
+          "label": "running total → times seen"
+         },
+         {
+          "type": "vars",
+          "items": {
+           "stretches:": "1"
+          }
+         }
+        ]
+       },
+       {
+        "text": "Running total 4. Earlier totals equal to 4 - 3 = 1: 1. Each one starts a stretch ending here, so add 1.",
+        "panels": [
+         {
+          "type": "row",
+          "cells": [
+           1,
+           2,
+           1,
+           3,
+           -3,
+           3
+          ],
+          "states": {
+           "2": "active"
+          },
+          "pointers": {
+           "j": 2
+          },
+          "slots": true
+         },
+         {
+          "type": "vars",
+          "items": {
+           "0:": "1",
+           "1:": "1",
+           "3:": "1",
+           "4:": "1"
+          },
+          "label": "running total → times seen"
+         },
+         {
+          "type": "vars",
+          "items": {
+           "stretches:": "2"
+          }
+         }
+        ]
+       },
+       {
+        "text": "Running total 7. Earlier totals equal to 7 - 3 = 4: 1. Each one starts a stretch ending here, so add 1.",
+        "panels": [
+         {
+          "type": "row",
+          "cells": [
+           1,
+           2,
+           1,
+           3,
+           -3,
+           3
+          ],
+          "states": {
+           "3": "active"
+          },
+          "pointers": {
+           "j": 3
+          },
+          "slots": true
+         },
+         {
+          "type": "vars",
+          "items": {
+           "0:": "1",
+           "1:": "1",
+           "3:": "1",
+           "4:": "1",
+           "7:": "1"
+          },
+          "label": "running total → times seen"
+         },
+         {
+          "type": "vars",
+          "items": {
+           "stretches:": "3"
+          }
+         }
+        ]
+       },
+       {
+        "text": "Running total 4. Earlier totals equal to 4 - 3 = 1: 1. Each one starts a stretch ending here, so add 1.",
+        "panels": [
+         {
+          "type": "row",
+          "cells": [
+           1,
+           2,
+           1,
+           3,
+           -3,
+           3
+          ],
+          "states": {
+           "4": "active"
+          },
+          "pointers": {
+           "j": 4
+          },
+          "slots": true
+         },
+         {
+          "type": "vars",
+          "items": {
+           "0:": "1",
+           "1:": "1",
+           "3:": "1",
+           "4:": "2",
+           "7:": "1"
+          },
+          "label": "running total → times seen"
+         },
+         {
+          "type": "vars",
+          "items": {
+           "stretches:": "4"
+          }
+         }
+        ]
+       },
+       {
+        "text": "Running total 7. Earlier totals equal to 7 - 3 = 4: 2. Each one starts a stretch ending here, so add 2.",
+        "panels": [
+         {
+          "type": "row",
+          "cells": [
+           1,
+           2,
+           1,
+           3,
+           -3,
+           3
+          ],
+          "states": {
+           "5": "active"
+          },
+          "pointers": {
+           "j": 5
+          },
+          "slots": true
+         },
+         {
+          "type": "vars",
+          "items": {
+           "0:": "1",
+           "1:": "1",
+           "3:": "1",
+           "4:": "2",
+           "7:": "2"
+          },
+          "label": "running total → times seen"
+         },
+         {
+          "type": "vars",
+          "items": {
+           "stretches:": "6"
+          }
+         }
+        ]
+       }
+      ],
+      "title": "Counting stretches of `[1, 2, 1, 3, -3, 3]` that add up to 3. The map counts how often each running total has appeared."
+     }
     },
     {
      "table": {
       "head": [
        "j",
        "x",
-       "prefix",
-       "need prefix - k",
-       "earlier prefixes equal to it",
+       "running total",
+       "looking for",
+       "earlier matches",
        "stretches so far"
       ],
       "rows": [
@@ -181,7 +441,166 @@
      }
     },
     {
-     "md": "Every row adds the number of earlier boundaries that close a stretch summing to 3 at `j`. Total:\n**6**, which matches checking all 21 stretches one by one.\n\n### Why negatives are fine here (and not for sliding windows)\n\nA sliding window grows on the right and shrinks on the left, relying on \"adding an element increases the sum\".\nWith negative numbers that's false, and the window gets stuck. Prefix sums make no such assumption: the\nidentity `P[r + 1] - P[l]` holds for any integers, and the hash map finds matching boundaries wherever they\nare.\n\n### Remainders: divisible by `k`\n\n`sum(nums[i..j-1])` is divisible by `k` exactly when `P[j]` and `P[i]` leave the **same remainder** mod `k`\n(their difference is a multiple of `k`). Count remainders instead of prefix values; the map has at most `k`\nkeys. Normalise negative remainders with `((p % k) + k) % k`.\n\n### Beyond sums\n\nThe trick works for any operation you can **undo**: XOR (`X[r + 1] ^ X[l]`, since XOR undoes itself),\ncounts of a category (a prefix count of vowels), products when no element is 0. It does **not** work for\nmax, min or gcd, which can't be undone.\n\n### Two dimensions\n\nFor a grid, let `P[r][c]` be the sum of the rectangle from `(0, 0)` to `(r - 1, c - 1)`. By\n**inclusion–exclusion**:\n\n- building: `P[r+1][c+1] = grid[r][c] + P[r][c+1] + P[r+1][c] - P[r][c]` (the top-left part was added twice);\n- querying rows `r1..r2`, columns `c1..c2`:\n  `P[r2+1][c2+1] - P[r1][c2+1] - P[r2+1][c1] + P[r1][c1]` (the top-left part was subtracted twice)."
+     "md": "Each step adds the number of earlier gaps that start a stretch summing to 3 and ending at `j`. That gives\n**6**, the same as checking all 21 stretches one by one.\n\n### Why negative numbers are fine\n\nA sliding window grows on the right and shrinks on the left, and it relies on \"adding an element makes the\nsum bigger\". With negative numbers that's just not true, and the window gets stuck. Prefix sums don't\nassume anything like that. `P[r + 1] - P[l]` is true for any integers, and the hash map finds matching\ntotals wherever they are.\n\n### Divisible by `k`\n\nA stretch's sum is divisible by `k` exactly when the two running totals at its ends leave the **same\nremainder** when divided by `k` (their difference is then a multiple of `k`). So count remainders instead\nof totals. The map has at most `k` keys. Watch out for negative remainders and fix them with\n`((p % k) + k) % k`.\n\n### Not just sums\n\nThis works for anything you can undo. XOR undoes itself, so `X[r + 1] ^ X[l]` gives the XOR of a range.\nPrefix counts of a category (\"how many vowels so far?\") work the same way. Products work too, as long as\nthere are no zeros. Max, min and gcd don't, because they can't be undone.\n\n### Two dimensions\n\nFor a grid, let `P[r][c]` be the sum of the rectangle from the top-left corner down to `(r - 1, c - 1)`.\nBuilding it: `P[r+1][c+1] = grid[r][c] + P[r][c+1] + P[r+1][c] - P[r][c]`. The bit above and the bit to the\nleft both include the top-left block, so it gets added twice and you take it away once. Querying works the\nother way round. Here's a query, one step at a time:"
+    },
+    {
+     "walk": {
+      "steps": [
+       {
+        "text": "Start with everything from the top-left corner down to (2, 2): P[3][3] = 16.",
+        "panels": [
+         {
+          "type": "grid",
+          "cells": [
+           [
+            2,
+            0,
+            1,
+            3
+           ],
+           [
+            4,
+            1,
+            0,
+            2
+           ],
+           [
+            1,
+            5,
+            2,
+            1
+           ]
+          ],
+          "states": {
+           "0,0": "found",
+           "0,1": "found",
+           "0,2": "found",
+           "1,0": "found",
+           "1,1": "found",
+           "1,2": "found",
+           "2,0": "found",
+           "2,1": "found",
+           "2,2": "found"
+          }
+         }
+        ]
+       },
+       {
+        "text": "Take away the rows above row 1: P[1][3] = 3. That leaves 13.",
+        "panels": [
+         {
+          "type": "grid",
+          "cells": [
+           [
+            2,
+            0,
+            1,
+            3
+           ],
+           [
+            4,
+            1,
+            0,
+            2
+           ],
+           [
+            1,
+            5,
+            2,
+            1
+           ]
+          ],
+          "states": {
+           "0,0": "dim",
+           "0,1": "dim",
+           "0,2": "dim",
+           "1,0": "found",
+           "1,1": "found",
+           "1,2": "found",
+           "2,0": "found",
+           "2,1": "found",
+           "2,2": "found"
+          }
+         }
+        ]
+       },
+       {
+        "text": "Take away the columns left of column 1: P[3][1] = 7. But the top-left corner has now been taken away twice.",
+        "panels": [
+         {
+          "type": "grid",
+          "cells": [
+           [
+            2,
+            0,
+            1,
+            3
+           ],
+           [
+            4,
+            1,
+            0,
+            2
+           ],
+           [
+            1,
+            5,
+            2,
+            1
+           ]
+          ],
+          "states": {
+           "0,0": "mark",
+           "0,1": "dim",
+           "0,2": "dim",
+           "1,0": "dim",
+           "1,1": "found",
+           "1,2": "found",
+           "2,0": "dim",
+           "2,1": "found",
+           "2,2": "found"
+          }
+         }
+        ]
+       },
+       {
+        "text": "So add the corner back once: P[1][1] = 2. 16 - 3 - 7 + 2 = 8.",
+        "panels": [
+         {
+          "type": "grid",
+          "cells": [
+           [
+            2,
+            0,
+            1,
+            3
+           ],
+           [
+            4,
+            1,
+            0,
+            2
+           ],
+           [
+            1,
+            5,
+            2,
+            1
+           ]
+          ],
+          "states": {
+           "1,1": "answer",
+           "1,2": "answer",
+           "2,1": "answer",
+           "2,2": "answer"
+          }
+         }
+        ],
+        "result": "8"
+       }
+      ],
+      "title": "Sum of rows 1–2, columns 1–2, using four values from P."
+     }
     }
    ]
   },
@@ -190,7 +609,7 @@
    "title": "The template",
    "blocks": [
     {
-     "md": "Build the prefix array once, then answer each range question with one subtraction. The example: daily\nrainfall, and questions \"how much rain fell from day `l` to day `r`?\"."
+     "md": "Build the prefix array once, then answer each \"how much from `l` to `r`?\" with one subtraction. The\nexample uses daily rainfall."
     },
     {
      "code": {
@@ -202,7 +621,7 @@
      "title": "Prefix array and range sums",
      "lines": [
       {
-       "text": "One more slot than the input; `P[0] = 0` is the sum of nothing. Totals are 64-bit: 10⁵ values of 10⁹ add up to 10¹⁴.",
+       "text": "One more slot than the input, and `P[0] = 0`, the sum of nothing. The totals are 64-bit, because 100,000 values of a billion each add up to 10¹⁴.",
        "at": {
         "python": [
          [
@@ -230,11 +649,11 @@
         ]
        },
        "notes": {
-        "c": "`malloc` doesn't zero memory, so `P[0]` is set explicitly."
+        "c": "`malloc` doesn't zero memory, so we set `P[0]` ourselves."
        }
       },
       {
-       "text": "Each prefix is the previous one plus one element: O(1) per entry, O(n) in total.",
+       "text": "Each entry is the one before plus one element. O(1) each, O(n) in total.",
        "at": {
         "python": [
          [
@@ -263,7 +682,7 @@
        }
       },
       {
-       "text": "The prefix array, `n + 1` entries.",
+       "text": "The prefix array, with `n + 1` entries.",
        "at": {
         "python": [
          [
@@ -292,7 +711,7 @@
        }
       },
       {
-       "text": "Everything up to and including `r`, minus everything before `l`. The `+ 1` turns the inclusive `r` into the boundary after it.",
+       "text": "Everything up to and including `r`, minus everything before `l`. The `+ 1` is because `r` is included, so we want the gap just after it.",
        "at": {
         "python": [
          [
@@ -329,8 +748,8 @@
     {
      "table": {
       "head": [
-       "query [l, r]",
-       "computed as",
+       "question [l, r]",
+       "worked out as",
        "answer"
       ],
       "rows": [
@@ -364,10 +783,13 @@
    "title": "Trace it by hand",
    "blocks": [
     {
+     "md": "Watch `P` grow, one bar per day, and then answer a question with two of its bars:"
+    },
+    {
      "walk": {
       "steps": [
        {
-        "text": "P has one more slot than the input. P[0] = 0: the sum of no elements.",
+        "text": "P has one more slot than the input. P[0] = 0, because before day 0 no rain has fallen.",
         "panels": [
          {
           "type": "row",
@@ -380,12 +802,12 @@
            1,
            4
           ],
-          "label": "nums",
+          "label": "rain",
           "slots": true
          },
          {
-          "type": "row",
-          "cells": [
+          "type": "bars",
+          "values": [
            0,
            null,
            null,
@@ -399,12 +821,12 @@
            "0": "new"
           },
           "label": "P",
-          "slots": true
+          "max": 22
          }
         ]
        },
        {
-        "text": "P[1] = P[0] + nums[0] = 0 + 3 = 3: the total of the first 1 element.",
+        "text": "P[1] = P[0] + rain[0] = 0 + 3 = 3. That's all the rain up to the end of day 0.",
         "panels": [
          {
           "type": "row",
@@ -423,12 +845,12 @@
           "pointers": {
            "i": 0
           },
-          "label": "nums",
+          "label": "rain",
           "slots": true
          },
          {
-          "type": "row",
-          "cells": [
+          "type": "bars",
+          "values": [
            0,
            3,
            null,
@@ -439,16 +861,15 @@
            null
           ],
           "states": {
-           "1": "new",
-           "0": "found"
+           "1": "new"
           },
           "label": "P",
-          "slots": true
+          "max": 22
          }
         ]
        },
        {
-        "text": "P[2] = P[1] + nums[1] = 3 + 0 = 3: the total of the first 2 elements.",
+        "text": "P[2] = P[1] + rain[1] = 3 + 0 = 3. That's all the rain up to the end of day 1.",
         "panels": [
          {
           "type": "row",
@@ -468,12 +889,12 @@
           "pointers": {
            "i": 1
           },
-          "label": "nums",
+          "label": "rain",
           "slots": true
          },
          {
-          "type": "row",
-          "cells": [
+          "type": "bars",
+          "values": [
            0,
            3,
            3,
@@ -484,16 +905,15 @@
            null
           ],
           "states": {
-           "2": "new",
-           "1": "found"
+           "2": "new"
           },
           "label": "P",
-          "slots": true
+          "max": 22
          }
         ]
        },
        {
-        "text": "P[3] = P[2] + nums[2] = 3 + 5 = 8: the total of the first 3 elements.",
+        "text": "P[3] = P[2] + rain[2] = 3 + 5 = 8. That's all the rain up to the end of day 2.",
         "panels": [
          {
           "type": "row",
@@ -514,12 +934,12 @@
           "pointers": {
            "i": 2
           },
-          "label": "nums",
+          "label": "rain",
           "slots": true
          },
          {
-          "type": "row",
-          "cells": [
+          "type": "bars",
+          "values": [
            0,
            3,
            3,
@@ -530,16 +950,15 @@
            null
           ],
           "states": {
-           "3": "new",
-           "2": "found"
+           "3": "new"
           },
           "label": "P",
-          "slots": true
+          "max": 22
          }
         ]
        },
        {
-        "text": "P[4] = P[3] + nums[3] = 8 + 2 = 10: the total of the first 4 elements.",
+        "text": "P[4] = P[3] + rain[3] = 8 + 2 = 10. That's all the rain up to the end of day 3.",
         "panels": [
          {
           "type": "row",
@@ -561,12 +980,12 @@
           "pointers": {
            "i": 3
           },
-          "label": "nums",
+          "label": "rain",
           "slots": true
          },
          {
-          "type": "row",
-          "cells": [
+          "type": "bars",
+          "values": [
            0,
            3,
            3,
@@ -577,16 +996,15 @@
            null
           ],
           "states": {
-           "4": "new",
-           "3": "found"
+           "4": "new"
           },
           "label": "P",
-          "slots": true
+          "max": 22
          }
         ]
        },
        {
-        "text": "P[5] = P[4] + nums[4] = 10 + 7 = 17: the total of the first 5 elements.",
+        "text": "P[5] = P[4] + rain[4] = 10 + 7 = 17. That's all the rain up to the end of day 4.",
         "panels": [
          {
           "type": "row",
@@ -609,12 +1027,12 @@
           "pointers": {
            "i": 4
           },
-          "label": "nums",
+          "label": "rain",
           "slots": true
          },
          {
-          "type": "row",
-          "cells": [
+          "type": "bars",
+          "values": [
            0,
            3,
            3,
@@ -625,16 +1043,15 @@
            null
           ],
           "states": {
-           "5": "new",
-           "4": "found"
+           "5": "new"
           },
           "label": "P",
-          "slots": true
+          "max": 22
          }
         ]
        },
        {
-        "text": "P[6] = P[5] + nums[5] = 17 + 1 = 18: the total of the first 6 elements.",
+        "text": "P[6] = P[5] + rain[5] = 17 + 1 = 18. That's all the rain up to the end of day 5.",
         "panels": [
          {
           "type": "row",
@@ -658,12 +1075,12 @@
           "pointers": {
            "i": 5
           },
-          "label": "nums",
+          "label": "rain",
           "slots": true
          },
          {
-          "type": "row",
-          "cells": [
+          "type": "bars",
+          "values": [
            0,
            3,
            3,
@@ -674,16 +1091,15 @@
            null
           ],
           "states": {
-           "6": "new",
-           "5": "found"
+           "6": "new"
           },
           "label": "P",
-          "slots": true
+          "max": 22
          }
         ]
        },
        {
-        "text": "P[7] = P[6] + nums[6] = 18 + 4 = 22: the total of the first 7 elements.",
+        "text": "P[7] = P[6] + rain[6] = 18 + 4 = 22. That's all the rain up to the end of day 6.",
         "panels": [
          {
           "type": "row",
@@ -708,12 +1124,12 @@
           "pointers": {
            "i": 6
           },
-          "label": "nums",
+          "label": "rain",
           "slots": true
          },
          {
-          "type": "row",
-          "cells": [
+          "type": "bars",
+          "values": [
            0,
            3,
            3,
@@ -724,16 +1140,15 @@
            22
           ],
           "states": {
-           "7": "new",
-           "6": "found"
+           "7": "new"
           },
           "label": "P",
-          "slots": true
+          "max": 22
          }
         ]
        },
        {
-        "text": "Sum of nums[1..3]: everything up to day 3 is P[4] = 10; the part before day 1 is P[1] = 3. Subtract: 10 - 3 = 7.",
+        "text": "Days 1 to 3: all the rain up to the end of day 3 is P[4] = 10, and the rain before day 1 is P[1] = 3. Subtract and you get 10 - 3 = 7.",
         "panels": [
          {
           "type": "row",
@@ -755,12 +1170,12 @@
            "l": 1,
            "r": 3
           },
-          "label": "nums",
+          "label": "rain",
           "slots": true
          },
          {
-          "type": "row",
-          "cells": [
+          "type": "bars",
+          "values": [
            0,
            3,
            3,
@@ -771,21 +1186,298 @@
            22
           ],
           "states": {
-           "4": "found",
+           "4": "answer",
            "1": "mark"
           },
           "label": "P",
-          "slots": true
+          "max": 22
          }
         ],
         "result": "7"
        }
       ],
-      "title": "Building `P` for `[3, 0, 5, 2, 7, 1, 4]`, then answering the question \"total from day 1 to day 3\"."
+      "title": "Building `P` for `[3, 0, 5, 2, 7, 1, 4]`, then using it to answer \"how much rain from day 1 to day 3?\"."
      }
     },
     {
-     "md": "### A prefix walk with a hash map\n\nFind the length of the longest stretch with sum exactly `k`. Values can be negative, so a sliding window\nwon't work. For each `j`, the best stretch ending at `j` starts right after the **earliest** boundary `i`\nwith `P[i] = P[j] - k`: so remember the first index of every prefix value."
+     "md": "### Running totals plus a hash map\n\nNow something harder: the longest stretch that adds up to exactly `k`. Some values are negative, so a\nsliding window won't work. For each `j`, the longest stretch ending at `j` starts just after the\n**earliest** gap where the running total was `P[j] - k`. So the map remembers the first index of every\nrunning total."
+    },
+    {
+     "walk": {
+      "steps": [
+       {
+        "text": "Before we start, the running total is 0, and we pretend it was reached at index -1 (just before the array).",
+        "panels": [
+         {
+          "type": "row",
+          "cells": [
+           2,
+           -1,
+           3,
+           1,
+           -2,
+           4
+          ],
+          "slots": true
+         },
+         {
+          "type": "vars",
+          "items": {
+           "0:": "index -1"
+          },
+          "label": "first time each total appeared"
+         },
+         {
+          "type": "vars",
+          "items": {
+           "best:": "0"
+          }
+         }
+        ]
+       },
+       {
+        "text": "Running total 2. We'd need an earlier total of -2; there isn't one. 2 is new, so remember index 0.",
+        "panels": [
+         {
+          "type": "row",
+          "cells": [
+           2,
+           -1,
+           3,
+           1,
+           -2,
+           4
+          ],
+          "states": {
+           "0": "active"
+          },
+          "pointers": {
+           "j": 0
+          },
+          "slots": true
+         },
+         {
+          "type": "vars",
+          "items": {
+           "0:": "index -1",
+           "2:": "index 0"
+          },
+          "label": "first time each total appeared"
+         },
+         {
+          "type": "vars",
+          "items": {
+           "best:": "0"
+          }
+         }
+        ]
+       },
+       {
+        "text": "Running total 1. We'd need an earlier total of -3; there isn't one. 1 is new, so remember index 1.",
+        "panels": [
+         {
+          "type": "row",
+          "cells": [
+           2,
+           -1,
+           3,
+           1,
+           -2,
+           4
+          ],
+          "states": {
+           "1": "active"
+          },
+          "pointers": {
+           "j": 1
+          },
+          "slots": true
+         },
+         {
+          "type": "vars",
+          "items": {
+           "0:": "index -1",
+           "2:": "index 0",
+           "1:": "index 1"
+          },
+          "label": "first time each total appeared"
+         },
+         {
+          "type": "vars",
+          "items": {
+           "best:": "0"
+          }
+         }
+        ]
+       },
+       {
+        "text": "Running total 4. We want an earlier total of 4 - 4 = 0, and it first appeared at index -1. So indices 0..2 add up to 4: length 3. 4 is new, so remember index 2.",
+        "panels": [
+         {
+          "type": "row",
+          "cells": [
+           2,
+           -1,
+           3,
+           1,
+           -2,
+           4
+          ],
+          "states": {
+           "2": "answer",
+           "0": "answer",
+           "1": "answer"
+          },
+          "pointers": {
+           "j": 2
+          },
+          "slots": true
+         },
+         {
+          "type": "vars",
+          "items": {
+           "0:": "index -1",
+           "2:": "index 0",
+           "1:": "index 1",
+           "4:": "index 2"
+          },
+          "label": "first time each total appeared"
+         },
+         {
+          "type": "vars",
+          "items": {
+           "best:": "3"
+          }
+         }
+        ]
+       },
+       {
+        "text": "Running total 5. We want an earlier total of 5 - 4 = 1, and it first appeared at index 1. So indices 2..3 add up to 4: length 2. 5 is new, so remember index 3.",
+        "panels": [
+         {
+          "type": "row",
+          "cells": [
+           2,
+           -1,
+           3,
+           1,
+           -2,
+           4
+          ],
+          "states": {
+           "3": "answer",
+           "2": "answer"
+          },
+          "pointers": {
+           "j": 3
+          },
+          "slots": true
+         },
+         {
+          "type": "vars",
+          "items": {
+           "0:": "index -1",
+           "2:": "index 0",
+           "1:": "index 1",
+           "4:": "index 2",
+           "5:": "index 3"
+          },
+          "label": "first time each total appeared"
+         },
+         {
+          "type": "vars",
+          "items": {
+           "best:": "3"
+          }
+         }
+        ]
+       },
+       {
+        "text": "Running total 3. We'd need an earlier total of -1; there isn't one. 3 is new, so remember index 4.",
+        "panels": [
+         {
+          "type": "row",
+          "cells": [
+           2,
+           -1,
+           3,
+           1,
+           -2,
+           4
+          ],
+          "states": {
+           "4": "active"
+          },
+          "pointers": {
+           "j": 4
+          },
+          "slots": true
+         },
+         {
+          "type": "vars",
+          "items": {
+           "0:": "index -1",
+           "2:": "index 0",
+           "1:": "index 1",
+           "4:": "index 2",
+           "5:": "index 3",
+           "3:": "index 4"
+          },
+          "label": "first time each total appeared"
+         },
+         {
+          "type": "vars",
+          "items": {
+           "best:": "3"
+          }
+         }
+        ]
+       },
+       {
+        "text": "Running total 7. We want an earlier total of 7 - 4 = 3, and it first appeared at index 4. So indices 5..5 add up to 4: length 1. 7 is new, so remember index 5.",
+        "panels": [
+         {
+          "type": "row",
+          "cells": [
+           2,
+           -1,
+           3,
+           1,
+           -2,
+           4
+          ],
+          "states": {
+           "5": "answer"
+          },
+          "pointers": {
+           "j": 5
+          },
+          "slots": true
+         },
+         {
+          "type": "vars",
+          "items": {
+           "0:": "index -1",
+           "2:": "index 0",
+           "1:": "index 1",
+           "4:": "index 2",
+           "5:": "index 3",
+           "3:": "index 4",
+           "7:": "index 5"
+          },
+          "label": "first time each total appeared"
+         },
+         {
+          "type": "vars",
+          "items": {
+           "best:": "3"
+          }
+         }
+        ]
+       }
+      ],
+      "title": "`longest_with_sum([2, -1, 3, 1, -2, 4], 4)`. The map remembers the first index where each running total showed up."
+     }
     },
     {
      "code": {
@@ -797,7 +1489,7 @@
      "title": "Longest stretch with a given sum",
      "lines": [
       {
-       "text": "The empty prefix (sum 0) sits at boundary `-1`, before the first element, so a stretch starting at index 0 is found too. `best = 0` means \"none found yet\".",
+       "text": "The empty prefix (total 0) sits at index -1, just before the array, so a stretch starting at index 0 can be found too. `best = 0` means we haven't found one yet.",
        "at": {
         "python": [
          [
@@ -826,7 +1518,7 @@
        }
       },
       {
-       "text": "`j` is the right end of the stretches we look for.",
+       "text": "`j` is the end of the stretches we're looking for.",
        "at": {
         "python": [
          [
@@ -884,7 +1576,7 @@
        }
       },
       {
-       "text": "If some earlier boundary has prefix `prefix - k`, the stretch after it up to `j` sums to `k`. Its first occurrence gives the longest such stretch ending at `j`.",
+       "text": "If an earlier gap had a running total of `prefix - k`, then everything after it up to `j` adds up to `k`. Using its first appearance gives the longest such stretch ending at `j`.",
        "at": {
         "python": [
          [
@@ -912,11 +1604,11 @@
         ]
        },
        "notes": {
-        "cpp": "`find` doesn't insert."
+        "cpp": "`find` doesn't insert anything."
        }
       },
       {
-       "text": "Record the prefix only the first time it appears. A later boundary with the same value would only give shorter stretches.",
+       "text": "Only store a running total the first time it appears. A later gap with the same total could only give shorter stretches.",
        "at": {
         "python": [
          [
@@ -949,7 +1641,7 @@
        }
       },
       {
-       "text": "The longest length over all right ends, or 0.",
+       "text": "The longest length found, or 0 if there wasn't one.",
        "at": {
         "python": [
          [
@@ -978,7 +1670,7 @@
        }
       },
       {
-       "text": "An open-addressing table on 64-bit prefix values, storing the first index of each.",
+       "text": "An open-addressing table on 64-bit totals, storing the first index for each.",
        "at": {
         "c": [
          [
@@ -993,7 +1685,7 @@
        }
       },
       {
-       "text": "Release the table.",
+       "text": "Free the table.",
        "at": {
         "c": [
          [
@@ -1010,15 +1702,12 @@
      }
     },
     {
-     "md": "For `[2, -1, 3, 1, -2, 4]` with `k = 4` (the map starts as `0 → -1`):"
-    },
-    {
      "table": {
       "head": [
        "j",
        "x",
-       "prefix",
-       "need",
+       "running total",
+       "looking for",
        "stretch found",
        "best",
        "map"
@@ -1047,7 +1736,7 @@
         "3",
         "4",
         "0",
-        "stretch 0..2, length 3",
+        "0..2, length 3",
         "3",
         "keep"
        ],
@@ -1056,7 +1745,7 @@
         "1",
         "5",
         "1",
-        "stretch 2..3, length 2",
+        "2..3, length 2",
         "3",
         "keep"
        ],
@@ -1074,7 +1763,7 @@
         "4",
         "7",
         "3",
-        "stretch 5..5, length 1",
+        "5..5, length 1",
         "3",
         "keep"
        ]
@@ -1082,7 +1771,145 @@
      }
     },
     {
-     "md": "The answer is 3. Notice the row where the prefix value repeats: the map keeps the **older** index, which\nis exactly what makes stretches long."
+     "md": "The answer is 3. Look at the row where a running total shows up a second time: the map keeps the\nolder index, and that's what makes the stretches as long as possible."
+    }
+   ]
+  },
+  {
+   "id": "examples",
+   "title": "More examples",
+   "blocks": [
+    {
+     "md": "### Finding a balance point\n\nWeights `[2, 7, 1, 4, 5]` sit in a row. Is there a position where everything to its left weighs the same as everything\nto its right? You don't even need the whole `P` array. Work out the total once (19), keep a running left\nsum, and the right side is just `total - left - weight`:"
+    },
+    {
+     "table": {
+      "head": [
+       "i",
+       "weight",
+       "left of it",
+       "right of it",
+       ""
+      ],
+      "rows": [
+       [
+        "0",
+        "2",
+        "0",
+        "17",
+        ""
+       ],
+       [
+        "1",
+        "7",
+        "2",
+        "10",
+        ""
+       ],
+       [
+        "2",
+        "1",
+        "9",
+        "9",
+        "balanced"
+       ],
+       [
+        "3",
+        "4",
+        "10",
+        "5",
+        ""
+       ],
+       [
+        "4",
+        "5",
+        "14",
+        "0",
+        ""
+       ]
+      ]
+     }
+    },
+    {
+     "panels": [
+      {
+       "type": "bars",
+       "values": [
+        2,
+        7,
+        1,
+        4,
+        5
+       ],
+       "states": {
+        "2": "answer",
+        "0": "found",
+        "1": "found",
+        "3": "mark",
+        "4": "mark"
+       },
+       "label": "weights"
+      }
+     ],
+     "caption": "At index 2, the left side (9) and the right side (9) balance."
+    },
+    {
+     "md": "### As many 0s as 1s\n\nWhat's the longest stretch of `[1, 1, 0, 1, 0, 0, 1, 1]` with the same number of 0s and 1s? Counting 0s and 1s for every\nstretch would be slow. Instead, turn every 0 into -1. A stretch with equal numbers then adds up to 0, and\na stretch adds up to 0 exactly when the running total is the same at both ends:"
+    },
+    {
+     "panels": [
+      {
+       "type": "row",
+       "cells": [
+        1,
+        1,
+        0,
+        1,
+        0,
+        0,
+        1,
+        1
+       ],
+       "label": "bits"
+      },
+      {
+       "type": "row",
+       "cells": [
+        1,
+        1,
+        -1,
+        1,
+        -1,
+        -1,
+        1,
+        1
+       ],
+       "label": "0 → -1"
+      },
+      {
+       "type": "bars",
+       "values": [
+        0,
+        1,
+        2,
+        1,
+        2,
+        1,
+        0,
+        1,
+        2
+       ],
+       "states": {
+        "0": "answer",
+        "6": "answer"
+       },
+       "label": "running total (gap 0 to gap 8)"
+      }
+     ],
+     "caption": "The running total is 0 at gap 0 and again at gap 6, so the 6 elements in between are balanced."
+    },
+    {
+     "md": "That's 6. Rewriting the input so that the condition becomes a sum is a trick worth remembering.\nWhenever a problem says \"as many X as Y\", try +1 and -1."
     }
    ]
   },
@@ -1091,7 +1918,7 @@
    "title": "Variations",
    "blocks": [
     {
-     "md": "### Two dimensions\n\nSums of rectangles in a grid, many times over. Build `P` with one extra row and column of zeros, then use\ninclusion–exclusion."
+     "md": "### Two dimensions\n\nFor sums over rectangles in a grid, asked many times. Build `P` with an extra row and column of zeros,\nthen each query uses four values."
     },
     {
      "code": {
@@ -1103,7 +1930,7 @@
      "title": "2D prefix sums",
      "lines": [
       {
-       "text": "An `(rows + 1) × (cols + 1)` table of zeros. Row 0 and column 0 stay 0, like `P[0]` in 1D.",
+       "text": "A `(rows + 1) × (cols + 1)` table of zeros. Row 0 and column 0 stay 0, just like `P[0]` in 1D.",
        "at": {
         "python": [
          [
@@ -1131,11 +1958,11 @@
         ]
        },
        "notes": {
-        "c": "One flat block of memory, indexed `r * (cols + 1) + c`; `calloc` zeroes it."
+        "c": "One flat block of memory, where `(r, c)` lives at `r * (cols + 1) + c`. `calloc` zeroes it."
        }
       },
       {
-       "text": "Fill row by row, so the three neighbours a cell needs are already done.",
+       "text": "Fill it row by row, so the three neighbours each cell needs are already done.",
        "at": {
         "python": [
          [
@@ -1164,7 +1991,7 @@
        }
       },
       {
-       "text": "This cell, plus the rectangle above, plus the rectangle to the left, minus their overlap (the top-left rectangle, added twice).",
+       "text": "This cell, plus the rectangle above, plus the rectangle to the left, minus the top-left block, which got added twice.",
        "at": {
         "python": [
          [
@@ -1222,7 +2049,7 @@
        }
       },
       {
-       "text": "The big rectangle down to `(r2, c2)`, minus the strip above row `r1`, minus the strip left of column `c1`, plus the corner that both strips removed.",
+       "text": "The big rectangle down to `(r2, c2)`, minus the strip above row `r1`, minus the strip left of column `c1`, plus the corner that both strips took away.",
        "at": {
         "python": [
          [
@@ -1329,10 +2156,10 @@
        "label": "P"
       }
      ],
-     "caption": "Rows 1–2, columns 1–2: 16 - 3 - 7 + 2 = 8."
+     "caption": "The four values from P: 16 - 3 - 7 + 2 = 8."
     },
     {
-     "md": "### Counting stretches with sum `k`\n\nSame loop as *longest*, but the map holds **counts** of each prefix value, seeded with `{0: 1}`, and each\nstep adds `count[prefix - k]` before incrementing `count[prefix]` (the table in *Why it works* traces it).\n\n### Equal numbers of two kinds\n\n\"Longest stretch with as many A's as B's\": replace A with `+1` and B with `-1`. Equal counts means sum 0, so\nit's *longest with sum 0*. Rewriting the input so a condition becomes a sum is a very common move.\n\n### Balance points\n\nWith the total `T` known, the sum left of `i` is `P[i]` and the sum right of `i` is `T - P[i + 1]`. You don't\neven need the array: keep a running left sum while scanning.\n\n### Prefix of anything you can undo\n\n- **XOR:** `X[r + 1] ^ X[l]` is the XOR of a range; \"stretches with XOR `k`\" looks up `X[j] ^ k`.\n- **Counts per category:** 26 prefix arrays (one per letter) answer \"how many `e`s in `s[l..r]`?\" in O(1).\n- **Prefix maximum** is still useful, but only for prefixes: \"the best so far\" (it can't answer ranges).\n\n### The inverse: difference arrays\n\nPrefix sums turn an array into running totals. The opposite operation, differences of neighbours, turns\n\"add `v` to a whole range\" into two point changes. That's the next pattern, *Difference arrays*."
+     "md": "### Counting stretches with sum `k`\n\nSame loop as *longest*, but the map stores how many times each total has appeared, starting with `{0: 1}`.\nAt each step, add `count[prefix - k]` to the answer, then bump `count[prefix]`. The walkthrough in *Why it\nworks* shows it running.\n\n### Prefix of anything you can undo\n\nXOR: `X[r + 1] ^ X[l]` is the XOR of a range, and \"stretches with XOR `k`\" looks up `X[j] ^ k`. Counts per\ncategory: 26 prefix arrays, one per letter, answer \"how many `e`s are in `s[l..r]`?\" in O(1). A running\nmaximum is still useful, but only for prefixes (\"the best so far\"); it can't answer ranges.\n\n### Going the other way\n\nPrefix sums turn an array into running totals. The reverse, taking differences between neighbours, turns\n\"add `v` to a whole range\" into two small changes. That's the next pattern, *Difference arrays*."
     }
    ]
   },
@@ -1341,13 +2168,13 @@
    "title": "What it costs",
    "blocks": [
     {
-     "md": "- **Building:** O(n) time, O(n) space for `P` (O(rows · cols) in 2D).\n- **Each range query:** O(1).\n- **Stretch search with a hash map:** O(n) expected time, O(n) space for the map.\n\n**Compared with summing each range directly:** `q` queries over ranges of length up to `n` cost O(q · n).\nWith `n = q = 10⁵` that's up to 10,000,000,000 additions, versus 200,000 with prefix sums. For \"count the\nstretches with sum `k`\", the brute force checks all n(n + 1)/2 stretches; the prefix + map version does one\nlookup per element."
+     "md": "Building `P` takes O(n) time and O(n) memory (O(rows × cols) in 2D). Each range question after that is\nO(1). Finding stretches with a hash map is O(n) on average, with O(n) memory for the map.\n\nWithout prefix sums, `q` questions over ranges of length up to `n` cost O(q × n). With `n` and `q` both\n100,000, that's up to 10,000,000,000 additions, against about 200,000 with prefix sums. For \"count the\nstretches that add up to `k`\", brute force looks at all n(n + 1)/2 stretches, while the prefix-and-map\nversion does one lookup per element."
     },
     {
      "table": {
       "head": [
        "Task",
-       "Direct",
+       "Without",
        "With prefix sums"
       ],
       "rows": [
@@ -1358,13 +2185,13 @@
        ],
        [
         "count stretches with sum k",
-        "O(n²) (running sums)",
-        "O(n) expected"
+        "O(n²)",
+        "O(n) on average"
        ],
        [
         "longest stretch with sum k",
         "O(n²)",
-        "O(n) expected"
+        "O(n) on average"
        ],
        [
         "q rectangle sums in an R × C grid",
@@ -1381,7 +2208,7 @@
    "title": "In your language",
    "blocks": [
     {
-     "md": "**Python:** `itertools.accumulate(nums, initial=0)` builds `P` in one call (Python 3.8+). Integers never\noverflow. For the stretch search, `dict.get(prefix - k, 0)` and `setdefault(prefix, j)` (keeps the first).\n\n**Java:** use `long[]` for `P`: an `int` prefix overflows past about 2.1 · 10⁹. A `Map<Long, Integer>` key must\nbe a `Long`: `first.put(0L, -1)` with the `L`, since `0` alone would box to an `Integer`, a different key.\n\n**C++:** `std::partial_sum` exists, but writing the loop with an explicit `P[0] = 0` is clearer. Use\n`long long`. `unordered_map<long long, int>` with `emplace` (keeps the first) and `find` (no insertion).\n\n**C:** `long long` prefixes; for 2D, one flat `calloc` block indexed `r * (cols + 1) + c`. The hash map for\nstretch problems is the same open-addressing table as before, on 64-bit keys."
+     "md": "### Python\n\n`itertools.accumulate(nums, initial=0)` builds `P` in one go (Python 3.8 and later). Integers never\noverflow. For the stretch search, `dict.get(prefix - k, 0)` and `setdefault(prefix, j)` (which keeps the\nfirst index).\n\n### Java\n\nUse `long[]` for `P`, since an `int` total overflows past about 2.1 billion. A `Map<Long, Integer>` needs\n`Long` keys, so write `first.put(0L, -1)` with the `L`. A plain `0` would turn into an `Integer`, which is a\ndifferent key, and your lookups would quietly miss it.\n\n### C++\n\n`std::partial_sum` exists, but writing the loop yourself with an explicit `P[0] = 0` is clearer. Use\n`long long`. For the map, `unordered_map<long long, int>` with `emplace` (keeps the first) and `find` (doesn't\ninsert).\n\n### C\n\n`long long` totals. For 2D, one flat `calloc` block indexed `r * (cols + 1) + c`. The hash map for the\nstretch problems is the same open-addressing table as before, on 64-bit keys."
     }
    ]
   },
@@ -1390,7 +2217,7 @@
    "title": "Pitfalls and edge cases",
    "blocks": [
     {
-     "md": "- **Off by one.** `sum(l..r)` inclusive is `P[r + 1] - P[l]`, not `P[r] - P[l]`. Draw the boundaries if in\n  doubt.\n- **Forgetting the seed.** Without `{0: 1}` (count) or `{0: -1}` (longest), stretches that start at index 0\n  are missed.\n- **First vs last index.** For the longest stretch keep the first occurrence; overwriting gives shorter ones.\n- **Overflow.** Sums of many large values need 64 bits, in `P` and in the running prefix.\n- **Negative remainders.** In Java, C and C++, `-1 % 5 == -1`. Normalise before using a remainder as a key.\n- **Using a sliding window with negatives.** Shrinking the window no longer reduces the sum; use prefix sums\n  with a map instead.\n- **Trying to \"subtract\" maxima.** Range max/min need other structures.\n- **2D inclusion–exclusion signs.** Build: `+ above + left - corner`. Query: `- above - left + corner`."
+     "md": "Where prefix-sum code usually goes wrong:\n\n- Off by one. The sum of `l..r` including both ends is `P[r + 1] - P[l]`, not `P[r] - P[l]`. If you're\n  unsure, draw the gaps.\n- Forgetting to seed the map. Without `{0: 1}` (counting) or `{0: -1}` (longest), stretches that start at\n  index 0 get missed.\n- Keeping the wrong index. For the longest stretch keep the first one; overwriting gives you shorter ones.\n- Overflow. Adding up lots of big values needs 64 bits, both in `P` and in the running total.\n- Negative remainders. In Java, C and C++, `-1 % 5` is `-1`. Fix it before using a remainder as a key.\n- Using a sliding window when there are negatives. Shrinking the window doesn't reliably lower the sum any\n  more. Use prefix sums with a map.\n- Trying to subtract maximums. Range max and min need different tools.\n- Signs in 2D. Building: plus above, plus left, minus corner. Querying: minus above, minus left, plus\n  corner."
     }
    ]
   },
@@ -1401,24 +2228,24 @@
     {
      "quiz": [
       {
-       "q": "With `P` built from `nums`, what is the sum of `nums[2..5]`?",
-       "a": "`P[6] - P[2]`: everything before boundary 6 (indices 0–5) minus everything before boundary 2 (indices 0–1)."
+       "q": "With `P` built from `nums`, what's the sum of `nums[2..5]`?",
+       "a": "`P[6] - P[2]`. That's everything before gap 6 (indices 0 to 5) minus everything before gap 2 (indices 0 and 1)."
       },
       {
-       "q": "Why does counting stretches with sum `k` seed the map with `{0: 1}`?",
-       "a": "`P[0] = 0` is the boundary before the first element. A stretch starting at index 0 ending at `j` sums to `k` exactly when `P[j + 1] - 0 = k`; without the seed, the lookup for `0` would miss it."
+       "q": "Why does counting stretches with sum `k` start the map at `{0: 1}`?",
+       "a": "`P[0] = 0` is the gap before the first element. A stretch from index 0 to `j` adds up to `k` exactly when `P[j + 1] - 0 = k`. Without the seed, the lookup for 0 would miss it."
       },
       {
-       "q": "Values can be negative. Why does a sliding window fail for \"longest stretch with sum k\", while prefix sums work?",
-       "a": "The window shrinks when the sum is too big, assuming that removing elements lowers the sum. Negative values break that. Prefix sums rely only on `P[r + 1] - P[l]`, which holds for any integers."
+       "q": "Some values are negative. Why does a sliding window fail for \"longest stretch with sum k\", when prefix sums work?",
+       "a": "The window shrinks when the sum gets too big, assuming that dropping elements makes the sum smaller. Negative values break that. Prefix sums only rely on `P[r + 1] - P[l]`, which is true for any integers."
       },
       {
-       "q": "Can you answer \"maximum of `nums[l..r]`\" with prefix maxima?",
-       "a": "No. The max of `[0..r]` might sit before `l`, and there's no way to subtract it out. Max isn't invertible; use a sparse table or segment tree."
+       "q": "Can you answer \"what's the biggest value in `nums[l..r]`?\" with running maximums?",
+       "a": "No. The maximum of `[0..r]` might be before `l`, and there's no way to subtract it back out. You'd use a sparse table or a segment tree."
       },
       {
-       "q": "Longest stretch with equally many 0s and 1s: how do you turn it into a prefix-sum problem?",
-       "a": "Replace each 0 with -1. A stretch has equal counts exactly when its sum is 0, i.e. two boundaries with the same prefix value. Keep the first index of each prefix value."
+       "q": "Longest stretch with as many 0s as 1s: how do you turn it into a prefix-sum problem?",
+       "a": "Turn every 0 into -1. A stretch has equal counts exactly when it adds up to 0, which means the running total is the same at both ends. Keep the first index where each total appeared."
       }
      ]
     }

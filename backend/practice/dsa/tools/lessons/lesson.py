@@ -43,6 +43,26 @@ def M(items, label=None):
     return p
 
 
+def Bars(values, labels=None, st=None, ptr=None, label=None, height=None, top=None, bottom=None):
+    """Values as bars on a zero line; labels default to the indices. top / bottom fix the scale (for walkthroughs)."""
+    p = {"type": "bars", "values": list(values)}
+    if labels is not None:
+        p["labels"] = [str(x) for x in labels]
+    if st:
+        p["states"] = {str(k): v for k, v in st.items() if v}
+    if ptr:
+        p["pointers"] = {k: v for k, v in ptr.items() if v is not None}
+    if label:
+        p["label"] = label
+    if height:
+        p["height"] = height
+    if top is not None:
+        p["max"] = top
+    if bottom is not None:
+        p["min"] = bottom
+    return p
+
+
 def key(md):
     return {"key": dd(md)}
 
