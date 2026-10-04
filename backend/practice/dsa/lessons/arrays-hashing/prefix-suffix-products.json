@@ -1,0 +1,2058 @@
+{
+ "version": 1,
+ "id": "prefix-suffix-products",
+ "topic": "arrays-hashing",
+ "summary": "Some questions ask, for every index, about everything to its left *and* everything to its right. Rather than\nlooking both ways from every index (O(n²)), make one pass from the left and one from the right, saving a running\nsummary each time, and combine them.",
+ "minutes": 13,
+ "sections": [
+  {
+   "id": "idea",
+   "title": "The idea",
+   "blocks": [
+    {
+     "md": "Imagine everyone in a queue wants to know two things: who's the tallest person in front of them, and who's\nthe shortest person behind them. Asking each person to turn around and look at everyone is slow. Instead, walk\nfrom the front of the queue to the back once, announcing \"the tallest so far is…\", and everyone writes it\ndown. Then walk from the back to the front announcing \"the shortest so far is…\". Two walks, and everyone has\nboth answers.\n\nThat's the pattern. A **prefix pass** goes left to right and records, for each index, a summary of everything\nbefore it: the largest, the smallest, a sum, a product, the length of a run. A **suffix pass** does the same\nfrom the right. Then each index combines its two summaries."
+    },
+    {
+     "panels": [
+      {
+       "type": "bars",
+       "values": [
+        2,
+        1,
+        4,
+        3,
+        6,
+        8,
+        7,
+        9
+       ],
+       "states": {
+        "4": "answer",
+        "7": "answer"
+       },
+       "label": "nums (pivots highlighted)"
+      },
+      {
+       "type": "row",
+       "cells": [
+        "–",
+        2,
+        2,
+        4,
+        4,
+        6,
+        8,
+        8
+       ],
+       "label": "biggest before i",
+       "slots": true
+      },
+      {
+       "type": "row",
+       "cells": [
+        1,
+        3,
+        3,
+        6,
+        7,
+        7,
+        9,
+        "–"
+       ],
+       "label": "smallest after i",
+       "slots": true
+      }
+     ],
+     "caption": "An element is a pivot when it's bigger than everything before it and smaller than everything after it. Two summary rows answer that for every index at once."
+    },
+    {
+     "key": "When each index needs \"something about everything to my left\" and \"something about everything to my right\",\nbuild both with one left-to-right pass and one right-to-left pass, then combine them per index. O(n) instead\nof O(n²)."
+    }
+   ]
+  },
+  {
+   "id": "signals",
+   "title": "When to reach for it",
+   "blocks": [
+    {
+     "md": "Phrases like \"for each element, … all elements before it / after it\", \"except itself\", \"everything to the\nleft and right\", \"the tallest to the right\", \"water trapped between\", \"best day to buy before selling\".\n\nThe summaries have to be things you can update one element at a time: max, min, sum, product, count, the\nlength of a run that's still going. If you can say \"the summary for `i + 1` is the summary for `i`, plus\nelement `i`\", a prefix pass works.\n\nRelated patterns, so you can tell them apart:\n\n- **Prefix sums** answer \"the sum of any range `l..r`\" by subtracting. Prefix and suffix passes answer \"for\n  each index, its left side and its right side\". Max and min work here even though they can't be\n  subtracted, because we never need a middle range, only \"everything before\" and \"everything after\".\n- **Monotonic stacks** (in the Stack & Queue topic) answer \"the *nearest* bigger element to the right\", which\n  a suffix max can't, because a running max forgets *where* things are."
+    }
+   ]
+  },
+  {
+   "id": "theory",
+   "title": "Why it works",
+   "blocks": [
+    {
+     "md": "### Running summaries\n\nTake \"the biggest value before index `i`\". Call it `before[i]`. Then `before[0]` is \"nothing\" (use -∞), and\n`before[i + 1] = max(before[i], nums[i])`. Each entry needs only the previous entry and one element, so a\nsingle left-to-right loop fills the whole array in O(n). The same works from the right:\n`after[n - 1]` is \"nothing\" (+∞), and `after[i - 1] = min(after[i], nums[i])`.\n\nThis works for any summary that can be **folded** one element at a time: max, min, sum, product, gcd, \"has a\nzero appeared\", \"length of the run of 1s ending here\". It's the same idea as a prefix sum, just with other\noperations.\n\n### Strictly before vs including\n\nBe precise about whether the summary at `i` includes `nums[i]` or not. \"The biggest *before* `i`\" excludes\nit; \"the biggest *up to* `i`\" includes it. Both are fine, but the combine step changes. Storing the value\n**before** folding in `nums[i]` gives the strict version, which is what the template does.\n\n### Saving memory: fold one pass into a variable\n\nYou often don't need both arrays. If the combine step goes left to right, you can keep the left summary in a\nsingle variable during the second pass and only store the right-hand array. That's what `count_pivots` does.\nAnd when the question only looks one way (like \"the cheapest day before today\"), the whole pattern shrinks to\none variable and one pass, as in the buy-and-sell example.\n\n### Why not just look both ways?\n\nLooking left and right from every index is O(n) per index, O(n²) in total. The two passes reuse work: the\nbiggest value before index 7 is the biggest before index 6 plus one more comparison. For `n = 100,000`\nthat's about 200,000 steps instead of 10 billion."
+    }
+   ]
+  },
+  {
+   "id": "template",
+   "title": "The template",
+   "blocks": [
+    {
+     "md": "Count the **pivots** of an array: elements bigger than everything before them and smaller than everything\nafter them. (The first element has nothing before it, and the last has nothing after it, so those tests pass\nautomatically.)"
+    },
+    {
+     "code": {
+      "python": "def count_pivots(nums):\n    n = len(nums)\n    right_min = [0] * n\n    smallest = float('inf')\n    for i in range(n - 1, -1, -1):\n        right_min[i] = smallest\n        smallest = min(smallest, nums[i])\n    count = 0\n    left_max = float('-inf')\n    for i in range(n):\n        if left_max < nums[i] < right_min[i]:\n            count += 1\n        left_max = max(left_max, nums[i])\n    return count\n",
+      "java": "static int countPivots(int[] nums) {\n    int n = nums.length;\n    long[] rightMin = new long[n];\n    long smallest = Long.MAX_VALUE;\n    for (int i = n - 1; i >= 0; i--) {\n        rightMin[i] = smallest;\n        smallest = Math.min(smallest, nums[i]);\n    }\n    int count = 0;\n    long leftMax = Long.MIN_VALUE;\n    for (int i = 0; i < n; i++) {\n        if (leftMax < nums[i] && nums[i] < rightMin[i]) count++;\n        leftMax = Math.max(leftMax, nums[i]);\n    }\n    return count;\n}\n",
+      "cpp": "int countPivots(const vector<int>& nums) {\n    int n = nums.size();\n    vector<long long> rightMin(n);\n    long long smallest = LLONG_MAX;\n    for (int i = n - 1; i >= 0; i--) {\n        rightMin[i] = smallest;\n        smallest = min(smallest, (long long)nums[i]);\n    }\n    int count = 0;\n    long long leftMax = LLONG_MIN;\n    for (int i = 0; i < n; i++) {\n        if (leftMax < nums[i] && nums[i] < rightMin[i]) count++;\n        leftMax = max(leftMax, (long long)nums[i]);\n    }\n    return count;\n}\n",
+      "c": "int countPivots(const int* nums, int n) {\n    long long* rightMin = malloc((n > 0 ? n : 1) * sizeof(long long));\n    long long smallest = LLONG_MAX;\n    for (int i = n - 1; i >= 0; i--) {\n        rightMin[i] = smallest;\n        if (nums[i] < smallest) smallest = nums[i];\n    }\n    int count = 0;\n    long long leftMax = LLONG_MIN;\n    for (int i = 0; i < n; i++) {\n        if (leftMax < nums[i] && nums[i] < rightMin[i]) count++;\n        if (nums[i] > leftMax) leftMax = nums[i];\n    }\n    free(rightMin);\n    return count;\n}\n"
+     },
+     "title": "Count pivot elements",
+     "lines": [
+      {
+       "text": "The length.",
+       "at": {
+        "python": [
+         [
+          2,
+          2
+         ]
+        ],
+        "java": [
+         [
+          2,
+          2
+         ]
+        ],
+        "cpp": [
+         [
+          2,
+          2
+         ]
+        ]
+       }
+      },
+      {
+       "text": "Pass 1, right to left. `smallest` carries the minimum of everything to the right; it starts as +∞ because nothing is to the right of the last element.",
+       "at": {
+        "python": [
+         [
+          3,
+          5
+         ]
+        ],
+        "java": [
+         [
+          3,
+          5
+         ]
+        ],
+        "cpp": [
+         [
+          3,
+          5
+         ]
+        ],
+        "c": [
+         [
+          2,
+          4
+         ]
+        ]
+       },
+       "notes": {
+        "java": "Long sentinels avoid any trouble with values at the edges of the `int` range.",
+        "c": "`LLONG_MAX` from `<limits.h>` plays the part of +∞."
+       }
+      },
+      {
+       "text": "Save the minimum of everything *after* `i`, before `nums[i]` is folded in.",
+       "at": {
+        "python": [
+         [
+          6,
+          6
+         ]
+        ],
+        "java": [
+         [
+          6,
+          6
+         ]
+        ],
+        "cpp": [
+         [
+          6,
+          6
+         ]
+        ],
+        "c": [
+         [
+          5,
+          5
+         ]
+        ]
+       }
+      },
+      {
+       "text": "Now include `nums[i]`, so the index to its left sees it.",
+       "at": {
+        "python": [
+         [
+          7,
+          7
+         ]
+        ],
+        "java": [
+         [
+          7,
+          7
+         ]
+        ],
+        "cpp": [
+         [
+          7,
+          7
+         ]
+        ],
+        "c": [
+         [
+          6,
+          6
+         ]
+        ]
+       }
+      },
+      {
+       "text": "Pass 2 keeps the left-hand summary in a variable instead of an array.",
+       "at": {
+        "python": [
+         [
+          8,
+          9
+         ]
+        ],
+        "java": [
+         [
+          9,
+          10
+         ]
+        ],
+        "cpp": [
+         [
+          9,
+          10
+         ]
+        ],
+        "c": [
+         [
+          8,
+          9
+         ]
+        ]
+       }
+      },
+      {
+       "text": "Left to right.",
+       "at": {
+        "python": [
+         [
+          10,
+          10
+         ]
+        ],
+        "java": [
+         [
+          11,
+          11
+         ]
+        ],
+        "cpp": [
+         [
+          11,
+          11
+         ]
+        ],
+        "c": [
+         [
+          10,
+          10
+         ]
+        ]
+       }
+      },
+      {
+       "text": "Bigger than everything before, smaller than everything after.",
+       "at": {
+        "python": [
+         [
+          11,
+          12
+         ]
+        ],
+        "java": [
+         [
+          12,
+          12
+         ]
+        ],
+        "cpp": [
+         [
+          12,
+          12
+         ]
+        ],
+        "c": [
+         [
+          11,
+          11
+         ]
+        ]
+       }
+      },
+      {
+       "text": "Fold `nums[i]` into the running maximum for the next index.",
+       "at": {
+        "python": [
+         [
+          13,
+          13
+         ]
+        ],
+        "java": [
+         [
+          13,
+          13
+         ]
+        ],
+        "cpp": [
+         [
+          13,
+          13
+         ]
+        ],
+        "c": [
+         [
+          12,
+          12
+         ]
+        ]
+       }
+      },
+      {
+       "text": "The number of pivots.",
+       "at": {
+        "python": [
+         [
+          14,
+          14
+         ]
+        ],
+        "java": [
+         [
+          15,
+          15
+         ]
+        ],
+        "cpp": [
+         [
+          15,
+          15
+         ]
+        ],
+        "c": [
+         [
+          14,
+          15
+         ]
+        ]
+       },
+       "notes": {
+        "c": "Free the suffix array first."
+       }
+      }
+     ],
+     "run": {
+      "call": "count_pivots([2, 1, 4, 3, 6, 8, 7, 9]); count_pivots([5, 4, 3]); count_pivots([1, 2, 3])",
+      "output": "2\n0\n3"
+     }
+    },
+    {
+     "md": "In a decreasing array nothing qualifies except possibly the ends, and here even they fail (5 isn't smaller than\nwhat follows; 3 isn't bigger than what came before). In an increasing array every element is a pivot."
+    }
+   ]
+  },
+  {
+   "id": "trace",
+   "title": "Trace it by hand",
+   "blocks": [
+    {
+     "walk": {
+      "steps": [
+       {
+        "text": "Pass 1 goes right to left, carrying the smallest value seen so far. Nothing is to the right of the last element.",
+        "panels": [
+         {
+          "type": "row",
+          "cells": [
+           2,
+           1,
+           4,
+           3,
+           6,
+           8,
+           7,
+           9
+          ],
+          "label": "nums",
+          "slots": true
+         },
+         {
+          "type": "row",
+          "cells": [
+           null,
+           null,
+           null,
+           null,
+           null,
+           null,
+           null,
+           null
+          ],
+          "label": "smallest after",
+          "slots": true
+         }
+        ]
+       },
+       {
+        "text": "Index 7: the smallest value after it is nothing (it is the last one). Store that, then fold in 9: the running smallest becomes 9.",
+        "panels": [
+         {
+          "type": "row",
+          "cells": [
+           2,
+           1,
+           4,
+           3,
+           6,
+           8,
+           7,
+           9
+          ],
+          "states": {
+           "7": "active"
+          },
+          "pointers": {
+           "i": 7
+          },
+          "label": "nums",
+          "slots": true
+         },
+         {
+          "type": "row",
+          "cells": [
+           null,
+           null,
+           null,
+           null,
+           null,
+           null,
+           null,
+           "–"
+          ],
+          "states": {
+           "7": "new"
+          },
+          "label": "smallest after",
+          "slots": true
+         }
+        ]
+       },
+       {
+        "text": "Index 6: the smallest value after it is 9. Store that, then fold in 7: the running smallest becomes 7.",
+        "panels": [
+         {
+          "type": "row",
+          "cells": [
+           2,
+           1,
+           4,
+           3,
+           6,
+           8,
+           7,
+           9
+          ],
+          "states": {
+           "6": "active",
+           "7": "dim"
+          },
+          "pointers": {
+           "i": 6
+          },
+          "label": "nums",
+          "slots": true
+         },
+         {
+          "type": "row",
+          "cells": [
+           null,
+           null,
+           null,
+           null,
+           null,
+           null,
+           9,
+           "–"
+          ],
+          "states": {
+           "6": "new"
+          },
+          "label": "smallest after",
+          "slots": true
+         }
+        ]
+       },
+       {
+        "text": "Index 5: the smallest value after it is 7. Store that, then fold in 8: the running smallest becomes 7.",
+        "panels": [
+         {
+          "type": "row",
+          "cells": [
+           2,
+           1,
+           4,
+           3,
+           6,
+           8,
+           7,
+           9
+          ],
+          "states": {
+           "5": "active",
+           "6": "dim",
+           "7": "dim"
+          },
+          "pointers": {
+           "i": 5
+          },
+          "label": "nums",
+          "slots": true
+         },
+         {
+          "type": "row",
+          "cells": [
+           null,
+           null,
+           null,
+           null,
+           null,
+           7,
+           9,
+           "–"
+          ],
+          "states": {
+           "5": "new"
+          },
+          "label": "smallest after",
+          "slots": true
+         }
+        ]
+       },
+       {
+        "text": "Index 4: the smallest value after it is 7. Store that, then fold in 6: the running smallest becomes 6.",
+        "panels": [
+         {
+          "type": "row",
+          "cells": [
+           2,
+           1,
+           4,
+           3,
+           6,
+           8,
+           7,
+           9
+          ],
+          "states": {
+           "4": "active",
+           "5": "dim",
+           "6": "dim",
+           "7": "dim"
+          },
+          "pointers": {
+           "i": 4
+          },
+          "label": "nums",
+          "slots": true
+         },
+         {
+          "type": "row",
+          "cells": [
+           null,
+           null,
+           null,
+           null,
+           7,
+           7,
+           9,
+           "–"
+          ],
+          "states": {
+           "4": "new"
+          },
+          "label": "smallest after",
+          "slots": true
+         }
+        ]
+       },
+       {
+        "text": "Index 3: the smallest value after it is 6. Store that, then fold in 3: the running smallest becomes 3.",
+        "panels": [
+         {
+          "type": "row",
+          "cells": [
+           2,
+           1,
+           4,
+           3,
+           6,
+           8,
+           7,
+           9
+          ],
+          "states": {
+           "3": "active",
+           "4": "dim",
+           "5": "dim",
+           "6": "dim",
+           "7": "dim"
+          },
+          "pointers": {
+           "i": 3
+          },
+          "label": "nums",
+          "slots": true
+         },
+         {
+          "type": "row",
+          "cells": [
+           null,
+           null,
+           null,
+           6,
+           7,
+           7,
+           9,
+           "–"
+          ],
+          "states": {
+           "3": "new"
+          },
+          "label": "smallest after",
+          "slots": true
+         }
+        ]
+       },
+       {
+        "text": "Index 2: the smallest value after it is 3. Store that, then fold in 4: the running smallest becomes 3.",
+        "panels": [
+         {
+          "type": "row",
+          "cells": [
+           2,
+           1,
+           4,
+           3,
+           6,
+           8,
+           7,
+           9
+          ],
+          "states": {
+           "2": "active",
+           "3": "dim",
+           "4": "dim",
+           "5": "dim",
+           "6": "dim",
+           "7": "dim"
+          },
+          "pointers": {
+           "i": 2
+          },
+          "label": "nums",
+          "slots": true
+         },
+         {
+          "type": "row",
+          "cells": [
+           null,
+           null,
+           3,
+           6,
+           7,
+           7,
+           9,
+           "–"
+          ],
+          "states": {
+           "2": "new"
+          },
+          "label": "smallest after",
+          "slots": true
+         }
+        ]
+       },
+       {
+        "text": "Index 1: the smallest value after it is 3. Store that, then fold in 1: the running smallest becomes 1.",
+        "panels": [
+         {
+          "type": "row",
+          "cells": [
+           2,
+           1,
+           4,
+           3,
+           6,
+           8,
+           7,
+           9
+          ],
+          "states": {
+           "1": "active",
+           "2": "dim",
+           "3": "dim",
+           "4": "dim",
+           "5": "dim",
+           "6": "dim",
+           "7": "dim"
+          },
+          "pointers": {
+           "i": 1
+          },
+          "label": "nums",
+          "slots": true
+         },
+         {
+          "type": "row",
+          "cells": [
+           null,
+           3,
+           3,
+           6,
+           7,
+           7,
+           9,
+           "–"
+          ],
+          "states": {
+           "1": "new"
+          },
+          "label": "smallest after",
+          "slots": true
+         }
+        ]
+       },
+       {
+        "text": "Index 0: the smallest value after it is 1. Store that, then fold in 2: the running smallest becomes 1.",
+        "panels": [
+         {
+          "type": "row",
+          "cells": [
+           2,
+           1,
+           4,
+           3,
+           6,
+           8,
+           7,
+           9
+          ],
+          "states": {
+           "0": "active",
+           "1": "dim",
+           "2": "dim",
+           "3": "dim",
+           "4": "dim",
+           "5": "dim",
+           "6": "dim",
+           "7": "dim"
+          },
+          "pointers": {
+           "i": 0
+          },
+          "label": "nums",
+          "slots": true
+         },
+         {
+          "type": "row",
+          "cells": [
+           1,
+           3,
+           3,
+           6,
+           7,
+           7,
+           9,
+           "–"
+          ],
+          "states": {
+           "0": "new"
+          },
+          "label": "smallest after",
+          "slots": true
+         }
+        ]
+       },
+       {
+        "text": "Pass 2, index 0: biggest before it is nothing, smallest after it is 1. 2 fails one of the two tests.",
+        "panels": [
+         {
+          "type": "row",
+          "cells": [
+           2,
+           1,
+           4,
+           3,
+           6,
+           8,
+           7,
+           9
+          ],
+          "states": {
+           "0": "active"
+          },
+          "pointers": {
+           "i": 0
+          },
+          "label": "nums",
+          "slots": true
+         },
+         {
+          "type": "vars",
+          "items": {
+           "biggest before:": "nothing",
+           "smallest after:": "1"
+          }
+         }
+        ]
+       },
+       {
+        "text": "Pass 2, index 1: biggest before it is 2, smallest after it is 3. 1 fails one of the two tests.",
+        "panels": [
+         {
+          "type": "row",
+          "cells": [
+           2,
+           1,
+           4,
+           3,
+           6,
+           8,
+           7,
+           9
+          ],
+          "states": {
+           "1": "active"
+          },
+          "pointers": {
+           "i": 1
+          },
+          "label": "nums",
+          "slots": true
+         },
+         {
+          "type": "vars",
+          "items": {
+           "biggest before:": "2",
+           "smallest after:": "3"
+          }
+         }
+        ]
+       },
+       {
+        "text": "Pass 2, index 2: biggest before it is 2, smallest after it is 3. 4 fails one of the two tests.",
+        "panels": [
+         {
+          "type": "row",
+          "cells": [
+           2,
+           1,
+           4,
+           3,
+           6,
+           8,
+           7,
+           9
+          ],
+          "states": {
+           "2": "active"
+          },
+          "pointers": {
+           "i": 2
+          },
+          "label": "nums",
+          "slots": true
+         },
+         {
+          "type": "vars",
+          "items": {
+           "biggest before:": "2",
+           "smallest after:": "3"
+          }
+         }
+        ]
+       },
+       {
+        "text": "Pass 2, index 3: biggest before it is 4, smallest after it is 6. 3 fails one of the two tests.",
+        "panels": [
+         {
+          "type": "row",
+          "cells": [
+           2,
+           1,
+           4,
+           3,
+           6,
+           8,
+           7,
+           9
+          ],
+          "states": {
+           "3": "active"
+          },
+          "pointers": {
+           "i": 3
+          },
+          "label": "nums",
+          "slots": true
+         },
+         {
+          "type": "vars",
+          "items": {
+           "biggest before:": "4",
+           "smallest after:": "6"
+          }
+         }
+        ]
+       },
+       {
+        "text": "Pass 2, index 4: biggest before it is 4, smallest after it is 7. 6 beats everything before and is below everything after: a pivot.",
+        "panels": [
+         {
+          "type": "row",
+          "cells": [
+           2,
+           1,
+           4,
+           3,
+           6,
+           8,
+           7,
+           9
+          ],
+          "states": {
+           "4": "answer"
+          },
+          "pointers": {
+           "i": 4
+          },
+          "label": "nums",
+          "slots": true
+         },
+         {
+          "type": "vars",
+          "items": {
+           "biggest before:": "4",
+           "smallest after:": "7"
+          }
+         }
+        ]
+       },
+       {
+        "text": "Pass 2, index 5: biggest before it is 6, smallest after it is 7. 8 fails one of the two tests.",
+        "panels": [
+         {
+          "type": "row",
+          "cells": [
+           2,
+           1,
+           4,
+           3,
+           6,
+           8,
+           7,
+           9
+          ],
+          "states": {
+           "4": "answer",
+           "5": "active"
+          },
+          "pointers": {
+           "i": 5
+          },
+          "label": "nums",
+          "slots": true
+         },
+         {
+          "type": "vars",
+          "items": {
+           "biggest before:": "6",
+           "smallest after:": "7"
+          }
+         }
+        ]
+       },
+       {
+        "text": "Pass 2, index 6: biggest before it is 8, smallest after it is 9. 7 fails one of the two tests.",
+        "panels": [
+         {
+          "type": "row",
+          "cells": [
+           2,
+           1,
+           4,
+           3,
+           6,
+           8,
+           7,
+           9
+          ],
+          "states": {
+           "4": "answer",
+           "6": "active"
+          },
+          "pointers": {
+           "i": 6
+          },
+          "label": "nums",
+          "slots": true
+         },
+         {
+          "type": "vars",
+          "items": {
+           "biggest before:": "8",
+           "smallest after:": "9"
+          }
+         }
+        ]
+       },
+       {
+        "text": "Pass 2, index 7: biggest before it is 8, smallest after it is nothing. 9 beats everything before and is below everything after: a pivot.",
+        "panels": [
+         {
+          "type": "row",
+          "cells": [
+           2,
+           1,
+           4,
+           3,
+           6,
+           8,
+           7,
+           9
+          ],
+          "states": {
+           "4": "answer",
+           "7": "answer"
+          },
+          "pointers": {
+           "i": 7
+          },
+          "label": "nums",
+          "slots": true
+         },
+         {
+          "type": "vars",
+          "items": {
+           "biggest before:": "8",
+           "smallest after:": "nothing"
+          }
+         }
+        ],
+        "result": "2"
+       }
+      ],
+      "title": "`count_pivots([2, 1, 4, 3, 6, 8, 7, 9])`. First a right-to-left pass records the smallest value after each index, then a left-to-right pass checks each one."
+     }
+    },
+    {
+     "table": {
+      "head": [
+       "i",
+       "nums[i]",
+       "biggest before",
+       "smallest after",
+       "pivot?"
+      ],
+      "rows": [
+       [
+        "0",
+        "2",
+        "–",
+        "1",
+        ""
+       ],
+       [
+        "1",
+        "1",
+        "2",
+        "3",
+        ""
+       ],
+       [
+        "2",
+        "4",
+        "2",
+        "3",
+        ""
+       ],
+       [
+        "3",
+        "3",
+        "4",
+        "6",
+        ""
+       ],
+       [
+        "4",
+        "6",
+        "4",
+        "7",
+        "yes"
+       ],
+       [
+        "5",
+        "8",
+        "6",
+        "7",
+        ""
+       ],
+       [
+        "6",
+        "7",
+        "8",
+        "9",
+        ""
+       ],
+       [
+        "7",
+        "9",
+        "8",
+        "–",
+        "yes"
+       ]
+      ]
+     }
+    }
+   ]
+  },
+  {
+   "id": "examples",
+   "title": "More examples",
+   "blocks": [
+    {
+     "md": "### The longest climb-then-descent through each point\n\nFor `[1, 3, 5, 4, 2, 6, 7, 3, 1]`, how long is the longest stretch that goes strictly up to an index and then strictly down after\nit? A left pass records how long the climb ending at each index is; a right pass records how long the descent\nstarting at each index is. Their sum minus one (the peak is counted twice) is the stretch through that index,\nas long as there's both a climb and a descent:"
+    },
+    {
+     "table": {
+      "head": [
+       "i",
+       "value",
+       "climb ending here",
+       "descent starting here",
+       "stretch through i"
+      ],
+      "rows": [
+       [
+        "0",
+        "1",
+        "1",
+        "1",
+        "–"
+       ],
+       [
+        "1",
+        "3",
+        "2",
+        "1",
+        "–"
+       ],
+       [
+        "2",
+        "5",
+        "3",
+        "3",
+        "5"
+       ],
+       [
+        "3",
+        "4",
+        "1",
+        "2",
+        "–"
+       ],
+       [
+        "4",
+        "2",
+        "1",
+        "1",
+        "–"
+       ],
+       [
+        "5",
+        "6",
+        "2",
+        "1",
+        "–"
+       ],
+       [
+        "6",
+        "7",
+        "3",
+        "3",
+        "5"
+       ],
+       [
+        "7",
+        "3",
+        "1",
+        "2",
+        "–"
+       ],
+       [
+        "8",
+        "1",
+        "1",
+        "1",
+        "–"
+       ]
+      ]
+     }
+    },
+    {
+     "panels": [
+      {
+       "type": "bars",
+       "values": [
+        1,
+        3,
+        5,
+        4,
+        2,
+        6,
+        7,
+        3,
+        1
+       ],
+       "states": {
+        "0": "found",
+        "1": "found",
+        "2": "answer",
+        "3": "found",
+        "4": "found"
+       },
+       "label": "values"
+      }
+     ],
+     "caption": "The longest one peaks at index 2 and is 5 long."
+    },
+    {
+     "md": "### How lopsided is each index?\n\nFor `[3, 1, 4, 1, 5]` (total 14), compare the sum to the left of each index with the sum to its right. A running left\nsum plus the total gives the right side without a second array:"
+    },
+    {
+     "table": {
+      "head": [
+       "i",
+       "value",
+       "left sum",
+       "right sum",
+       "difference"
+      ],
+      "rows": [
+       [
+        "0",
+        "3",
+        "0",
+        "11",
+        "11"
+       ],
+       [
+        "1",
+        "1",
+        "3",
+        "10",
+        "7"
+       ],
+       [
+        "2",
+        "4",
+        "4",
+        "6",
+        "2"
+       ],
+       [
+        "3",
+        "1",
+        "8",
+        "5",
+        "3"
+       ],
+       [
+        "4",
+        "5",
+        "9",
+        "0",
+        "9"
+       ]
+      ]
+     }
+    }
+   ]
+  },
+  {
+   "id": "variations",
+   "title": "Variations",
+   "blocks": [
+    {
+     "md": "### Joining runs from both sides\n\nThe longest run of 1s if you're allowed to flip one 0 into a 1. A left pass counts the 1s ending at each\nindex; a right pass counts the 1s starting at each index. Flipping a 0 joins the run that ends just before it\nto the run that starts just after it."
+    },
+    {
+     "panels": [
+      {
+       "type": "row",
+       "cells": [
+        1,
+        1,
+        0,
+        1,
+        1,
+        1,
+        0,
+        1,
+        0,
+        1
+       ],
+       "states": {
+        "2": "answer"
+       },
+       "label": "bits",
+       "slots": true
+      },
+      {
+       "type": "row",
+       "cells": [
+        1,
+        2,
+        0,
+        1,
+        2,
+        3,
+        0,
+        1,
+        0,
+        1
+       ],
+       "label": "1s ending here",
+       "slots": true
+      },
+      {
+       "type": "row",
+       "cells": [
+        2,
+        1,
+        0,
+        3,
+        2,
+        1,
+        0,
+        1,
+        0,
+        1
+       ],
+       "label": "1s starting here",
+       "slots": true
+      }
+     ],
+     "caption": "Flipping the 0 at index 2 joins 2 ones on its left with 3 on its right: 2 + 1 + 3 = 6."
+    },
+    {
+     "code": {
+      "python": "def longest_after_flip(bits):\n    n = len(bits)\n    left = [0] * n\n    for i in range(n):\n        if bits[i] == 1:\n            left[i] = (left[i - 1] if i > 0 else 0) + 1\n    right = [0] * n\n    for i in range(n - 1, -1, -1):\n        if bits[i] == 1:\n            right[i] = (right[i + 1] if i < n - 1 else 0) + 1\n    best = max(left, default=0)\n    for i in range(n):\n        if bits[i] == 0:\n            l = left[i - 1] if i > 0 else 0\n            r = right[i + 1] if i < n - 1 else 0\n            best = max(best, l + 1 + r)\n    return best\n",
+      "java": "static int longestAfterFlip(int[] bits) {\n    int n = bits.length;\n    int[] left = new int[n], right = new int[n];\n    for (int i = 0; i < n; i++) {\n        if (bits[i] == 1) left[i] = (i > 0 ? left[i - 1] : 0) + 1;\n    }\n    for (int i = n - 1; i >= 0; i--) {\n        if (bits[i] == 1) right[i] = (i < n - 1 ? right[i + 1] : 0) + 1;\n    }\n    int best = 0;\n    for (int x : left) best = Math.max(best, x);\n    for (int i = 0; i < n; i++) {\n        if (bits[i] == 0) {\n            int l = i > 0 ? left[i - 1] : 0;\n            int r = i < n - 1 ? right[i + 1] : 0;\n            best = Math.max(best, l + 1 + r);\n        }\n    }\n    return best;\n}\n",
+      "cpp": "int longestAfterFlip(const vector<int>& bits) {\n    int n = bits.size();\n    vector<int> left(n, 0), right(n, 0);\n    for (int i = 0; i < n; i++) {\n        if (bits[i] == 1) left[i] = (i > 0 ? left[i - 1] : 0) + 1;\n    }\n    for (int i = n - 1; i >= 0; i--) {\n        if (bits[i] == 1) right[i] = (i < n - 1 ? right[i + 1] : 0) + 1;\n    }\n    int best = 0;\n    for (int x : left) best = max(best, x);\n    for (int i = 0; i < n; i++) {\n        if (bits[i] == 0) {\n            int l = i > 0 ? left[i - 1] : 0;\n            int r = i < n - 1 ? right[i + 1] : 0;\n            best = max(best, l + 1 + r);\n        }\n    }\n    return best;\n}\n",
+      "c": "int longestAfterFlip(const int* bits, int n) {\n    int* left = calloc(n + 1, sizeof(int));\n    int* right = calloc(n + 1, sizeof(int));\n    for (int i = 0; i < n; i++) {\n        if (bits[i] == 1) left[i] = (i > 0 ? left[i - 1] : 0) + 1;\n    }\n    for (int i = n - 1; i >= 0; i--) {\n        if (bits[i] == 1) right[i] = (i < n - 1 ? right[i + 1] : 0) + 1;\n    }\n    int best = 0;\n    for (int i = 0; i < n; i++) if (left[i] > best) best = left[i];\n    for (int i = 0; i < n; i++) {\n        if (bits[i] == 0) {\n            int l = i > 0 ? left[i - 1] : 0;\n            int r = i < n - 1 ? right[i + 1] : 0;\n            if (l + 1 + r > best) best = l + 1 + r;\n        }\n    }\n    free(left); free(right);\n    return best;\n}\n"
+     },
+     "title": "Longest run of 1s after flipping one 0",
+     "lines": [
+      {
+       "text": "The length.",
+       "at": {
+        "python": [
+         [
+          2,
+          2
+         ]
+        ],
+        "java": [
+         [
+          2,
+          2
+         ]
+        ],
+        "cpp": [
+         [
+          2,
+          2
+         ]
+        ]
+       }
+      },
+      {
+       "text": "Left pass: how many 1s end at each index. A 1 extends the run before it; a 0 resets to 0.",
+       "at": {
+        "python": [
+         [
+          3,
+          6
+         ]
+        ],
+        "java": [
+         [
+          3,
+          5
+         ]
+        ],
+        "cpp": [
+         [
+          3,
+          5
+         ]
+        ],
+        "c": [
+         [
+          2,
+          5
+         ]
+        ]
+       },
+       "notes": {
+        "c": "`calloc` gives zeros, and one spare slot keeps an empty array from becoming a zero-size allocation."
+       }
+      },
+      {
+       "text": "Right pass: how many 1s start at each index, building from the right.",
+       "at": {
+        "python": [
+         [
+          7,
+          10
+         ]
+        ],
+        "java": [
+         [
+          7,
+          8
+         ]
+        ],
+        "cpp": [
+         [
+          7,
+          8
+         ]
+        ],
+        "c": [
+         [
+          7,
+          8
+         ]
+        ]
+       }
+      },
+      {
+       "text": "If there's no 0 to flip, the answer is the longest existing run.",
+       "at": {
+        "python": [
+         [
+          11,
+          11
+         ]
+        ],
+        "java": [
+         [
+          10,
+          11
+         ]
+        ],
+        "cpp": [
+         [
+          10,
+          11
+         ]
+        ],
+        "c": [
+         [
+          10,
+          11
+         ]
+        ]
+       }
+      },
+      {
+       "text": "Try flipping each 0.",
+       "at": {
+        "python": [
+         [
+          12,
+          13
+         ]
+        ],
+        "java": [
+         [
+          12,
+          13
+         ]
+        ],
+        "cpp": [
+         [
+          12,
+          13
+         ]
+        ],
+        "c": [
+         [
+          12,
+          13
+         ]
+        ]
+       }
+      },
+      {
+       "text": "The run ending just before it, the flipped 0 itself, and the run starting just after it. At the edges, the missing side counts as 0.",
+       "at": {
+        "python": [
+         [
+          14,
+          16
+         ]
+        ],
+        "java": [
+         [
+          14,
+          16
+         ]
+        ],
+        "cpp": [
+         [
+          14,
+          16
+         ]
+        ],
+        "c": [
+         [
+          14,
+          16
+         ]
+        ]
+       }
+      },
+      {
+       "text": "The longest run found.",
+       "at": {
+        "python": [
+         [
+          17,
+          17
+         ]
+        ],
+        "java": [
+         [
+          19,
+          19
+         ]
+        ],
+        "cpp": [
+         [
+          19,
+          19
+         ]
+        ],
+        "c": [
+         [
+          19,
+          20
+         ]
+        ]
+       },
+       "notes": {
+        "c": "Free both arrays first."
+       }
+      }
+     ],
+     "run": {
+      "call": "longest_after_flip([1, 1, 0, 1, 1, 1, 0, 1, 0, 1]); longest_after_flip([1, 1, 1]); longest_after_flip([0, 0])",
+      "output": "6\n3\n1"
+     }
+    },
+    {
+     "md": "### When one side is enough: buy low, sell high\n\nBuy a share on one day and sell it on a later day; what's the best profit? For each selling day you want the\ncheapest day *before* it, which is a prefix minimum. And since you only ever look left, the prefix array\ncollapses into a single variable."
+    },
+    {
+     "walk": {
+      "steps": [
+       {
+        "text": "Day 0 costs 8. You can't sell on the day you buy, so no profit yet.",
+        "panels": [
+         {
+          "type": "bars",
+          "values": [
+           8,
+           3,
+           6,
+           2,
+           7,
+           5,
+           4
+          ],
+          "states": {
+           "0": "mark"
+          },
+          "label": "price"
+         },
+         {
+          "type": "vars",
+          "items": {
+           "cheapest so far:": "8",
+           "best profit:": "0"
+          }
+         }
+        ]
+       },
+       {
+        "text": "Day 1: price 3. Selling now after buying at 8 makes -5, which doesn't beat 0. 3 is also the new cheapest day.",
+        "panels": [
+         {
+          "type": "bars",
+          "values": [
+           8,
+           3,
+           6,
+           2,
+           7,
+           5,
+           4
+          ],
+          "states": {
+           "0": "mark",
+           "1": "active"
+          },
+          "label": "price"
+         },
+         {
+          "type": "vars",
+          "items": {
+           "cheapest so far:": "3",
+           "best profit:": "0"
+          }
+         }
+        ]
+       },
+       {
+        "text": "Day 2: price 6. Selling now after buying at 3 makes 3, the best so far.",
+        "panels": [
+         {
+          "type": "bars",
+          "values": [
+           8,
+           3,
+           6,
+           2,
+           7,
+           5,
+           4
+          ],
+          "states": {
+           "1": "mark",
+           "2": "answer"
+          },
+          "label": "price"
+         },
+         {
+          "type": "vars",
+          "items": {
+           "cheapest so far:": "3",
+           "best profit:": "3"
+          }
+         }
+        ]
+       },
+       {
+        "text": "Day 3: price 2. Selling now after buying at 3 makes -1, which doesn't beat 3. 2 is also the new cheapest day.",
+        "panels": [
+         {
+          "type": "bars",
+          "values": [
+           8,
+           3,
+           6,
+           2,
+           7,
+           5,
+           4
+          ],
+          "states": {
+           "1": "mark",
+           "3": "active"
+          },
+          "label": "price"
+         },
+         {
+          "type": "vars",
+          "items": {
+           "cheapest so far:": "2",
+           "best profit:": "3"
+          }
+         }
+        ]
+       },
+       {
+        "text": "Day 4: price 7. Selling now after buying at 2 makes 5, the best so far.",
+        "panels": [
+         {
+          "type": "bars",
+          "values": [
+           8,
+           3,
+           6,
+           2,
+           7,
+           5,
+           4
+          ],
+          "states": {
+           "3": "mark",
+           "4": "answer"
+          },
+          "label": "price"
+         },
+         {
+          "type": "vars",
+          "items": {
+           "cheapest so far:": "2",
+           "best profit:": "5"
+          }
+         }
+        ]
+       },
+       {
+        "text": "Day 5: price 5. Selling now after buying at 2 makes 3, which doesn't beat 5.",
+        "panels": [
+         {
+          "type": "bars",
+          "values": [
+           8,
+           3,
+           6,
+           2,
+           7,
+           5,
+           4
+          ],
+          "states": {
+           "3": "mark",
+           "5": "active"
+          },
+          "label": "price"
+         },
+         {
+          "type": "vars",
+          "items": {
+           "cheapest so far:": "2",
+           "best profit:": "5"
+          }
+         }
+        ]
+       },
+       {
+        "text": "Day 6: price 4. Selling now after buying at 2 makes 2, which doesn't beat 5.",
+        "panels": [
+         {
+          "type": "bars",
+          "values": [
+           8,
+           3,
+           6,
+           2,
+           7,
+           5,
+           4
+          ],
+          "states": {
+           "3": "mark",
+           "6": "active"
+          },
+          "label": "price"
+         },
+         {
+          "type": "vars",
+          "items": {
+           "cheapest so far:": "2",
+           "best profit:": "5"
+          }
+         }
+        ]
+       }
+      ],
+      "title": "`best_profit([8, 3, 6, 2, 7, 5, 4])`: buy once, sell later. The prefix minimum is the only thing we need to remember."
+     }
+    },
+    {
+     "code": {
+      "python": "def best_profit(prices):\n    lowest = prices[0]\n    best = 0\n    for p in prices[1:]:\n        best = max(best, p - lowest)\n        lowest = min(lowest, p)\n    return best\n",
+      "java": "static int bestProfit(int[] prices) {\n    int lowest = prices[0], best = 0;\n    for (int i = 1; i < prices.length; i++) {\n        best = Math.max(best, prices[i] - lowest);\n        lowest = Math.min(lowest, prices[i]);\n    }\n    return best;\n}\n",
+      "cpp": "int bestProfit(const vector<int>& prices) {\n    int lowest = prices[0], best = 0;\n    for (size_t i = 1; i < prices.size(); i++) {\n        best = max(best, prices[i] - lowest);\n        lowest = min(lowest, prices[i]);\n    }\n    return best;\n}\n",
+      "c": "int bestProfit(const int* prices, int n) {\n    int lowest = prices[0], best = 0;\n    for (int i = 1; i < n; i++) {\n        if (prices[i] - lowest > best) best = prices[i] - lowest;\n        if (prices[i] < lowest) lowest = prices[i];\n    }\n    return best;\n}\n"
+     },
+     "title": "Best single buy and sell",
+     "lines": [
+      {
+       "text": "Day 0 is the cheapest so far. No sale yet, so the best profit is 0 (doing nothing).",
+       "at": {
+        "python": [
+         [
+          2,
+          3
+         ]
+        ],
+        "java": [
+         [
+          2,
+          2
+         ]
+        ],
+        "cpp": [
+         [
+          2,
+          2
+         ]
+        ],
+        "c": [
+         [
+          2,
+          2
+         ]
+        ]
+       }
+      },
+      {
+       "text": "Every later day is a possible selling day.",
+       "at": {
+        "python": [
+         [
+          4,
+          4
+         ]
+        ],
+        "java": [
+         [
+          3,
+          3
+         ]
+        ],
+        "cpp": [
+         [
+          3,
+          3
+         ]
+        ],
+        "c": [
+         [
+          3,
+          3
+         ]
+        ]
+       }
+      },
+      {
+       "text": "Selling today after buying at the cheapest earlier day. That's the best sale for today.",
+       "at": {
+        "python": [
+         [
+          5,
+          5
+         ]
+        ],
+        "java": [
+         [
+          4,
+          4
+         ]
+        ],
+        "cpp": [
+         [
+          4,
+          4
+         ]
+        ],
+        "c": [
+         [
+          4,
+          4
+         ]
+        ]
+       }
+      },
+      {
+       "text": "Then fold today's price into the prefix minimum, for the days after it.",
+       "at": {
+        "python": [
+         [
+          6,
+          6
+         ]
+        ],
+        "java": [
+         [
+          5,
+          5
+         ]
+        ],
+        "cpp": [
+         [
+          5,
+          5
+         ]
+        ],
+        "c": [
+         [
+          5,
+          5
+         ]
+        ]
+       }
+      },
+      {
+       "text": "The best profit, or 0 if prices only fell.",
+       "at": {
+        "python": [
+         [
+          7,
+          7
+         ]
+        ],
+        "java": [
+         [
+          7,
+          7
+         ]
+        ],
+        "cpp": [
+         [
+          7,
+          7
+         ]
+        ],
+        "c": [
+         [
+          7,
+          7
+         ]
+        ]
+       }
+      }
+     ],
+     "run": {
+      "call": "best_profit([8, 3, 6, 2, 7, 5, 4]); best_profit([9, 7, 4, 1])",
+      "output": "5\n0"
+     }
+    },
+    {
+     "md": "Notice the order inside the loop: sell first, then update the minimum. Updating first would let you buy and\nsell on the same day, which gives a profit of 0 and does no harm here, but in other problems that ordering\nmistake gives wrong answers.\n\n### Products from both sides\n\nProducts work exactly like the maxima above: a running product from the left and one from the right. One of\nthe practice problems is built on this, so it's worth thinking through how zeros affect it before you start."
+    }
+   ]
+  },
+  {
+   "id": "complexity",
+   "title": "What it costs",
+   "blocks": [
+    {
+     "md": "Each pass is O(n), and there are a constant number of them, so the whole thing is O(n) time. Memory is O(n)\nfor the stored summary arrays, often reduced to one array (keep the other side in a variable) or even O(1)\nwhen only one side is needed.\n\nThe direct approach, scanning left and right from every index, is O(n²)."
+    },
+    {
+     "table": {
+      "head": [
+       "Approach",
+       "Time",
+       "Extra space"
+      ],
+      "rows": [
+       [
+        "Look both ways from every index",
+        "O(n²)",
+        "O(1)"
+       ],
+       [
+        "Prefix array + suffix array",
+        "O(n)",
+        "O(n)"
+       ],
+       [
+        "Suffix array + running prefix variable",
+        "O(n)",
+        "O(n), one array"
+       ],
+       [
+        "One running variable (one-sided questions)",
+        "O(n)",
+        "O(1)"
+       ]
+      ]
+     }
+    }
+   ]
+  },
+  {
+   "id": "languages",
+   "title": "In your language",
+   "blocks": [
+    {
+     "md": "### Python\n\n`float('inf')` and `float('-inf')` make convenient \"nothing yet\" values for max and min. For prefix maxima as\na list, `itertools.accumulate(nums, max)` does a running max in one line.\n\n### Java\n\nUse `Integer.MIN_VALUE` / `MAX_VALUE` (or the `Long` ones) as sentinels, but be careful: if real values can\nequal the sentinel, a strict `<` test can go wrong. Using `long` sentinels with `int` data avoids that.\n\n### C++\n\n`LLONG_MIN` and `LLONG_MAX` from `<climits>`, or `numeric_limits<int>::min()`. `partial_sum` with a custom\noperation gives prefix maxima, but the explicit loop is usually clearer.\n\n### C\n\n`LLONG_MIN` / `LLONG_MAX` from `<limits.h>`. Allocate the summary arrays with `malloc` or `calloc` and free them\nbefore returning."
+    }
+   ]
+  },
+  {
+   "id": "pitfalls",
+   "title": "Pitfalls and edge cases",
+   "blocks": [
+    {
+     "md": "- Including `nums[i]` in its own summary when the question says \"before\" or \"after\". Store first, then fold.\n- Off-by-one at the ends: index 0 has nothing to the left, index `n - 1` nothing to the right. Decide what\n  \"nothing\" means (-∞, +∞, 0, 1, an empty run).\n- Sentinels that real values can equal.\n- Products overflowing, and zeros. One zero makes every product that includes it 0.\n- Updating the running value before using it in a one-sided loop.\n- Thinking prefix max answers range max. It only answers \"everything before\", not an arbitrary range."
+    }
+   ]
+  },
+  {
+   "id": "check",
+   "title": "Check yourself",
+   "blocks": [
+    {
+     "quiz": [
+      {
+       "q": "Why can prefix and suffix passes use max and min, when prefix sums can't answer range maximums?",
+       "a": "Prefix sums answer middle ranges by subtracting, and you can't subtract a max. Here we only ever need \"everything before i\" and \"everything after i\", which a running max or min gives directly."
+      },
+      {
+       "q": "In `count_pivots`, why is `right_min[i]` stored before folding in `nums[i]`?",
+       "a": "So it holds the minimum of the elements strictly after `i`. Folding first would include `nums[i]` itself, and the test `nums[i] < right_min[i]` could never pass."
+      },
+      {
+       "q": "bits = [0, 1, 1, 0, 1]. What does `longest_after_flip` return?",
+       "a": "Flipping index 0 gives 0 + 1 + 2 = 3. Flipping index 3 gives 2 + 1 + 1 = 4. The answer is 4."
+      },
+      {
+       "q": "Why does `best_profit` only need one variable instead of a prefix array?",
+       "a": "Each day only asks about the cheapest day before it, and we go left to right, so the running minimum at that moment is exactly that value. Nothing later needs older summaries."
+      },
+      {
+       "q": "nums = [4, 0, 2]. What are \"biggest before\" and \"smallest after\" for index 1, and is it a pivot?",
+       "a": "Biggest before is 4 and smallest after is 2. 0 isn't bigger than 4, so it's not a pivot."
+      }
+     ]
+    }
+   ]
+  }
+ ]
+}

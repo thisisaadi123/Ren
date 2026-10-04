@@ -1,0 +1,1779 @@
+{
+ "version": 1,
+ "id": "matrix-traversal",
+ "topic": "arrays-hashing",
+ "summary": "A grid is just rows of rows, and every grid problem comes down to visiting cells in the right order without\nstepping off the edge. Once you can turn any walk (row by row, by diagonals, around the rings, to the neighbours)\ninto simple arithmetic on `r` and `c`, grids stop being scary.",
+ "minutes": 12,
+ "sections": [
+  {
+   "id": "idea",
+   "title": "The idea",
+   "blocks": [
+    {
+     "md": "Think of a cinema seating chart. Every seat has a row and a seat number, and an usher can walk the room in\nmany ways: row by row, front to back, along a diagonal, or around the outside aisle and inwards. The seats\ndon't move. Only the route changes.\n\nA matrix is the same. `grid[r][c]` is row `r`, column `c`, with `(0, 0)` at the top-left. An `m × n` grid\nhas `m` rows and `n` columns. Every traversal problem is about choosing a route and expressing it with\nloops over `r` and `c`. Here are four routes over the same 3 × 4 grid, with each cell showing *when* it gets\nvisited:"
+    },
+    {
+     "panels": [
+      {
+       "type": "grid",
+       "cells": [
+        [
+         1,
+         2,
+         3,
+         4
+        ],
+        [
+         5,
+         6,
+         7,
+         8
+        ],
+        [
+         9,
+         10,
+         11,
+         12
+        ]
+       ],
+       "label": "row by row"
+      },
+      {
+       "type": "grid",
+       "cells": [
+        [
+         1,
+         4,
+         7,
+         10
+        ],
+        [
+         2,
+         5,
+         8,
+         11
+        ],
+        [
+         3,
+         6,
+         9,
+         12
+        ]
+       ],
+       "label": "column by column"
+      },
+      {
+       "type": "grid",
+       "cells": [
+        [
+         1,
+         2,
+         6,
+         7
+        ],
+        [
+         3,
+         5,
+         8,
+         11
+        ],
+        [
+         4,
+         9,
+         10,
+         12
+        ]
+       ],
+       "label": "zigzag diagonals"
+      },
+      {
+       "type": "grid",
+       "cells": [
+        [
+         1,
+         2,
+         3,
+         4
+        ],
+        [
+         10,
+         11,
+         12,
+         5
+        ],
+        [
+         9,
+         8,
+         7,
+         6
+        ]
+       ],
+       "label": "spiral"
+      }
+     ],
+     "caption": "Same twelve cells, four routes. The numbers are the visit order."
+    },
+    {
+     "key": "Pick the route, then describe it with arithmetic: which cells share a diagonal (`r + c`), which share a ring\n(`min(r, c, m-1-r, n-1-c)`), which are neighbours (`r + dr, c + dc`). Then check every step stays inside\n`0 ≤ r < m` and `0 ≤ c < n`."
+    }
+   ]
+  },
+  {
+   "id": "signals",
+   "title": "When to reach for it",
+   "blocks": [
+    {
+     "md": "Anything given as a 2D grid, board, image or table: read it in some order, transform it (flip, rotate,\ntranspose), look at each cell's neighbours, or work layer by layer from the outside in.\n\nWords to listen for: \"spiral\", \"diagonal\", \"zigzag\", \"rotate the image\", \"transpose\", \"neighbours\", \"adjacent\ncells\", \"border\", \"layer\", \"ring\".\n\nWhen it's not the whole story:\n\n- **Connected regions** (islands, flood fill, shortest path through a maze) need BFS or DFS. You still use\n  the neighbour arithmetic from this lesson, but the visiting order is driven by a queue or a stack. That's\n  the Graphs topic.\n- **Sums over rectangles, asked many times**, want 2D prefix sums (see *Prefix sums*).\n- **Changing the grid in place using markers** (rows and columns that must be zeroed, for example) has its own\n  pattern later in this topic, *In-place grid markers*."
+    }
+   ]
+  },
+  {
+   "id": "theory",
+   "title": "The arithmetic of grids",
+   "blocks": [
+    {
+     "md": "### Rows, columns and the flat view\n\nIn memory a grid is usually stored row by row. Cell `(r, c)` of an `m × n` grid is element `r × n + c` of one\nlong array, and element `i` is back at `(i // n, i % n)`. That's how the C code in this lesson stores grids,\nand it's also a handy trick in any language: one loop over `i` from 0 to `m × n - 1` visits the whole grid."
+    },
+    {
+     "panels": [
+      {
+       "type": "grid",
+       "cells": [
+        [
+         0,
+         1,
+         2,
+         3
+        ],
+        [
+         4,
+         5,
+         6,
+         7
+        ],
+        [
+         8,
+         9,
+         10,
+         11
+        ]
+       ],
+       "label": "r × 4 + c"
+      }
+     ],
+     "caption": "Row-major numbering: the flat index of every cell in a 3 × 4 grid."
+    },
+    {
+     "md": "### Diagonals have a constant sum or difference\n\nOn a diagonal that runs from top-right to bottom-left (an \"anti-diagonal\"), `r + c` is the same for every\ncell. On a diagonal running top-left to bottom-right, `r - c` is the same. So \"visit diagonal `d`\" just means\n\"visit the cells with `r + c = d`\". For a fixed `d`, the column is `c = d - r`, and the only thing left is\nworking out which rows are valid: `c` must be between 0 and `n - 1`, which gives\n`max(0, d - n + 1) ≤ r ≤ min(m - 1, d)`. There are `m + n - 1` diagonals in total.\n\n### Neighbours with direction arrays\n\nThe four neighbours of `(r, c)` are up, down, left and right. Rather than writing four copies of the same\ncheck, list the steps once and loop over them:"
+    },
+    {
+     "panels": [
+      {
+       "type": "grid",
+       "cells": [
+        [
+         " ",
+         "-1,0",
+         " "
+        ],
+        [
+         "0,-1",
+         "r,c",
+         "0,+1"
+        ],
+        [
+         " ",
+         "+1,0",
+         " "
+        ]
+       ],
+       "states": {
+        "1,1": "active",
+        "0,1": "mark",
+        "2,1": "mark",
+        "1,0": "mark",
+        "1,2": "mark"
+       }
+      }
+     ],
+     "caption": "Steps (dr, dc): (-1, 0), (+1, 0), (0, -1), (0, +1). Add the four diagonal steps too if the problem says 8 neighbours."
+    },
+    {
+     "md": "Every neighbour has to pass the bounds check `0 ≤ nr < m and 0 ≤ nc < n` before you read it. Put that check\nfirst in the condition, so the read never happens for cells off the edge.\n\n### Rings (layers)\n\nThe outer border of a grid is ring 0, the border of what's left inside is ring 1, and so on. A cell's ring is\nits distance to the nearest edge: `min(r, c, m - 1 - r, n - 1 - c)`. A grid has `(min(m, n) + 1) // 2` rings.\nSpiral reading and in-place rotation both work ring by ring."
+    },
+    {
+     "panels": [
+      {
+       "type": "grid",
+       "cells": [
+        [
+         0,
+         0,
+         0,
+         0,
+         0
+        ],
+        [
+         0,
+         1,
+         1,
+         1,
+         0
+        ],
+        [
+         0,
+         1,
+         2,
+         1,
+         0
+        ],
+        [
+         0,
+         1,
+         1,
+         1,
+         0
+        ],
+        [
+         0,
+         0,
+         0,
+         0,
+         0
+        ]
+       ],
+       "label": "5 × 5"
+      },
+      {
+       "type": "grid",
+       "cells": [
+        [
+         0,
+         0,
+         0,
+         0,
+         0,
+         0
+        ],
+        [
+         0,
+         1,
+         1,
+         1,
+         1,
+         0
+        ],
+        [
+         0,
+         1,
+         1,
+         1,
+         1,
+         0
+        ],
+        [
+         0,
+         0,
+         0,
+         0,
+         0,
+         0
+        ]
+       ],
+       "label": "4 × 6"
+      }
+     ],
+     "caption": "Each cell labelled with its ring. The innermost ring of a non-square grid can be a single line."
+    },
+    {
+     "md": "### Transforms are index maps\n\nFlipping, transposing and rotating don't change any values. They only change where each value goes. So the\nway to think about any transform is: \"the value at `(r, c)` moves to where?\". For an `m × n` grid:"
+    },
+    {
+     "table": {
+      "head": [
+       "transform",
+       "(r, c) goes to",
+       "result size"
+      ],
+      "rows": [
+       [
+        "transpose (flip over the main diagonal)",
+        "`(c, r)`",
+        "n × m"
+       ],
+       [
+        "mirror left–right",
+        "`(r, n - 1 - c)`",
+        "m × n"
+       ],
+       [
+        "flip upside down",
+        "`(m - 1 - r, c)`",
+        "m × n"
+       ],
+       [
+        "rotate 90° clockwise",
+        "`(c, m - 1 - r)`",
+        "n × m"
+       ],
+       [
+        "rotate 180°",
+        "`(m - 1 - r, n - 1 - c)`",
+        "m × n"
+       ]
+      ]
+     }
+    },
+    {
+     "panels": [
+      {
+       "type": "grid",
+       "cells": [
+        [
+         1,
+         2,
+         3
+        ],
+        [
+         4,
+         5,
+         6
+        ]
+       ],
+       "label": "original 2 × 3"
+      },
+      {
+       "type": "grid",
+       "cells": [
+        [
+         1,
+         4
+        ],
+        [
+         2,
+         5
+        ],
+        [
+         3,
+         6
+        ]
+       ],
+       "label": "transposed"
+      },
+      {
+       "type": "grid",
+       "cells": [
+        [
+         3,
+         2,
+         1
+        ],
+        [
+         6,
+         5,
+         4
+        ]
+       ],
+       "label": "mirrored"
+      },
+      {
+       "type": "grid",
+       "cells": [
+        [
+         4,
+         1
+        ],
+        [
+         5,
+         2
+        ],
+        [
+         6,
+         3
+        ]
+       ],
+       "label": "rotated 90° clockwise"
+      }
+     ],
+     "caption": "Each transform is just a rule for where each value goes. Write the rule down and the loops follow from it."
+    },
+    {
+     "md": "Writing the result into a new grid is easy once you know the map. Doing it **in place** is harder, because\nyou'd overwrite values you still need. The usual tricks are to swap values in cycles of four (ring by ring),\nor to build a transform out of simpler ones that are each easy to do in place, like a transpose and a mirror."
+    }
+   ]
+  },
+  {
+   "id": "template",
+   "title": "The template",
+   "blocks": [
+    {
+     "md": "Read a grid in zigzag order: diagonal by diagonal, starting at the top-left, alternating direction each time.\nEven diagonals go up and to the right, odd diagonals go down and to the left."
+    },
+    {
+     "code": {
+      "python": "def zigzag(grid):\n    m, n = len(grid), len(grid[0])\n    out = []\n    for d in range(m + n - 1):\n        cells = []\n        for r in range(max(0, d - n + 1), min(m, d + 1)):\n            cells.append(grid[r][d - r])\n        if d % 2 == 0:\n            cells.reverse()\n        out.extend(cells)\n    return out\n",
+      "java": "static List<Integer> zigzag(int[][] grid) {\n    int m = grid.length, n = grid[0].length;\n    List<Integer> out = new ArrayList<>();\n    for (int d = 0; d < m + n - 1; d++) {\n        List<Integer> cells = new ArrayList<>();\n        for (int r = Math.max(0, d - n + 1); r < Math.min(m, d + 1); r++) {\n            cells.add(grid[r][d - r]);\n        }\n        if (d % 2 == 0) Collections.reverse(cells);\n        out.addAll(cells);\n    }\n    return out;\n}\n",
+      "cpp": "vector<int> zigzag(const vector<vector<int>>& grid) {\n    int m = grid.size(), n = grid[0].size();\n    vector<int> out;\n    for (int d = 0; d < m + n - 1; d++) {\n        vector<int> cells;\n        for (int r = max(0, d - n + 1); r < min(m, d + 1); r++) {\n            cells.push_back(grid[r][d - r]);\n        }\n        if (d % 2 == 0) reverse(cells.begin(), cells.end());\n        out.insert(out.end(), cells.begin(), cells.end());\n    }\n    return out;\n}\n",
+      "c": "// grid is m x n, stored row by row (cell (r, c) at r * n + c). Writes m * n values to out.\nvoid zigzag(const int* grid, int m, int n, int* out) {\n    int k = 0;\n    for (int d = 0; d < m + n - 1; d++) {\n        int lo = d - n + 1 > 0 ? d - n + 1 : 0;\n        int hi = d < m - 1 ? d : m - 1;\n        for (int i = 0; i <= hi - lo; i++) {\n            int r = d % 2 == 0 ? hi - i : lo + i;\n            out[k++] = grid[r * n + (d - r)];\n        }\n    }\n}\n"
+     },
+     "title": "Zigzag diagonal order",
+     "lines": [
+      {
+       "text": "`m` rows and `n` columns, and the list we'll fill.",
+       "at": {
+        "python": [
+         [
+          2,
+          3
+         ]
+        ],
+        "java": [
+         [
+          2,
+          3
+         ]
+        ],
+        "cpp": [
+         [
+          2,
+          3
+         ]
+        ],
+        "c": [
+         [
+          3,
+          3
+         ]
+        ]
+       },
+       "notes": {
+        "c": "`k` is where the next value goes in `out`. The grid is flat: `(r, c)` is at `r * n + c`."
+       }
+      },
+      {
+       "text": "Diagonals are numbered by `d = r + c`, from 0 (the top-left cell) to `m + n - 2` (the bottom-right one).",
+       "at": {
+        "python": [
+         [
+          4,
+          4
+         ]
+        ],
+        "java": [
+         [
+          4,
+          4
+         ]
+        ],
+        "cpp": [
+         [
+          4,
+          4
+         ]
+        ],
+        "c": [
+         [
+          4,
+          4
+         ]
+        ]
+       }
+      },
+      {
+       "text": "The rows that actually exist on diagonal `d`. `c = d - r` has to stay between 0 and `n - 1`, which gives `r` from `max(0, d - n + 1)` to `min(m - 1, d)`.",
+       "at": {
+        "python": [
+         [
+          6,
+          6
+         ]
+        ],
+        "java": [
+         [
+          6,
+          6
+         ]
+        ],
+        "cpp": [
+         [
+          6,
+          6
+         ]
+        ],
+        "c": [
+         [
+          5,
+          6
+         ]
+        ]
+       }
+      },
+      {
+       "text": "Collect the diagonal's values top to bottom.",
+       "at": {
+        "python": [
+         [
+          5,
+          5
+         ],
+         [
+          7,
+          7
+         ]
+        ],
+        "java": [
+         [
+          5,
+          5
+         ],
+         [
+          7,
+          7
+         ]
+        ],
+        "cpp": [
+         [
+          5,
+          5
+         ],
+         [
+          7,
+          7
+         ]
+        ],
+        "c": [
+         [
+          7,
+          7
+         ]
+        ]
+       },
+       "notes": {
+        "c": "Walk the diagonal's rows in the right direction straight away, without a temporary list."
+       }
+      },
+      {
+       "text": "Even diagonals are read bottom to top, so reverse them. That alternation is what makes the zigzag.",
+       "at": {
+        "python": [
+         [
+          8,
+          9
+         ]
+        ],
+        "java": [
+         [
+          9,
+          9
+         ]
+        ],
+        "cpp": [
+         [
+          9,
+          9
+         ]
+        ],
+        "c": [
+         [
+          8,
+          8
+         ]
+        ]
+       },
+       "notes": {
+        "c": "On even diagonals start from the bottom row (`hi`) and go up; on odd ones start from `lo` and go down."
+       }
+      },
+      {
+       "text": "Append the diagonal to the answer.",
+       "at": {
+        "python": [
+         [
+          10,
+          10
+         ]
+        ],
+        "java": [
+         [
+          10,
+          10
+         ]
+        ],
+        "cpp": [
+         [
+          10,
+          10
+         ]
+        ],
+        "c": [
+         [
+          9,
+          9
+         ]
+        ]
+       }
+      },
+      {
+       "text": "Every cell, each exactly once, in zigzag order.",
+       "at": {
+        "python": [
+         [
+          11,
+          11
+         ]
+        ],
+        "java": [
+         [
+          12,
+          12
+         ]
+        ],
+        "cpp": [
+         [
+          12,
+          12
+         ]
+        ]
+       }
+      }
+     ],
+     "run": {
+      "call": "zigzag([[1, 2, 3, 4], [5, 6, 7, 8], [9, 10, 11, 12]]); zigzag([[7], [8], [9]])",
+      "output": "1 2 5 9 6 3 4 7 10 11 8 12\n7 8 9"
+     }
+    },
+    {
+     "md": "Notice the single-column grid in the second run. Every diagonal has exactly one cell, so the zigzag is just\ntop to bottom. Always try a single row and a single column; they're where the bounds formulas break if\nthey're wrong."
+    }
+   ]
+  },
+  {
+   "id": "trace",
+   "title": "Trace it by hand",
+   "blocks": [
+    {
+     "walk": {
+      "steps": [
+       {
+        "text": "Label each cell with r + c. Cells with the same number sit on the same diagonal, running from top-right to bottom-left.",
+        "panels": [
+         {
+          "type": "grid",
+          "cells": [
+           [
+            0,
+            1,
+            2,
+            3
+           ],
+           [
+            1,
+            2,
+            3,
+            4
+           ],
+           [
+            2,
+            3,
+            4,
+            5
+           ]
+          ]
+         }
+        ]
+       },
+       {
+        "text": "Diagonal 0: rows 0 to 0, read upwards (bottom-left to top-right): 1.",
+        "panels": [
+         {
+          "type": "grid",
+          "cells": [
+           [
+            1,
+            2,
+            3,
+            4
+           ],
+           [
+            5,
+            6,
+            7,
+            8
+           ],
+           [
+            9,
+            10,
+            11,
+            12
+           ]
+          ],
+          "states": {
+           "0,0": "active"
+          }
+         },
+         {
+          "type": "vars",
+          "items": {
+           "read so far:": "1"
+          }
+         }
+        ]
+       },
+       {
+        "text": "Diagonal 1: rows 0 to 1, read downwards (top-right to bottom-left): 2, 5.",
+        "panels": [
+         {
+          "type": "grid",
+          "cells": [
+           [
+            1,
+            2,
+            3,
+            4
+           ],
+           [
+            5,
+            6,
+            7,
+            8
+           ],
+           [
+            9,
+            10,
+            11,
+            12
+           ]
+          ],
+          "states": {
+           "0,0": "dim",
+           "0,1": "active",
+           "1,0": "active"
+          }
+         },
+         {
+          "type": "vars",
+          "items": {
+           "read so far:": "1 2 5"
+          }
+         }
+        ]
+       },
+       {
+        "text": "Diagonal 2: rows 0 to 2, read upwards (bottom-left to top-right): 9, 6, 3.",
+        "panels": [
+         {
+          "type": "grid",
+          "cells": [
+           [
+            1,
+            2,
+            3,
+            4
+           ],
+           [
+            5,
+            6,
+            7,
+            8
+           ],
+           [
+            9,
+            10,
+            11,
+            12
+           ]
+          ],
+          "states": {
+           "0,0": "dim",
+           "0,1": "dim",
+           "1,0": "dim",
+           "2,0": "active",
+           "1,1": "active",
+           "0,2": "active"
+          }
+         },
+         {
+          "type": "vars",
+          "items": {
+           "read so far:": "1 2 5 9 6 3"
+          }
+         }
+        ]
+       },
+       {
+        "text": "Diagonal 3: rows 0 to 2, read downwards (top-right to bottom-left): 4, 7, 10.",
+        "panels": [
+         {
+          "type": "grid",
+          "cells": [
+           [
+            1,
+            2,
+            3,
+            4
+           ],
+           [
+            5,
+            6,
+            7,
+            8
+           ],
+           [
+            9,
+            10,
+            11,
+            12
+           ]
+          ],
+          "states": {
+           "0,0": "dim",
+           "0,1": "dim",
+           "0,2": "dim",
+           "1,0": "dim",
+           "1,1": "dim",
+           "2,0": "dim",
+           "0,3": "active",
+           "1,2": "active",
+           "2,1": "active"
+          }
+         },
+         {
+          "type": "vars",
+          "items": {
+           "read so far:": "1 2 5 9 6 3 4 7 10"
+          }
+         }
+        ]
+       },
+       {
+        "text": "Diagonal 4: rows 1 to 2, read upwards (bottom-left to top-right): 11, 8.",
+        "panels": [
+         {
+          "type": "grid",
+          "cells": [
+           [
+            1,
+            2,
+            3,
+            4
+           ],
+           [
+            5,
+            6,
+            7,
+            8
+           ],
+           [
+            9,
+            10,
+            11,
+            12
+           ]
+          ],
+          "states": {
+           "0,0": "dim",
+           "0,1": "dim",
+           "0,2": "dim",
+           "0,3": "dim",
+           "1,0": "dim",
+           "1,1": "dim",
+           "1,2": "dim",
+           "2,0": "dim",
+           "2,1": "dim",
+           "2,2": "active",
+           "1,3": "active"
+          }
+         },
+         {
+          "type": "vars",
+          "items": {
+           "read so far:": "1 2 5 9 6 3 4 7 10 11 8"
+          }
+         }
+        ]
+       },
+       {
+        "text": "Diagonal 5: rows 2 to 2, read downwards (top-right to bottom-left): 12.",
+        "panels": [
+         {
+          "type": "grid",
+          "cells": [
+           [
+            1,
+            2,
+            3,
+            4
+           ],
+           [
+            5,
+            6,
+            7,
+            8
+           ],
+           [
+            9,
+            10,
+            11,
+            12
+           ]
+          ],
+          "states": {
+           "0,0": "dim",
+           "0,1": "dim",
+           "0,2": "dim",
+           "0,3": "dim",
+           "1,0": "dim",
+           "1,1": "dim",
+           "1,2": "dim",
+           "1,3": "dim",
+           "2,0": "dim",
+           "2,1": "dim",
+           "2,2": "dim",
+           "2,3": "active"
+          }
+         },
+         {
+          "type": "vars",
+          "items": {
+           "read so far:": "1 2 5 9 6 3 4 7 10 11 8 12"
+          }
+         }
+        ]
+       }
+      ],
+      "title": "Reading `[[1, 2, 3, 4], [5, 6, 7, 8], [9, 10, 11, 12]]` diagonal by diagonal. Every cell on diagonal d has r + c = d."
+     }
+    }
+   ]
+  },
+  {
+   "id": "examples",
+   "title": "More examples",
+   "blocks": [
+    {
+     "md": "### Finding peaks with direction arrays\n\nA peak is a cell bigger than every neighbour above, below, left and right. Cells on the edge have fewer\nneighbours, and the missing ones just don't count against them."
+    },
+    {
+     "walk": {
+      "steps": [
+       {
+        "text": "(0, 1) holds 4. Its neighbours inside the grid hold 1, 1, 2; 1 direction fall off the edge and are skipped. All smaller, so it's a peak.",
+        "panels": [
+         {
+          "type": "grid",
+          "cells": [
+           [
+            1,
+            4,
+            2,
+            2
+           ],
+           [
+            3,
+            1,
+            5,
+            1
+           ],
+           [
+            2,
+            6,
+            1,
+            3
+           ]
+          ],
+          "states": {
+           "1,1": "mark",
+           "0,0": "mark",
+           "0,2": "mark",
+           "0,1": "answer"
+          }
+         }
+        ]
+       },
+       {
+        "text": "(1, 2) holds 5. Its neighbours inside the grid hold 2, 1, 1, 1. All smaller, so it's a peak.",
+        "panels": [
+         {
+          "type": "grid",
+          "cells": [
+           [
+            1,
+            4,
+            2,
+            2
+           ],
+           [
+            3,
+            1,
+            5,
+            1
+           ],
+           [
+            2,
+            6,
+            1,
+            3
+           ]
+          ],
+          "states": {
+           "0,2": "mark",
+           "2,2": "mark",
+           "1,1": "mark",
+           "1,3": "mark",
+           "1,2": "answer"
+          }
+         }
+        ]
+       },
+       {
+        "text": "(2, 3) holds 3. Its neighbours inside the grid hold 1, 1; 2 directions fall off the edge and are skipped. All smaller, so it's a peak.",
+        "panels": [
+         {
+          "type": "grid",
+          "cells": [
+           [
+            1,
+            4,
+            2,
+            2
+           ],
+           [
+            3,
+            1,
+            5,
+            1
+           ],
+           [
+            2,
+            6,
+            1,
+            3
+           ]
+          ],
+          "states": {
+           "1,3": "mark",
+           "2,2": "mark",
+           "2,3": "answer"
+          }
+         }
+        ]
+       },
+       {
+        "text": "(1, 1) holds 1. Its neighbours inside the grid hold 4, 6, 3, 5. At least one isn't smaller, so it's not a peak.",
+        "panels": [
+         {
+          "type": "grid",
+          "cells": [
+           [
+            1,
+            4,
+            2,
+            2
+           ],
+           [
+            3,
+            1,
+            5,
+            1
+           ],
+           [
+            2,
+            6,
+            1,
+            3
+           ]
+          ],
+          "states": {
+           "0,1": "mark",
+           "2,1": "mark",
+           "1,0": "mark",
+           "1,2": "mark",
+           "1,1": "active"
+          }
+         }
+        ]
+       },
+       {
+        "text": "Doing this for every cell finds 5 peaks.",
+        "panels": [
+         {
+          "type": "grid",
+          "cells": [
+           [
+            1,
+            4,
+            2,
+            2
+           ],
+           [
+            3,
+            1,
+            5,
+            1
+           ],
+           [
+            2,
+            6,
+            1,
+            3
+           ]
+          ],
+          "states": {
+           "0,1": "answer",
+           "1,0": "answer",
+           "1,2": "answer",
+           "2,1": "answer",
+           "2,3": "answer"
+          }
+         }
+        ],
+        "result": "5"
+       }
+      ],
+      "title": "Checking a few cells of the grid for peaks: bigger than every neighbour above, below, left and right."
+     }
+    },
+    {
+     "md": "### Summing each ring\n\nIn this 5 × 5 grid the rings hold different values. The ring of each cell is its distance to the nearest edge,\nso one pass over the grid can add every value to its ring's total, with no spiral walking at all:"
+    },
+    {
+     "panels": [
+      {
+       "type": "grid",
+       "cells": [
+        [
+         1,
+         1,
+         1,
+         1,
+         1
+        ],
+        [
+         1,
+         2,
+         2,
+         2,
+         1
+        ],
+        [
+         1,
+         2,
+         9,
+         2,
+         1
+        ],
+        [
+         1,
+         2,
+         2,
+         2,
+         1
+        ],
+        [
+         1,
+         1,
+         1,
+         1,
+         1
+        ]
+       ],
+       "label": "values"
+      },
+      {
+       "type": "grid",
+       "cells": [
+        [
+         0,
+         0,
+         0,
+         0,
+         0
+        ],
+        [
+         0,
+         1,
+         1,
+         1,
+         0
+        ],
+        [
+         0,
+         1,
+         2,
+         1,
+         0
+        ],
+        [
+         0,
+         1,
+         1,
+         1,
+         0
+        ],
+        [
+         0,
+         0,
+         0,
+         0,
+         0
+        ]
+       ],
+       "label": "ring of each cell"
+      },
+      {
+       "type": "bars",
+       "values": [
+        16,
+        16,
+        9
+       ],
+       "labels": [
+        "ring 0",
+        "ring 1",
+        "ring 2"
+       ],
+       "label": "ring sums"
+      }
+     ],
+     "caption": "Ring 0 has 16 ones, ring 1 has 8 twos, ring 2 is the single 9: [16, 16, 9]."
+    }
+   ]
+  },
+  {
+   "id": "variations",
+   "title": "Variations",
+   "blocks": [
+    {
+     "md": "### Neighbours with direction arrays\n\nThe peak count from *More examples*. The direction arrays keep the neighbour logic in one place, and the\nbounds check comes before the read."
+    },
+    {
+     "code": {
+      "python": "DR = [-1, 1, 0, 0]\nDC = [0, 0, -1, 1]\n\ndef count_peaks(grid):\n    m, n = len(grid), len(grid[0])\n    peaks = 0\n    for r in range(m):\n        for c in range(n):\n            ok = True\n            for k in range(4):\n                nr, nc = r + DR[k], c + DC[k]\n                if 0 <= nr < m and 0 <= nc < n and grid[nr][nc] >= grid[r][c]:\n                    ok = False\n            if ok:\n                peaks += 1\n    return peaks\n",
+      "java": "static final int[] DR = {-1, 1, 0, 0};\nstatic final int[] DC = {0, 0, -1, 1};\n\nstatic int countPeaks(int[][] grid) {\n    int m = grid.length, n = grid[0].length, peaks = 0;\n    for (int r = 0; r < m; r++) {\n        for (int c = 0; c < n; c++) {\n            boolean ok = true;\n            for (int k = 0; k < 4; k++) {\n                int nr = r + DR[k], nc = c + DC[k];\n                if (nr >= 0 && nr < m && nc >= 0 && nc < n && grid[nr][nc] >= grid[r][c]) ok = false;\n            }\n            if (ok) peaks++;\n        }\n    }\n    return peaks;\n}\n",
+      "cpp": "const int DR[4] = {-1, 1, 0, 0};\nconst int DC[4] = {0, 0, -1, 1};\n\nint countPeaks(const vector<vector<int>>& grid) {\n    int m = grid.size(), n = grid[0].size(), peaks = 0;\n    for (int r = 0; r < m; r++) {\n        for (int c = 0; c < n; c++) {\n            bool ok = true;\n            for (int k = 0; k < 4; k++) {\n                int nr = r + DR[k], nc = c + DC[k];\n                if (nr >= 0 && nr < m && nc >= 0 && nc < n && grid[nr][nc] >= grid[r][c]) ok = false;\n            }\n            if (ok) peaks++;\n        }\n    }\n    return peaks;\n}\n",
+      "c": "static const int DR[4] = {-1, 1, 0, 0};\nstatic const int DC[4] = {0, 0, -1, 1};\n\nint countPeaks(const int* grid, int m, int n) {\n    int peaks = 0;\n    for (int r = 0; r < m; r++) {\n        for (int c = 0; c < n; c++) {\n            bool ok = true;\n            for (int k = 0; k < 4; k++) {\n                int nr = r + DR[k], nc = c + DC[k];\n                if (nr >= 0 && nr < m && nc >= 0 && nc < n && grid[nr * n + nc] >= grid[r * n + c]) ok = false;\n            }\n            if (ok) peaks++;\n        }\n    }\n    return peaks;\n}\n"
+     },
+     "title": "Count peaks (4 neighbours)",
+     "lines": [
+      {
+       "text": "The four steps: up, down, left, right. Add `(-1,-1), (-1,1), (1,-1), (1,1)` for eight neighbours.",
+       "at": {
+        "python": [
+         [
+          1,
+          2
+         ]
+        ],
+        "java": [
+         [
+          1,
+          2
+         ]
+        ],
+        "cpp": [
+         [
+          1,
+          2
+         ]
+        ],
+        "c": [
+         [
+          1,
+          2
+         ]
+        ]
+       }
+      },
+      {
+       "text": "Grid size, and the running count.",
+       "at": {
+        "python": [
+         [
+          5,
+          6
+         ]
+        ],
+        "java": [
+         [
+          5,
+          5
+         ]
+        ],
+        "cpp": [
+         [
+          5,
+          5
+         ]
+        ],
+        "c": [
+         [
+          5,
+          5
+         ]
+        ]
+       }
+      },
+      {
+       "text": "Visit every cell, row by row.",
+       "at": {
+        "python": [
+         [
+          7,
+          8
+         ]
+        ],
+        "java": [
+         [
+          6,
+          7
+         ]
+        ],
+        "cpp": [
+         [
+          6,
+          7
+         ]
+        ],
+        "c": [
+         [
+          6,
+          7
+         ]
+        ]
+       }
+      },
+      {
+       "text": "Assume it's a peak until a neighbour proves otherwise, then try all four directions.",
+       "at": {
+        "python": [
+         [
+          9,
+          10
+         ]
+        ],
+        "java": [
+         [
+          8,
+          9
+         ]
+        ],
+        "cpp": [
+         [
+          8,
+          9
+         ]
+        ],
+        "c": [
+         [
+          8,
+          9
+         ]
+        ]
+       }
+      },
+      {
+       "text": "The neighbour's coordinates.",
+       "at": {
+        "python": [
+         [
+          11,
+          11
+         ]
+        ],
+        "java": [
+         [
+          10,
+          10
+         ]
+        ],
+        "cpp": [
+         [
+          10,
+          10
+         ]
+        ],
+        "c": [
+         [
+          10,
+          10
+         ]
+        ]
+       }
+      },
+      {
+       "text": "Only neighbours inside the grid count. The bounds check comes first, so a cell off the edge is never read. A neighbour that's equal or bigger means this cell isn't a peak.",
+       "at": {
+        "python": [
+         [
+          12,
+          13
+         ]
+        ],
+        "java": [
+         [
+          11,
+          11
+         ]
+        ],
+        "cpp": [
+         [
+          11,
+          11
+         ]
+        ],
+        "c": [
+         [
+          11,
+          11
+         ]
+        ]
+       }
+      },
+      {
+       "text": "Survived every neighbour: one more peak.",
+       "at": {
+        "python": [
+         [
+          14,
+          15
+         ]
+        ],
+        "java": [
+         [
+          13,
+          13
+         ]
+        ],
+        "cpp": [
+         [
+          13,
+          13
+         ]
+        ],
+        "c": [
+         [
+          13,
+          13
+         ]
+        ]
+       }
+      },
+      {
+       "text": "The number of peaks.",
+       "at": {
+        "python": [
+         [
+          16,
+          16
+         ]
+        ],
+        "java": [
+         [
+          16,
+          16
+         ]
+        ],
+        "cpp": [
+         [
+          16,
+          16
+         ]
+        ],
+        "c": [
+         [
+          16,
+          16
+         ]
+        ]
+       }
+      }
+     ],
+     "run": {
+      "call": "count_peaks([[1, 4, 2, 2], [3, 1, 5, 1], [2, 6, 1, 3]]); count_peaks([[5, 5], [5, 5]])",
+      "output": "5\n0"
+     }
+    },
+    {
+     "md": "The all-5s grid has no peaks, because a neighbour that's *equal* is enough to disqualify a cell. Whether\n\"bigger\" means strictly bigger is exactly the kind of detail you should check in the problem statement.\n\n### Rings by formula\n\nInstead of walking the rings, work out each cell's ring and add it to the right total."
+    },
+    {
+     "code": {
+      "python": "def ring_sums(grid):\n    m, n = len(grid), len(grid[0])\n    sums = [0] * ((min(m, n) + 1) // 2)\n    for r in range(m):\n        for c in range(n):\n            k = min(r, c, m - 1 - r, n - 1 - c)\n            sums[k] += grid[r][c]\n    return sums\n",
+      "java": "static long[] ringSums(int[][] grid) {\n    int m = grid.length, n = grid[0].length;\n    long[] sums = new long[(Math.min(m, n) + 1) / 2];\n    for (int r = 0; r < m; r++) {\n        for (int c = 0; c < n; c++) {\n            int k = Math.min(Math.min(r, c), Math.min(m - 1 - r, n - 1 - c));\n            sums[k] += grid[r][c];\n        }\n    }\n    return sums;\n}\n",
+      "cpp": "vector<long long> ringSums(const vector<vector<int>>& grid) {\n    int m = grid.size(), n = grid[0].size();\n    vector<long long> sums((min(m, n) + 1) / 2, 0);\n    for (int r = 0; r < m; r++) {\n        for (int c = 0; c < n; c++) {\n            int k = min({r, c, m - 1 - r, n - 1 - c});\n            sums[k] += grid[r][c];\n        }\n    }\n    return sums;\n}\n",
+      "c": "static int min2(int a, int b) { return a < b ? a : b; }\n\n// Writes one sum per ring to sums and returns how many rings there are.\nint ringSums(const int* grid, int m, int n, long long* sums) {\n    int rings = (min2(m, n) + 1) / 2;\n    for (int k = 0; k < rings; k++) sums[k] = 0;\n    for (int r = 0; r < m; r++) {\n        for (int c = 0; c < n; c++) {\n            int k = min2(min2(r, c), min2(m - 1 - r, n - 1 - c));\n            sums[k] += grid[r * n + c];\n        }\n    }\n    return rings;\n}\n"
+     },
+     "title": "Sum of each ring",
+     "lines": [
+      {
+       "text": "Grid size.",
+       "at": {
+        "python": [
+         [
+          2,
+          2
+         ]
+        ],
+        "java": [
+         [
+          2,
+          2
+         ]
+        ],
+        "cpp": [
+         [
+          2,
+          2
+         ]
+        ]
+       }
+      },
+      {
+       "text": "A grid has `(min(m, n) + 1) // 2` rings: a 5 × 5 grid has 3, a 2 × 3 grid has 1.",
+       "at": {
+        "python": [
+         [
+          3,
+          3
+         ]
+        ],
+        "java": [
+         [
+          3,
+          3
+         ]
+        ],
+        "cpp": [
+         [
+          3,
+          3
+         ]
+        ],
+        "c": [
+         [
+          5,
+          6
+         ]
+        ]
+       }
+      },
+      {
+       "text": "Visit every cell once.",
+       "at": {
+        "python": [
+         [
+          4,
+          5
+         ]
+        ],
+        "java": [
+         [
+          4,
+          5
+         ]
+        ],
+        "cpp": [
+         [
+          4,
+          5
+         ]
+        ],
+        "c": [
+         [
+          7,
+          8
+         ]
+        ]
+       }
+      },
+      {
+       "text": "The distance to the nearest edge: to the top is `r`, to the left `c`, to the bottom `m - 1 - r`, to the right `n - 1 - c`. The smallest of the four is the ring.",
+       "at": {
+        "python": [
+         [
+          6,
+          6
+         ]
+        ],
+        "java": [
+         [
+          6,
+          6
+         ]
+        ],
+        "cpp": [
+         [
+          6,
+          6
+         ]
+        ],
+        "c": [
+         [
+          9,
+          9
+         ]
+        ]
+       }
+      },
+      {
+       "text": "Add the value to its ring's total.",
+       "at": {
+        "python": [
+         [
+          7,
+          7
+         ]
+        ],
+        "java": [
+         [
+          7,
+          7
+         ]
+        ],
+        "cpp": [
+         [
+          7,
+          7
+         ]
+        ],
+        "c": [
+         [
+          10,
+          10
+         ]
+        ]
+       }
+      },
+      {
+       "text": "One total per ring, outermost first.",
+       "at": {
+        "python": [
+         [
+          8,
+          8
+         ]
+        ],
+        "java": [
+         [
+          10,
+          10
+         ]
+        ],
+        "cpp": [
+         [
+          10,
+          10
+         ]
+        ],
+        "c": [
+         [
+          13,
+          13
+         ]
+        ]
+       },
+       "notes": {
+        "c": "Returns the number of rings; the totals are in `sums`."
+       }
+      }
+     ],
+     "run": {
+      "call": "ring_sums(5 × 5 grid with rings of 1s, 2s and a 9); ring_sums([[4, 0, 1], [2, 5, 3]])",
+      "output": "16 16 9\n15"
+     }
+    },
+    {
+     "md": "### Spiral and other ring walks\n\nWhen you need to *visit* the rings in order (spiral reading, rotating in place), keep four boundaries: `top`,\n`bottom`, `left`, `right`. Walk one side, move that boundary inwards, and repeat until the boundaries cross.\nThe part that trips people up is the last ring of a non-square grid, which can be a single row or a single\ncolumn. Check those cases explicitly so you don't visit the same cells twice.\n\n### Writing to a new grid vs in place\n\nIf the result has a different shape (a transpose of a non-square grid, a rotation of `m × n` into `n × m`),\nyou need a new grid anyway. If it's square and the problem asks for in place, think in terms of index maps\nand cycles: each value moves along a short cycle of positions, and you can move all of them with a single\ntemporary variable."
+    }
+   ]
+  },
+  {
+   "id": "complexity",
+   "title": "What it costs",
+   "blocks": [
+    {
+     "md": "Every traversal in this lesson visits each of the `m × n` cells a constant number of times, so they're all\nO(m × n) time. That's also the size of the input, so you can't do better if you need to look at every cell.\n\nExtra memory depends on the output. Reading into a list is O(m × n) for the answer. The neighbour check and\nthe ring sums use O(1) and O(min(m, n)) extra. A transform into a new grid uses O(m × n); an in-place square\ntransform uses O(1)."
+    },
+    {
+     "table": {
+      "head": [
+       "Task",
+       "Time",
+       "Extra space"
+      ],
+      "rows": [
+       [
+        "Read in any fixed order",
+        "O(m × n)",
+        "O(1) besides the output"
+       ],
+       [
+        "Check every cell's neighbours",
+        "O(m × n × directions)",
+        "O(1)"
+       ],
+       [
+        "Transform into a new grid",
+        "O(m × n)",
+        "O(m × n)"
+       ],
+       [
+        "Transform a square grid in place",
+        "O(n²)",
+        "O(1)"
+       ]
+      ]
+     }
+    }
+   ]
+  },
+  {
+   "id": "languages",
+   "title": "In your language",
+   "blocks": [
+    {
+     "md": "### Python\n\n`len(grid)` rows and `len(grid[0])` columns (check the grid isn't empty first). Make a new grid with\n`[[0] * n for _ in range(m)]`, never `[[0] * n] * m`, which makes `m` references to the *same* row, so changing\none changes them all. `zip(*grid)` transposes in one line and gives tuples.\n\n### Java\n\n`int[][]` is an array of arrays, and rows can technically have different lengths. `grid[0].length` is the\ncolumn count. `new int[m][n]` starts at zeros. Cloning a 2D array with `clone()` only copies the outer array;\nthe rows are still shared.\n\n### C++\n\n`vector<vector<int>>` like Java. For speed, a single `vector<int>` of size `m * n` indexed `r * n + c` avoids\none allocation per row. `min({a, b, c, d})` takes the minimum of several values at once.\n\n### C\n\nUse one flat block (`malloc(m * n * sizeof(int))`) and index it `r * n + c`, as this lesson's code does.\nFixed-size `int grid[3][4]` works too, but passing variable-sized 2D arrays between functions is awkward, so\nthe flat layout is the usual choice."
+    }
+   ]
+  },
+  {
+   "id": "pitfalls",
+   "title": "Pitfalls and edge cases",
+   "blocks": [
+    {
+     "md": "- Mixing up rows and columns. `m` is the number of rows (`len(grid)`), `n` is the number of columns\n  (`len(grid[0])`). Swapping them only shows up on non-square grids, so always test one.\n- Reading before checking bounds. Check `0 ≤ nr < m and 0 ≤ nc < n` first, then read.\n- Single row, single column, single cell. Bounds formulas and spiral loops often break here.\n- Visiting a cell twice in a spiral when the last ring is a single row or column.\n- In-place transforms that overwrite values you still need. Use a temporary, or swap in cycles.\n- Python's `[[0] * n] * m` creating shared rows.\n- Empty grids. `grid[0]` fails if there are no rows."
+    }
+   ]
+  },
+  {
+   "id": "check",
+   "title": "Check yourself",
+   "blocks": [
+    {
+     "quiz": [
+      {
+       "q": "How many diagonals (constant r + c) does a 3 × 5 grid have, and which cells are on diagonal 4?",
+       "a": "3 + 5 - 1 = 7 diagonals. Diagonal 4 has r + c = 4 with 0 ≤ r ≤ 2 and 0 ≤ c ≤ 4: (0, 4), (1, 3), (2, 2)."
+      },
+      {
+       "q": "What ring is cell (1, 4) in a 4 × 6 grid?",
+       "a": "min(1, 4, 4 - 1 - 1, 6 - 1 - 4) = min(1, 4, 2, 1) = 1."
+      },
+      {
+       "q": "Where does the value at (r, c) go when you rotate an m × n grid 90° clockwise?",
+       "a": "To (c, m - 1 - r), in an n × m result. The first column, read bottom to top, becomes the first row."
+      },
+      {
+       "q": "In `count_peaks`, why does the bounds check come before `grid[nr][nc]`?",
+       "a": "Because `and` stops at the first false part. If the neighbour is off the grid, the read never happens. In the other order you'd index out of range (or, in Python, a negative index would silently read the wrong row)."
+      },
+      {
+       "q": "You flatten an m × n grid row by row. Where is cell (r, c), and where is flat index i?",
+       "a": "Cell (r, c) is at r × n + c. Flat index i is at row i // n, column i % n."
+      }
+     ]
+    }
+   ]
+  }
+ ]
+}
