@@ -4,38 +4,89 @@
  "question": [
   {
    "md": "Insert the fewest brackets anywhere to make `s` balanced. Return how many.\n\n- **Insertions only:** nothing is deleted or moved.\n- **Two kinds of problem:** a `)` that arrives with nothing open, and a `(` that never gets closed. `))((` has\n  both: it needs 4 insertions."
+  },
+  {
+   "md": "**Edge cases to keep in mind**\n\n- Already balanced: insert nothing.\n- Only `)`: each needs a `(` inserted before it.\n- Only `(`: each needs a `)` inserted after it."
   }
  ],
  "think": [
   {
-   "md": "Take `())(()((`. Match brackets like a person would: `()` pairs cancel. What can't be matched? The `)` at position 2\narrives when nothing is open; and at the end, some `(` are still waiting. Each unmatched bracket needs exactly one\npartner inserted, and no insertion can serve two of them."
+   "md": "**Why a stack.** In a well-formed bracket string, the bracket opened most recently must be closed first: brackets\nnest, they never cross. \"Most recent first\" is exactly last-in, first-out, so keep the open brackets on a stack: push\non an opener, and on a closer check (and pop) the top. With a single kind of bracket the stack only ever holds `(`,\nso a **counter** of open brackets can replace it."
   },
   {
-   "panels": [
-    {
-     "type": "row",
-     "cells": [
+   "md": "**Which brackets can't be matched?** Scan left to right with a counter of open `(`. A `)` with nothing open is\nstray: it needs one `(` inserted before it. Any `(` still open at the end needs one `)`. Each stray bracket needs\nits own partner (one inserted bracket can't serve two of them), and the matched ones need nothing, so the answer\nis the number of stray brackets. For `())(()((`:"
+  },
+  {
+   "table": {
+    "head": [
+     "i",
+     "char",
+     "open after",
+     "inserted so far",
+     "action"
+    ],
+    "rows": [
+     [
+      "0",
       "(",
-      ")",
-      ")",
-      "(",
-      "(",
-      ")",
-      "(",
-      "("
+      "1",
+      "0",
+      "open one more"
      ],
-     "states": {
-      "2": "mark",
-      "6": "mark",
-      "7": "mark",
-      "3": "mark"
-     }
-    }
-   ],
-   "caption": "Unmatched brackets (marked) each need one inserted partner."
+     [
+      "1",
+      ")",
+      "0",
+      "0",
+      "closes an open one"
+     ],
+     [
+      "2",
+      ")",
+      "0",
+      "1",
+      "nothing open: needs an inserted '('"
+     ],
+     [
+      "3",
+      "(",
+      "1",
+      "1",
+      "open one more"
+     ],
+     [
+      "4",
+      "(",
+      "2",
+      "1",
+      "open one more"
+     ],
+     [
+      "5",
+      ")",
+      "1",
+      "1",
+      "closes an open one"
+     ],
+     [
+      "6",
+      "(",
+      "2",
+      "1",
+      "open one more"
+     ],
+     [
+      "7",
+      "(",
+      "3",
+      "1",
+      "open one more"
+     ]
+    ]
+   }
   },
   {
-   "md": "So count unmatched brackets. A single counter of \"currently open `(`\" does it, since there is only one bracket\nkind: `(` increments; `)` decrements if something is open, otherwise it's unmatched."
+   "md": "Stray `)`: 1; still open at the end: 3. Total **4**."
   }
  ],
  "approaches": [
@@ -46,12 +97,12 @@
    "space": "O(n)",
    "idea": [
     {
-     "md": "Keep removing adjacent `()` pairs. What's left looks like `)))((`: every remaining bracket is unmatched and needs one insertion. Return its length."
+     "md": "Repeatedly delete `()` pairs; whatever remains can't be matched, and each leftover bracket needs one insertion."
     }
    ],
    "build": [
-    "While the string contains `()`, delete it.",
-    "Return the remaining length."
+    "Delete `()` pairs until none remain.",
+    "Return the leftover length."
    ],
    "code": {
     "python": "class Solution:\n    def minInsertions(self, s: str) -> int:\n        while \"()\" in s:\n            s = s.replace(\"()\", \"\")\n        return len(s)\n",
@@ -121,7 +172,7 @@
    ],
    "complexity": [
     {
-     "md": "**Time O(n²)** for deeply nested input. **Space O(n).**"
+     "md": "**Time O(n²).** **Space O(n).**"
     }
    ],
    "walk": {
@@ -212,7 +263,7 @@
    },
    "limits": [
     {
-     "md": "Re-scans the string for every layer of nesting. A single counter recognises unmatched brackets in one pass."
+     "md": "Repeated deletions rescan the string; a counter finds the same leftovers in one pass."
     }
    ],
    "slow": true
@@ -224,13 +275,13 @@
    "space": "O(1)",
    "idea": [
     {
-     "md": "`open` = unclosed `(` so far, `added` = insertions needed. `(` → `open += 1`. `)` → if `open > 0`, `open −= 1`; else `added += 1`. Answer `added + open`."
+     "md": "`open` counts unmatched `(` so far; `added` counts `)` that arrived with nothing open. The answer is\n`added + open`."
     }
    ],
    "build": [
-    "`open = added = 0`.",
-    "Scan and update as described.",
-    "Return `added + open`."
+    "Two counters.",
+    "`(` → open + 1; `)` → close one if possible, else count an insertion.",
+    "Add the leftover opens."
    ],
    "code": {
     "python": "class Solution:\n    def minInsertions(self, s: str) -> int:\n        open_, added = 0, 0\n        for c in s:\n            if c == \"(\":\n                open_ += 1\n            elif open_:\n                open_ -= 1\n            else:\n                added += 1\n        return added + open_\n",
@@ -671,7 +722,7 @@
  ],
  "takeaways": [
   {
-   "md": "- With a single bracket kind, a **depth counter** replaces the stack.\n- Unmatched closers (seen when depth is 0) and unmatched openers (depth left at the end) are counted\n  separately; their sum is the minimum fix."
+   "md": "- **Minimum insertions to balance:** count stray `)` plus leftover `(`.\n- One kind of bracket → a counter replaces the stack.\n- **Pitfall:** letting the counter go negative instead of counting a stray `)`."
   }
  ]
 }

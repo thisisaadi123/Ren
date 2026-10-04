@@ -4,37 +4,86 @@
  "question": [
   {
    "md": "Three bracket kinds, `()`, `[]`, `{}`. Every opener must be closed by the same kind, in last-opened-first-closed\norder. Return whether `s` is sealed.\n\n- **Order matters:** `([)]` has the right counts but closes `(` while `[` is still open: not sealed.\n- **Leftovers fail:** `((` never closes.\n- **A closer with nothing open** (`)` first) fails immediately."
+  },
+  {
+   "md": "**Edge cases to keep in mind**\n\n- A closer when nothing is open: not sealed.\n- Openers left over at the end: not sealed.\n- Crossing pairs like `([)]`: the right counts but the wrong order, not sealed."
   }
  ],
  "think": [
   {
-   "md": "Take `{[()]}([)]`. Read left to right: `{`, `[`, `(` open; `)` closes the most recent `(`; `]` closes `[`; `}` closes\n`{`. Then `(`, `[` open, and `)` arrives while `[` is the most recent: mismatch."
+   "md": "**Why a stack.** In a well-formed bracket string, the bracket opened most recently must be closed first: brackets\nnest, they never cross. \"Most recent first\" is exactly last-in, first-out, so keep the open brackets on a stack: push\non an opener, and on a closer check (and pop) the top. With a single kind of bracket the stack only ever holds `(`,\nso a **counter** of open brackets can replace it."
   },
   {
-   "panels": [
-    {
-     "type": "row",
-     "cells": [
+   "md": "**Trace on `{[()]}([)]`:**"
+  },
+  {
+   "table": {
+    "head": [
+     "i",
+     "char",
+     "stack after",
+     "action"
+    ],
+    "rows": [
+     [
+      "0",
       "{",
-      "[",
-      "(",
-      ")",
-      "]",
-      "}",
-      "(",
-      "[",
-      ")",
-      "]"
+      "{",
+      "push"
      ],
-     "states": {
-      "8": "mark"
-     }
-    }
-   ],
-   "caption": "The ')' at position 8 tries to close '[' : not sealed."
+     [
+      "1",
+      "[",
+      "{[",
+      "push"
+     ],
+     [
+      "2",
+      "(",
+      "{[(",
+      "push"
+     ],
+     [
+      "3",
+      ")",
+      "{[",
+      "closes ("
+     ],
+     [
+      "4",
+      "]",
+      "{",
+      "closes ["
+     ],
+     [
+      "5",
+      "}",
+      "—",
+      "closes {"
+     ],
+     [
+      "6",
+      "(",
+      "(",
+      "push"
+     ],
+     [
+      "7",
+      "[",
+      "([",
+      "push"
+     ],
+     [
+      "8",
+      ")",
+      "([",
+      "top is [, needs (: not sealed"
+     ]
+    ]
+   }
   },
   {
-   "md": "\"Most recent open bracket\" is the top of a stack. A counter isn't enough with several kinds: `([)]` keeps every\ncount at or above zero but closes in the wrong order."
+   "md": "Answer: **false**."
   }
  ],
  "approaches": [
@@ -45,13 +94,13 @@
    "space": "O(n)",
    "idea": [
     {
-     "md": "A sealed string always contains an adjacent pair like `()`, and deleting it leaves a sealed string. So keep deleting adjacent pairs; the original was sealed exactly when nothing remains."
+     "md": "Repeatedly delete adjacent matching pairs `()`, `[]`, `{}` until nothing changes; the string is sealed exactly when it becomes empty."
     }
    ],
    "build": [
-    "Work on a copy.",
-    "While it contains `()`, `[]` or `{}`, delete one such pair.",
-    "Return whether the copy is empty."
+    "Delete matching pairs.",
+    "Repeat until stable.",
+    "Sealed if empty."
    ],
    "code": {
     "python": "class Solution:\n    def isSealed(self, s: str) -> bool:\n        prev = None\n        while prev != s:\n            prev = s\n            s = s.replace(\"()\", \"\").replace(\"[]\", \"\").replace(\"{}\", \"\")\n        return s == \"\"\n",
@@ -153,7 +202,7 @@
    ],
    "complexity": [
     {
-     "md": "**Time O(n²):** each round is O(n) and nested strings like `((((…))))` need about n/2 rounds. **Space O(n)** for the copy."
+     "md": "**Time O(n²):** up to `n/2` rounds, each rebuilding the string. **Space O(n).**"
     }
    ],
    "walk": {
@@ -268,7 +317,7 @@
    },
    "limits": [
     {
-     "md": "Each round rescans the whole string to remove a layer. A stack processes each bracket exactly once."
+     "md": "Each round rescans everything. A stack resolves every pair the moment its closer arrives."
     }
    ],
    "slow": true
@@ -280,13 +329,14 @@
    "space": "O(n)",
    "idea": [
     {
-     "md": "Push openers. On a closer: the stack must be non-empty and its top must be the matching opener; pop it. At the end the stack must be empty."
+     "md": "Push openers. On a closer, the stack top must be its partner: pop it, or fail. At the end the stack must be\nempty.\n\n**Invariant.** The stack holds the brackets opened but not yet closed, most recent on top. A closer can\nonly legally close the top one."
     }
    ],
    "build": [
     "Map each closer to its opener.",
-    "For each character: opener → push; closer → check the top and pop, or fail.",
-    "Return whether the stack is empty."
+    "Push openers.",
+    "On a closer, check and pop the top.",
+    "Sealed if the stack ends empty."
    ],
    "code": {
     "python": "class Solution:\n    def isSealed(self, s: str) -> bool:\n        pair = {\")\": \"(\", \"]\": \"[\", \"}\": \"{\"}\n        stack = []\n        for c in s:\n            if c in pair:\n                if not stack or stack[-1] != pair[c]:\n                    return False\n                stack.pop()\n            else:\n                stack.append(c)\n        return not stack\n",
@@ -792,7 +842,7 @@
  ],
  "takeaways": [
   {
-   "md": "- Nested structure with \"last opened, first closed\" → **stack**.\n- With one bracket kind a counter suffices; with several kinds you need the stack to check the kind.\n- Fail fast on a closer with an empty stack, and remember to require an empty stack at the end."
+   "md": "- **Matching nested pairs:** stack of openers; a closer must match the top.\n- Check both failure modes: a closer with an empty stack, and leftovers at the end.\n- **Pitfall:** counting each kind separately (accepts crossings like `([)]`)."
   }
  ]
 }
