@@ -21,7 +21,7 @@
   const PROBLEM_PAGE = main.dataset.problemPage || "problem.html";
   let TYPES = ["Array", "String", "Matrix", "Number", "Linked list", "Tree", "Design"];
   const DIFF = { easy: "Easy", medium: "Medium", hard: "Hard" };
-  const KEYS = ["track", "q", "difficulty", "type", "status"];
+  const KEYS = ["track", "q", "difficulty", "type", "status", "show"];
 
   const ICON = {
     chev: '<svg class="topic-chev" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m6 9 6 6 6-6"/></svg>',
@@ -33,7 +33,9 @@
 
   const params = new URLSearchParams(location.search);
   const state = Object.fromEntries(KEYS.map((k) => [k, params.get(k) || ""]));
-  const filtering = () => Boolean(state.q.trim() || state.difficulty || state.type || state.status);
+  const filtering = () => Boolean(state.q.trim() || state.difficulty || state.type || state.status || state.show);
+  // "Lessons only" turns the sheet into a reading list: each pattern's lesson, no problems.
+  const lessonsOnly = () => state.show === "lessons";
 
   // Which topics are open. The sheet opens folded; within the tab it keeps
   // what you opened, so coming back from a problem lands where you were.
@@ -96,6 +98,7 @@
         const patterns = t.patterns
           .map((p) => {
             const patternHit = topicHit || (q && has(p.name, q));
+            if (lessonsOnly()) return p.lesson && (!q || patternHit) ? { ...p, shown: [], soon: 0, lessonShown: true } : null;
             let problems = p.problems.filter(
               (x) =>
                 (!state.difficulty || x.difficulty === state.difficulty) &&
@@ -107,7 +110,7 @@
             let soon = byProblem || (q && !patternHit) ? 0 : missing(p);
             if (state.status === "ready") soon = 0;
             if (state.status === "locked") problems = [];
-            return problems.length || soon ? { ...p, shown: problems, soon } : null;
+            return problems.length || soon ? { ...p, shown: problems, soon, lessonShown: Boolean(p.lesson) && showLesson() } : null;
           })
           .filter(Boolean);
         if (!patterns.length) return null;
@@ -116,6 +119,7 @@
           shown: patterns,
           nShown: sum(patterns, (p) => p.shown.length),
           nSoon: sum(patterns, (p) => p.soon),
+          nLessons: sum(patterns, (p) => (p.lessonShown ? 1 : 0)),
         };
       })
       .filter(Boolean);
@@ -124,7 +128,14 @@
   // What a count means under the Status filter: ready problems, or the
   // locked ones when only those are showing.
   const tally = (topics) =>
-    state.status === "locked" ? sum(topics, (t) => t.nSoon) : sum(topics, (t) => t.nShown);
+    lessonsOnly()
+      ? sum(topics, (t) => t.nLessons)
+      : state.status === "locked"
+        ? sum(topics, (t) => t.nSoon)
+        : sum(topics, (t) => t.nShown);
+
+  // A pattern's lesson row shows unless the filters are about problems only.
+  const showLesson = () => state.show !== "problems" && !state.difficulty && !state.type && state.status !== "locked";
 
   /* Render ------------------------------------------------------------------- */
 
@@ -142,12 +153,14 @@
       return `${patterns} · ${plural(total, "problem")}`;
     }
     const parts = [plural(t.shown.length, "pattern")];
+    if (lessonsOnly()) return parts.concat(plural(t.nLessons, "lesson")).join(" · ");
     if (t.nShown) parts.push(plural(t.nShown, "problem"));
     if (t.nSoon) parts.push(`${t.nSoon} coming soon`);
     return `${t.nShown ? "" : ICON.lock}${parts.join(" · ")}`;
   }
 
   function patternCount(p) {
+    if (lessonsOnly()) return "";
     if (!filtering()) {
       const done = ready(p);
       return done && done < p.count ? `${done} of ${p.count} ready` : plural(p.count, "problem");
@@ -172,7 +185,7 @@
         </li>`
     );
     // The pattern's lesson comes first: read it, then solve.
-    if (p.lesson && !state.difficulty && !state.type && state.status !== "locked") {
+    if (p.lessonShown) {
       rows.unshift(`
         <li>
           <a class="prob lesson" href="learn.html?id=${encodeURIComponent(p.id)}">
@@ -245,7 +258,11 @@
     const soon = sum(topics, (t) => t.nSoon);
     const b = (n) => `<b>${n}</b>`;
     let text;
-    if (!filtering()) text = `${b(shown)} of ${shown + soon} problems ready`;
+    if (lessonsOnly()) {
+      const lessons = sum(topics, (t) => t.nLessons);
+      const minutes = sum(topics, (t) => sum(t.shown, (p) => p.lesson || 0));
+      text = lessons ? `${b(lessons)} ${lessons === 1 ? "lesson" : "lessons"} · about ${minutes} min of reading` : "";
+    } else if (!filtering()) text = `${b(shown)} of ${shown + soon} problems ready`;
     else if (!shown) text = soon ? `${b(soon)} ${soon === 1 ? "problem" : "problems"} coming soon` : "";
     else {
       const patterns = sum(topics, (t) => t.shown.length);
@@ -269,7 +286,7 @@
     if (!topics.length) {
       sheet.innerHTML = `
         <div class="sheet-empty">
-          <h2>No problems match.</h2>
+          <h2>${lessonsOnly() ? "No lessons match." : "No problems match."}</h2>
           <p>Try another search, or clear the filters.</p>
           <button type="button" class="btn btn-secondary" data-clear>Clear filters</button>
         </div>`;
@@ -282,7 +299,7 @@
         if (!list.length) return "";
         const n = tally(list);
         const meta = all
-          ? `${plural(list.length, "topic")} · ${plural(n, "problem")}`
+          ? `${plural(list.length, "topic")} · ${plural(n, lessonsOnly() ? "lesson" : "problem")}`
           : plural(list.length, "topic");
         return `
           <section class="sheet-track" aria-labelledby="track-${esc(track.id)}">
@@ -318,6 +335,13 @@
 
   /* State <-> controls <-> URL ----------------------------------------------- */
 
+  // Difficulty, Type and Status describe problems, so they rest while only lessons show.
+  function restFilters() {
+    selects.forEach((s) => {
+      if (s.dataset.filter !== "show") s.disabled = lessonsOnly();
+    });
+  }
+
   function syncControls() {
     search.value = state.q;
     selects.forEach((s) => {
@@ -326,6 +350,9 @@
       if (s.value !== state[s.dataset.filter]) state[s.dataset.filter] = "";
       s.classList.toggle("set", Boolean(s.value));
     });
+    // The SQL sheet has no lessons and no Show filter.
+    if (!selects.some((s) => s.dataset.filter === "show")) state.show = "";
+    restFilters();
     if (!tabs.some((t) => t.dataset.track === state.track)) state.track = "";
     tabs.forEach((t) => t.setAttribute("aria-selected", String(t.dataset.track === state.track)));
   }
@@ -343,7 +370,7 @@
   };
 
   function clear() {
-    Object.assign(state, { q: "", difficulty: "", type: "", status: "" });
+    Object.assign(state, { q: "", difficulty: "", type: "", status: "", show: "" });
     syncControls();
     update();
   }
@@ -391,6 +418,7 @@
     s.addEventListener("change", () => {
       state[s.dataset.filter] = s.value;
       s.classList.toggle("set", Boolean(s.value));
+      restFilters();
       update();
     })
   );
