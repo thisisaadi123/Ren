@@ -4,48 +4,61 @@
  "question": [
   {
    "md": "Each hour you read up to s pages from **one** book (leftover time in that hour is wasted). Return the smallest\nwhole-number s that finishes all books within `hours`.\n\n- **One book per hour:** a 3-page book at speed 4 still costs a full hour.\n- **hours ≥ number of books**, so a speed equal to the largest book (one hour per book) always works. That's the\n  top of the search range.\n- **Hours can sum past 32 bits** at low speeds (10⁴ books × 10⁹ pages at speed 1), so add them in 64 bits."
+  },
+  {
+   "md": "**Edge cases to keep in mind**\n\n- `hours` equal to the number of books: you must finish each book in one hour, so the speed is the largest book.\n- Lots of spare hours: speed 1 may be enough.\n- A partly used hour is wasted, so the hours for a book are `⌈pages / s⌉`."
   }
  ],
  "think": [
   {
-   "md": "Take books `[3, 6, 7, 11]` and 8 hours. At speed 3: 1 + 2 + 3 + 4 = 10 hours, too slow. At speed 4:\n1 + 2 + 2 + 3 = 8 hours, fits. So the answer is 4."
+   "md": "**Binary search on the answer.** Sometimes there's no sorted array at all, but the **answer** lives in a range of\nnumbers, and there's a yes/no question about a candidate value that is **monotone**: once it's yes, it stays yes for\nevery larger value (or every smaller one). Then:\n\n1. pick the range `[lo, hi]` that surely contains the answer;\n2. write `check(x)`, a fast test of the yes/no question for one candidate;\n3. binary search for the boundary where `check` flips.\n\nTotal cost: `O(cost of check × log(range))`. The hard parts are noticing the monotone question and writing `check`\ncorrectly; the search itself is always the same few lines."
   },
   {
-   "panels": [
-    {
-     "type": "row",
-     "cells": [
-      1,
-      2,
-      3,
-      4,
-      5,
-      6,
-      7
-     ],
-     "label": "speed"
-    },
-    {
-     "type": "row",
-     "cells": [
-      27,
-      15,
-      10,
-      8,
-      8,
-      6,
-      5
-     ],
-     "states": {
-      "3": "answer"
-     },
-     "label": "hours needed"
-    }
-   ],
-   "caption": "Hours needed never increase with speed; the answer is the first speed at or under the limit."
+   "md": "**The monotone question.** \"Can I finish within `hours` at speed `s`?\" A faster speed never needs more hours, so\nthe answer is no for slow speeds and yes from some speed onwards: find the smallest yes. The range is\n`[1, max(books)]`: at the largest book's size, every book takes one hour, which is the best possible. For\n`[3, 6, 7, 11]` and 8 hours:"
   },
   {
-   "md": "**Searching on the answer.** The answer is a number in a known range, and there's a yes/no test (\"is this value\ngood enough?\") that is false for small values and true from the answer onward (or the reverse). Binary search\nthat boundary: O(log range) tests, each costing one pass over the input."
+   "table": {
+    "head": [
+     "lo",
+     "hi",
+     "mid",
+     "check(mid)",
+     "decision"
+    ],
+    "rows": [
+     [
+      "1",
+      "11",
+      "6",
+      "6 hours → fits",
+      "answer ≤ mid: hi = mid"
+     ],
+     [
+      "1",
+      "6",
+      "3",
+      "10 hours → too slow",
+      "answer > mid: lo = mid + 1"
+     ],
+     [
+      "4",
+      "6",
+      "5",
+      "8 hours → fits",
+      "answer ≤ mid: hi = mid"
+     ],
+     [
+      "4",
+      "5",
+      "4",
+      "8 hours → fits",
+      "answer ≤ mid: hi = mid"
+     ]
+    ]
+   }
+  },
+  {
+   "md": "Smallest speed **4**."
   }
  ],
  "approaches": [
@@ -56,12 +69,12 @@
    "space": "O(1)",
    "idea": [
     {
-     "md": "Start at speed 1 and increase until the total hours fit."
+     "md": "Try `s = 1, 2, 3, …` until the total hours fit."
     }
    ],
    "build": [
-    "For s = 1, 2, …: total = Σ ⌈p / s⌉.",
-    "Return the first s with total ≤ hours."
+    "Start at speed 1.",
+    "Increase while the total hours exceed the limit."
    ],
    "code": {
     "python": "class Solution:\n    def minReadingSpeed(self, books: List[int], hours: int) -> int:\n        s = 1\n        while sum((p + s - 1) // s for p in books) > hours:\n            s += 1\n        return s\n",
@@ -131,7 +144,7 @@
    ],
    "complexity": [
     {
-     "md": "**Time O(max · n):** up to 10⁹ speeds × 10⁴ books. **Space O(1).**"
+     "md": "**Time O(n · answer):** up to 10⁹ · 10⁴ steps. **Space O(1).**"
     }
    ],
    "walk": {
@@ -234,7 +247,7 @@
    },
    "limits": [
     {
-     "md": "Tests speeds one by one, although the test is monotonic: once a speed fits, every faster one fits too."
+     "md": "Tries every speed. The fits/doesn't-fit answer is monotone, so binary search tries about 30."
     }
    ],
    "slow": true
@@ -246,13 +259,13 @@
    "space": "O(1)",
    "idea": [
     {
-     "md": "`lo = 1`, `hi = max(books)`. If speed mid fits (Σ ⌈p / mid⌉ ≤ hours), `hi = mid`; else `lo = mid + 1`. Return `lo`."
+     "md": "Binary search the smallest speed in `[1, max(books)]` whose total hours `Σ ⌈p / s⌉` is at most `hours`."
     }
    ],
    "build": [
     "Range `[1, max(books)]`.",
-    "Feasibility test: total hours at speed mid (64-bit).",
-    "Lower-bound search for the first feasible speed."
+    "Total hours at the middle speed.",
+    "Fits → `hi = mid`, else `lo = mid + 1`."
    ],
    "code": {
     "python": "class Solution:\n    def minReadingSpeed(self, books: List[int], hours: int) -> int:\n        lo, hi = 1, max(books)\n        while lo < hi:\n            mid = (lo + hi) // 2\n            needed = sum((p + mid - 1) // mid for p in books)\n            if needed <= hours:\n                hi = mid\n            else:\n                lo = mid + 1\n        return lo\n",
@@ -409,7 +422,7 @@
    ],
    "complexity": [
     {
-     "md": "**Time O(n log max):** about 30 tests of n books each. **Space O(1).**"
+     "md": "**Time O(n log max(books)).** **Space O(1).**"
     }
    ],
    "walk": {
@@ -485,7 +498,7 @@
  ],
  "takeaways": [
   {
-   "md": "- \"Smallest rate that finishes in time\" → binary search on the rate with a feasibility pass.\n- Ceiling division with integers: `(p + s − 1) / s`.\n- The search range's top comes from the constraints (one book per hour always works)."
+   "md": "- **Minimum rate to finish in time:** binary search on the rate; the check sums ceilings.\n- `⌈p / s⌉ = (p + s − 1) // s` in integers.\n- **Pitfall:** starting the range at 0 (division by zero)."
   }
  ]
 }

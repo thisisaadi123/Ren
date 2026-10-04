@@ -4,52 +4,54 @@
  "question": [
   {
    "md": "Choose a positive integer d; divide each load by d **rounding up**, and add the results. Return the smallest d\nwhose total is at most `threshold`.\n\n- **Rounding up:** 5 / 2 counts as 3, and 1 / 9 counts as 1, so every term is at least 1.\n- **threshold ≥ n**, so d = max(loads) (all terms 1) always works."
+  },
+  {
+   "md": "**Edge cases to keep in mind**\n\n- Each term is at least 1 (rounding up), so the total is at least the number of loads; the threshold is guaranteed to allow that.\n- `d = max(loads)` makes every term 1, so it always works.\n- Rounding up, not down."
   }
  ],
  "think": [
   {
-   "md": "Take `[1, 2, 5, 9]`, threshold 6. d = 4: 1 + 1 + 2 + 3 = 7 (too big). d = 5: 1 + 1 + 1 + 2 = 5 (fits). So the\nanswer is 5."
+   "md": "**Binary search on the answer.** Sometimes there's no sorted array at all, but the **answer** lives in a range of\nnumbers, and there's a yes/no question about a candidate value that is **monotone**: once it's yes, it stays yes for\nevery larger value (or every smaller one). Then:\n\n1. pick the range `[lo, hi]` that surely contains the answer;\n2. write `check(x)`, a fast test of the yes/no question for one candidate;\n3. binary search for the boundary where `check` flips.\n\nTotal cost: `O(cost of check × log(range))`. The hard parts are noticing the monotone question and writing `check`\ncorrectly; the search itself is always the same few lines."
   },
   {
-   "panels": [
-    {
-     "type": "row",
-     "cells": [
-      1,
-      2,
-      3,
-      4,
-      5,
-      6,
-      7,
-      8,
-      9
-     ],
-     "label": "d"
-    },
-    {
-     "type": "row",
-     "cells": [
-      17,
-      10,
-      7,
-      7,
-      5,
-      5,
-      5,
-      5,
-      4
-     ],
-     "states": {
-      "4": "answer"
-     },
-     "label": "total"
-    }
-   ],
-   "caption": "The total never increases with d: binary-searchable."
+   "md": "**Monotone.** A bigger divisor never makes `⌈x / d⌉` larger, so the total only shrinks as `d` grows: find the\nsmallest `d` with total `≤ threshold`, searching `[1, max(loads)]`. For `[1, 2, 5, 9]`, threshold 6:"
   },
   {
-   "md": "**Searching on the answer.** The answer is a number in a known range, and there's a yes/no test (\"is this value\ngood enough?\") that is false for small values and true from the answer onward (or the reverse). Binary search\nthat boundary: O(log range) tests, each costing one pass over the input."
+   "table": {
+    "head": [
+     "lo",
+     "hi",
+     "mid",
+     "check(mid)",
+     "decision"
+    ],
+    "rows": [
+     [
+      "1",
+      "9",
+      "5",
+      "total 5 → ≤ 6",
+      "answer ≤ mid: hi = mid"
+     ],
+     [
+      "1",
+      "5",
+      "3",
+      "total 7 → > 6",
+      "answer > mid: lo = mid + 1"
+     ],
+     [
+      "4",
+      "5",
+      "4",
+      "total 7 → > 6",
+      "answer > mid: lo = mid + 1"
+     ]
+    ]
+   }
+  },
+  {
+   "md": "Smallest divisor **5**."
   }
  ],
  "approaches": [
@@ -60,11 +62,11 @@
    "space": "O(1)",
    "idea": [
     {
-     "md": "Increase d from 1 until the total fits."
+     "md": "Try `d = 1, 2, …` until the total fits."
     }
    ],
    "build": [
-    "For d = 1, 2, …: total = Σ ⌈x / d⌉; return the first d with total ≤ threshold."
+    "Increase `d` while the total is too big."
    ],
    "code": {
     "python": "class Solution:\n    def smallestDivisor(self, loads: List[int], threshold: int) -> int:\n        d = 1\n        while sum((x + d - 1) // d for x in loads) > threshold:\n            d += 1\n        return d\n",
@@ -134,7 +136,7 @@
    ],
    "complexity": [
     {
-     "md": "**Time O(max · n):** up to 10⁶ × 5 × 10⁴. **Space O(1).**"
+     "md": "**Time O(n · answer).** **Space O(1).**"
     }
    ],
    "walk": {
@@ -255,7 +257,7 @@
    },
    "limits": [
     {
-     "md": "Linear in the range of d; the monotonic test allows binary search."
+     "md": "Linear in the answer (up to 10⁶ tries of O(n) each)."
     }
    ],
    "slow": true
@@ -267,13 +269,13 @@
    "space": "O(1)",
    "idea": [
     {
-     "md": "Lower-bound search in [1, max(loads)] with the test `Σ ⌈x / mid⌉ ≤ threshold`."
+     "md": "Binary search the smallest `d` in `[1, max(loads)]` with `Σ ⌈x / d⌉ ≤ threshold`."
     }
    ],
    "build": [
-    "Range `[1, max]`.",
-    "Compute the total for mid.",
-    "Fits → `hi = mid`; else `lo = mid + 1`."
+    "Range `[1, max(loads)]`.",
+    "Compute the total for `mid`.",
+    "Fits → `hi = mid`, else `lo = mid + 1`."
    ],
    "code": {
     "python": "class Solution:\n    def smallestDivisor(self, loads: List[int], threshold: int) -> int:\n        lo, hi = 1, max(loads)\n        while lo < hi:\n            mid = (lo + hi) // 2\n            if sum((x + mid - 1) // mid for x in loads) <= threshold:\n                hi = mid\n            else:\n                lo = mid + 1\n        return lo\n",
@@ -401,7 +403,7 @@
    ],
    "complexity": [
     {
-     "md": "**Time O(n log max):** about 20 passes. **Space O(1).**"
+     "md": "**Time O(n log max(loads)).** **Space O(1).**"
     }
    ],
    "walk": {
@@ -464,7 +466,7 @@
  ],
  "takeaways": [
   {
-   "md": "- Same template as **Reading Speed**: minimise a parameter subject to a monotonic sum-of-ceilings test."
+   "md": "- Same template as the reading speed: monotone sum of ceilings.\n- Upper bound = the value that makes every term 1.\n- **Pitfall:** floor division instead of ceiling."
   }
  ]
 }
