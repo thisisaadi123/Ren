@@ -1,0 +1,1325 @@
+{
+ "version": 1,
+ "id": "custom-order",
+ "topic": "sorting",
+ "summary": "Sorting isn't only \"smallest first\". You can sort by any rule you can state: by score and then by name, by\ndistance from a target, by version number, by a ranking list someone hands you. Turn the rule into a key (a value\nto sort by) or a comparator (a function that says which of two items goes first), and the library sort does\nthe rest.",
+ "minutes": 12,
+ "sections": [
+  {
+   "id": "idea",
+   "title": "The idea",
+   "blocks": [
+    {
+     "md": "A sort only ever asks one question: \"should `a` go before `b`?\". Merge sort, quick sort, Timsort, all of them\nbuild the whole order out of answers to that question. Usually the answer is \"if `a < b`\", but nothing stops\nyou answering it any way you like.\n\nThink of a race organiser ranking runners. Fastest time first; if two runners tied, the one with the lower\nbib number first. That rule fits on one line, and once it's written down, the sorting itself is somebody\nelse's job.\n\nThere are two ways to hand the rule over:\n\n- A key: turn each item into a value that already sorts the right way, such as the pair\n  `(time, bib)`. Pairs (tuples) compare their first parts, and only look at the second part on a tie.\n- A comparator: a function `compare(a, b)` that returns negative if `a` goes first, positive if `b`\n  does, and 0 if they tie."
+    },
+    {
+     "panels": [
+      {
+       "type": "row",
+       "cells": [
+        "mia 82",
+        "ali 95",
+        "zoe 82",
+        "ben 70",
+        "cal 95"
+       ],
+       "label": "as given"
+      },
+      {
+       "type": "row",
+       "cells": [
+        "ali 95",
+        "cal 95",
+        "mia 82",
+        "zoe 82",
+        "ben 70"
+       ],
+       "label": "highest score first, ties by name"
+      }
+     ],
+     "caption": "One sort, one rule: score descending, then name ascending."
+    },
+    {
+     "key": "Write the rule as \"first by …, then by …\". Encode it as a key tuple (negate a number to flip its direction)\nor as a comparator that checks the keys in order and returns at the first difference. As long as the rule is\nconsistent, the library sort can use it."
+    }
+   ]
+  },
+  {
+   "id": "signals",
+   "title": "When to reach for it",
+   "blocks": [
+    {
+     "md": "The question describes an order that isn't plain ascending: \"sort by frequency, then by value\", \"order the\nlogs so letters come before digits\", \"rank teams by votes, breaking ties by…\", \"arrange to form the largest\nnumber\", \"in the order given by this list\". Also any problem where the clever part is *choosing what to sort\nby* before a simple scan, such as sorting intervals by end time, or people by height so the tallest are\nplaced first.\n\nChoosing between a key and a comparator:"
+    },
+    {
+     "table": {
+      "head": [
+       "the rule is…",
+       "use",
+       "example"
+      ],
+      "rows": [
+       [
+        "a list of fields to compare in order",
+        "a key tuple",
+        "(-score, name)"
+       ],
+       [
+        "a value computed from each item",
+        "a key",
+        "(distance to target, value)"
+       ],
+       [
+        "\"where does it sit in this list\"",
+        "a key from a rank map",
+        "rank[size]"
+       ],
+       [
+        "only defined between two items",
+        "a comparator",
+        "version strings, \"which concatenation is bigger\""
+       ]
+      ]
+     }
+    },
+    {
+     "md": "Not a fit: when you only need the top few items (*Quickselect* or a heap), or when the keys are small\nintegers and you need linear time (*Counting and bucket sort*)."
+    }
+   ]
+  },
+  {
+   "id": "theory",
+   "title": "Why it works",
+   "blocks": [
+    {
+     "md": "### Tuples compare left to right\n\n`(95, \"cal\")` versus `(95, \"ali\")`: the first parts tie, so the second parts decide, and `\"ali\"` wins.\n`(82, \"zoe\")` versus `(95, \"ali\")`: the first parts differ, so the second parts are never looked at. That's\n\"first by score, then by name\". Most languages compare tuples, pairs, arrays or records this way, so a key\ntuple is the quickest way to write a rule with several levels.\n\nTo flip one level, flip its value: `-score` for numbers. For strings you can't negate, so either use a\ncomparator for that level or sort in two stable passes (below).\n\nHere are some of the decisions the ranking rule makes:"
+    },
+    {
+     "table": {
+      "head": [
+       "a",
+       "b",
+       "goes first",
+       "why"
+      ],
+      "rows": [
+       [
+        "mia 82",
+        "ali 95",
+        "ali",
+        "higher score first"
+       ],
+       [
+        "ali 95",
+        "cal 95",
+        "ali",
+        "same score, so the name decides"
+       ],
+       [
+        "zoe 82",
+        "mia 82",
+        "mia",
+        "same score, so the name decides"
+       ],
+       [
+        "ben 70",
+        "zoe 82",
+        "zoe",
+        "higher score first"
+       ]
+      ]
+     }
+    },
+    {
+     "md": "### What a comparator must promise\n\nA sort trusts the comparator completely, so the comparator has to describe a real order:\n\n- nothing goes before itself (`compare(a, a)` is 0);\n- it's consistent: if `a` goes before `b`, then `b` doesn't go before `a`;\n- it's **transitive**: if `a` goes before `b` and `b` before `c`, then `a` goes before `c`, and ties\n  chain the same way.\n\nBreak these and the sort may return garbage, loop, or (in Java) throw \"Comparison method violates its general\ncontract!\". Rock-paper-scissors is the classic broken rule: rock beats scissors, scissors beat paper, paper\nbeats rock. There's no correct order to produce, so different sorts give different answers.\n\nA comparator that compares fields one at a time and returns at the first difference is always fine, because\nit's just a tuple comparison written out by hand.\n\n### Stability lets you sort in passes\n\nA stable sort keeps tied items in the order they arrived. So you can build a multi-level order by sorting\nonce per level, starting with the *least* important key. Whatever order the earlier passes made survives\ninside each tie of the later passes."
+    },
+    {
+     "walk": {
+      "steps": [
+       {
+        "text": "The players as given. Two pairs tie on score: ali and cal on 95, mia and zoe on 82.",
+        "panels": [
+         {
+          "type": "row",
+          "cells": [
+           "mia 82",
+           "ali 95",
+           "zoe 82",
+           "ben 70",
+           "cal 95"
+          ],
+          "states": {
+           "0": "mark",
+           "1": "found",
+           "2": "mark",
+           "4": "found"
+          },
+          "label": "players"
+         },
+         {
+          "type": "vars",
+          "items": {
+           "pass:": "none yet",
+           "sorted by:": "–"
+          }
+         }
+        ]
+       },
+       {
+        "text": "Pass 1: sort by name only. The scores are all over the place, but within each tied pair the names are now in order.",
+        "panels": [
+         {
+          "type": "row",
+          "cells": [
+           "ali 95",
+           "ben 70",
+           "cal 95",
+           "mia 82",
+           "zoe 82"
+          ],
+          "states": {
+           "0": "found",
+           "2": "found",
+           "3": "mark",
+           "4": "mark"
+          },
+          "label": "players"
+         },
+         {
+          "type": "vars",
+          "items": {
+           "pass:": "1",
+           "sorted by:": "name"
+          }
+         }
+        ]
+       },
+       {
+        "text": "Pass 2: a *stable* sort by score, highest first. Tied players keep the order pass 1 gave them, so ali stays before cal and mia before zoe.",
+        "panels": [
+         {
+          "type": "row",
+          "cells": [
+           "ali 95",
+           "cal 95",
+           "mia 82",
+           "zoe 82",
+           "ben 70"
+          ],
+          "states": {
+           "0": "found",
+           "1": "found",
+           "2": "mark",
+           "3": "mark"
+          },
+          "label": "players"
+         },
+         {
+          "type": "vars",
+          "items": {
+           "pass:": "2",
+           "sorted by:": "score (stable)"
+          }
+         }
+        ],
+        "result": "ali cal mia zoe ben"
+       }
+      ],
+      "title": "The same ranking with two plain sorts, relying on stability. Sort by the *least* important key first. Follow the two pairs of tied players by their colours.",
+      "legend": [
+       {
+        "state": "found",
+        "text": "tied on 95"
+       },
+       {
+        "state": "mark",
+        "text": "tied on 82"
+       }
+      ]
+     }
+    },
+    {
+     "md": "That's handy when one level is \"descending\" for a type you can't negate, or when the levels are chosen at\nruntime (a table whose user clicks on column headers).\n\n### Keys are computed once; comparators run every time\n\nA sort makes about `n log n` comparisons. With a comparator, any work inside it (parsing a string, computing\na distance) happens on every comparison. With a key, Python computes it once per item and keeps it. In other\nlanguages you can get the same effect yourself by computing the keys first into an array of pairs (key, item)\nand sorting that. This is called decorate, sort, undecorate."
+    }
+   ]
+  },
+  {
+   "id": "template",
+   "title": "The template",
+   "blocks": [
+    {
+     "md": "Rank players by score, highest first, breaking ties alphabetically by name."
+    },
+    {
+     "code": {
+      "python": "def rank_players(players):\n    return sorted(players, key=lambda p: (-p[1], p[0]))\n",
+      "java": "record Player(String name, int score) {}\n\nstatic List<Player> rankPlayers(List<Player> players) {\n    List<Player> out = new ArrayList<>(players);\n    out.sort(Comparator.comparingInt((Player p) -> p.score()).reversed()\n             .thenComparing(Player::name));\n    return out;\n}\n",
+      "cpp": "struct Player {\n    string name;\n    int score;\n};\n\nvector<Player> rankPlayers(vector<Player> players) {\n    sort(players.begin(), players.end(), [](const Player& a, const Player& b) {\n        if (a.score != b.score) return a.score > b.score;\n        return a.name < b.name;\n    });\n    return players;\n}\n",
+      "c": "typedef struct {\n    const char* name;\n    int score;\n} Player;\n\nstatic int byRank(const void* x, const void* y) {\n    const Player* a = x;\n    const Player* b = y;\n    if (a->score != b->score) return a->score > b->score ? -1 : 1;\n    return strcmp(a->name, b->name);\n}\n\nvoid rankPlayers(Player* players, int n) {\n    qsort(players, n, sizeof(Player), byRank);\n}\n"
+     },
+     "title": "Sort by several keys",
+     "lines": [
+      {
+       "text": "Sort a copy, so the caller's list is left as it was.",
+       "at": {
+        "java": [
+         [
+          4,
+          4
+         ]
+        ]
+       }
+      },
+      {
+       "text": "The rule: score descending, then name ascending.",
+       "at": {
+        "python": [
+         [
+          2,
+          2
+         ]
+        ],
+        "java": [
+         [
+          5,
+          6
+         ]
+        ],
+        "cpp": [
+         [
+          7,
+          7
+         ]
+        ],
+        "c": [
+         [
+          7,
+          8
+         ]
+        ]
+       },
+       "notes": {
+        "python": "A key tuple. `-p[1]` flips the score so higher comes first; `p[0]` breaks ties.",
+        "java": "`comparingInt(...).reversed()` for score descending, then `thenComparing` for the name. The explicit `(Player p)` type helps Java infer the chain.",
+        "cpp": "A lambda that answers \"does `a` go strictly before `b`?\".",
+        "c": "`qsort` passes pointers to the two elements as `void*`; cast them back."
+       }
+      },
+      {
+       "text": "Different scores: the higher one goes first, and that's the end of it.",
+       "at": {
+        "cpp": [
+         [
+          8,
+          8
+         ]
+        ],
+        "c": [
+         [
+          9,
+          9
+         ]
+        ]
+       }
+      },
+      {
+       "text": "Same score: compare names.",
+       "at": {
+        "cpp": [
+         [
+          9,
+          9
+         ]
+        ],
+        "c": [
+         [
+          10,
+          10
+         ]
+        ]
+       },
+       "notes": {
+        "c": "`strcmp` already returns negative, zero or positive, exactly the comparator convention."
+       }
+      },
+      {
+       "text": "The ranked players.",
+       "at": {
+        "java": [
+         [
+          7,
+          7
+         ]
+        ],
+        "cpp": [
+         [
+          11,
+          11
+         ]
+        ],
+        "c": [
+         [
+          14,
+          14
+         ]
+        ]
+       },
+       "notes": {
+        "c": "C sorts the caller's array in place."
+       }
+      }
+     ],
+     "run": {
+      "call": "rank_players([(\"mia\", 82), (\"ali\", 95), (\"zoe\", 82), (\"ben\", 70), (\"cal\", 95)])",
+      "output": "ali 95\ncal 95\nmia 82\nzoe 82\nben 70"
+     }
+    }
+   ]
+  },
+  {
+   "id": "trace",
+   "title": "Trace it by hand",
+   "blocks": [
+    {
+     "md": "To check a custom order by hand, write the key next to each item and sort the keys in your head. For the\nplayers the keys are `(-95, \"ali\")`, `(-95, \"cal\")`, `(-82, \"mia\")`, `(-82, \"zoe\")` and `(-70, \"ben\")`, which is\nalready the right order. If the keys come out in the right order, the items will too.\n\nWhatever sort the library uses, all it does is ask your rule about two items at a time. Here's that on the\nplayers, using insertion sort because it's the easiest to follow:"
+    },
+    {
+     "walk": {
+      "steps": [
+       {
+        "text": "The first player on its own is already \"sorted\". Each later player moves left past everyone the rule puts after it.",
+        "panels": [
+         {
+          "type": "row",
+          "cells": [
+           "mia 82",
+           "ali 95",
+           "zoe 82",
+           "ben 70",
+           "cal 95"
+          ],
+          "states": {
+           "0": "found"
+          },
+          "label": "players"
+         },
+         {
+          "type": "vars",
+          "items": {
+           "question:": "–",
+           "answer:": "–",
+           "questions so far:": "0"
+          }
+         }
+        ]
+       },
+       {
+        "text": "Is ali (95) before mia (82)? Yes: ali has the higher score. Swap them; ali keeps moving left.",
+        "panels": [
+         {
+          "type": "row",
+          "cells": [
+           "ali 95",
+           "mia 82",
+           "zoe 82",
+           "ben 70",
+           "cal 95"
+          ],
+          "states": {
+           "0": "active",
+           "1": "mark"
+          },
+          "label": "players"
+         },
+         {
+          "type": "vars",
+          "items": {
+           "question:": "ali 95 before mia 82?",
+           "answer:": "yes",
+           "questions so far:": "1"
+          }
+         }
+        ]
+       },
+       {
+        "text": "Is zoe (82) before mia (82)? No: same score, and mia comes first by name. zoe stops here.",
+        "panels": [
+         {
+          "type": "row",
+          "cells": [
+           "ali 95",
+           "mia 82",
+           "zoe 82",
+           "ben 70",
+           "cal 95"
+          ],
+          "states": {
+           "0": "found",
+           "2": "active",
+           "1": "mark"
+          },
+          "label": "players"
+         },
+         {
+          "type": "vars",
+          "items": {
+           "question:": "zoe 82 before mia 82?",
+           "answer:": "no",
+           "questions so far:": "2"
+          }
+         }
+        ]
+       },
+       {
+        "text": "Is ben (70) before zoe (82)? No: zoe has the higher score. ben stops here.",
+        "panels": [
+         {
+          "type": "row",
+          "cells": [
+           "ali 95",
+           "mia 82",
+           "zoe 82",
+           "ben 70",
+           "cal 95"
+          ],
+          "states": {
+           "0": "found",
+           "1": "found",
+           "3": "active",
+           "2": "mark"
+          },
+          "label": "players"
+         },
+         {
+          "type": "vars",
+          "items": {
+           "question:": "ben 70 before zoe 82?",
+           "answer:": "no",
+           "questions so far:": "3"
+          }
+         }
+        ]
+       },
+       {
+        "text": "Is cal (95) before ben (70)? Yes: cal has the higher score. Swap them; cal keeps moving left.",
+        "panels": [
+         {
+          "type": "row",
+          "cells": [
+           "ali 95",
+           "mia 82",
+           "zoe 82",
+           "cal 95",
+           "ben 70"
+          ],
+          "states": {
+           "0": "found",
+           "1": "found",
+           "2": "found",
+           "3": "active",
+           "4": "mark"
+          },
+          "label": "players"
+         },
+         {
+          "type": "vars",
+          "items": {
+           "question:": "cal 95 before ben 70?",
+           "answer:": "yes",
+           "questions so far:": "4"
+          }
+         }
+        ]
+       },
+       {
+        "text": "Is cal (95) before zoe (82)? Yes: cal has the higher score. Swap them; cal keeps moving left.",
+        "panels": [
+         {
+          "type": "row",
+          "cells": [
+           "ali 95",
+           "mia 82",
+           "cal 95",
+           "zoe 82",
+           "ben 70"
+          ],
+          "states": {
+           "0": "found",
+           "1": "found",
+           "4": "found",
+           "2": "active",
+           "3": "mark"
+          },
+          "label": "players"
+         },
+         {
+          "type": "vars",
+          "items": {
+           "question:": "cal 95 before zoe 82?",
+           "answer:": "yes",
+           "questions so far:": "5"
+          }
+         }
+        ]
+       },
+       {
+        "text": "Is cal (95) before mia (82)? Yes: cal has the higher score. Swap them; cal keeps moving left.",
+        "panels": [
+         {
+          "type": "row",
+          "cells": [
+           "ali 95",
+           "cal 95",
+           "mia 82",
+           "zoe 82",
+           "ben 70"
+          ],
+          "states": {
+           "0": "found",
+           "3": "found",
+           "4": "found",
+           "1": "active",
+           "2": "mark"
+          },
+          "label": "players"
+         },
+         {
+          "type": "vars",
+          "items": {
+           "question:": "cal 95 before mia 82?",
+           "answer:": "yes",
+           "questions so far:": "6"
+          }
+         }
+        ]
+       },
+       {
+        "text": "Is cal (95) before ali (95)? No: same score, and ali comes first by name. cal stops here.",
+        "panels": [
+         {
+          "type": "row",
+          "cells": [
+           "ali 95",
+           "cal 95",
+           "mia 82",
+           "zoe 82",
+           "ben 70"
+          ],
+          "states": {
+           "2": "found",
+           "3": "found",
+           "4": "found",
+           "1": "active",
+           "0": "mark"
+          },
+          "label": "players"
+         },
+         {
+          "type": "vars",
+          "items": {
+           "question:": "cal 95 before ali 95?",
+           "answer:": "no",
+           "questions so far:": "7"
+          }
+         }
+        ]
+       },
+       {
+        "text": "Everyone is in place after 7 questions. The sort itself knows nothing about scores or names: it only ever asked the rule.",
+        "panels": [
+         {
+          "type": "row",
+          "cells": [
+           "ali 95",
+           "cal 95",
+           "mia 82",
+           "zoe 82",
+           "ben 70"
+          ],
+          "states": {
+           "0": "found",
+           "1": "found",
+           "2": "found",
+           "3": "found",
+           "4": "found"
+          },
+          "label": "players"
+         },
+         {
+          "type": "vars",
+          "items": {
+           "question:": "–",
+           "answer:": "–",
+           "questions so far:": "7"
+          }
+         }
+        ],
+        "result": "ali cal mia zoe ben"
+       }
+      ],
+      "title": "Insertion sort with the ranking rule. Every step is one question to the comparator: \"does this player go before that one?\"",
+      "legend": [
+       {
+        "state": "found",
+        "text": "already in order by the rule"
+       },
+       {
+        "state": "active",
+        "text": "the player moving left"
+       },
+       {
+        "state": "mark",
+        "text": "the player it's compared with"
+       }
+      ]
+     }
+    },
+    {
+     "md": "A rule that *can't* be written as a key is traced the same way, one pair at a time. Version numbers are\nthe standard example:"
+    },
+    {
+     "walk": {
+      "steps": [
+       {
+        "text": "Split at the dots: [1, 2, 1] and [1, 10]. Compare them as numbers: 10 is bigger than 2, even though the text \"10\" sorts before \"2\".",
+        "panels": [
+         {
+          "type": "row",
+          "cells": [
+           1,
+           2,
+           1
+          ],
+          "label": "1.2.1"
+         },
+         {
+          "type": "row",
+          "cells": [
+           1,
+           10
+          ],
+          "label": "1.10"
+         }
+        ]
+       },
+       {
+        "text": "Part 0: 1 vs 1. Equal, so move on to the next part.",
+        "panels": [
+         {
+          "type": "row",
+          "cells": [
+           1,
+           2,
+           1
+          ],
+          "states": {
+           "0": "found"
+          },
+          "label": "1.2.1"
+         },
+         {
+          "type": "row",
+          "cells": [
+           1,
+           10
+          ],
+          "states": {
+           "0": "found"
+          },
+          "label": "1.10"
+         }
+        ]
+       },
+       {
+        "text": "Part 1: 2 vs 10. They differ, so this decides it: 1.2.1 is the smaller version.",
+        "panels": [
+         {
+          "type": "row",
+          "cells": [
+           1,
+           2,
+           1
+          ],
+          "states": {
+           "1": "active"
+          },
+          "label": "1.2.1"
+         },
+         {
+          "type": "row",
+          "cells": [
+           1,
+           10
+          ],
+          "states": {
+           "1": "active"
+          },
+          "label": "1.10"
+         }
+        ],
+        "result": "-1"
+       }
+      ],
+      "title": "`compare_versions(\"1.2.1\", \"1.10\")`. Compare the numbers between the dots, left to right.",
+      "legend": [
+       {
+        "state": "found",
+        "text": "equal part: look further right"
+       },
+       {
+        "state": "active",
+        "text": "the first part that differs: it decides"
+       }
+      ]
+     }
+    }
+   ]
+  },
+  {
+   "id": "examples",
+   "title": "More examples",
+   "blocks": [
+    {
+     "md": "### Version numbers\n\nSorting `['1.10', '1.2', '0.9', '1.2.1', '1.0.0.1']` as text gives `['0.9', '1.0.0.1', '1.10', '1.2', '1.2.1']`, which is wrong: text compares character by character,\nso \"1.10\" sorts before \"1.2\". Comparing the parts as numbers gives `['0.9', '1.0.0.1', '1.2', '1.2.1', '1.10']`. And \"1.2\" and \"1.2.0\" are\nthe same version: missing parts count as 0.\n\n### Closest to a target\n\nOrder `[7, 1, 10, 4, 5, 13]` by how close each number is to 6, smaller numbers first on a tie. The key is\n`(distance, value)`:"
+    },
+    {
+     "table": {
+      "head": [
+       "value",
+       "distance to 6",
+       "key"
+      ],
+      "rows": [
+       [
+        "5",
+        "1",
+        "(1, 5)"
+       ],
+       [
+        "7",
+        "1",
+        "(1, 7)"
+       ],
+       [
+        "4",
+        "2",
+        "(2, 4)"
+       ],
+       [
+        "10",
+        "4",
+        "(4, 10)"
+       ],
+       [
+        "1",
+        "5",
+        "(5, 1)"
+       ],
+       [
+        "13",
+        "7",
+        "(7, 13)"
+       ]
+      ]
+     }
+    },
+    {
+     "md": "### An order someone hands you\n\nClothes sizes don't sort alphabetically. Write the order down once, `['XS', 'S', 'M', 'L', 'XL']`, and turn it into a rank\nmap: each size to its position. Then sort by `rank[size]`: `['M', 'XS', 'L', 'S', 'XL', 'M', 'S']` becomes `['XS', 'S', 'S', 'M', 'M', 'L', 'XL']`. Decide up front\nwhat happens to items the list doesn't mention (put them at the end, or reject them).\n\n### Picking the order\n\nIn many problems the sort is one line, and the hard part is working out *which* order makes the rest easy.\nSorting meetings by start time lets you sweep through them; sorting people tallest first means each one\nonly has to fit among people at least as tall; sorting pieces by \"which concatenation is bigger\" makes a\ngreedy choice correct. When you see a hard ordering problem, ask: \"if the input were sorted by *something*,\nwould a single pass solve it?\""
+    }
+   ]
+  },
+  {
+   "id": "variations",
+   "title": "Variations",
+   "blocks": [
+    {
+     "md": "### A comparator that isn't a key\n\nYou could turn version strings into tuples of numbers, but comparing them part by part is just as easy, and\nthe same shape works for any rule that's defined between two items. The comparator returns negative, zero or\npositive, and pads the shorter version with zeros."
+    },
+    {
+     "code": {
+      "python": "from functools import cmp_to_key\n\n\ndef compare_versions(a, b):\n    xs = [int(p) for p in a.split(\".\")]\n    ys = [int(p) for p in b.split(\".\")]\n    for i in range(max(len(xs), len(ys))):\n        x = xs[i] if i < len(xs) else 0\n        y = ys[i] if i < len(ys) else 0\n        if x != y:\n            return -1 if x < y else 1\n    return 0\n\n\ndef sort_versions(versions):\n    return sorted(versions, key=cmp_to_key(compare_versions))\n",
+      "java": "static int compareVersions(String a, String b) {\n    String[] xs = a.split(\"\\\\.\"), ys = b.split(\"\\\\.\");\n    for (int i = 0; i < Math.max(xs.length, ys.length); i++) {\n        int x = i < xs.length ? Integer.parseInt(xs[i]) : 0;\n        int y = i < ys.length ? Integer.parseInt(ys[i]) : 0;\n        if (x != y) return x < y ? -1 : 1;\n    }\n    return 0;\n}\n\nstatic String[] sortVersions(String[] versions) {\n    String[] out = versions.clone();\n    Arrays.sort(out, (a, b) -> compareVersions(a, b));\n    return out;\n}\n",
+      "cpp": "int compareVersions(const string& a, const string& b) {\n    size_t i = 0, j = 0;\n    while (i < a.size() || j < b.size()) {\n        long x = 0, y = 0;\n        while (i < a.size() && a[i] != '.') x = x * 10 + (a[i++] - '0');\n        while (j < b.size() && b[j] != '.') y = y * 10 + (b[j++] - '0');\n        if (x != y) return x < y ? -1 : 1;\n        i++;\n        j++;\n    }\n    return 0;\n}\n\nvector<string> sortVersions(vector<string> versions) {\n    stable_sort(versions.begin(), versions.end(), [](const string& a, const string& b) {\n        return compareVersions(a, b) < 0;\n    });\n    return versions;\n}\n",
+      "c": "int compareVersions(const char* a, const char* b) {\n    while (*a || *b) {\n        long x = 0, y = 0;\n        while (*a && *a != '.') x = x * 10 + (*a++ - '0');\n        while (*b && *b != '.') y = y * 10 + (*b++ - '0');\n        if (x != y) return x < y ? -1 : 1;\n        if (*a) a++;\n        if (*b) b++;\n    }\n    return 0;\n}\n\nstatic int byVersion(const void* x, const void* y) {\n    return compareVersions(*(const char* const*)x, *(const char* const*)y);\n}\n\nvoid sortVersions(const char** versions, int n) {\n    qsort(versions, n, sizeof(char*), byVersion);\n}\n"
+     },
+     "title": "Compare and sort version numbers",
+     "lines": [
+      {
+       "text": "Read the numbers between the dots.",
+       "at": {
+        "python": [
+         [
+          5,
+          6
+         ]
+        ],
+        "java": [
+         [
+          2,
+          2
+         ]
+        ],
+        "cpp": [
+         [
+          2,
+          2
+         ],
+         [
+          5,
+          6
+         ]
+        ],
+        "c": [
+         [
+          4,
+          5
+         ]
+        ]
+       },
+       "notes": {
+        "java": "`split` takes a regular expression, and `.` means \"any character\", so it's escaped as `\\\\.`.",
+        "cpp": "Build each part digit by digit while walking the string.",
+        "c": "Walk both strings with pointers, building each part digit by digit."
+       }
+      },
+      {
+       "text": "Compare part by part, until both versions are used up.",
+       "at": {
+        "python": [
+         [
+          7,
+          7
+         ]
+        ],
+        "java": [
+         [
+          3,
+          3
+         ]
+        ],
+        "cpp": [
+         [
+          3,
+          3
+         ],
+         [
+          8,
+          9
+         ]
+        ],
+        "c": [
+         [
+          2,
+          2
+         ],
+         [
+          7,
+          8
+         ]
+        ]
+       },
+       "notes": {
+        "cpp": "Step past the dot (or past the end, which is harmless here).",
+        "c": "Step past the dot, but never past the string's end."
+       }
+      },
+      {
+       "text": "A missing part counts as 0, so \"1.2\" equals \"1.2.0\".",
+       "at": {
+        "python": [
+         [
+          8,
+          9
+         ]
+        ],
+        "java": [
+         [
+          4,
+          5
+         ]
+        ],
+        "cpp": [
+         [
+          4,
+          4
+         ]
+        ],
+        "c": [
+         [
+          3,
+          3
+         ]
+        ]
+       }
+      },
+      {
+       "text": "The first part that differs decides.",
+       "at": {
+        "python": [
+         [
+          10,
+          11
+         ]
+        ],
+        "java": [
+         [
+          6,
+          6
+         ]
+        ],
+        "cpp": [
+         [
+          7,
+          7
+         ]
+        ],
+        "c": [
+         [
+          6,
+          6
+         ]
+        ]
+       }
+      },
+      {
+       "text": "Every part matched: the versions are equal.",
+       "at": {
+        "python": [
+         [
+          12,
+          12
+         ]
+        ],
+        "java": [
+         [
+          8,
+          8
+         ]
+        ],
+        "cpp": [
+         [
+          11,
+          11
+         ]
+        ],
+        "c": [
+         [
+          10,
+          10
+         ]
+        ]
+       }
+      },
+      {
+       "text": "Sort with the comparator.",
+       "at": {
+        "python": [
+         [
+          16,
+          16
+         ]
+        ],
+        "java": [
+         [
+          12,
+          14
+         ]
+        ],
+        "cpp": [
+         [
+          15,
+          16
+         ],
+         [
+          18,
+          18
+         ]
+        ],
+        "c": [
+         [
+          14,
+          14
+         ],
+         [
+          18,
+          18
+         ]
+        ]
+       },
+       "notes": {
+        "python": "`cmp_to_key` wraps a two-argument comparator so `sorted` can use it.",
+        "java": "Sorting an array of objects with a comparator uses a stable merge sort (Timsort).",
+        "cpp": "`stable_sort` keeps equal versions in their input order; the lambda turns the three-way result into \"goes first?\".",
+        "c": "The array holds `char*` pointers, so `qsort` hands the comparator pointers to pointers."
+       }
+      }
+     ],
+     "run": {
+      "call": "sort_versions([\"1.10\", \"1.2\", \"0.9\", \"1.2.1\", \"1.0.0.1\"]); compare(\"1.2\", \"1.2.0\"); compare(\"1.10\", \"1.9\")",
+      "output": "0.9 1.0.0.1 1.2 1.2.1 1.10\n0 1"
+     }
+    },
+    {
+     "md": "### A computed key\n\nWhen the order depends on a value you work out from each item, sort by that value, with the item itself as a\ntie-breaker so the result is fully determined."
+    },
+    {
+     "code": {
+      "python": "def by_closeness(nums, target):\n    return sorted(nums, key=lambda x: (abs(x - target), x))\n",
+      "java": "static int[] byCloseness(int[] nums, int target) {\n    Integer[] boxed = Arrays.stream(nums).boxed().toArray(Integer[]::new);\n    Arrays.sort(boxed, (a, b) -> {\n        int da = Math.abs(a - target), db = Math.abs(b - target);\n        return da != db ? Integer.compare(da, db) : Integer.compare(a, b);\n    });\n    return Arrays.stream(boxed).mapToInt(Integer::intValue).toArray();\n}\n",
+      "cpp": "vector<int> byCloseness(vector<int> nums, int target) {\n    sort(nums.begin(), nums.end(), [target](int a, int b) {\n        return make_pair(abs(a - target), a) < make_pair(abs(b - target), b);\n    });\n    return nums;\n}\n",
+      "c": "static int target;\n\nstatic int byDistance(const void* x, const void* y) {\n    int a = *(const int*)x, b = *(const int*)y;\n    int da = abs(a - target), db = abs(b - target);\n    if (da != db) return (da > db) - (da < db);\n    return (a > b) - (a < b);\n}\n\nvoid byCloseness(int* nums, int n, int t) {\n    target = t;\n    qsort(nums, n, sizeof(int), byDistance);\n}\n"
+     },
+     "title": "Sort by distance to a target",
+     "lines": [
+      {
+       "text": "Set up what the comparator needs.",
+       "at": {
+        "java": [
+         [
+          2,
+          2
+         ]
+        ],
+        "c": [
+         [
+          11,
+          11
+         ]
+        ]
+       },
+       "notes": {
+        "java": "`Arrays.sort` with a comparator needs objects, so box the `int`s first.",
+        "c": "`qsort`'s comparator can't take extra arguments, so the target goes in a file-level variable."
+       }
+      },
+      {
+       "text": "Order by distance first, then by the value itself.",
+       "at": {
+        "python": [
+         [
+          2,
+          2
+         ]
+        ],
+        "java": [
+         [
+          3,
+          5
+         ]
+        ],
+        "cpp": [
+         [
+          2,
+          3
+         ]
+        ],
+        "c": [
+         [
+          4,
+          7
+         ]
+        ]
+       },
+       "notes": {
+        "python": "The key `(abs(x - target), x)` is computed once per value.",
+        "java": "`Integer.compare` rather than subtraction, which can overflow.",
+        "cpp": "`make_pair` compares like a tuple: distance first, value second.",
+        "c": "`(a > b) - (a < b)` gives -1, 0 or 1 without any risk of overflow."
+       }
+      },
+      {
+       "text": "The values, closest first.",
+       "at": {
+        "java": [
+         [
+          7,
+          7
+         ]
+        ],
+        "cpp": [
+         [
+          5,
+          5
+         ]
+        ],
+        "c": [
+         [
+          12,
+          12
+         ]
+        ]
+       }
+      }
+     ],
+     "run": {
+      "call": "by_closeness([7, 1, 10, 4, 5, 13], target=6)",
+      "output": "5 7 4 10 1 13"
+     }
+    }
+   ]
+  },
+  {
+   "id": "complexity",
+   "title": "What it costs",
+   "blocks": [
+    {
+     "md": "Sorting with a custom rule is still O(n log n) comparisons. What changes is the cost of one comparison. A key\ntuple of small fields is O(1); comparing two strings is O(length); a comparator that parses its inputs pays\nthat parsing on every one of the `n log n` calls. Precomputing keys (decorate, sort, undecorate) costs O(n)\nextra memory and makes each comparison cheap again."
+    },
+    {
+     "table": {
+      "head": [
+       "Approach",
+       "Time",
+       "Extra space"
+      ],
+      "rows": [
+       [
+        "Key tuple (computed once per item)",
+        "O(n log n) comparisons + n key computations",
+        "O(n) for the keys"
+       ],
+       [
+        "Comparator doing work each call",
+        "O(n log n) × the cost of that work",
+        "O(1)"
+       ],
+       [
+        "One stable pass per level, k levels",
+        "O(k · n log n)",
+        "as the sort"
+       ]
+      ]
+     }
+    }
+   ]
+  },
+  {
+   "id": "languages",
+   "title": "In your language",
+   "blocks": [
+    {
+     "md": "### Python\n\n`sorted(items, key=...)` and `list.sort(key=..., reverse=True)`. Keys are computed once per item. Tuples\ncompare left to right. For a two-argument comparator, wrap it with `functools.cmp_to_key`. The sort is stable,\nso passes work.\n\n### Java\n\n`list.sort(comparator)` or `Arrays.sort(array, comparator)` for objects (stable). Build comparators with\n`Comparator.comparing`, `comparingInt`, `thenComparing` and `reversed()`. Never write `(a, b) -> a - b`: it\noverflows for large or negative values. Use `Integer.compare(a, b)`. Primitive `int[]` can't take a comparator;\nbox to `Integer[]` or sort indices.\n\n### C++\n\n`std::sort(first, last, less)` where `less(a, b)` returns true only if `a` must come *strictly* before `b`.\nReturning true for equal items (writing `<=`) breaks the sort and is undefined behaviour. `std::tie` or\n`make_pair` compare like tuples. `std::sort` isn't stable; `std::stable_sort` is.\n\n### C\n\n`qsort(base, n, size, cmp)` with `int cmp(const void*, const void*)` returning negative, zero or positive.\nThe comparator can't take extra arguments, so pass extra data through a file-level variable. `qsort` isn't\nguaranteed to be stable: add a final tie-breaker (such as the original index) when the order of ties matters."
+    }
+   ]
+  },
+  {
+   "id": "pitfalls",
+   "title": "Pitfalls and edge cases",
+   "blocks": [
+    {
+     "md": "- Comparators written as `a - b`, which overflow on large or negative numbers.\n- Comparators that aren't consistent or transitive. Java may throw; C++ may crash or misbehave.\n- `<=` in a C++ \"less\" function.\n- Sorting numbers stored as strings: `\"10\"` sorts before `\"9\"`.\n- Forgetting a final tie-breaker, so the output depends on which sort the library used.\n- Multi-pass sorting with an unstable sort (or doing the passes in the wrong order: least important first).\n- Expensive work inside a comparator that runs `n log n` times."
+    }
+   ]
+  },
+  {
+   "id": "check",
+   "title": "Check yourself",
+   "blocks": [
+    {
+     "quiz": [
+      {
+       "q": "How do you sort by score descending, then name ascending, with one key?",
+       "a": "Use the tuple (-score, name). Tuples compare the first part, and only look at the second on a tie."
+      },
+      {
+       "q": "You want the same order using two sorts. Which key do you sort by first, and what must be true of the sort?",
+       "a": "Sort by name first (the least important key), then by score. The second sort must be stable, so equal scores keep their name order."
+      },
+      {
+       "q": "Why is `(a, b) -> a - b` a bad comparator?",
+       "a": "The subtraction can overflow: with a large positive a and a large negative b, a - b wraps to a negative number and the order flips."
+      },
+      {
+       "q": "Why does sorting [\"1.10\", \"1.2\"] as text give the wrong version order?",
+       "a": "Text compares character by character: '1' = '1', '.' = '.', then '1' < '2'. It never sees that 10 > 2 as numbers."
+      },
+      {
+       "q": "What goes wrong with the rule 'rock beats scissors, scissors beat paper, paper beats rock'?",
+       "a": "It isn't transitive, so no order satisfies it. A sort given this comparator can return any arrangement, or fail."
+      }
+     ]
+    }
+   ]
+  }
+ ],
+ "leetcode": [
+  {
+   "id": 2418,
+   "title": "Sort the People",
+   "url": "https://leetcode.com/problems/sort-the-people/",
+   "difficulty": "easy"
+  },
+  {
+   "id": 1356,
+   "title": "Sort Integers by The Number of 1 Bits",
+   "url": "https://leetcode.com/problems/sort-integers-by-the-number-of-1-bits/",
+   "difficulty": "easy"
+  },
+  {
+   "id": 1122,
+   "title": "Relative Sort Array",
+   "url": "https://leetcode.com/problems/relative-sort-array/",
+   "difficulty": "easy"
+  },
+  {
+   "id": 1636,
+   "title": "Sort Array by Increasing Frequency",
+   "url": "https://leetcode.com/problems/sort-array-by-increasing-frequency/",
+   "difficulty": "easy"
+  },
+  {
+   "id": 791,
+   "title": "Custom Sort String",
+   "url": "https://leetcode.com/problems/custom-sort-string/",
+   "difficulty": "medium"
+  },
+  {
+   "id": 165,
+   "title": "Compare Version Numbers",
+   "url": "https://leetcode.com/problems/compare-version-numbers/",
+   "difficulty": "medium"
+  },
+  {
+   "id": 937,
+   "title": "Reorder Data in Log Files",
+   "url": "https://leetcode.com/problems/reorder-data-in-log-files/",
+   "difficulty": "medium"
+  },
+  {
+   "id": 2545,
+   "title": "Sort the Students by Their Kth Score",
+   "url": "https://leetcode.com/problems/sort-the-students-by-their-kth-score/",
+   "difficulty": "medium"
+  },
+  {
+   "id": 1366,
+   "title": "Rank Teams by Votes",
+   "url": "https://leetcode.com/problems/rank-teams-by-votes/",
+   "difficulty": "medium"
+  },
+  {
+   "id": 1029,
+   "title": "Two City Scheduling",
+   "url": "https://leetcode.com/problems/two-city-scheduling/",
+   "difficulty": "medium"
+  },
+  {
+   "id": 179,
+   "title": "Largest Number",
+   "url": "https://leetcode.com/problems/largest-number/",
+   "difficulty": "medium"
+  },
+  {
+   "id": 406,
+   "title": "Queue Reconstruction by Height",
+   "url": "https://leetcode.com/problems/queue-reconstruction-by-height/",
+   "difficulty": "medium"
+  },
+  {
+   "id": 354,
+   "title": "Russian Doll Envelopes",
+   "url": "https://leetcode.com/problems/russian-doll-envelopes/",
+   "difficulty": "hard"
+  }
+ ]
+}

@@ -69,7 +69,7 @@
         "each answer in O(1) after O(n) setup"
        ],
        [
-        "count (or find the longest / shortest) **subarrays** that add up to `k`",
+        "count (or find the longest / shortest) subarrays that add up to `k`",
         "`P[j] - P[i] = k`, so look up `P[j] - k` in a map"
        ],
        [
@@ -96,7 +96,7 @@
      }
     },
     {
-     "md": "The word to look for is \"contiguous\" (or \"subarray\", \"consecutive days\", \"a range of indices\"). Prefix\nsums are about stretches, never about picking arbitrary elements.\n\nThey're the wrong tool when the array keeps changing between questions, because one update can change\nevery running total after it. A Fenwick tree or segment tree handles that in O(log n) per update. They also\ncan't do max, min or gcd over a range, because you can't \"subtract\" a maximum. Knowing the biggest value in\n`[0..r]` and in `[0..l-1]` doesn't tell you the biggest in `[l..r]`.\n\nAnd if every value is positive and you need a window, a sliding window with two pointers is often simpler.\nPrefix sums plus a hash map are what you want when values can be **negative**, which is exactly when the\nsliding window's \"make it bigger and the sum goes up\" logic stops working."
+     "md": "The word to look for is \"contiguous\" (or \"subarray\", \"consecutive days\", \"a range of indices\"). Prefix\nsums are about stretches, never about picking arbitrary elements.\n\nThey're the wrong tool when the array keeps changing between questions, because one update can change\nevery running total after it. A Fenwick tree or segment tree handles that in O(log n) per update. They also\ncan't do max, min or gcd over a range, because you can't \"subtract\" a maximum. Knowing the biggest value in\n`[0..r]` and in `[0..l-1]` doesn't tell you the biggest in `[l..r]`.\n\nAnd if every value is positive and you need a window, a sliding window with two pointers is often simpler.\nPrefix sums plus a hash map are what you want when values can be negative, which is exactly when the\nsliding window's \"make it bigger and the sum goes up\" logic stops working."
     }
    ]
   },
@@ -105,7 +105,7 @@
    "title": "Why it works",
    "blocks": [
     {
-     "md": "### Things cancel out\n\n`P[i]` is `nums[0] + nums[1] + … + nums[i - 1]`. Write out `P[r + 1] - P[l]` in full:\n\n`(nums[0] + … + nums[l - 1] + nums[l] + … + nums[r]) - (nums[0] + … + nums[l - 1])`\n\nThe first `l` terms appear once with a plus and once with a minus, so they cancel, and you're left with\nexactly `nums[l] + … + nums[r]`. And that's the proof. (This kind of cancelling is called\n**telescoping**, like a telescope folding up.)\n\n### Why `P` has one extra slot\n\n`P[i]` is the sum of the first `i` elements, so `i` goes from 0 to `n`. That's `n + 1` values. The extra\n`P[0] = 0` means a stretch starting at index 0 doesn't need a special case: its sum is `P[r + 1] - P[0]`.\nIt helps to picture `P[i]` sitting on the *gap* just before index `i`. A stretch `[l, r]` runs from gap `l`\nto gap `r + 1`.\n\n### Finding stretches with a given sum\n\nA stretch `nums[i..j-1]` adds up to `k` exactly when `P[j] - P[i] = k`, which is the same as\n\n`P[i] = P[j] - k`\n\nSo walk `j` from left to right, keep a running total, and ask a hash map whether an earlier running total\nequals `P[j] - k`. That's complement lookup again, just on running totals instead of on the values\nthemselves. And the same reasoning applies: the map only holds totals from before `j`, so each stretch is\nfound once, when you reach its end.\n\nWhat you keep in the map depends on the question. To **count** stretches, store how many times each total\nhas appeared, and start the map with `{0: 1}` for the empty prefix, so stretches starting at index 0 get\ncounted. For the **longest** stretch, store the *first* index where each total appeared (starting with\n`{0: -1}`). For the **shortest**, store the *latest* index.\n\nHere's the counting version, step by step:"
+     "md": "### Things cancel out\n\n`P[i]` is `nums[0] + nums[1] + … + nums[i - 1]`. Write out `P[r + 1] - P[l]` in full:\n\n`(nums[0] + … + nums[l - 1] + nums[l] + … + nums[r]) - (nums[0] + … + nums[l - 1])`\n\nThe first `l` terms appear once with a plus and once with a minus, so they cancel, and you're left with\nexactly `nums[l] + … + nums[r]`. (This kind of cancelling is called **telescoping**, like a telescope\nfolding up.)\n\n### Why `P` has one extra slot\n\n`P[i]` is the sum of the first `i` elements, so `i` goes from 0 to `n`. That's `n + 1` values. The extra\n`P[0] = 0` means a stretch starting at index 0 doesn't need a special case: its sum is `P[r + 1] - P[0]`.\nIt helps to picture `P[i]` sitting on the *gap* just before index `i`. A stretch `[l, r]` runs from gap `l`\nto gap `r + 1`.\n\n### Finding stretches with a given sum\n\nA stretch `nums[i..j-1]` adds up to `k` exactly when `P[j] - P[i] = k`, which is the same as\n\n`P[i] = P[j] - k`\n\nSo walk `j` from left to right, keep a running total, and ask a hash map whether an earlier running total\nequals `P[j] - k`. That's complement lookup again, just on running totals instead of on the values\nthemselves. And the same reasoning applies: the map only holds totals from before `j`, so each stretch is\nfound once, when you reach its end.\n\nWhat you keep in the map depends on the question. To count stretches, store how many times each total has\nappeared, and start the map with `{0: 1}` for the empty prefix, so stretches starting at index 0 get\ncounted. For the longest stretch, store the *first* index where each total appeared (starting with\n`{0: -1}`). For the shortest, store the *latest* index.\n\nHere's the counting version, step by step:"
     },
     {
      "walk": {
@@ -441,7 +441,7 @@
      }
     },
     {
-     "md": "Each step adds the number of earlier gaps that start a stretch summing to 3 and ending at `j`. That gives\n**6**, the same as checking all 21 stretches one by one.\n\n### Why negative numbers are fine\n\nA sliding window grows on the right and shrinks on the left, and it relies on \"adding an element makes the\nsum bigger\". With negative numbers that's just not true, and the window gets stuck. Prefix sums don't\nassume anything like that. `P[r + 1] - P[l]` is true for any integers, and the hash map finds matching\ntotals wherever they are.\n\n### Divisible by `k`\n\nA stretch's sum is divisible by `k` exactly when the two running totals at its ends leave the **same\nremainder** when divided by `k` (their difference is then a multiple of `k`). So count remainders instead\nof totals. The map has at most `k` keys. Watch out for negative remainders and fix them with\n`((p % k) + k) % k`.\n\n### Not just sums\n\nThis works for anything you can undo. XOR undoes itself, so `X[r + 1] ^ X[l]` gives the XOR of a range.\nPrefix counts of a category (\"how many vowels so far?\") work the same way. Products work too, as long as\nthere are no zeros. Max, min and gcd don't, because they can't be undone.\n\n### Two dimensions\n\nFor a grid, let `P[r][c]` be the sum of the rectangle from the top-left corner down to `(r - 1, c - 1)`.\nBuilding it: `P[r+1][c+1] = grid[r][c] + P[r][c+1] + P[r+1][c] - P[r][c]`. The bit above and the bit to the\nleft both include the top-left block, so it gets added twice and you take it away once. Querying works the\nother way round. Here's a query, one step at a time:"
+     "md": "Each step adds the number of earlier gaps that start a stretch summing to 3 and ending at `j`. That gives\n6, the same as checking all 21 stretches one by one.\n\n### Why negative numbers are fine\n\nA sliding window grows on the right and shrinks on the left, and it relies on \"adding an element makes the\nsum bigger\". With negative numbers that's just not true, and the window gets stuck. Prefix sums don't\nassume anything like that. `P[r + 1] - P[l]` is true for any integers, and the hash map finds matching\ntotals wherever they are.\n\n### Divisible by `k`\n\nA stretch's sum is divisible by `k` exactly when the two running totals at its ends leave the same\nremainder when divided by `k` (their difference is then a multiple of `k`). So count remainders instead\nof totals. The map has at most `k` keys. Watch out for negative remainders and fix them with\n`((p % k) + k) % k`.\n\n### Not just sums\n\nThis works for anything you can undo. XOR undoes itself, so `X[r + 1] ^ X[l]` gives the XOR of a range.\nPrefix counts of a category (\"how many vowels so far?\") work the same way. Products work too, as long as\nthere are no zeros. Max, min and gcd don't, because they can't be undone.\n\n### Two dimensions\n\nFor a grid, let `P[r][c]` be the sum of the rectangle from the top-left corner down to `(r - 1, c - 1)`.\nBuilding it: `P[r+1][c+1] = grid[r][c] + P[r][c+1] + P[r+1][c] - P[r][c]`. The bit above and the bit to the\nleft both include the top-left block, so it gets added twice and you take it away once. Querying works the\nother way round. Here's a query, one step at a time:"
     },
     {
      "walk": {
@@ -599,7 +599,7 @@
         "result": "8"
        }
       ],
-      "title": "Sum of rows 1–2, columns 1–2, using four values from P."
+      "title": "Sum of rows 1 to 2, columns 1 to 2, using four values from P."
      }
     }
    ]
@@ -1200,7 +1200,7 @@
      }
     },
     {
-     "md": "### Running totals plus a hash map\n\nNow something harder: the longest stretch that adds up to exactly `k`. Some values are negative, so a\nsliding window won't work. For each `j`, the longest stretch ending at `j` starts just after the\n**earliest** gap where the running total was `P[j] - k`. So the map remembers the first index of every\nrunning total."
+     "md": "### Running totals plus a hash map\n\nNow something harder: the longest stretch that adds up to exactly `k`. Some values are negative, so a\nsliding window won't work. For each `j`, the longest stretch ending at `j` starts just after the\n*earliest* gap where the running total was `P[j] - k`. So the map remembers the first index of every\nrunning total."
     },
     {
      "walk": {
@@ -1718,7 +1718,7 @@
         "2",
         "2",
         "-2",
-        "—",
+        "none",
         "0",
         "keep"
        ],
@@ -1727,7 +1727,7 @@
         "-1",
         "1",
         "-3",
-        "—",
+        "none",
         "0",
         "keep"
        ],
@@ -1754,7 +1754,7 @@
         "-2",
         "3",
         "-1",
-        "—",
+        "none",
         "3",
         "keep"
        ],

@@ -398,15 +398,15 @@ lesson(
     "matrix-traversal",
     """
     A grid is just rows of rows, and every grid problem comes down to visiting cells in the right order without
-    stepping off the edge. Once you can turn any walk (row by row, by diagonals, around the rings, to the neighbours)
-    into simple arithmetic on `r` and `c`, grids stop being scary.
+    stepping off the edge. Each kind of walk (row by row, by diagonals, around the rings, to the neighbours) comes
+    down to simple arithmetic on `r` and `c`.
     """,
     [
         ("idea", "The idea", [
             """
             Think of a cinema seating chart. Every seat has a row and a seat number, and an usher can walk the room in
             many ways: row by row, front to back, along a diagonal, or around the outside aisle and inwards. The seats
-            don't move. Only the route changes.
+            stay put, and only the route changes.
 
             A matrix is the same. `grid[r][c]` is row `r`, column `c`, with `(0, 0)` at the top-left. An `m × n` grid
             has `m` rows and `n` columns. Every traversal problem is about choosing a route and expressing it with
@@ -432,11 +432,11 @@ lesson(
 
             When it's not the whole story:
 
-            - **Connected regions** (islands, flood fill, shortest path through a maze) need BFS or DFS. You still use
+            - Connected regions (islands, flood fill, shortest path through a maze) need BFS or DFS. You still use
               the neighbour arithmetic from this lesson, but the visiting order is driven by a queue or a stack. That's
               the Graphs topic.
-            - **Sums over rectangles, asked many times**, want 2D prefix sums (see *Prefix sums*).
-            - **Changing the grid in place using markers** (rows and columns that must be zeroed, for example) has its own
+            - Sums over rectangles, asked many times, want 2D prefix sums (see *Prefix sums*).
+            - Changing the grid in place using markers (rows and columns that must be zeroed, for example) has its own
               pattern later in this topic, *In-place grid markers*.
             """,
         ]),
@@ -486,7 +486,7 @@ lesson(
             table(
                 ["transform", "(r, c) goes to", "result size"],
                 ["transpose (flip over the main diagonal)", "`(c, r)`", "n × m"],
-                ["mirror left–right", "`(r, n - 1 - c)`", "m × n"],
+                ["mirror (swap left and right)", "`(r, n - 1 - c)`", "m × n"],
                 ["flip upside down", "`(m - 1 - r, c)`", "m × n"],
                 ["rotate 90° clockwise", "`(c, m - 1 - r)`", "n × m"],
                 ["rotate 180°", "`(m - 1 - r, n - 1 - c)`", "m × n"],
@@ -494,7 +494,7 @@ lesson(
             fig(Grid(T, label="original 2 × 3"), Grid(TR, label="transposed"), Grid(MIR, label="mirrored"), Grid(ROT, label="rotated 90° clockwise"),
                 caption="Each transform is just a rule for where each value goes. Write the rule down and the loops follow from it."),
             """
-            Writing the result into a new grid is easy once you know the map. Doing it **in place** is harder, because
+            Writing the result into a new grid is easy once you know the map. Doing it in place is harder, because
             you'd overwrite values you still need. The usual tricks are to swap values in cycles of four (ring by ring),
             or to build a transform out of simpler ones that are each easy to do in place, like a transpose and a mirror.
             """,

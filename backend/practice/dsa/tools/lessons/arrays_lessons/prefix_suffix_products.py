@@ -432,10 +432,10 @@ lesson(
 
             Related patterns, so you can tell them apart:
 
-            - **Prefix sums** answer "the sum of any range `l..r`" by subtracting. Prefix and suffix passes answer "for
+            - Prefix sums answer "the sum of any range `l..r`" by subtracting. Prefix and suffix passes answer "for
               each index, its left side and its right side". Max and min work here even though they can't be
               subtracted, because we never need a middle range, only "everything before" and "everything after".
-            - **Monotonic stacks** (in the Stack & Queue topic) answer "the *nearest* bigger element to the right", which
+            - Monotonic stacks (in the Stack & Queue topic) answer "the *nearest* bigger element to the right", which
               a suffix max can't, because a running max forgets *where* things are.
             """,
         ]),
@@ -456,7 +456,7 @@ lesson(
 
             Be precise about whether the summary at `i` includes `nums[i]` or not. "The biggest *before* `i`" excludes
             it; "the biggest *up to* `i`" includes it. Both are fine, but the combine step changes. Storing the value
-            **before** folding in `nums[i]` gives the strict version, which is what the template does.
+            *before* folding in `nums[i]` gives the strict version, which is what the template does.
 
             ### Saving memory: fold one pass into a variable
 

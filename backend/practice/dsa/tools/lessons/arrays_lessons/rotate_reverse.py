@@ -533,13 +533,10 @@ lesson(
             first, so `Y`'s elements come out first, backwards, then `X`'s, backwards: `(X Y)' = Y' X'`. The blocks
             swap order *and* each one is flipped.
 
-            Rotation wants the blocks swapped but **not** flipped. So flip each one in advance, and the big reversal
+            Rotation wants the blocks swapped but *not* flipped. So flip each one in advance, and the big reversal
             flips them back:
 
             > `(A' B')' = (B')' (A')' = B A`
-
-            That's the whole proof. The two small reversals "pre-flip" each block, and the big one swaps them while
-            undoing the flip.
 
             ### Where every element ends up
 
@@ -672,7 +669,8 @@ lesson(
             """
             The cycle version writes each slot once (plus one extra write per cycle), while the reversal version does
             about `n` swaps, which is about `3n` writes. In practice the reversals are usually just as fast, because they
-            walk memory in order, and they're much harder to get wrong. Know the cycle version; write the reversals.
+            walk memory in order, and they're much harder to get wrong. The cycle version is worth knowing, but the
+            reversals are the one to write.
             """,
             table(["", "three reversals", "cycles"], *COUNT_ROWS),
         ]),

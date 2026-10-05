@@ -1,0 +1,1684 @@
+{
+ "version": 1,
+ "id": "partition",
+ "topic": "two-pointers",
+ "summary": "Split an array into groups in place (evens before odds, small before big, or three colours in order) by keeping\neach group's boundary in a pointer. Values on the wrong side get swapped across, and every element is looked at\nabout once.",
+ "minutes": 12,
+ "sections": [
+  {
+   "id": "idea",
+   "title": "The idea",
+   "blocks": [
+    {
+     "md": "A coach lines the team up and wants everyone with an even shirt number on the left and odd on the right.\nThe order inside each group doesn't matter. The coach walks in from the left end and an assistant from the\nright. The coach walks past even numbers until reaching someone odd: that person is on the wrong side. The\nassistant walks past odd numbers until reaching someone even: also on the wrong side. Those two swap places,\nand both carry on. When the coach and the assistant meet, everyone is on the right side.\n\nNobody is moved twice, and anyone already on the correct side is walked past without being touched. On\n`[3, 8, 5, 2, 7, 6, 4, 1]` that's 2 swaps."
+    },
+    {
+     "panels": [
+      {
+       "type": "row",
+       "cells": [
+        3,
+        8,
+        5,
+        2,
+        7,
+        6,
+        4,
+        1
+       ],
+       "states": {
+        "0": "mark",
+        "1": "found",
+        "2": "mark",
+        "3": "found",
+        "4": "mark",
+        "5": "found",
+        "6": "found",
+        "7": "mark"
+       },
+       "label": "before",
+       "slots": true
+      },
+      {
+       "type": "row",
+       "cells": [
+        4,
+        8,
+        6,
+        2,
+        7,
+        5,
+        3,
+        1
+       ],
+       "states": {
+        "0": "found",
+        "1": "found",
+        "2": "found",
+        "3": "found",
+        "4": "mark",
+        "5": "mark",
+        "6": "mark",
+        "7": "mark"
+       },
+       "label": "after",
+       "slots": true
+      }
+     ],
+     "caption": "Evens and odds, each group in one block. The boundary sits at index 4, which is how many evens there are."
+    },
+    {
+     "key": "Keep the settled part of each group behind its own pointer. Move a pointer past values that already belong\non its side; when both pointers are stuck on values that belong on the other side, swap them. O(n) time,\nO(1) space, but the order inside each group isn't kept."
+    }
+   ]
+  },
+  {
+   "id": "signals",
+   "title": "When to reach for it",
+   "blocks": [
+    {
+     "md": "The array has to be split into two or three groups by a yes/no test or by comparing with a value, \"in\nplace\", \"in one pass\", \"with O(1) extra space\". The order inside a group usually doesn't matter."
+    },
+    {
+     "table": {
+      "head": [
+       "The problem says…",
+       "the groups"
+      ],
+      "rows": [
+       [
+        "evens before odds, negatives before positives",
+        "two groups by a test"
+       ],
+       [
+        "sort an array of 0s, 1s and 2s",
+        "three groups, one per value"
+       ],
+       [
+        "smaller than `p`, equal, bigger",
+        "three groups around a pivot value"
+       ],
+       [
+        "move every `x` to the end, order doesn't matter",
+        "two groups: not `x`, then `x`"
+       ],
+       [
+        "the k-th smallest value, quickly",
+        "partition, then keep one side (*Quickselect*)"
+       ]
+      ]
+     }
+    },
+    {
+     "md": "Not a fit:\n\n- The order inside each group must be kept (a *stable* partition). The swaps here jump values over each\n  other. A stable split needs an extra array (or the read/write pass, if one group can simply be dropped or\n  filled in afterwards).\n- More than three groups. Run the partition more than once, or count values and rebuild (*Counting and\n  bucket sort*) when the values are small.\n- You only need the count of each group. Counting is simpler than moving anything."
+    }
+   ]
+  },
+  {
+   "id": "theory",
+   "title": "Why it works",
+   "blocks": [
+    {
+     "md": "### Regions, and what each pointer guarantees\n\nA partition keeps the array split into regions, each with a meaning that never stops being true. For the\ntwo-ended version:\n\n> Everything before `lo` is even. Everything after `hi` is odd. Between them is unexamined.\n\nThe inner loops grow the two settled regions for free. When both stop, `a[lo]` is odd and `a[hi]` is even,\neach sitting on the other's side, so one swap fixes both and both regions grow by one. The unexamined middle\nshrinks every step, and when it's empty (`lo > hi`) the array is split, with `lo` equal to the number of\nevens.\n\n### One pointer from the left\n\nThe other common version walks both pointers from the left. `store` marks the end of the even region, and\n`i` scans. Each even value found is swapped back to `store`."
+    },
+    {
+     "walk": {
+      "steps": [
+       {
+        "text": "Nothing scanned yet. Everything left of `store` will be even.",
+        "panels": [
+         {
+          "type": "row",
+          "cells": [
+           3,
+           8,
+           5,
+           2,
+           7,
+           6,
+           4,
+           1
+          ],
+          "pointers": {
+           "i": 0,
+           "store": 0
+          },
+          "label": "nums",
+          "slots": true
+         },
+         {
+          "type": "vars",
+          "items": {
+           "swaps:": "0"
+          }
+         }
+        ]
+       },
+       {
+        "text": "`i` = 0: 3 is odd. Leave it; it's in the odd part for now.",
+        "panels": [
+         {
+          "type": "row",
+          "cells": [
+           3,
+           8,
+           5,
+           2,
+           7,
+           6,
+           4,
+           1
+          ],
+          "states": {
+           "0": "mark"
+          },
+          "pointers": {
+           "i": 0,
+           "store": 0
+          },
+          "label": "nums",
+          "slots": true
+         },
+         {
+          "type": "vars",
+          "items": {
+           "swaps:": "0"
+          }
+         }
+        ]
+       },
+       {
+        "text": "`i` = 1: 8 is even. Swap it with the odd value at `store` (index 0), and `store` moves on.",
+        "panels": [
+         {
+          "type": "row",
+          "cells": [
+           8,
+           3,
+           5,
+           2,
+           7,
+           6,
+           4,
+           1
+          ],
+          "states": {
+           "0": "found",
+           "1": "mark"
+          },
+          "pointers": {
+           "i": 1,
+           "store": 1
+          },
+          "label": "nums",
+          "slots": true
+         },
+         {
+          "type": "vars",
+          "items": {
+           "swaps:": "1"
+          }
+         }
+        ]
+       },
+       {
+        "text": "`i` = 2: 5 is odd. Leave it; it's in the odd part for now.",
+        "panels": [
+         {
+          "type": "row",
+          "cells": [
+           8,
+           3,
+           5,
+           2,
+           7,
+           6,
+           4,
+           1
+          ],
+          "states": {
+           "0": "found",
+           "1": "mark",
+           "2": "mark"
+          },
+          "pointers": {
+           "i": 2,
+           "store": 1
+          },
+          "label": "nums",
+          "slots": true
+         },
+         {
+          "type": "vars",
+          "items": {
+           "swaps:": "1"
+          }
+         }
+        ]
+       },
+       {
+        "text": "`i` = 3: 2 is even. Swap it with the odd value at `store` (index 1), and `store` moves on.",
+        "panels": [
+         {
+          "type": "row",
+          "cells": [
+           8,
+           2,
+           5,
+           3,
+           7,
+           6,
+           4,
+           1
+          ],
+          "states": {
+           "0": "found",
+           "1": "found",
+           "2": "mark",
+           "3": "mark"
+          },
+          "pointers": {
+           "i": 3,
+           "store": 2
+          },
+          "label": "nums",
+          "slots": true
+         },
+         {
+          "type": "vars",
+          "items": {
+           "swaps:": "2"
+          }
+         }
+        ]
+       },
+       {
+        "text": "`i` = 4: 7 is odd. Leave it; it's in the odd part for now.",
+        "panels": [
+         {
+          "type": "row",
+          "cells": [
+           8,
+           2,
+           5,
+           3,
+           7,
+           6,
+           4,
+           1
+          ],
+          "states": {
+           "0": "found",
+           "1": "found",
+           "2": "mark",
+           "3": "mark",
+           "4": "mark"
+          },
+          "pointers": {
+           "i": 4,
+           "store": 2
+          },
+          "label": "nums",
+          "slots": true
+         },
+         {
+          "type": "vars",
+          "items": {
+           "swaps:": "2"
+          }
+         }
+        ]
+       },
+       {
+        "text": "`i` = 5: 6 is even. Swap it with the odd value at `store` (index 2), and `store` moves on.",
+        "panels": [
+         {
+          "type": "row",
+          "cells": [
+           8,
+           2,
+           6,
+           3,
+           7,
+           5,
+           4,
+           1
+          ],
+          "states": {
+           "0": "found",
+           "1": "found",
+           "2": "found",
+           "3": "mark",
+           "4": "mark",
+           "5": "mark"
+          },
+          "pointers": {
+           "i": 5,
+           "store": 3
+          },
+          "label": "nums",
+          "slots": true
+         },
+         {
+          "type": "vars",
+          "items": {
+           "swaps:": "3"
+          }
+         }
+        ]
+       },
+       {
+        "text": "`i` = 6: 4 is even. Swap it with the odd value at `store` (index 3), and `store` moves on.",
+        "panels": [
+         {
+          "type": "row",
+          "cells": [
+           8,
+           2,
+           6,
+           4,
+           7,
+           5,
+           3,
+           1
+          ],
+          "states": {
+           "0": "found",
+           "1": "found",
+           "2": "found",
+           "3": "found",
+           "4": "mark",
+           "5": "mark",
+           "6": "mark"
+          },
+          "pointers": {
+           "i": 6,
+           "store": 4
+          },
+          "label": "nums",
+          "slots": true
+         },
+         {
+          "type": "vars",
+          "items": {
+           "swaps:": "4"
+          }
+         }
+        ]
+       },
+       {
+        "text": "`i` = 7: 1 is odd. Leave it; it's in the odd part for now. Done: 4 evens in front, after 4 swaps, where the two-ended version needs 2. The 3 that started at the front was moved 3 times before it settled.",
+        "panels": [
+         {
+          "type": "row",
+          "cells": [
+           8,
+           2,
+           6,
+           4,
+           7,
+           5,
+           3,
+           1
+          ],
+          "states": {
+           "0": "found",
+           "1": "found",
+           "2": "found",
+           "3": "found",
+           "4": "mark",
+           "5": "mark",
+           "6": "mark",
+           "7": "mark"
+          },
+          "pointers": {
+           "i": 7,
+           "store": 4
+          },
+          "label": "nums",
+          "slots": true
+         },
+         {
+          "type": "vars",
+          "items": {
+           "swaps:": "4"
+          }
+         }
+        ]
+       }
+      ],
+      "title": "Evens first in `[3, 8, 5, 2, 7, 6, 4, 1]`, with both pointers starting on the left. `store` marks where the next even value goes.",
+      "legend": [
+       {
+        "state": "found",
+        "text": "even: the front part"
+       },
+       {
+        "state": "mark",
+        "text": "odd: scanned, behind the front part"
+       }
+      ]
+     }
+    },
+    {
+     "md": "It's simpler to get right, and it's what quick sort usually uses, but it does more swaps: every even value\nafter the first odd one gets swapped, even if lots of them are already near the front. The two-ended version\nonly swaps values that are on the wrong side:"
+    },
+    {
+     "table": {
+      "head": [
+       "input",
+       "one pointer from the left",
+       "two from the ends"
+      ],
+      "rows": [
+       [
+        "[3, 8, 5, 2, 7, 6, 4, 1]",
+        "4",
+        "2"
+       ],
+       [
+        "[1, 2, 4, 6, 8, 10]",
+        "5",
+        "1"
+       ],
+       [
+        "[1, 3, 5, 2]",
+        "1",
+        "1"
+       ],
+       [
+        "[2, 4, 1, 3]",
+        "0",
+        "0"
+       ]
+      ]
+     }
+    },
+    {
+     "md": "### Three groups\n\nThe three-way version (often called the Dutch national flag partition, after the flag's three stripes)\nkeeps four regions with three pointers: smaller before `lt`, equal from `lt` to `i`, unexamined from `i`\nto `gt`, bigger after `gt`. Each step looks at `a[i]` and either grows the smaller region (swap with `lt`),\ngrows the bigger region (swap with `gt`), or grows the equal region (just move `i`). The only subtle rule:\nafter swapping with `gt`, `i` stays put, because the value that came back is unexamined.\n\n### Why it isn't stable\n\nA swap moves a value from one end to the other, jumping over everything between. Two even values can swap\ntheir relative order because one of them got carried across. If the original order inside a group matters,\na swap-based partition can't promise it."
+    }
+   ]
+  },
+  {
+   "id": "template",
+   "title": "The template",
+   "blocks": [
+    {
+     "md": "Move every even value in front of every odd value, in place. Return how many evens there are, which is\nalso the index where the odd part starts."
+    },
+    {
+     "code": {
+      "python": "def evens_first(nums):\n    lo, hi = 0, len(nums) - 1\n    while True:\n        while lo <= hi and nums[lo] % 2 == 0:\n            lo += 1\n        while lo <= hi and nums[hi] % 2 != 0:\n            hi -= 1\n        if lo > hi:\n            return lo\n        nums[lo], nums[hi] = nums[hi], nums[lo]\n        lo, hi = lo + 1, hi - 1\n",
+      "java": "static int evensFirst(int[] nums) {\n    int lo = 0, hi = nums.length - 1;\n    while (true) {\n        while (lo <= hi && nums[lo] % 2 == 0) lo++;\n        while (lo <= hi && nums[hi] % 2 != 0) hi--;\n        if (lo > hi) return lo;\n        int t = nums[lo];\n        nums[lo++] = nums[hi];\n        nums[hi--] = t;\n    }\n}\n",
+      "cpp": "int evensFirst(vector<int>& nums) {\n    int lo = 0, hi = (int)nums.size() - 1;\n    while (true) {\n        while (lo <= hi && nums[lo] % 2 == 0) lo++;\n        while (lo <= hi && nums[hi] % 2 != 0) hi--;\n        if (lo > hi) return lo;\n        swap(nums[lo++], nums[hi--]);\n    }\n}\n",
+      "c": "int evensFirst(int* nums, int n) {\n    int lo = 0, hi = n - 1;\n    while (true) {\n        while (lo <= hi && nums[lo] % 2 == 0) lo++;\n        while (lo <= hi && nums[hi] % 2 != 0) hi--;\n        if (lo > hi) return lo;\n        int t = nums[lo];\n        nums[lo++] = nums[hi];\n        nums[hi--] = t;\n    }\n}\n"
+     },
+     "title": "Evens before odds, from both ends",
+     "lines": [
+      {
+       "text": "One pointer at each end. Everything before `lo` will be even, everything after `hi` odd.",
+       "at": {
+        "python": [
+         [
+          2,
+          2
+         ]
+        ],
+        "java": [
+         [
+          2,
+          2
+         ]
+        ],
+        "cpp": [
+         [
+          2,
+          2
+         ]
+        ],
+        "c": [
+         [
+          2,
+          2
+         ]
+        ]
+       }
+      },
+      {
+       "text": "Each round settles at least one value.",
+       "at": {
+        "python": [
+         [
+          3,
+          3
+         ]
+        ],
+        "java": [
+         [
+          3,
+          3
+         ]
+        ],
+        "cpp": [
+         [
+          3,
+          3
+         ]
+        ],
+        "c": [
+         [
+          3,
+          3
+         ]
+        ]
+       }
+      },
+      {
+       "text": "Walk `lo` past values that are already even. They're in the right place.",
+       "at": {
+        "python": [
+         [
+          4,
+          5
+         ]
+        ],
+        "java": [
+         [
+          4,
+          4
+         ]
+        ],
+        "cpp": [
+         [
+          4,
+          4
+         ]
+        ],
+        "c": [
+         [
+          4,
+          4
+         ]
+        ]
+       }
+      },
+      {
+       "text": "Walk `hi` past values that are already odd. `!= 0` rather than `== 1`, because a negative odd number gives `-1` in Java, C and C++.",
+       "at": {
+        "python": [
+         [
+          6,
+          7
+         ]
+        ],
+        "java": [
+         [
+          5,
+          5
+         ]
+        ],
+        "cpp": [
+         [
+          5,
+          5
+         ]
+        ],
+        "c": [
+         [
+          5,
+          5
+         ]
+        ]
+       },
+       "notes": {
+        "python": "Python's `%` is never negative here, but `!= 0` reads the same in every language."
+       }
+      },
+      {
+       "text": "If the pointers have crossed, every value is settled. `lo` is the first odd position, which is also the number of evens.",
+       "at": {
+        "python": [
+         [
+          8,
+          9
+         ]
+        ],
+        "java": [
+         [
+          6,
+          6
+         ]
+        ],
+        "cpp": [
+         [
+          6,
+          6
+         ]
+        ],
+        "c": [
+         [
+          6,
+          6
+         ]
+        ]
+       }
+      },
+      {
+       "text": "`lo` is on an odd value and `hi` on an even one, each on the wrong side. Swap, and both pointers move in.",
+       "at": {
+        "python": [
+         [
+          10,
+          11
+         ]
+        ],
+        "java": [
+         [
+          7,
+          9
+         ]
+        ],
+        "cpp": [
+         [
+          7,
+          7
+         ]
+        ],
+        "c": [
+         [
+          7,
+          9
+         ]
+        ]
+       },
+       "notes": {
+        "cpp": "`swap(nums[lo++], nums[hi--])` swaps first, then moves both."
+       }
+      }
+     ],
+     "run": {
+      "call": "evens_first([3, 8, 5, 2, 7, 6, 4, 1]); ([2, 4, 6]); ([1, 3]); ([-3, -2, 0, 5])",
+      "output": "4 8 6 2 7 5 3 1 | 4\n2 4 6 | 3\n1 3 | 0\n0 -2 -3 5 | 2"
+     }
+    },
+    {
+     "md": "Each output line is the array after the call, then the boundary. `[2, 4, 6]` is all even, so the boundary\nis 3, the length, and nothing was swapped."
+    }
+   ]
+  },
+  {
+   "id": "trace",
+   "title": "Trace it by hand",
+   "blocks": [
+    {
+     "md": "The same array as the one-pointer walkthrough, so you can compare the swaps:"
+    },
+    {
+     "walk": {
+      "steps": [
+       {
+        "text": "Nothing is settled yet: the even part (left of `lo`) and the odd part (right of `hi`) are both empty.",
+        "panels": [
+         {
+          "type": "row",
+          "cells": [
+           3,
+           8,
+           5,
+           2,
+           7,
+           6,
+           4,
+           1
+          ],
+          "pointers": {
+           "lo": 0,
+           "hi": 7
+          },
+          "label": "nums",
+          "slots": true
+         },
+         {
+          "type": "vars",
+          "items": {
+           "swaps:": "0"
+          }
+         }
+        ]
+       },
+       {
+        "text": "`hi` walks past 1 (odd, already in place). `lo` stops at 3 (odd, on the wrong side) and `hi` at 4 (even, on the wrong side).",
+        "panels": [
+         {
+          "type": "row",
+          "cells": [
+           3,
+           8,
+           5,
+           2,
+           7,
+           6,
+           4,
+           1
+          ],
+          "states": {
+           "7": "mark",
+           "0": "active",
+           "6": "active"
+          },
+          "pointers": {
+           "lo": 0,
+           "hi": 6
+          },
+          "label": "nums",
+          "slots": true
+         },
+         {
+          "type": "vars",
+          "items": {
+           "swaps:": "0"
+          }
+         }
+        ]
+       },
+       {
+        "text": "Swap them. Both are now on the right side, so both pointers move in.",
+        "panels": [
+         {
+          "type": "row",
+          "cells": [
+           4,
+           8,
+           5,
+           2,
+           7,
+           6,
+           3,
+           1
+          ],
+          "states": {
+           "7": "mark",
+           "0": "found",
+           "6": "mark"
+          },
+          "pointers": {
+           "lo": 1,
+           "hi": 5
+          },
+          "label": "nums",
+          "slots": true
+         },
+         {
+          "type": "vars",
+          "items": {
+           "swaps:": "1"
+          }
+         }
+        ]
+       },
+       {
+        "text": "`lo` walks past 8 (even, already in place). `lo` stops at 5 (odd, on the wrong side) and `hi` at 6 (even, on the wrong side).",
+        "panels": [
+         {
+          "type": "row",
+          "cells": [
+           4,
+           8,
+           5,
+           2,
+           7,
+           6,
+           3,
+           1
+          ],
+          "states": {
+           "0": "found",
+           "1": "found",
+           "6": "mark",
+           "7": "mark",
+           "2": "active",
+           "5": "active"
+          },
+          "pointers": {
+           "lo": 2,
+           "hi": 5
+          },
+          "label": "nums",
+          "slots": true
+         },
+         {
+          "type": "vars",
+          "items": {
+           "swaps:": "1"
+          }
+         }
+        ]
+       },
+       {
+        "text": "Swap them. Both are now on the right side, so both pointers move in.",
+        "panels": [
+         {
+          "type": "row",
+          "cells": [
+           4,
+           8,
+           6,
+           2,
+           7,
+           5,
+           3,
+           1
+          ],
+          "states": {
+           "0": "found",
+           "1": "found",
+           "6": "mark",
+           "7": "mark",
+           "2": "found",
+           "5": "mark"
+          },
+          "pointers": {
+           "lo": 3,
+           "hi": 4
+          },
+          "label": "nums",
+          "slots": true
+         },
+         {
+          "type": "vars",
+          "items": {
+           "swaps:": "2"
+          }
+         }
+        ]
+       },
+       {
+        "text": "`lo` walks past 2 (even, already in place) and `hi` walks past 7 (odd, already in place). Now `lo` has passed `hi`: everything is settled. 4 evens in front.",
+        "panels": [
+         {
+          "type": "row",
+          "cells": [
+           4,
+           8,
+           6,
+           2,
+           7,
+           5,
+           3,
+           1
+          ],
+          "states": {
+           "0": "found",
+           "1": "found",
+           "2": "found",
+           "3": "found",
+           "4": "mark",
+           "5": "mark",
+           "6": "mark",
+           "7": "mark"
+          },
+          "pointers": {
+           "lo": 4,
+           "hi": 3
+          },
+          "label": "nums",
+          "slots": true
+         },
+         {
+          "type": "vars",
+          "items": {
+           "swaps:": "2"
+          }
+         }
+        ],
+        "result": "4"
+       }
+      ],
+      "title": "`evens_first([3, 8, 5, 2, 7, 6, 4, 1])`. `lo` stops at an odd value, `hi` stops at an even one, and then they swap.",
+      "legend": [
+       {
+        "state": "found",
+        "text": "settled: even"
+       },
+       {
+        "state": "mark",
+        "text": "settled: odd"
+       },
+       {
+        "state": "active",
+        "text": "both on the wrong side: swap them"
+       }
+      ]
+     }
+    },
+    {
+     "md": "On paper, shade the settled part of each end as it grows. If you ever swap a value that was already on the\ncorrect side, one of the inner loops is missing."
+    }
+   ]
+  },
+  {
+   "id": "examples",
+   "title": "More examples",
+   "blocks": [
+    {
+     "md": "### Seeing the order change\n\nLabel each value with a letter so you can follow it: `a5, b2, c7, d4, e9, f6`. Evens first, from both ends, gives\n`f6, b2, d4, c7, e9, a5`. A stable split would give `b2, d4, f6, a5, c7, e9`. The groups are right in both, but the swaps\nreordered values inside the groups. If a question asks for the original order inside each group, this\npattern is the wrong tool; use the read/write pass, or a second array.\n\n### Partition as a building block\n\nQuick sort partitions around a pivot and then sorts each side. Quickselect partitions and keeps only the\nside that holds the answer. Both need the pivot's final index, which is exactly the boundary a partition\nreturns. A three-way partition helps them both when values repeat a lot.\n\n### Any yes/no test\n\nReplace \"is even\" with any test: negative, below a threshold, a vowel, a bad record. The two-ended loop\ndoesn't change, as long as each value can be judged on its own."
+    }
+   ]
+  },
+  {
+   "id": "variations",
+   "title": "Variations",
+   "blocks": [
+    {
+     "md": "### Three groups around a value\n\nSmaller than the pivot to the left, equal in the middle, bigger to the right, in one pass. The function\nreturns the equal block's first and last index; if the pivot doesn't appear, the block is empty and `lt`\nis one more than `gt`."
+    },
+    {
+     "walk": {
+      "steps": [
+       {
+        "text": "Before `lt` is smaller than 4, from `lt` to `i` is equal, after `gt` is bigger. Between `i` and `gt` hasn't been looked at.",
+        "panels": [
+         {
+          "type": "row",
+          "cells": [
+           4,
+           9,
+           4,
+           1,
+           7,
+           4,
+           2,
+           8
+          ],
+          "states": {
+           "0": "active"
+          },
+          "pointers": {
+           "lt": 0,
+           "i": 0,
+           "gt": 7
+          },
+          "label": "nums",
+          "slots": true
+         },
+         {
+          "type": "vars",
+          "items": {
+           "unexamined:": "8"
+          }
+         }
+        ]
+       },
+       {
+        "text": "4 = 4: it's already in the middle part. `i` moves on.",
+        "panels": [
+         {
+          "type": "row",
+          "cells": [
+           4,
+           9,
+           4,
+           1,
+           7,
+           4,
+           2,
+           8
+          ],
+          "states": {
+           "0": "answer",
+           "1": "active"
+          },
+          "pointers": {
+           "lt": 0,
+           "i": 1,
+           "gt": 7
+          },
+          "label": "nums",
+          "slots": true
+         },
+         {
+          "type": "vars",
+          "items": {
+           "unexamined:": "7"
+          }
+         }
+        ]
+       },
+       {
+        "text": "9 > 4: swap it into the bigger part at `gt`, and `gt` moves left. `i` stays: the 8 that came back hasn't been looked at.",
+        "panels": [
+         {
+          "type": "row",
+          "cells": [
+           4,
+           8,
+           4,
+           1,
+           7,
+           4,
+           2,
+           9
+          ],
+          "states": {
+           "0": "answer",
+           "7": "mark",
+           "1": "active"
+          },
+          "pointers": {
+           "lt": 0,
+           "i": 1,
+           "gt": 6
+          },
+          "label": "nums",
+          "slots": true
+         },
+         {
+          "type": "vars",
+          "items": {
+           "unexamined:": "6"
+          }
+         }
+        ]
+       },
+       {
+        "text": "8 > 4: swap it into the bigger part at `gt`, and `gt` moves left. `i` stays: the 2 that came back hasn't been looked at.",
+        "panels": [
+         {
+          "type": "row",
+          "cells": [
+           4,
+           2,
+           4,
+           1,
+           7,
+           4,
+           8,
+           9
+          ],
+          "states": {
+           "0": "answer",
+           "6": "mark",
+           "7": "mark",
+           "1": "active"
+          },
+          "pointers": {
+           "lt": 0,
+           "i": 1,
+           "gt": 5
+          },
+          "label": "nums",
+          "slots": true
+         },
+         {
+          "type": "vars",
+          "items": {
+           "unexamined:": "5"
+          }
+         }
+        ]
+       },
+       {
+        "text": "2 < 4: swap it to the end of the smaller part. The value swapped back is equal to 4 (or is 2 itself), so `i` moves on too.",
+        "panels": [
+         {
+          "type": "row",
+          "cells": [
+           2,
+           4,
+           4,
+           1,
+           7,
+           4,
+           8,
+           9
+          ],
+          "states": {
+           "0": "found",
+           "1": "answer",
+           "6": "mark",
+           "7": "mark",
+           "2": "active"
+          },
+          "pointers": {
+           "lt": 1,
+           "i": 2,
+           "gt": 5
+          },
+          "label": "nums",
+          "slots": true
+         },
+         {
+          "type": "vars",
+          "items": {
+           "unexamined:": "4"
+          }
+         }
+        ]
+       },
+       {
+        "text": "4 = 4: it's already in the middle part. `i` moves on.",
+        "panels": [
+         {
+          "type": "row",
+          "cells": [
+           2,
+           4,
+           4,
+           1,
+           7,
+           4,
+           8,
+           9
+          ],
+          "states": {
+           "0": "found",
+           "1": "answer",
+           "2": "answer",
+           "6": "mark",
+           "7": "mark",
+           "3": "active"
+          },
+          "pointers": {
+           "lt": 1,
+           "i": 3,
+           "gt": 5
+          },
+          "label": "nums",
+          "slots": true
+         },
+         {
+          "type": "vars",
+          "items": {
+           "unexamined:": "3"
+          }
+         }
+        ]
+       },
+       {
+        "text": "1 < 4: swap it to the end of the smaller part. The value swapped back is equal to 4 (or is 1 itself), so `i` moves on too.",
+        "panels": [
+         {
+          "type": "row",
+          "cells": [
+           2,
+           1,
+           4,
+           4,
+           7,
+           4,
+           8,
+           9
+          ],
+          "states": {
+           "0": "found",
+           "1": "found",
+           "2": "answer",
+           "3": "answer",
+           "6": "mark",
+           "7": "mark",
+           "4": "active"
+          },
+          "pointers": {
+           "lt": 2,
+           "i": 4,
+           "gt": 5
+          },
+          "label": "nums",
+          "slots": true
+         },
+         {
+          "type": "vars",
+          "items": {
+           "unexamined:": "2"
+          }
+         }
+        ]
+       },
+       {
+        "text": "7 > 4: swap it into the bigger part at `gt`, and `gt` moves left. `i` stays: the 4 that came back hasn't been looked at.",
+        "panels": [
+         {
+          "type": "row",
+          "cells": [
+           2,
+           1,
+           4,
+           4,
+           4,
+           7,
+           8,
+           9
+          ],
+          "states": {
+           "0": "found",
+           "1": "found",
+           "2": "answer",
+           "3": "answer",
+           "5": "mark",
+           "6": "mark",
+           "7": "mark",
+           "4": "active"
+          },
+          "pointers": {
+           "lt": 2,
+           "i": 4,
+           "gt": 4
+          },
+          "label": "nums",
+          "slots": true
+         },
+         {
+          "type": "vars",
+          "items": {
+           "unexamined:": "1"
+          }
+         }
+        ]
+       },
+       {
+        "text": "4 = 4: it's already in the middle part. `i` moves on. Nothing is left unexamined. Indices 2 to 4 hold every 4.",
+        "panels": [
+         {
+          "type": "row",
+          "cells": [
+           2,
+           1,
+           4,
+           4,
+           4,
+           7,
+           8,
+           9
+          ],
+          "states": {
+           "0": "found",
+           "1": "found",
+           "2": "answer",
+           "3": "answer",
+           "4": "answer",
+           "5": "mark",
+           "6": "mark",
+           "7": "mark"
+          },
+          "pointers": {
+           "lt": 2,
+           "i": 5,
+           "gt": 4
+          },
+          "label": "nums",
+          "slots": true
+         },
+         {
+          "type": "vars",
+          "items": {
+           "unexamined:": "0"
+          }
+         }
+        ]
+       }
+      ],
+      "title": "`three_way([4, 9, 4, 1, 7, 4, 2, 8], 4)`: smaller than 4 to the left, equal in the middle, bigger to the right.",
+      "legend": [
+       {
+        "state": "found",
+        "text": "smaller than 4"
+       },
+       {
+        "state": "answer",
+        "text": "equal to 4"
+       },
+       {
+        "state": "mark",
+        "text": "bigger than 4"
+       },
+       {
+        "state": "active",
+        "text": "being looked at"
+       }
+      ]
+     }
+    },
+    {
+     "code": {
+      "python": "def three_way(nums, pivot):\n    lt, i, gt = 0, 0, len(nums) - 1\n    while i <= gt:\n        if nums[i] < pivot:\n            nums[lt], nums[i] = nums[i], nums[lt]\n            lt, i = lt + 1, i + 1\n        elif nums[i] > pivot:\n            nums[i], nums[gt] = nums[gt], nums[i]\n            gt -= 1\n        else:\n            i += 1\n    return lt, gt\n",
+      "java": "static int[] threeWay(int[] nums, int pivot) {\n    int lt = 0, i = 0, gt = nums.length - 1;\n    while (i <= gt) {\n        if (nums[i] < pivot) {\n            int t = nums[lt]; nums[lt] = nums[i]; nums[i] = t;\n            lt++;\n            i++;\n        } else if (nums[i] > pivot) {\n            int t = nums[gt]; nums[gt] = nums[i]; nums[i] = t;\n            gt--;\n        } else {\n            i++;\n        }\n    }\n    return new int[] {lt, gt};\n}\n",
+      "cpp": "pair<int, int> threeWay(vector<int>& nums, int pivot) {\n    int lt = 0, i = 0, gt = (int)nums.size() - 1;\n    while (i <= gt) {\n        if (nums[i] < pivot) {\n            swap(nums[lt], nums[i]);\n            lt++;\n            i++;\n        } else if (nums[i] > pivot) {\n            swap(nums[i], nums[gt]);\n            gt--;\n        } else {\n            i++;\n        }\n    }\n    return {lt, gt};\n}\n",
+      "c": "void threeWay(int* nums, int n, int pivot, int* ltOut, int* gtOut) {\n    int lt = 0, i = 0, gt = n - 1;\n    while (i <= gt) {\n        if (nums[i] < pivot) {\n            int t = nums[lt]; nums[lt] = nums[i]; nums[i] = t;\n            lt++;\n            i++;\n        } else if (nums[i] > pivot) {\n            int t = nums[gt]; nums[gt] = nums[i]; nums[i] = t;\n            gt--;\n        } else {\n            i++;\n        }\n    }\n    *ltOut = lt;\n    *gtOut = gt;\n}\n"
+     },
+     "title": "Three-way partition around a pivot value",
+     "lines": [
+      {
+       "text": "`[0, lt)` smaller, `[lt, i)` equal, `[i, gt]` unexamined, `(gt, end]` bigger. At the start everything is unexamined.",
+       "at": {
+        "python": [
+         [
+          2,
+          2
+         ]
+        ],
+        "java": [
+         [
+          2,
+          2
+         ]
+        ],
+        "cpp": [
+         [
+          2,
+          2
+         ]
+        ],
+        "c": [
+         [
+          2,
+          2
+         ]
+        ]
+       }
+      },
+      {
+       "text": "Until the unexamined part is empty.",
+       "at": {
+        "python": [
+         [
+          3,
+          3
+         ]
+        ],
+        "java": [
+         [
+          3,
+          3
+         ]
+        ],
+        "cpp": [
+         [
+          3,
+          3
+         ]
+        ],
+        "c": [
+         [
+          3,
+          3
+         ]
+        ]
+       }
+      },
+      {
+       "text": "A smaller value swaps to the end of the smaller part. What comes back from `lt` is an equal value (or the same element), so `i` can move on too.",
+       "at": {
+        "python": [
+         [
+          4,
+          6
+         ]
+        ],
+        "java": [
+         [
+          4,
+          7
+         ]
+        ],
+        "cpp": [
+         [
+          4,
+          7
+         ]
+        ],
+        "c": [
+         [
+          4,
+          7
+         ]
+        ]
+       }
+      },
+      {
+       "text": "A bigger value swaps into the bigger part. What comes back from `gt` is unexamined, so `i` stays.",
+       "at": {
+        "python": [
+         [
+          7,
+          9
+         ]
+        ],
+        "java": [
+         [
+          8,
+          10
+         ]
+        ],
+        "cpp": [
+         [
+          8,
+          10
+         ]
+        ],
+        "c": [
+         [
+          8,
+          10
+         ]
+        ]
+       }
+      },
+      {
+       "text": "An equal value is already in the middle.",
+       "at": {
+        "python": [
+         [
+          10,
+          11
+         ]
+        ],
+        "java": [
+         [
+          11,
+          12
+         ]
+        ],
+        "cpp": [
+         [
+          11,
+          12
+         ]
+        ],
+        "c": [
+         [
+          11,
+          12
+         ]
+        ]
+       }
+      },
+      {
+       "text": "The first and last index of the equal block.",
+       "at": {
+        "python": [
+         [
+          12,
+          12
+         ]
+        ],
+        "java": [
+         [
+          15,
+          15
+         ]
+        ],
+        "cpp": [
+         [
+          15,
+          15
+         ]
+        ],
+        "c": [
+         [
+          15,
+          16
+         ]
+        ]
+       },
+       "notes": {
+        "java": "Two values come back in a small array.",
+        "cpp": "Two values come back as a `pair`.",
+        "c": "C writes the two indices through pointers."
+       }
+      }
+     ],
+     "run": {
+      "call": "three_way([4, 9, 4, 1, 7, 4, 2, 8], 4); ([5, 5, 5], 5); ([1, 2, 3], 0)",
+      "output": "2 1 4 4 4 7 8 9 | 2 4\n5 5 5 | 0 2\n2 3 1 | 0 -1"
+     }
+    },
+    {
+     "md": "With pivot 0 on `[1, 2, 3]`, everything is bigger: the equal block is \"from 0 to -1\", which is empty.\n\n### More groups\n\nFor four or more groups, partition once to split off the smallest group, then partition the rest, and so on.\nOr, when there are `k` group labels, split by the middle label and recurse on each half: about `log k`\nlevels of O(n) work."
+    }
+   ]
+  },
+  {
+   "id": "complexity",
+   "title": "What it costs",
+   "blocks": [
+    {
+     "md": "Every step either moves a pointer inward or swaps and moves two, so the two-ended version is O(n) with at\nmost `n / 2` swaps. The one-pointer version is O(n) with up to `n` swaps. The three-way version is O(n)\nwith at most `n` swaps. All of them use O(1) extra space."
+    },
+    {
+     "table": {
+      "head": [
+       "Approach",
+       "Time",
+       "Extra space",
+       "Keeps order"
+      ],
+      "rows": [
+       [
+        "Sort the whole array",
+        "O(n log n)",
+        "O(1) to O(n)",
+        "depends on the sort"
+       ],
+       [
+        "Two passes into a new array",
+        "O(n)",
+        "O(n)",
+        "yes"
+       ],
+       [
+        "One pointer from the left",
+        "O(n), up to n swaps",
+        "O(1)",
+        "no"
+       ],
+       [
+        "Two from the ends",
+        "O(n), at most n / 2 swaps",
+        "O(1)",
+        "no"
+       ],
+       [
+        "Three-way",
+        "O(n)",
+        "O(1)",
+        "no"
+       ]
+      ]
+     }
+    }
+   ]
+  },
+  {
+   "id": "languages",
+   "title": "In your language",
+   "blocks": [
+    {
+     "md": "### Python\n\nTuple assignment swaps in one line. `x % 2` is 0 or 1 even for negatives. A one-line, non-in-place\nversion is `[x for x in a if x % 2 == 0] + [x for x in a if x % 2]`, which is stable and O(n) extra.\n\n### Java\n\nNo built-in swap for arrays; use a temporary. `-3 % 2` is `-1`, so test for odd with `!= 0`.\n\n### C++\n\n`std::partition(first, last, pred)` does this and returns the boundary iterator; `std::stable_partition`\nkeeps order (with extra memory). `std::nth_element` partitions around the k-th value.\n\n### C\n\nA temporary for swaps. `%` follows the sign of the left side, so negative odd values give `-1`."
+    }
+   ]
+  },
+  {
+   "id": "pitfalls",
+   "title": "Pitfalls and edge cases",
+   "blocks": [
+    {
+     "md": "- Testing odd with `% 2 == 1`, which misses negative odd numbers in Java, C and C++.\n- Forgetting `lo <= hi` in the inner loops, so a pointer runs off the end on an all-even or all-odd array.\n- In the three-way version, moving `i` after swapping with `gt`. The value that came back hasn't been checked.\n- Expecting the order inside each group to be kept.\n- Returning the wrong boundary: after the loop, `lo` is the count of the first group.\n- Empty arrays: `hi` starts at -1 and nothing should happen."
+    }
+   ]
+  },
+  {
+   "id": "check",
+   "title": "Check yourself",
+   "blocks": [
+    {
+     "quiz": [
+      {
+       "q": "What does the two-ended loop guarantee about the parts before `lo` and after `hi`?",
+       "a": "Everything before `lo` belongs to the first group (even), everything after `hi` to the second (odd). Only the middle is unexamined."
+      },
+      {
+       "q": "Why does the two-ended version need fewer swaps than the one-pointer version?",
+       "a": "It only swaps pairs that are both on the wrong side. The one-pointer version swaps every first-group value it finds after the first second-group value, even ones that end up close to where they started."
+      },
+      {
+       "q": "In the three-way partition, why does `i` move after swapping with `lt` but not after swapping with `gt`?",
+       "a": "Everything between `lt` and `i` is equal to the pivot, so the value that comes back from `lt` is known. The value that comes back from `gt` comes from the unexamined part."
+      },
+      {
+       "q": "Partition [b2, a4, c1] (letters only to track them) evens first from both ends. Are a4 and b2 still in their original order?",
+       "a": "Yes here: `lo` walks past b2 and a4 (both even), `hi` walks past c1, and the pointers cross with no swap. On other inputs a swap can carry an even value across another and change their order."
+      },
+      {
+       "q": "Three-way partition of [5, 5, 5] around 5: what are lt and gt?",
+       "a": "0 and 2: everything is equal, so the equal block is the whole array."
+      }
+     ]
+    }
+   ]
+  }
+ ],
+ "leetcode": [
+  {
+   "id": 905,
+   "title": "Sort Array By Parity",
+   "url": "https://leetcode.com/problems/sort-array-by-parity/",
+   "difficulty": "easy"
+  },
+  {
+   "id": 922,
+   "title": "Sort Array By Parity II",
+   "url": "https://leetcode.com/problems/sort-array-by-parity-ii/",
+   "difficulty": "easy"
+  },
+  {
+   "id": 75,
+   "title": "Sort Colors",
+   "url": "https://leetcode.com/problems/sort-colors/",
+   "difficulty": "medium"
+  },
+  {
+   "id": 2161,
+   "title": "Partition Array According to Given Pivot",
+   "url": "https://leetcode.com/problems/partition-array-according-to-given-pivot/",
+   "difficulty": "medium"
+  },
+  {
+   "id": 2149,
+   "title": "Rearrange Array Elements by Sign",
+   "url": "https://leetcode.com/problems/rearrange-array-elements-by-sign/",
+   "difficulty": "medium"
+  },
+  {
+   "id": 215,
+   "title": "Kth Largest Element in an Array",
+   "url": "https://leetcode.com/problems/kth-largest-element-in-an-array/",
+   "difficulty": "medium"
+  },
+  {
+   "id": 324,
+   "title": "Wiggle Sort II",
+   "url": "https://leetcode.com/problems/wiggle-sort-ii/",
+   "difficulty": "medium"
+  }
+ ]
+}

@@ -386,8 +386,8 @@ lesson(
             cell of each row and the top cell of each column. Once every note is written, they go back and cross out
             using the notes.
 
-            That's the whole pattern. The grid has spare room somewhere (its first row and column, unused bits, values
-            that can't occur) and you use it to hold "what I still need to know" while you work.
+            In general, the grid has spare room somewhere (its first row and column, unused bits, values that can't
+            occur), and you use it to hold "what I still need to know" while you work.
             """,
             fig(Grid(G, st={z: "answer" for z in ZEROS}, label="the zeros"),
                 Grid(naive, st={(r, c): "dim" for r in range(GM) for c in range(GN) if naive[r][c] == 0}, label="wiping as you go"),
@@ -516,7 +516,7 @@ lesson(
             ### Rules with counts
 
             Many rules count neighbours ("lit if exactly two neighbours are lit"). The count is computed from the old
-            values (`& 1`) and the decision goes in bit 1, exactly as above. The rule changes; the bookkeeping doesn't.
+            values (`& 1`) and the decision goes in bit 1, exactly as above, whatever the rule is.
 
             ### Marking cells for later
 

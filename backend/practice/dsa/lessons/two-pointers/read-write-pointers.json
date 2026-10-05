@@ -1,0 +1,1486 @@
+{
+ "version": 1,
+ "id": "read-write-pointers",
+ "topic": "two-pointers",
+ "summary": "Walk one pointer (`read`) over every element, and keep a second one (`write`) at the end of the part you've\ndecided to keep. Whatever passes the test gets copied down to `write`. The array is filtered, compacted or cleaned\nup in a single pass, in place, with the order kept.",
+ "minutes": 12,
+ "sections": [
+  {
+   "id": "idea",
+   "title": "The idea",
+   "blocks": [
+    {
+     "md": "A librarian is taking damaged books off a shelf. They don't pull everything off and put the good ones back.\nThey walk along the shelf, and every time they reach a good book they slide it left to just after the last\ngood book they placed. Bad books get left behind. By the end, the good books sit together at\nthe start of the shelf in their original order, and whatever is to their right doesn't matter any more.\n\nThe place they're looking at is the **read** pointer. The spot where the next good book goes is the **write**\npointer. `read` moves every step. `write` only moves when something is kept, so it never gets ahead of\n`read`, and copying to it never destroys a book that hasn't been looked at yet."
+    },
+    {
+     "panels": [
+      {
+       "type": "row",
+       "cells": [
+        3,
+        -1,
+        4,
+        -1,
+        -5,
+        9,
+        2
+       ],
+       "states": {
+        "1": "dim",
+        "3": "dim",
+        "4": "dim"
+       },
+       "label": "before (negatives dropped)",
+       "slots": true
+      },
+      {
+       "type": "row",
+       "cells": [
+        3,
+        4,
+        9,
+        2,
+        -5,
+        9,
+        2
+       ],
+       "states": {
+        "0": "found",
+        "1": "found",
+        "2": "found",
+        "3": "found"
+       },
+       "label": "after one pass",
+       "slots": true
+      }
+     ],
+     "caption": "The first 4 slots are the answer, in the original order. The rest is leftover."
+    },
+    {
+     "key": "`write = 0`, then for every `read`: if `a[read]` should stay, copy it to `a[write]` and move `write` on.\nAt the end, `a[0:write]` is the result. One pass, O(1) extra space, order kept."
+    }
+   ]
+  },
+  {
+   "id": "signals",
+   "title": "When to reach for it",
+   "blocks": [
+    {
+     "md": "The question says \"in place\", \"O(1) extra space\" or \"return the new length\", and the job is to remove,\nfilter, compact, deduplicate or clean up a sequence while keeping its order."
+    },
+    {
+     "table": {
+      "head": [
+       "The problem says…",
+       "the test for keeping `a[read]`"
+      ],
+      "rows": [
+       [
+        "remove every copy of `v`",
+        "`a[read] != v`"
+       ],
+       [
+        "move the zeros to the end, keep the rest in order",
+        "`a[read] != 0`, then fill the tail with zeros"
+       ],
+       [
+        "remove duplicates from a sorted list",
+        "`write == 0` or `a[read] != a[write - 1]`"
+       ],
+       [
+        "collapse runs of spaces, trim the ends",
+        "not a space, or the last kept isn't a space"
+       ],
+       [
+        "keep only new highs",
+        "`write == 0` or `a[read] > a[write - 1]`"
+       ],
+       [
+        "compress runs (\"aaab\" → \"a3b\")",
+        "write once per run, at the run's end"
+       ]
+      ]
+     }
+    },
+    {
+     "md": "The second column often looks at `a[write - 1]`, the last thing *kept*, rather than `a[read - 1]`, the last\nthing *read*. Mixing the two up is a common bug.\n\nNot a fit:\n\n- Order doesn't matter. Then removing is even simpler: overwrite the unwanted element with the last one\n  and shrink the array (see *More examples*). Or partition (*Partition*).\n- The output is longer than the input, like doubling every zero. Writing forwards would overwrite values\n  you haven't read. Work out the final length first and fill from the back.\n- Extra memory is fine. Building a new list with a loop or a filter is clearer, and just as fast."
+    }
+   ]
+  },
+  {
+   "id": "theory",
+   "title": "Why it works",
+   "blocks": [
+    {
+     "md": "### What the loop keeps true\n\n> Before each step, `a[0:write]` holds exactly the elements of `a[0:read]` that pass the test, in their\n> original order. And `write ≤ read`.\n\nIt's true at the start (both are 0, both parts empty). In a step, if `a[read]` passes, it's copied to\n`a[write]`, which extends the kept part by exactly the element that `a[0:read]` gained. If it fails, the\nkept part stays the same and so does the answer for `a[0:read + 1]`. Either way `read` moves on, and `write`\nmoves at most as far, so `write ≤ read` still holds. When `read` reaches the end, `a[0:write]` is the answer."
+    },
+    {
+     "walk": {
+      "steps": [
+       {
+        "text": "`read` will visit every slot once. `write` is where the next kept value goes. Nothing is kept yet.",
+        "panels": [
+         {
+          "type": "row",
+          "cells": [
+           3,
+           -1,
+           4,
+           -1,
+           -5,
+           9,
+           2
+          ],
+          "pointers": {
+           "read": 0,
+           "write": 0
+          },
+          "label": "readings",
+          "slots": true
+         },
+         {
+          "type": "vars",
+          "items": {
+           "kept:": "0"
+          }
+         }
+        ]
+       },
+       {
+        "text": "`read` = 0: 3 passes. Nothing has been dropped yet, so it's already in the right slot. Both pointers move on.",
+        "panels": [
+         {
+          "type": "row",
+          "cells": [
+           3,
+           -1,
+           4,
+           -1,
+           -5,
+           9,
+           2
+          ],
+          "states": {
+           "0": "found"
+          },
+          "pointers": {
+           "read": 0,
+           "write": 1
+          },
+          "label": "readings",
+          "slots": true
+         },
+         {
+          "type": "vars",
+          "items": {
+           "kept:": "1"
+          }
+         }
+        ]
+       },
+       {
+        "text": "`read` = 1: -1 is negative. Skip it. Only `read` moves, so the gap between the pointers grows by one.",
+        "panels": [
+         {
+          "type": "row",
+          "cells": [
+           3,
+           -1,
+           4,
+           -1,
+           -5,
+           9,
+           2
+          ],
+          "states": {
+           "0": "found",
+           "1": "dim"
+          },
+          "pointers": {
+           "read": 1,
+           "write": 1
+          },
+          "label": "readings",
+          "slots": true
+         },
+         {
+          "type": "vars",
+          "items": {
+           "kept:": "1"
+          }
+         }
+        ]
+       },
+       {
+        "text": "`read` = 2: 4 passes. Copy it down to slot 1; `write` moves on.",
+        "panels": [
+         {
+          "type": "row",
+          "cells": [
+           3,
+           4,
+           4,
+           -1,
+           -5,
+           9,
+           2
+          ],
+          "states": {
+           "0": "found",
+           "1": "found"
+          },
+          "pointers": {
+           "read": 2,
+           "write": 2
+          },
+          "label": "readings",
+          "slots": true
+         },
+         {
+          "type": "vars",
+          "items": {
+           "kept:": "2"
+          }
+         }
+        ]
+       },
+       {
+        "text": "`read` = 3: -1 is negative. Skip it. Only `read` moves, so the gap between the pointers grows by one.",
+        "panels": [
+         {
+          "type": "row",
+          "cells": [
+           3,
+           4,
+           4,
+           -1,
+           -5,
+           9,
+           2
+          ],
+          "states": {
+           "0": "found",
+           "1": "found",
+           "3": "dim"
+          },
+          "pointers": {
+           "read": 3,
+           "write": 2
+          },
+          "label": "readings",
+          "slots": true
+         },
+         {
+          "type": "vars",
+          "items": {
+           "kept:": "2"
+          }
+         }
+        ]
+       },
+       {
+        "text": "`read` = 4: -5 is negative. Skip it. Only `read` moves, so the gap between the pointers grows by one.",
+        "panels": [
+         {
+          "type": "row",
+          "cells": [
+           3,
+           4,
+           4,
+           -1,
+           -5,
+           9,
+           2
+          ],
+          "states": {
+           "0": "found",
+           "1": "found",
+           "4": "dim"
+          },
+          "pointers": {
+           "read": 4,
+           "write": 2
+          },
+          "label": "readings",
+          "slots": true
+         },
+         {
+          "type": "vars",
+          "items": {
+           "kept:": "2"
+          }
+         }
+        ]
+       },
+       {
+        "text": "`read` = 5: 9 passes. Copy it down to slot 2; `write` moves on.",
+        "panels": [
+         {
+          "type": "row",
+          "cells": [
+           3,
+           4,
+           9,
+           -1,
+           -5,
+           9,
+           2
+          ],
+          "states": {
+           "0": "found",
+           "1": "found",
+           "2": "found"
+          },
+          "pointers": {
+           "read": 5,
+           "write": 3
+          },
+          "label": "readings",
+          "slots": true
+         },
+         {
+          "type": "vars",
+          "items": {
+           "kept:": "3"
+          }
+         }
+        ]
+       },
+       {
+        "text": "`read` = 6: 2 passes. Copy it down to slot 3; `write` moves on. `read` has seen everything. The answer is the first 4 slots: [3, 4, 9, 2]. What's after them is leftover and can be ignored.",
+        "panels": [
+         {
+          "type": "row",
+          "cells": [
+           3,
+           4,
+           9,
+           2,
+           -5,
+           9,
+           2
+          ],
+          "states": {
+           "0": "found",
+           "1": "found",
+           "2": "found",
+           "3": "found"
+          },
+          "pointers": {
+           "read": 6,
+           "write": 4
+          },
+          "label": "readings",
+          "slots": true
+         },
+         {
+          "type": "vars",
+          "items": {
+           "kept:": "4"
+          }
+         }
+        ]
+       }
+      ],
+      "title": "Keeping the readings in `[3, -1, 4, -1, -5, 9, 2]` that aren't negative, in place, in their original order.",
+      "legend": [
+       {
+        "state": "found",
+        "text": "the kept part, already final"
+       },
+       {
+        "state": "dim",
+        "text": "read and dropped"
+       }
+      ]
+     }
+    },
+    {
+     "md": "### Why the copy is always safe\n\n`write ≤ read`, so the slot being written is either the one being read or one that was already read\nearlier. No unread value is ever overwritten. This is why it works in place, and also why it needs the\noutput to be no longer than the input.\n\n### Looking back at what you kept\n\nMany tests depend on the output so far: \"skip a value if it equals the last one kept\", \"skip a space if the\nlast character kept was a space\". The last thing kept is `a[write - 1]`, and it's final, because nothing\nbefore `write` changes again. The last thing *read*, `a[read - 1]`, may have been dropped, so comparing with\nit asks the wrong question. Keeping record highs from `[3, 1, 2]` shows the difference: compared with the\nlast value read (1), the 2 looks like a new high, but compared with the last value kept (3), it isn't.\n\n### Leftovers\n\nAfter the loop, everything from `write` onwards is junk: old values, some of them duplicates of kept\nones. Problems handle it in different ways. \"Return the new length\" means you leave it. \"Move the zeros to\nthe end\" means you fill it with zeros. A language with resizable arrays can cut it off (`resize`, slicing)."
+    }
+   ]
+  },
+  {
+   "id": "template",
+   "title": "The template",
+   "blocks": [
+    {
+     "md": "Clean up the spaces in a piece of text: drop leading and trailing spaces, and squeeze every run of spaces\nbetween words down to one. Work in place on the characters."
+    },
+    {
+     "code": {
+      "python": "def squeeze_spaces(text):\n    chars = list(text)\n    write = 0\n    for read in range(len(chars)):\n        ch = chars[read]\n        if ch == \" \" and (write == 0 or chars[write - 1] == \" \"):\n            continue\n        chars[write] = ch\n        write += 1\n    if write > 0 and chars[write - 1] == \" \":\n        write -= 1\n    return \"\".join(chars[:write])\n",
+      "java": "static String squeezeSpaces(String text) {\n    char[] chars = text.toCharArray();\n    int write = 0;\n    for (int read = 0; read < chars.length; read++) {\n        char ch = chars[read];\n        if (ch == ' ' && (write == 0 || chars[write - 1] == ' '))\n            continue;\n        chars[write++] = ch;\n    }\n    if (write > 0 && chars[write - 1] == ' ') write--;\n    return new String(chars, 0, write);\n}\n",
+      "cpp": "string squeezeSpaces(string chars) {\n    int write = 0;\n    for (int read = 0; read < (int)chars.size(); read++) {\n        char ch = chars[read];\n        if (ch == ' ' && (write == 0 || chars[write - 1] == ' '))\n            continue;\n        chars[write++] = ch;\n    }\n    if (write > 0 && chars[write - 1] == ' ') write--;\n    chars.resize(write);\n    return chars;\n}\n",
+      "c": "void squeezeSpaces(char* chars) {\n    int write = 0;\n    for (int read = 0; chars[read] != '\\0'; read++) {\n        char ch = chars[read];\n        if (ch == ' ' && (write == 0 || chars[write - 1] == ' '))\n            continue;\n        chars[write++] = ch;\n    }\n    if (write > 0 && chars[write - 1] == ' ') write--;\n    chars[write] = '\\0';\n}\n"
+     },
+     "title": "Squeeze the spaces in place",
+     "lines": [
+      {
+       "text": "Strings can't be changed in Python and Java, so work on a list or array of characters.",
+       "at": {
+        "python": [
+         [
+          2,
+          2
+         ]
+        ],
+        "java": [
+         [
+          2,
+          2
+         ]
+        ]
+       }
+      },
+      {
+       "text": "Where the next kept character goes.",
+       "at": {
+        "python": [
+         [
+          3,
+          3
+         ]
+        ],
+        "java": [
+         [
+          3,
+          3
+         ]
+        ],
+        "cpp": [
+         [
+          2,
+          2
+         ]
+        ],
+        "c": [
+         [
+          2,
+          2
+         ]
+        ]
+       }
+      },
+      {
+       "text": "Look at every character once, left to right.",
+       "at": {
+        "python": [
+         [
+          4,
+          5
+         ]
+        ],
+        "java": [
+         [
+          4,
+          5
+         ]
+        ],
+        "cpp": [
+         [
+          3,
+          4
+         ]
+        ],
+        "c": [
+         [
+          3,
+          4
+         ]
+        ]
+       },
+       "notes": {
+        "c": "A C string ends at `'\\0'`, so the loop stops there instead of at a length."
+       }
+      },
+      {
+       "text": "A space is dropped if nothing has been kept yet (it would be a leading space) or if the last character *kept* is already a space. Note `chars[write - 1]`, not `chars[read - 1]`.",
+       "at": {
+        "python": [
+         [
+          6,
+          7
+         ]
+        ],
+        "java": [
+         [
+          6,
+          7
+         ]
+        ],
+        "cpp": [
+         [
+          5,
+          6
+         ]
+        ],
+        "c": [
+         [
+          5,
+          6
+         ]
+        ]
+       }
+      },
+      {
+       "text": "Everything else is copied down. `write` never passes `read`, so nothing unread is lost.",
+       "at": {
+        "python": [
+         [
+          8,
+          9
+         ]
+        ],
+        "java": [
+         [
+          8,
+          8
+         ]
+        ],
+        "cpp": [
+         [
+          7,
+          7
+         ]
+        ],
+        "c": [
+         [
+          7,
+          7
+         ]
+        ]
+       },
+       "notes": {
+        "java": "`write++` uses the slot, then moves it on.",
+        "cpp": "`write++` uses the slot, then moves it on.",
+        "c": "`write++` uses the slot, then moves it on."
+       }
+      },
+      {
+       "text": "Runs were squeezed to one space, so at most one trailing space can be left. Drop it.",
+       "at": {
+        "python": [
+         [
+          10,
+          11
+         ]
+        ],
+        "java": [
+         [
+          10,
+          10
+         ]
+        ],
+        "cpp": [
+         [
+          9,
+          9
+         ]
+        ],
+        "c": [
+         [
+          9,
+          9
+         ]
+        ]
+       }
+      },
+      {
+       "text": "The first `write` characters are the result.",
+       "at": {
+        "python": [
+         [
+          12,
+          12
+         ]
+        ],
+        "java": [
+         [
+          11,
+          11
+         ]
+        ],
+        "cpp": [
+         [
+          10,
+          11
+         ]
+        ],
+        "c": [
+         [
+          10,
+          10
+         ]
+        ]
+       },
+       "notes": {
+        "cpp": "`resize` cuts off the leftovers.",
+        "c": "Writing `'\\0'` at `write` ends the string there."
+       }
+      }
+     ],
+     "run": {
+      "call": "squeeze_spaces(\"  the   sky  is blue  \"); (\"hello\"); (\"   \"); (\"a  b\")",
+      "output": "[the sky is blue]\n[hello]\n[]\n[a b]"
+     }
+    },
+    {
+     "md": "The brackets in the output show where each result starts and ends. Three spaces on their own clean up to an\nempty string."
+    }
+   ]
+  },
+  {
+   "id": "trace",
+   "title": "Trace it by hand",
+   "blocks": [
+    {
+     "md": "A short one, character by character. The kept part is final the moment it's written:"
+    },
+    {
+     "walk": {
+      "steps": [
+       {
+        "text": "Nothing kept yet, so a space here would be a leading space.",
+        "panels": [
+         {
+          "type": "row",
+          "cells": [
+           "␣",
+           "a",
+           "␣",
+           "␣",
+           "b",
+           "c",
+           "␣",
+           "␣",
+           "d",
+           "␣"
+          ],
+          "pointers": {
+           "read": 0,
+           "write": 0
+          },
+          "label": "chars",
+          "slots": true
+         },
+         {
+          "type": "vars",
+          "items": {
+           "last kept:": "nothing"
+          }
+         }
+        ]
+       },
+       {
+        "text": "`read` = 0: a space, and nothing has been kept yet, so it would be a leading space. Skip it.",
+        "panels": [
+         {
+          "type": "row",
+          "cells": [
+           "␣",
+           "a",
+           "␣",
+           "␣",
+           "b",
+           "c",
+           "␣",
+           "␣",
+           "d",
+           "␣"
+          ],
+          "states": {
+           "0": "dim"
+          },
+          "pointers": {
+           "read": 0,
+           "write": 0
+          },
+          "label": "chars",
+          "slots": true
+         },
+         {
+          "type": "vars",
+          "items": {
+           "last kept:": "nothing"
+          }
+         }
+        ]
+       },
+       {
+        "text": "`read` = 1: a letter, 'a': always kept. It goes to slot 0.",
+        "panels": [
+         {
+          "type": "row",
+          "cells": [
+           "a",
+           "a",
+           "␣",
+           "␣",
+           "b",
+           "c",
+           "␣",
+           "␣",
+           "d",
+           "␣"
+          ],
+          "states": {
+           "0": "found"
+          },
+          "pointers": {
+           "read": 1,
+           "write": 1
+          },
+          "label": "chars",
+          "slots": true
+         },
+         {
+          "type": "vars",
+          "items": {
+           "last kept:": "'a'"
+          }
+         }
+        ]
+       },
+       {
+        "text": "`read` = 2: a space after a letter: keep one. It goes to slot 1.",
+        "panels": [
+         {
+          "type": "row",
+          "cells": [
+           "a",
+           "␣",
+           "␣",
+           "␣",
+           "b",
+           "c",
+           "␣",
+           "␣",
+           "d",
+           "␣"
+          ],
+          "states": {
+           "0": "found",
+           "1": "found"
+          },
+          "pointers": {
+           "read": 2,
+           "write": 2
+          },
+          "label": "chars",
+          "slots": true
+         },
+         {
+          "type": "vars",
+          "items": {
+           "last kept:": "a space"
+          }
+         }
+        ]
+       },
+       {
+        "text": "`read` = 3: a space, and the last character kept is already a space. Skip it.",
+        "panels": [
+         {
+          "type": "row",
+          "cells": [
+           "a",
+           "␣",
+           "␣",
+           "␣",
+           "b",
+           "c",
+           "␣",
+           "␣",
+           "d",
+           "␣"
+          ],
+          "states": {
+           "0": "found",
+           "1": "found",
+           "3": "dim"
+          },
+          "pointers": {
+           "read": 3,
+           "write": 2
+          },
+          "label": "chars",
+          "slots": true
+         },
+         {
+          "type": "vars",
+          "items": {
+           "last kept:": "a space"
+          }
+         }
+        ]
+       },
+       {
+        "text": "`read` = 4: a letter, 'b': always kept. It goes to slot 2.",
+        "panels": [
+         {
+          "type": "row",
+          "cells": [
+           "a",
+           "␣",
+           "b",
+           "␣",
+           "b",
+           "c",
+           "␣",
+           "␣",
+           "d",
+           "␣"
+          ],
+          "states": {
+           "0": "found",
+           "1": "found",
+           "2": "found"
+          },
+          "pointers": {
+           "read": 4,
+           "write": 3
+          },
+          "label": "chars",
+          "slots": true
+         },
+         {
+          "type": "vars",
+          "items": {
+           "last kept:": "'b'"
+          }
+         }
+        ]
+       },
+       {
+        "text": "`read` = 5: a letter, 'c': always kept. It goes to slot 3.",
+        "panels": [
+         {
+          "type": "row",
+          "cells": [
+           "a",
+           "␣",
+           "b",
+           "c",
+           "b",
+           "c",
+           "␣",
+           "␣",
+           "d",
+           "␣"
+          ],
+          "states": {
+           "0": "found",
+           "1": "found",
+           "2": "found",
+           "3": "found"
+          },
+          "pointers": {
+           "read": 5,
+           "write": 4
+          },
+          "label": "chars",
+          "slots": true
+         },
+         {
+          "type": "vars",
+          "items": {
+           "last kept:": "'c'"
+          }
+         }
+        ]
+       },
+       {
+        "text": "`read` = 6: a space after a letter: keep one. It goes to slot 4.",
+        "panels": [
+         {
+          "type": "row",
+          "cells": [
+           "a",
+           "␣",
+           "b",
+           "c",
+           "␣",
+           "c",
+           "␣",
+           "␣",
+           "d",
+           "␣"
+          ],
+          "states": {
+           "0": "found",
+           "1": "found",
+           "2": "found",
+           "3": "found",
+           "4": "found"
+          },
+          "pointers": {
+           "read": 6,
+           "write": 5
+          },
+          "label": "chars",
+          "slots": true
+         },
+         {
+          "type": "vars",
+          "items": {
+           "last kept:": "a space"
+          }
+         }
+        ]
+       },
+       {
+        "text": "`read` = 7: a space, and the last character kept is already a space. Skip it.",
+        "panels": [
+         {
+          "type": "row",
+          "cells": [
+           "a",
+           "␣",
+           "b",
+           "c",
+           "␣",
+           "c",
+           "␣",
+           "␣",
+           "d",
+           "␣"
+          ],
+          "states": {
+           "0": "found",
+           "1": "found",
+           "2": "found",
+           "3": "found",
+           "4": "found",
+           "7": "dim"
+          },
+          "pointers": {
+           "read": 7,
+           "write": 5
+          },
+          "label": "chars",
+          "slots": true
+         },
+         {
+          "type": "vars",
+          "items": {
+           "last kept:": "a space"
+          }
+         }
+        ]
+       },
+       {
+        "text": "`read` = 8: a letter, 'd': always kept. It goes to slot 5.",
+        "panels": [
+         {
+          "type": "row",
+          "cells": [
+           "a",
+           "␣",
+           "b",
+           "c",
+           "␣",
+           "d",
+           "␣",
+           "␣",
+           "d",
+           "␣"
+          ],
+          "states": {
+           "0": "found",
+           "1": "found",
+           "2": "found",
+           "3": "found",
+           "4": "found",
+           "5": "found"
+          },
+          "pointers": {
+           "read": 8,
+           "write": 6
+          },
+          "label": "chars",
+          "slots": true
+         },
+         {
+          "type": "vars",
+          "items": {
+           "last kept:": "'d'"
+          }
+         }
+        ]
+       },
+       {
+        "text": "`read` = 9: a space after a letter: keep one. It goes to slot 6.",
+        "panels": [
+         {
+          "type": "row",
+          "cells": [
+           "a",
+           "␣",
+           "b",
+           "c",
+           "␣",
+           "d",
+           "␣",
+           "␣",
+           "d",
+           "␣"
+          ],
+          "states": {
+           "0": "found",
+           "1": "found",
+           "2": "found",
+           "3": "found",
+           "4": "found",
+           "5": "found",
+           "6": "found"
+          },
+          "pointers": {
+           "read": 9,
+           "write": 7
+          },
+          "label": "chars",
+          "slots": true
+         },
+         {
+          "type": "vars",
+          "items": {
+           "last kept:": "a space"
+          }
+         }
+        ]
+       },
+       {
+        "text": "The last character kept is a space, a trailing one. Drop it by stepping `write` back. The result is the first 6 slots: \"a bc d\".",
+        "panels": [
+         {
+          "type": "row",
+          "cells": [
+           "a",
+           "␣",
+           "b",
+           "c",
+           "␣",
+           "d",
+           "␣",
+           "␣",
+           "d",
+           "␣"
+          ],
+          "states": {
+           "0": "found",
+           "1": "found",
+           "2": "found",
+           "3": "found",
+           "4": "found",
+           "5": "found"
+          },
+          "pointers": {
+           "write": 6
+          },
+          "label": "chars",
+          "slots": true
+         },
+         {
+          "type": "vars",
+          "items": {
+           "last kept:": "done"
+          }
+         }
+        ],
+        "result": "\"a bc d\""
+       }
+      ],
+      "title": "`squeeze_spaces(\" a  bc  d \")`, with ␣ for each space. A space is kept only if the last character kept isn't a space.",
+      "legend": [
+       {
+        "state": "found",
+        "text": "kept: the finished part"
+       },
+       {
+        "state": "dim",
+        "text": "read and dropped"
+       }
+      ]
+     }
+    },
+    {
+     "md": "On paper, write the input once, and underneath it write the output as it grows. Draw `read` on the top line\nand `write` on the bottom one. You'll see the bottom line never gets longer than the top line so far."
+    }
+   ]
+  },
+  {
+   "id": "examples",
+   "title": "More examples",
+   "blocks": [
+    {
+     "md": "### When order doesn't matter\n\nRemove every 3 from `[3, 1, 3, 4, 3, 2]`, and the order of what's left doesn't matter. Instead of shifting the kept\nvalues left, overwrite each 3 with the last value still in play and shrink the end. Don't move `i` after\nan overwrite, because the value that just arrived hasn't been checked."
+    },
+    {
+     "table": {
+      "head": [
+       "i",
+       "values in play",
+       "what happens"
+      ],
+      "rows": [
+       [
+        "0",
+        "3 1 3 4 3 2",
+        "3 is a 3: overwrite it with the last value in play, 2, and shrink the end"
+       ],
+       [
+        "0",
+        "2 1 3 4 3",
+        "2 stays; move on"
+       ],
+       [
+        "1",
+        "2 1 3 4 3",
+        "1 stays; move on"
+       ],
+       [
+        "2",
+        "2 1 3 4 3",
+        "3 is a 3: overwrite it with the last value in play, 3, and shrink the end"
+       ],
+       [
+        "2",
+        "2 1 3 4",
+        "3 is a 3: overwrite it with the last value in play, 4, and shrink the end"
+       ],
+       [
+        "2",
+        "2 1 4",
+        "4 stays; move on"
+       ]
+      ]
+     }
+    },
+    {
+     "md": "3 values remain: `[2, 1, 4]`. This does fewer writes when there's little to remove, since it only touches\nthe removed slots. It also scrambles the order, which is why the template doesn't do it.\n\n### When the output grows\n\nDouble every zero in `[1, 0, 2, 3, 0, 4, 5, 0]`, keeping the same length (values pushed off the end are lost): the answer is\n`[1, 0, 0, 2, 3, 0, 0, 4]`. Copying forwards would overwrite the 2 with the second 0 before reading it. So first count how\nfar each value moves, then copy from the right end, with the read pointer on the left of the write\npointer. Now `read ≤ write` is the guarantee, mirrored, and again nothing unread is lost.\n\n### Two lists, one writer\n\nThe write pointer doesn't care where the values come from. Merging two sorted lists into a third uses two\nread pointers and one write pointer. *Merge two sorted sequences* covers that, including merging into the\nspare space at the end of one of the lists."
+    }
+   ]
+  },
+  {
+   "id": "variations",
+   "title": "Variations",
+   "blocks": [
+    {
+     "md": "### A test that looks back\n\nKeep only the readings that beat every reading before them: the record highs. Every value kept is a new\nhigh, so the kept part is increasing and its last value, `nums[write - 1]`, is the highest so far. One\ncomparison with it decides each value."
+    },
+    {
+     "code": {
+      "python": "def keep_records(nums):\n    write = 0\n    for read in range(len(nums)):\n        if write == 0 or nums[read] > nums[write - 1]:\n            nums[write] = nums[read]\n            write += 1\n    return nums[:write]\n",
+      "java": "static int[] keepRecords(int[] nums) {\n    int write = 0;\n    for (int read = 0; read < nums.length; read++) {\n        if (write == 0 || nums[read] > nums[write - 1])\n            nums[write++] = nums[read];\n    }\n    return Arrays.copyOf(nums, write);\n}\n",
+      "cpp": "vector<int> keepRecords(vector<int> nums) {\n    int write = 0;\n    for (int read = 0; read < (int)nums.size(); read++) {\n        if (write == 0 || nums[read] > nums[write - 1])\n            nums[write++] = nums[read];\n    }\n    nums.resize(write);\n    return nums;\n}\n",
+      "c": "int keepRecords(int* nums, int n) {\n    int write = 0;\n    for (int read = 0; read < n; read++) {\n        if (write == 0 || nums[read] > nums[write - 1])\n            nums[write++] = nums[read];\n    }\n    return write;\n}\n"
+     },
+     "title": "Keep the record highs in place",
+     "lines": [
+      {
+       "text": "Nothing kept yet.",
+       "at": {
+        "python": [
+         [
+          2,
+          2
+         ]
+        ],
+        "java": [
+         [
+          2,
+          2
+         ]
+        ],
+        "cpp": [
+         [
+          2,
+          2
+         ]
+        ],
+        "c": [
+         [
+          2,
+          2
+         ]
+        ]
+       }
+      },
+      {
+       "text": "Every value, once.",
+       "at": {
+        "python": [
+         [
+          3,
+          3
+         ]
+        ],
+        "java": [
+         [
+          3,
+          3
+         ]
+        ],
+        "cpp": [
+         [
+          3,
+          3
+         ]
+        ],
+        "c": [
+         [
+          3,
+          3
+         ]
+        ]
+       }
+      },
+      {
+       "text": "The first value is always a record. After that, a value is a record only if it beats the last record kept, which is the highest value so far.",
+       "at": {
+        "python": [
+         [
+          4,
+          4
+         ]
+        ],
+        "java": [
+         [
+          4,
+          4
+         ]
+        ],
+        "cpp": [
+         [
+          4,
+          4
+         ]
+        ],
+        "c": [
+         [
+          4,
+          4
+         ]
+        ]
+       }
+      },
+      {
+       "text": "Copy it down to `write`.",
+       "at": {
+        "python": [
+         [
+          5,
+          6
+         ]
+        ],
+        "java": [
+         [
+          5,
+          5
+         ]
+        ],
+        "cpp": [
+         [
+          5,
+          5
+         ]
+        ],
+        "c": [
+         [
+          5,
+          5
+         ]
+        ]
+       }
+      },
+      {
+       "text": "The records, in the order they were set.",
+       "at": {
+        "python": [
+         [
+          7,
+          7
+         ]
+        ],
+        "java": [
+         [
+          7,
+          7
+         ]
+        ],
+        "cpp": [
+         [
+          7,
+          8
+         ]
+        ],
+        "c": [
+         [
+          7,
+          7
+         ]
+        ]
+       },
+       "notes": {
+        "java": "`Arrays.copyOf` returns just the first `write` values.",
+        "cpp": "`resize` cuts off the leftovers.",
+        "c": "C returns how many there are; they're at the start of `nums`."
+       }
+      }
+     ],
+     "run": {
+      "call": "keep_records([3, 1, 4, 1, 5, 9, 2, 6]); ([5, 5, 5]); ([9, 8, 7])",
+      "output": "3 4 5 9\n5\n9"
+     }
+    },
+    {
+     "md": "Equal values aren't records (`>` rather than `>=`), so `[5, 5, 5]` keeps just one 5.\n\n### Writing more than one thing per read\n\nRun-length style output writes a character and then a count. The write pointer still can't pass the read\npointer as long as each run of length `k` produces at most `k` characters, which is why \"a run of 1 is\nwritten as just the letter\" matters: writing \"a1\" for a single \"a\" would grow the output.\n\n### Strings in languages without mutable strings\n\nIn Python and Java, convert to a list or `char[]`, run the same loop, and build a string from the first\n`write` characters at the end. That's still one pass; the conversions are O(n) each."
+    }
+   ]
+  },
+  {
+   "id": "complexity",
+   "title": "What it costs",
+   "blocks": [
+    {
+     "md": "`read` visits each element once and every step does O(1) work, so it's O(n) time. Extra space is O(1):\ntwo indices. (Python and Java pay O(n) to turn a string into a mutable list and back, because strings can't\nbe changed.)\n\nThe naive in-place version, which deletes each unwanted element by shifting everything after it left, is\nO(n²) in the worst case: for `n = 100,000` with half the values removed, that's billions of moves."
+    },
+    {
+     "table": {
+      "head": [
+       "Approach",
+       "Time",
+       "Extra space",
+       "Keeps order"
+      ],
+      "rows": [
+       [
+        "Delete and shift, one at a time",
+        "O(n²)",
+        "O(1)",
+        "yes"
+       ],
+       [
+        "Build a new list",
+        "O(n)",
+        "O(n)",
+        "yes"
+       ],
+       [
+        "Read/write pointers",
+        "O(n)",
+        "O(1)",
+        "yes"
+       ],
+       [
+        "Overwrite with the last element",
+        "O(n)",
+        "O(1)",
+        "no"
+       ]
+      ]
+     }
+    }
+   ]
+  },
+  {
+   "id": "languages",
+   "title": "In your language",
+   "blocks": [
+    {
+     "md": "### Python\n\n`del a[write:]` or `a[:write]` cuts off the leftovers. Calling `list.remove` or `del a[i]` inside a loop is\nthe O(n²) shifting version, and modifying a list while a `for x in a` loop runs over it skips elements.\n`\" \".join(text.split())` does the space squeeze in one line, with a new string.\n\n### Java\n\nArrays can't shrink, so return the new length or `Arrays.copyOf(a, write)`. For strings, `toCharArray()`\nand `new String(chars, 0, write)`. With an `ArrayList`, calling `remove(i)` in a loop is the slow shifting\nversion.\n\n### C++\n\n`resize(write)` drops the tail. The standard library has this pattern built in: `std::remove_if` does the\nread/write loop and returns an iterator to the new end, which you pass to `erase`. `std::unique` does the\n\"differs from the last kept\" version.\n\n### C\n\nReturn the new length, or for strings write `'\\0'` at `write`. Make sure the string is in writable memory: a\nstring literal like `char* s = \"a  b\"` can't be changed, but `char s[] = \"a  b\"` can."
+    }
+   ]
+  },
+  {
+   "id": "pitfalls",
+   "title": "Pitfalls and edge cases",
+   "blocks": [
+    {
+     "md": "- Comparing with `a[read - 1]` when the rule is about what was *kept*. Use `a[write - 1]`.\n- Forgetting `write == 0` before reading `a[write - 1]`.\n- Forgetting what to do with the leftovers: cut them, fill them, or just return the length.\n- Moving `write` when nothing was written.\n- Writing forwards when the output can be longer than the input.\n- Deleting from a list while looping over it.\n- In C, trying to modify a string literal."
+    }
+   ]
+  },
+  {
+   "id": "check",
+   "title": "Check yourself",
+   "blocks": [
+    {
+     "quiz": [
+      {
+       "q": "Why can't the write pointer overwrite a value that hasn't been read yet?",
+       "a": "`write` only moves when something is kept, and `read` moves every step, so `write ≤ read`. The slot being written has always been read already."
+      },
+      {
+       "q": "In `keep_records`, why compare with `nums[write - 1]` rather than `nums[read - 1]`?",
+       "a": "`nums[write - 1]` is the last record kept, which is the highest value so far. `nums[read - 1]` is just the previous value, which may be lower: in [3, 1, 2], 2 beats 1 but not 3."
+      },
+      {
+       "q": "After the loop, what's in `a[write:]`?",
+       "a": "Leftovers: old values that have either been copied further left or dropped. They aren't part of the answer."
+      },
+      {
+       "q": "Remove every 0 from [0, 0, 1], keeping order. What are read and write after each step?",
+       "a": "Read 0: skip (write 0). Read 1: skip (write 0). Read 2: keep 1 at slot 0 (write 1). The answer is [1]."
+      },
+      {
+       "q": "Why does doubling every zero need to be done from the back?",
+       "a": "The output is longer than the input, so writing forwards would get ahead of reading and overwrite values before they're read. From the back, the write pointer stays ahead (to the right) of the read pointer."
+      }
+     ]
+    }
+   ]
+  }
+ ],
+ "leetcode": [
+  {
+   "id": 26,
+   "title": "Remove Duplicates from Sorted Array",
+   "url": "https://leetcode.com/problems/remove-duplicates-from-sorted-array/",
+   "difficulty": "easy"
+  },
+  {
+   "id": 27,
+   "title": "Remove Element",
+   "url": "https://leetcode.com/problems/remove-element/",
+   "difficulty": "easy"
+  },
+  {
+   "id": 283,
+   "title": "Move Zeroes",
+   "url": "https://leetcode.com/problems/move-zeroes/",
+   "difficulty": "easy"
+  },
+  {
+   "id": 1089,
+   "title": "Duplicate Zeros",
+   "url": "https://leetcode.com/problems/duplicate-zeros/",
+   "difficulty": "easy"
+  },
+  {
+   "id": 2460,
+   "title": "Apply Operations to an Array",
+   "url": "https://leetcode.com/problems/apply-operations-to-an-array/",
+   "difficulty": "easy"
+  },
+  {
+   "id": 80,
+   "title": "Remove Duplicates from Sorted Array II",
+   "url": "https://leetcode.com/problems/remove-duplicates-from-sorted-array-ii/",
+   "difficulty": "medium"
+  },
+  {
+   "id": 443,
+   "title": "String Compression",
+   "url": "https://leetcode.com/problems/string-compression/",
+   "difficulty": "medium"
+  },
+  {
+   "id": 151,
+   "title": "Reverse Words in a String",
+   "url": "https://leetcode.com/problems/reverse-words-in-a-string/",
+   "difficulty": "medium"
+  }
+ ]
+}

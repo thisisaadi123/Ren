@@ -1,0 +1,2420 @@
+{
+ "version": 1,
+ "id": "comparison-sorts",
+ "topic": "sorting",
+ "summary": "Merge sort and quick sort are the two classic ways to sort in O(n log n) by comparing values. Both split the\nproblem in two and sort each part. Merge sort splits blindly and does its work while joining sorted halves\nback together; quick sort does its work while splitting, so there's nothing left to join. The sorts in most\nstandard libraries are built from these two, with insertion sort for small ranges.",
+ "minutes": 16,
+ "sections": [
+  {
+   "id": "idea",
+   "title": "The idea",
+   "blocks": [
+    {
+     "md": "Imagine sorting a big stack of exam papers by score. One way: split the stack in half and hand each half\nto a friend to sort. When they hand them back, you merge the two sorted piles by repeatedly taking whichever\ntop paper has the lower score. Your friends do the same thing with their halves, and so on, until someone\ngets a pile of one paper, which is already sorted. That's **merge sort**.\n\nAnother way: pick one paper, say a 60, and make two piles: everything below 60 and everything else. The 60\ngoes between them, exactly where it will end up. Now sort each pile the same way. When both are sorted,\nthe whole stack is sorted, with no merging needed. That's **quick sort**, and the 60 is the **pivot**.\n\nBoth are \"divide and conquer\". Merge sort's split costs nothing and all the work is in the merge. Quick\nsort spends its effort on the split and then has nothing to join."
+    },
+    {
+     "panels": [
+      {
+       "type": "row",
+       "cells": [
+        38,
+        27,
+        43,
+        3,
+        9,
+        82,
+        10
+       ],
+       "states": {
+        "0": "found",
+        "1": "mark",
+        "2": "found",
+        "3": "mark",
+        "4": "found",
+        "5": "mark",
+        "6": "found"
+       },
+       "label": "7 sorted pieces"
+      },
+      {
+       "type": "row",
+       "cells": [
+        38,
+        27,
+        43,
+        3,
+        9,
+        10,
+        82
+       ],
+       "states": {
+        "0": "found",
+        "1": "mark",
+        "2": "mark",
+        "3": "found",
+        "4": "found",
+        "5": "mark",
+        "6": "mark"
+       },
+       "label": "4 sorted pieces"
+      },
+      {
+       "type": "row",
+       "cells": [
+        27,
+        38,
+        43,
+        3,
+        9,
+        10,
+        82
+       ],
+       "states": {
+        "0": "found",
+        "1": "found",
+        "2": "found",
+        "3": "mark",
+        "4": "mark",
+        "5": "mark",
+        "6": "mark"
+       },
+       "label": "2 sorted pieces"
+      },
+      {
+       "type": "row",
+       "cells": [
+        3,
+        9,
+        10,
+        27,
+        38,
+        43,
+        82
+       ],
+       "states": {
+        "0": "found",
+        "1": "found",
+        "2": "found",
+        "3": "found",
+        "4": "found",
+        "5": "found",
+        "6": "found"
+       },
+       "label": "1 sorted piece"
+      }
+     ],
+     "caption": "Merge sort, read from the top: single values are sorted pieces, and each level merges neighbouring pieces into bigger ones."
+    },
+    {
+     "key": "Merge sort: sort each half, then merge them by repeatedly taking the smaller front value. Always O(n log n),\nstable, needs O(n) extra space. Quick sort: pick a pivot, move smaller values to its left and the rest to its\nright, then sort each side. O(n log n) on average with a random pivot, in place, not stable."
+    }
+   ]
+  },
+  {
+   "id": "signals",
+   "title": "When to reach for it",
+   "blocks": [
+    {
+     "md": "Most of the time you just call your language's sort, and that's the right call. Write these yourself when:\n\n- the question says so (\"implement a sort\", \"without the built-in sort\");\n- the data isn't an array you can hand to the library, such as a linked list (merge sort suits it, since\n  merging lists needs no extra array);\n- the input has a shape that breaks a naive sort, such as many repeated values or nearly sorted\n  data, and you need to pick or adapt a sort for it;\n- you need the *pieces* of the algorithm: partitioning around a pivot (*Quickselect*), or doing extra work\n  during the merge (*Counting while merging*).\n\nChoosing between them:"
+    },
+    {
+     "table": {
+      "head": [
+       "you need",
+       "pick",
+       "because"
+      ],
+      "rows": [
+       [
+        "guaranteed O(n log n)",
+        "merge sort",
+        "it always splits evenly"
+       ],
+       [
+        "equal items to keep their order (stable)",
+        "merge sort",
+        "taking from the left half on ties keeps order"
+       ],
+       [
+        "no extra memory",
+        "quick sort",
+        "it partitions in place"
+       ],
+       [
+        "to sort a linked list",
+        "merge sort",
+        "lists merge by relinking, no buffer"
+       ],
+       [
+        "only the k-th value, not a full sort",
+        "quick sort's partition",
+        "see *Quickselect*"
+       ],
+       [
+        "tiny or nearly sorted input",
+        "insertion sort",
+        "almost no work when items are close to home"
+       ]
+      ]
+     }
+    }
+   ]
+  },
+  {
+   "id": "theory",
+   "title": "Why it works",
+   "blocks": [
+    {
+     "md": "### Merging two sorted lists\n\nIf two lists are each sorted, the smallest value overall is at the front of one of them. Take it, and the\nsame is true of what's left. So one pass with two pointers produces the merged list, doing at most one\ncomparison per value placed. When one list runs out, the rest of the other is already in order and bigger\nthan everything placed, so it's copied across as is."
+    },
+    {
+     "walk": {
+      "steps": [
+       {
+        "text": "Two sorted halves and an empty output. `i` and `j` point at the front of each half.",
+        "panels": [
+         {
+          "type": "row",
+          "cells": [
+           27,
+           38,
+           43
+          ],
+          "pointers": {
+           "i": 0
+          },
+          "label": "left"
+         },
+         {
+          "type": "row",
+          "cells": [
+           3,
+           9,
+           10,
+           82
+          ],
+          "pointers": {
+           "j": 0
+          },
+          "label": "right"
+         },
+         {
+          "type": "row",
+          "cells": [
+           null,
+           null,
+           null,
+           null,
+           null,
+           null,
+           null
+          ],
+          "label": "output"
+         }
+        ]
+       },
+       {
+        "text": "Compare 27 and 3. 3 is smaller, so it goes next, and `j` moves on.",
+        "panels": [
+         {
+          "type": "row",
+          "cells": [
+           27,
+           38,
+           43
+          ],
+          "pointers": {
+           "i": 0
+          },
+          "label": "left"
+         },
+         {
+          "type": "row",
+          "cells": [
+           3,
+           9,
+           10,
+           82
+          ],
+          "states": {
+           "0": "dim"
+          },
+          "pointers": {
+           "j": 1
+          },
+          "label": "right"
+         },
+         {
+          "type": "row",
+          "cells": [
+           3,
+           null,
+           null,
+           null,
+           null,
+           null,
+           null
+          ],
+          "states": {
+           "0": "new"
+          },
+          "label": "output"
+         }
+        ]
+       },
+       {
+        "text": "Compare 27 and 9. 9 is smaller, so it goes next, and `j` moves on.",
+        "panels": [
+         {
+          "type": "row",
+          "cells": [
+           27,
+           38,
+           43
+          ],
+          "pointers": {
+           "i": 0
+          },
+          "label": "left"
+         },
+         {
+          "type": "row",
+          "cells": [
+           3,
+           9,
+           10,
+           82
+          ],
+          "states": {
+           "0": "dim",
+           "1": "dim"
+          },
+          "pointers": {
+           "j": 2
+          },
+          "label": "right"
+         },
+         {
+          "type": "row",
+          "cells": [
+           3,
+           9,
+           null,
+           null,
+           null,
+           null,
+           null
+          ],
+          "states": {
+           "1": "new"
+          },
+          "label": "output"
+         }
+        ]
+       },
+       {
+        "text": "Compare 27 and 10. 10 is smaller, so it goes next, and `j` moves on.",
+        "panels": [
+         {
+          "type": "row",
+          "cells": [
+           27,
+           38,
+           43
+          ],
+          "pointers": {
+           "i": 0
+          },
+          "label": "left"
+         },
+         {
+          "type": "row",
+          "cells": [
+           3,
+           9,
+           10,
+           82
+          ],
+          "states": {
+           "0": "dim",
+           "1": "dim",
+           "2": "dim"
+          },
+          "pointers": {
+           "j": 3
+          },
+          "label": "right"
+         },
+         {
+          "type": "row",
+          "cells": [
+           3,
+           9,
+           10,
+           null,
+           null,
+           null,
+           null
+          ],
+          "states": {
+           "2": "new"
+          },
+          "label": "output"
+         }
+        ]
+       },
+       {
+        "text": "Compare 27 and 82. 27 is smaller (or equal), so it goes next, and `i` moves on.",
+        "panels": [
+         {
+          "type": "row",
+          "cells": [
+           27,
+           38,
+           43
+          ],
+          "states": {
+           "0": "dim"
+          },
+          "pointers": {
+           "i": 1
+          },
+          "label": "left"
+         },
+         {
+          "type": "row",
+          "cells": [
+           3,
+           9,
+           10,
+           82
+          ],
+          "states": {
+           "0": "dim",
+           "1": "dim",
+           "2": "dim"
+          },
+          "pointers": {
+           "j": 3
+          },
+          "label": "right"
+         },
+         {
+          "type": "row",
+          "cells": [
+           3,
+           9,
+           10,
+           27,
+           null,
+           null,
+           null
+          ],
+          "states": {
+           "3": "new"
+          },
+          "label": "output"
+         }
+        ]
+       },
+       {
+        "text": "Compare 38 and 82. 38 is smaller (or equal), so it goes next, and `i` moves on.",
+        "panels": [
+         {
+          "type": "row",
+          "cells": [
+           27,
+           38,
+           43
+          ],
+          "states": {
+           "0": "dim",
+           "1": "dim"
+          },
+          "pointers": {
+           "i": 2
+          },
+          "label": "left"
+         },
+         {
+          "type": "row",
+          "cells": [
+           3,
+           9,
+           10,
+           82
+          ],
+          "states": {
+           "0": "dim",
+           "1": "dim",
+           "2": "dim"
+          },
+          "pointers": {
+           "j": 3
+          },
+          "label": "right"
+         },
+         {
+          "type": "row",
+          "cells": [
+           3,
+           9,
+           10,
+           27,
+           38,
+           null,
+           null
+          ],
+          "states": {
+           "4": "new"
+          },
+          "label": "output"
+         }
+        ]
+       },
+       {
+        "text": "Compare 43 and 82. 43 is smaller (or equal), so it goes next, and `i` moves on.",
+        "panels": [
+         {
+          "type": "row",
+          "cells": [
+           27,
+           38,
+           43
+          ],
+          "states": {
+           "0": "dim",
+           "1": "dim",
+           "2": "dim"
+          },
+          "pointers": {},
+          "label": "left"
+         },
+         {
+          "type": "row",
+          "cells": [
+           3,
+           9,
+           10,
+           82
+          ],
+          "states": {
+           "0": "dim",
+           "1": "dim",
+           "2": "dim"
+          },
+          "pointers": {
+           "j": 3
+          },
+          "label": "right"
+         },
+         {
+          "type": "row",
+          "cells": [
+           3,
+           9,
+           10,
+           27,
+           38,
+           43,
+           null
+          ],
+          "states": {
+           "5": "new"
+          },
+          "label": "output"
+         }
+        ]
+       },
+       {
+        "text": "One half has run out. Everything left in the other (82) is bigger than what's been placed, and already sorted, so copy it across.",
+        "panels": [
+         {
+          "type": "row",
+          "cells": [
+           27,
+           38,
+           43
+          ],
+          "states": {
+           "0": "dim",
+           "1": "dim",
+           "2": "dim"
+          },
+          "label": "left"
+         },
+         {
+          "type": "row",
+          "cells": [
+           3,
+           9,
+           10,
+           82
+          ],
+          "states": {
+           "0": "dim",
+           "1": "dim",
+           "2": "dim",
+           "3": "dim"
+          },
+          "label": "right"
+         },
+         {
+          "type": "row",
+          "cells": [
+           3,
+           9,
+           10,
+           27,
+           38,
+           43,
+           82
+          ],
+          "states": {
+           "6": "new"
+          },
+          "label": "output"
+         }
+        ],
+        "result": "3 9 10 27 38 43 82"
+       }
+      ],
+      "title": "Merging [27, 38, 43] and [3, 9, 10, 82]. Both are sorted, so the smallest remaining value is always at the front of one of them.",
+      "legend": [
+       {
+        "state": "dim",
+        "text": "already taken"
+       },
+       {
+        "state": "new",
+        "text": "just placed in the output"
+       }
+      ]
+     }
+    },
+    {
+     "md": "### Why merge sort is O(n log n)\n\nEach level of splitting halves the pieces, so there are about `log₂ n` levels. At every level, the merges\ntogether touch each value once: O(n) per level. That's O(n log n) total, and it doesn't depend on the input\nat all: sorted, reversed or random, merge sort does the same splits.\n\n### Partitioning around a pivot\n\nQuick sort's partition scans the range once with two markers. Everything left of `store` is smaller than\nthe pivot; everything between `store` and the scan is not. A small value found by the scan is swapped to\n`store`, which moves right. At the end the pivot is swapped into `store`, which is exactly its sorted\nposition: all smaller values are on its left, all others on its right. Then neither side ever needs to\nlook at the other again."
+    },
+    {
+     "walk": {
+      "steps": [
+       {
+        "text": "The pivot is 5, parked at the end. `store` marks where the next smaller value will go. Nothing has been looked at yet.",
+        "panels": [
+         {
+          "type": "row",
+          "cells": [
+           7,
+           2,
+           9,
+           4,
+           3,
+           8,
+           5
+          ],
+          "states": {
+           "6": "active"
+          },
+          "pointers": {
+           "i": 0,
+           "store": 0
+          },
+          "slots": true
+         },
+         {
+          "type": "vars",
+          "items": {
+           "pivot:": "5",
+           "smaller found:": "0"
+          }
+         }
+        ]
+       },
+       {
+        "text": "`i` = 0: 7 ≥ 5. Leave it where it is; it's on the bigger side for now.",
+        "panels": [
+         {
+          "type": "row",
+          "cells": [
+           7,
+           2,
+           9,
+           4,
+           3,
+           8,
+           5
+          ],
+          "states": {
+           "0": "mark",
+           "6": "active"
+          },
+          "pointers": {
+           "i": 0,
+           "store": 0
+          },
+          "slots": true
+         },
+         {
+          "type": "vars",
+          "items": {
+           "pivot:": "5",
+           "smaller found:": "0"
+          }
+         }
+        ]
+       },
+       {
+        "text": "`i` = 1: 2 < 5, so it joins the smaller side. Swap it into index 0 (where `store` points) and move `store` right.",
+        "panels": [
+         {
+          "type": "row",
+          "cells": [
+           2,
+           7,
+           9,
+           4,
+           3,
+           8,
+           5
+          ],
+          "states": {
+           "0": "found",
+           "1": "mark",
+           "6": "active"
+          },
+          "pointers": {
+           "i": 1,
+           "store": 1
+          },
+          "slots": true
+         },
+         {
+          "type": "vars",
+          "items": {
+           "pivot:": "5",
+           "smaller found:": "1"
+          }
+         }
+        ]
+       },
+       {
+        "text": "`i` = 2: 9 ≥ 5. Leave it where it is; it's on the bigger side for now.",
+        "panels": [
+         {
+          "type": "row",
+          "cells": [
+           2,
+           7,
+           9,
+           4,
+           3,
+           8,
+           5
+          ],
+          "states": {
+           "0": "found",
+           "1": "mark",
+           "2": "mark",
+           "6": "active"
+          },
+          "pointers": {
+           "i": 2,
+           "store": 1
+          },
+          "slots": true
+         },
+         {
+          "type": "vars",
+          "items": {
+           "pivot:": "5",
+           "smaller found:": "1"
+          }
+         }
+        ]
+       },
+       {
+        "text": "`i` = 3: 4 < 5, so it joins the smaller side. Swap it into index 1 (where `store` points) and move `store` right.",
+        "panels": [
+         {
+          "type": "row",
+          "cells": [
+           2,
+           4,
+           9,
+           7,
+           3,
+           8,
+           5
+          ],
+          "states": {
+           "0": "found",
+           "1": "found",
+           "2": "mark",
+           "3": "mark",
+           "6": "active"
+          },
+          "pointers": {
+           "i": 3,
+           "store": 2
+          },
+          "slots": true
+         },
+         {
+          "type": "vars",
+          "items": {
+           "pivot:": "5",
+           "smaller found:": "2"
+          }
+         }
+        ]
+       },
+       {
+        "text": "`i` = 4: 3 < 5, so it joins the smaller side. Swap it into index 2 (where `store` points) and move `store` right.",
+        "panels": [
+         {
+          "type": "row",
+          "cells": [
+           2,
+           4,
+           3,
+           7,
+           9,
+           8,
+           5
+          ],
+          "states": {
+           "0": "found",
+           "1": "found",
+           "2": "found",
+           "3": "mark",
+           "4": "mark",
+           "6": "active"
+          },
+          "pointers": {
+           "i": 4,
+           "store": 3
+          },
+          "slots": true
+         },
+         {
+          "type": "vars",
+          "items": {
+           "pivot:": "5",
+           "smaller found:": "3"
+          }
+         }
+        ]
+       },
+       {
+        "text": "`i` = 5: 8 ≥ 5. Leave it where it is; it's on the bigger side for now.",
+        "panels": [
+         {
+          "type": "row",
+          "cells": [
+           2,
+           4,
+           3,
+           7,
+           9,
+           8,
+           5
+          ],
+          "states": {
+           "0": "found",
+           "1": "found",
+           "2": "found",
+           "3": "mark",
+           "4": "mark",
+           "5": "mark",
+           "6": "active"
+          },
+          "pointers": {
+           "i": 5,
+           "store": 3
+          },
+          "slots": true
+         },
+         {
+          "type": "vars",
+          "items": {
+           "pivot:": "5",
+           "smaller found:": "3"
+          }
+         }
+        ]
+       },
+       {
+        "text": "Every value has been looked at. Swap the pivot into index 3, the first slot after the smaller values. It is now exactly where it will be in the sorted array.",
+        "panels": [
+         {
+          "type": "row",
+          "cells": [
+           2,
+           4,
+           3,
+           5,
+           9,
+           8,
+           7
+          ],
+          "states": {
+           "0": "found",
+           "1": "found",
+           "2": "found",
+           "4": "mark",
+           "5": "mark",
+           "6": "mark",
+           "3": "answer"
+          },
+          "pointers": {
+           "store": 3
+          },
+          "slots": true
+         },
+         {
+          "type": "vars",
+          "items": {
+           "pivot:": "5",
+           "smaller found:": "3"
+          }
+         }
+        ],
+        "result": "pivot at index 3"
+       }
+      ],
+      "title": "Partitioning `[7, 2, 9, 4, 3, 8, 5]` around its last value, 5. Afterwards everything smaller than 5 is on its left, everything else on its right.",
+      "legend": [
+       {
+        "state": "found",
+        "text": "smaller than the pivot"
+       },
+       {
+        "state": "mark",
+        "text": "looked at, not smaller"
+       },
+       {
+        "state": "active",
+        "text": "the pivot, parked at the end"
+       },
+       {
+        "state": "answer",
+        "text": "the pivot in its final place"
+       }
+      ]
+     }
+    },
+    {
+     "md": "### Why quick sort is O(n log n) on average, and when it isn't\n\nIf the pivot splits the range roughly in half, there are about `log n` levels with O(n) work each, as with\nmerge sort. But if the pivot is always the smallest or largest value, each partition only peels off one\nvalue, there are `n` levels, and it's O(n²). With \"always take the last value\" as the rule, an already\nsorted array does exactly that. Picking the pivot at random makes such bad luck vanishingly unlikely\non any input; the expected number of comparisons is about `1.39 · n log₂ n`.\n\nComparisons counted on real runs (last value as pivot, so you can see the bad case):"
+    },
+    {
+     "table": {
+      "head": [
+       "n",
+       "merge sort (sorted input)",
+       "quick sort, last pivot (sorted input)",
+       "quick sort, all values equal"
+      ],
+      "rows": [
+       [
+        "8",
+        "12",
+        "28",
+        "28"
+       ],
+       [
+        "64",
+        "192",
+        "2016",
+        "2016"
+       ],
+       [
+        "512",
+        "2304",
+        "130816",
+        "130816"
+       ]
+      ]
+     }
+    },
+    {
+     "md": "At n = 512, the sorted input costs quick sort over 56 times as many comparisons as merge sort.\nThe last column is the other trap: when every value is equal, `a[i] < pivot` is never true, every partition\nputs the pivot at the very left, and it's O(n²) again, *even with a random pivot*. The cure is to partition\ninto three parts (smaller, equal, bigger) and only recurse into the outer two.\n\n### Stability\n\nA sort is **stable** if equal items keep their original order. It matters when you sort records by one\nfield and their earlier order means something. Sorting `Ana (3), Ben (1), Cy (3), Dee (2), Eve (1)` by the number:"
+    },
+    {
+     "table": {
+      "head": [
+       "sort",
+       "result"
+      ],
+      "rows": [
+       [
+        "merge sort (takes from the left on ties)",
+        "Ben (1), Eve (1), Dee (2), Ana (3), Cy (3)"
+       ],
+       [
+        "quick sort (swaps over long distances)",
+        "Eve (1), Ben (1), Dee (2), Ana (3), Cy (3)"
+       ]
+      ]
+     }
+    },
+    {
+     "md": "Merge sort is stable because, on a tie, it takes the value from the left half, which came first. Quick sort's\nlong-distance swaps can jump an item over its equals, so it isn't.\n\n### Nothing comparison-based beats n log n\n\nA comparison sort learns one yes/no answer per comparison. There are `n!` possible orders of the input, and\nit must tell them all apart, so it needs at least `log₂(n!) ≈ n log₂ n` comparisons in the worst case. To go\nfaster you have to stop comparing and look at the values themselves (*Counting and bucket sort*)."
+    }
+   ]
+  },
+  {
+   "id": "template",
+   "title": "The template",
+   "blocks": [
+    {
+     "md": "Merge sort, with one shared buffer so the merges don't allocate new lists every time."
+    },
+    {
+     "code": {
+      "python": "def sort_range(a, buf, lo, hi):\n    if hi - lo < 2:\n        return\n    mid = (lo + hi) // 2\n    sort_range(a, buf, lo, mid)\n    sort_range(a, buf, mid, hi)\n    i, j, k = lo, mid, lo\n    while i < mid and j < hi:\n        if a[i] <= a[j]:\n            buf[k] = a[i]\n            i += 1\n        else:\n            buf[k] = a[j]\n            j += 1\n        k += 1\n    while i < mid:\n        buf[k] = a[i]\n        i, k = i + 1, k + 1\n    while j < hi:\n        buf[k] = a[j]\n        j, k = j + 1, k + 1\n    a[lo:hi] = buf[lo:hi]\n\n\ndef merge_sort(a):\n    buf = [0] * len(a)\n    sort_range(a, buf, 0, len(a))\n    return a\n",
+      "java": "static void sortRange(int[] a, int[] buf, int lo, int hi) {\n    if (hi - lo < 2) return;\n    int mid = (lo + hi) >>> 1;\n    sortRange(a, buf, lo, mid);\n    sortRange(a, buf, mid, hi);\n    int i = lo, j = mid, k = lo;\n    while (i < mid && j < hi) {\n        if (a[i] <= a[j]) buf[k++] = a[i++];\n        else buf[k++] = a[j++];\n    }\n    while (i < mid) buf[k++] = a[i++];\n    while (j < hi) buf[k++] = a[j++];\n    System.arraycopy(buf, lo, a, lo, hi - lo);\n}\n\nstatic int[] mergeSort(int[] a) {\n    sortRange(a, new int[a.length], 0, a.length);\n    return a;\n}\n",
+      "cpp": "void sortRange(vector<int>& a, vector<int>& buf, int lo, int hi) {\n    if (hi - lo < 2) return;\n    int mid = lo + (hi - lo) / 2;\n    sortRange(a, buf, lo, mid);\n    sortRange(a, buf, mid, hi);\n    int i = lo, j = mid, k = lo;\n    while (i < mid && j < hi) {\n        if (a[i] <= a[j]) buf[k++] = a[i++];\n        else buf[k++] = a[j++];\n    }\n    while (i < mid) buf[k++] = a[i++];\n    while (j < hi) buf[k++] = a[j++];\n    copy(buf.begin() + lo, buf.begin() + hi, a.begin() + lo);\n}\n\nvector<int>& mergeSort(vector<int>& a) {\n    vector<int> buf(a.size());\n    sortRange(a, buf, 0, a.size());\n    return a;\n}\n",
+      "c": "static void sortRange(int* a, int* buf, int lo, int hi) {\n    if (hi - lo < 2) return;\n    int mid = lo + (hi - lo) / 2;\n    sortRange(a, buf, lo, mid);\n    sortRange(a, buf, mid, hi);\n    int i = lo, j = mid, k = lo;\n    while (i < mid && j < hi) {\n        if (a[i] <= a[j]) buf[k++] = a[i++];\n        else buf[k++] = a[j++];\n    }\n    while (i < mid) buf[k++] = a[i++];\n    while (j < hi) buf[k++] = a[j++];\n    memcpy(a + lo, buf + lo, (hi - lo) * sizeof(int));\n}\n\nvoid mergeSort(int* a, int n) {\n    int* buf = malloc((n > 0 ? n : 1) * sizeof(int));\n    sortRange(a, buf, 0, n);\n    free(buf);\n}\n"
+     },
+     "title": "Merge sort",
+     "lines": [
+      {
+       "text": "A range of 0 or 1 values is already sorted.",
+       "at": {
+        "python": [
+         [
+          2,
+          3
+         ]
+        ],
+        "java": [
+         [
+          2,
+          2
+         ]
+        ],
+        "cpp": [
+         [
+          2,
+          2
+         ]
+        ],
+        "c": [
+         [
+          2,
+          2
+         ]
+        ]
+       }
+      },
+      {
+       "text": "The middle of the range `[lo, hi)`.",
+       "at": {
+        "python": [
+         [
+          4,
+          4
+         ]
+        ],
+        "java": [
+         [
+          3,
+          3
+         ]
+        ],
+        "cpp": [
+         [
+          3,
+          3
+         ]
+        ],
+        "c": [
+         [
+          3,
+          3
+         ]
+        ]
+       },
+       "notes": {
+        "java": "`>>> 1` is an unsigned shift: it halves `lo + hi` correctly even if the sum overflows `int`.",
+        "cpp": "`lo + (hi - lo) / 2` avoids overflowing `lo + hi`.",
+        "c": "`lo + (hi - lo) / 2` avoids overflowing `lo + hi`."
+       }
+      },
+      {
+       "text": "Sort each half (the recursion trusts itself).",
+       "at": {
+        "python": [
+         [
+          5,
+          6
+         ]
+        ],
+        "java": [
+         [
+          4,
+          5
+         ]
+        ],
+        "cpp": [
+         [
+          4,
+          5
+         ]
+        ],
+        "c": [
+         [
+          4,
+          5
+         ]
+        ]
+       }
+      },
+      {
+       "text": "`i` walks the left half, `j` the right half, `k` the buffer.",
+       "at": {
+        "python": [
+         [
+          7,
+          7
+         ]
+        ],
+        "java": [
+         [
+          6,
+          6
+         ]
+        ],
+        "cpp": [
+         [
+          6,
+          6
+         ]
+        ],
+        "c": [
+         [
+          6,
+          6
+         ]
+        ]
+       }
+      },
+      {
+       "text": "While both halves have values left…",
+       "at": {
+        "python": [
+         [
+          8,
+          8
+         ],
+         [
+          15,
+          15
+         ]
+        ],
+        "java": [
+         [
+          7,
+          7
+         ]
+        ],
+        "cpp": [
+         [
+          7,
+          7
+         ]
+        ],
+        "c": [
+         [
+          7,
+          7
+         ]
+        ]
+       }
+      },
+      {
+       "text": "…take the smaller front value. `<=` takes from the left on ties, which keeps the sort stable.",
+       "at": {
+        "python": [
+         [
+          9,
+          14
+         ]
+        ],
+        "java": [
+         [
+          8,
+          9
+         ]
+        ],
+        "cpp": [
+         [
+          8,
+          9
+         ]
+        ],
+        "c": [
+         [
+          8,
+          9
+         ]
+        ]
+       }
+      },
+      {
+       "text": "One half is used up; copy the rest of the other.",
+       "at": {
+        "python": [
+         [
+          16,
+          21
+         ]
+        ],
+        "java": [
+         [
+          11,
+          12
+         ]
+        ],
+        "cpp": [
+         [
+          11,
+          12
+         ]
+        ],
+        "c": [
+         [
+          11,
+          12
+         ]
+        ]
+       }
+      },
+      {
+       "text": "Move the merged range back into `a`.",
+       "at": {
+        "python": [
+         [
+          22,
+          22
+         ]
+        ],
+        "java": [
+         [
+          13,
+          13
+         ]
+        ],
+        "cpp": [
+         [
+          13,
+          13
+         ]
+        ],
+        "c": [
+         [
+          13,
+          13
+         ]
+        ]
+       },
+       "notes": {
+        "java": "`System.arraycopy` is a fast bulk copy.",
+        "c": "`memcpy` copies the bytes of the merged range."
+       }
+      },
+      {
+       "text": "One buffer the size of the array, shared by every merge.",
+       "at": {
+        "python": [
+         [
+          26,
+          27
+         ]
+        ],
+        "java": [
+         [
+          17,
+          17
+         ]
+        ],
+        "cpp": [
+         [
+          17,
+          18
+         ]
+        ],
+        "c": [
+         [
+          17,
+          18
+         ]
+        ]
+       },
+       "notes": {
+        "c": "`malloc` at least one element so a zero-length input doesn't ask for 0 bytes."
+       }
+      },
+      {
+       "text": "The sorted array.",
+       "at": {
+        "python": [
+         [
+          28,
+          28
+         ]
+        ],
+        "java": [
+         [
+          18,
+          18
+         ]
+        ],
+        "cpp": [
+         [
+          19,
+          19
+         ]
+        ],
+        "c": [
+         [
+          19,
+          19
+         ]
+        ]
+       },
+       "notes": {
+        "c": "Free the buffer; the caller's array is sorted in place."
+       }
+      }
+     ],
+     "run": {
+      "call": "merge_sort([38, 27, 43, 3, 9, 82, 10]); ([5, 1, 5, 1]); ([7])",
+      "output": "3 9 10 27 38 43 82\n1 1 5 5\n7"
+     }
+    },
+    {
+     "md": "Quick sort, with a random pivot and a loop that keeps the recursion shallow."
+    },
+    {
+     "code": {
+      "python": "import random\n\n\ndef partition(a, lo, hi):\n    p = random.randint(lo, hi)\n    a[p], a[hi] = a[hi], a[p]\n    pivot = a[hi]\n    store = lo\n    for i in range(lo, hi):\n        if a[i] < pivot:\n            a[i], a[store] = a[store], a[i]\n            store += 1\n    a[store], a[hi] = a[hi], a[store]\n    return store\n\n\ndef quick_range(a, lo, hi):\n    while lo < hi:\n        p = partition(a, lo, hi)\n        if p - lo < hi - p:\n            quick_range(a, lo, p - 1)\n            lo = p + 1\n        else:\n            quick_range(a, p + 1, hi)\n            hi = p - 1\n\n\ndef quick_sort(a):\n    quick_range(a, 0, len(a) - 1)\n    return a\n",
+      "java": "static final Random RNG = new Random(7);\n\nstatic void swap(int[] a, int i, int j) {\n    int t = a[i]; a[i] = a[j]; a[j] = t;\n}\n\nstatic int partition(int[] a, int lo, int hi) {\n    swap(a, lo + RNG.nextInt(hi - lo + 1), hi);\n    int pivot = a[hi];\n    int store = lo;\n    for (int i = lo; i < hi; i++)\n        if (a[i] < pivot) swap(a, i, store++);\n    swap(a, store, hi);\n    return store;\n}\n\nstatic void quickRange(int[] a, int lo, int hi) {\n    while (lo < hi) {\n        int p = partition(a, lo, hi);\n        if (p - lo < hi - p) {\n            quickRange(a, lo, p - 1);\n            lo = p + 1;\n        } else {\n            quickRange(a, p + 1, hi);\n            hi = p - 1;\n        }\n    }\n}\n\nstatic int[] quickSort(int[] a) {\n    quickRange(a, 0, a.length - 1);\n    return a;\n}\n",
+      "cpp": "mt19937 rng(7);\n\nint partition(vector<int>& a, int lo, int hi) {\n    swap(a[uniform_int_distribution<int>(lo, hi)(rng)], a[hi]);\n    int pivot = a[hi];\n    int store = lo;\n    for (int i = lo; i < hi; i++)\n        if (a[i] < pivot) swap(a[i], a[store++]);\n    swap(a[store], a[hi]);\n    return store;\n}\n\nvoid quickRange(vector<int>& a, int lo, int hi) {\n    while (lo < hi) {\n        int p = partition(a, lo, hi);\n        if (p - lo < hi - p) {\n            quickRange(a, lo, p - 1);\n            lo = p + 1;\n        } else {\n            quickRange(a, p + 1, hi);\n            hi = p - 1;\n        }\n    }\n}\n\nvector<int>& quickSort(vector<int>& a) {\n    quickRange(a, 0, (int)a.size() - 1);\n    return a;\n}\n",
+      "c": "static void swap(int* a, int i, int j) {\n    int t = a[i]; a[i] = a[j]; a[j] = t;\n}\n\nstatic int partition(int* a, int lo, int hi) {\n    swap(a, lo + rand() % (hi - lo + 1), hi);\n    int pivot = a[hi];\n    int store = lo;\n    for (int i = lo; i < hi; i++)\n        if (a[i] < pivot) swap(a, i, store++);\n    swap(a, store, hi);\n    return store;\n}\n\nstatic void quickRange(int* a, int lo, int hi) {\n    while (lo < hi) {\n        int p = partition(a, lo, hi);\n        if (p - lo < hi - p) {\n            quickRange(a, lo, p - 1);\n            lo = p + 1;\n        } else {\n            quickRange(a, p + 1, hi);\n            hi = p - 1;\n        }\n    }\n}\n\nvoid quickSort(int* a, int n) {\n    quickRange(a, 0, n - 1);\n}\n"
+     },
+     "title": "Quick sort",
+     "lines": [
+      {
+       "text": "Choose a random pivot and park it at the end of the range.",
+       "at": {
+        "python": [
+         [
+          5,
+          7
+         ]
+        ],
+        "java": [
+         [
+          8,
+          9
+         ]
+        ],
+        "cpp": [
+         [
+          4,
+          5
+         ]
+        ],
+        "c": [
+         [
+          6,
+          7
+         ]
+        ]
+       },
+       "notes": {
+        "java": "A seeded `Random` keeps runs repeatable; any source of randomness works.",
+        "c": "`rand() % size` is fine here; it doesn't need to be perfectly uniform."
+       }
+      },
+      {
+       "text": "Everything left of `store` will be smaller than the pivot.",
+       "at": {
+        "python": [
+         [
+          8,
+          8
+         ]
+        ],
+        "java": [
+         [
+          10,
+          10
+         ]
+        ],
+        "cpp": [
+         [
+          6,
+          6
+         ]
+        ],
+        "c": [
+         [
+          8,
+          8
+         ]
+        ]
+       }
+      },
+      {
+       "text": "Look at every other value in the range once.",
+       "at": {
+        "python": [
+         [
+          9,
+          9
+         ]
+        ],
+        "java": [
+         [
+          11,
+          11
+         ]
+        ],
+        "cpp": [
+         [
+          7,
+          7
+         ]
+        ],
+        "c": [
+         [
+          9,
+          9
+         ]
+        ]
+       }
+      },
+      {
+       "text": "A smaller value moves to `store`, and the small side grows by one.",
+       "at": {
+        "python": [
+         [
+          10,
+          12
+         ]
+        ],
+        "java": [
+         [
+          12,
+          12
+         ]
+        ],
+        "cpp": [
+         [
+          8,
+          8
+         ]
+        ],
+        "c": [
+         [
+          10,
+          10
+         ]
+        ]
+       }
+      },
+      {
+       "text": "Put the pivot between the two sides. Its index is final.",
+       "at": {
+        "python": [
+         [
+          13,
+          14
+         ]
+        ],
+        "java": [
+         [
+          13,
+          14
+         ]
+        ],
+        "cpp": [
+         [
+          9,
+          10
+         ]
+        ],
+        "c": [
+         [
+          11,
+          12
+         ]
+        ]
+       }
+      },
+      {
+       "text": "Ranges of 0 or 1 values are done.",
+       "at": {
+        "python": [
+         [
+          18,
+          18
+         ]
+        ],
+        "java": [
+         [
+          18,
+          18
+         ]
+        ],
+        "cpp": [
+         [
+          14,
+          14
+         ]
+        ],
+        "c": [
+         [
+          16,
+          16
+         ]
+        ]
+       }
+      },
+      {
+       "text": "Partition, and get the pivot's final index.",
+       "at": {
+        "python": [
+         [
+          19,
+          19
+         ]
+        ],
+        "java": [
+         [
+          19,
+          19
+         ]
+        ],
+        "cpp": [
+         [
+          15,
+          15
+         ]
+        ],
+        "c": [
+         [
+          17,
+          17
+         ]
+        ]
+       }
+      },
+      {
+       "text": "Recurse into the *smaller* side and loop on the bigger one. The recursion then never goes deeper than about `log₂ n`, even on unlucky inputs.",
+       "at": {
+        "python": [
+         [
+          20,
+          25
+         ]
+        ],
+        "java": [
+         [
+          20,
+          25
+         ]
+        ],
+        "cpp": [
+         [
+          16,
+          21
+         ]
+        ],
+        "c": [
+         [
+          18,
+          23
+         ]
+        ]
+       }
+      },
+      {
+       "text": "Sort the whole array.",
+       "at": {
+        "python": [
+         [
+          29,
+          30
+         ]
+        ],
+        "java": [
+         [
+          31,
+          32
+         ]
+        ],
+        "cpp": [
+         [
+          27,
+          28
+         ]
+        ],
+        "c": [
+         [
+          29,
+          29
+         ]
+        ]
+       },
+       "notes": {
+        "c": "C sorts the caller's array in place."
+       }
+      }
+     ],
+     "run": {
+      "call": "quick_sort([7, 2, 9, 4, 3, 8, 5]); ([4, 4, 1, 4, 0]); (10 down to 1)",
+      "output": "2 3 4 5 7 8 9\n0 1 4 4 4\n1 2 3 4 5 6 7 8 9 10"
+     }
+    }
+   ]
+  },
+  {
+   "id": "trace",
+   "title": "Trace it by hand",
+   "blocks": [
+    {
+     "md": "You've stepped through one merge and one partition in *Why it works*. Here are whole sorts, one big step\nat a time. First merge sort: watch the sorted pieces grow from the left, because the recursion finishes the\nleft half before it touches the right."
+    },
+    {
+     "walk": {
+      "steps": [
+       {
+        "text": "Nothing merged yet. Every single value counts as a sorted piece of length 1.",
+        "panels": [
+         {
+          "type": "row",
+          "cells": [
+           38,
+           27,
+           43,
+           3,
+           9,
+           82,
+           10
+          ],
+          "slots": true
+         },
+         {
+          "type": "vars",
+          "items": {
+           "merging:": "nothing yet",
+           "result:": "–"
+          }
+         }
+        ]
+       },
+       {
+        "text": "Merge indices 1..1 (27) with 2..2 (43). Both halves were sorted by the steps before.",
+        "panels": [
+         {
+          "type": "row",
+          "cells": [
+           38,
+           27,
+           43,
+           3,
+           9,
+           82,
+           10
+          ],
+          "states": {
+           "1": "found",
+           "2": "found"
+          },
+          "slots": true
+         },
+         {
+          "type": "vars",
+          "items": {
+           "merging:": "[27] + [43]",
+           "result:": "27 43"
+          }
+         }
+        ]
+       },
+       {
+        "text": "Merge indices 0..0 (38) with 1..2 (27 43). Both halves were sorted by the steps before.",
+        "panels": [
+         {
+          "type": "row",
+          "cells": [
+           27,
+           38,
+           43,
+           3,
+           9,
+           82,
+           10
+          ],
+          "states": {
+           "0": "found",
+           "1": "found",
+           "2": "found"
+          },
+          "slots": true
+         },
+         {
+          "type": "vars",
+          "items": {
+           "merging:": "[38] + [27, 43]",
+           "result:": "27 38 43"
+          }
+         }
+        ]
+       },
+       {
+        "text": "Merge indices 3..3 (3) with 4..4 (9). Both halves were sorted by the steps before.",
+        "panels": [
+         {
+          "type": "row",
+          "cells": [
+           27,
+           38,
+           43,
+           3,
+           9,
+           82,
+           10
+          ],
+          "states": {
+           "3": "found",
+           "4": "found"
+          },
+          "slots": true
+         },
+         {
+          "type": "vars",
+          "items": {
+           "merging:": "[3] + [9]",
+           "result:": "3 9"
+          }
+         }
+        ]
+       },
+       {
+        "text": "Merge indices 5..5 (82) with 6..6 (10). Both halves were sorted by the steps before.",
+        "panels": [
+         {
+          "type": "row",
+          "cells": [
+           27,
+           38,
+           43,
+           3,
+           9,
+           10,
+           82
+          ],
+          "states": {
+           "5": "found",
+           "6": "found"
+          },
+          "slots": true
+         },
+         {
+          "type": "vars",
+          "items": {
+           "merging:": "[82] + [10]",
+           "result:": "10 82"
+          }
+         }
+        ]
+       },
+       {
+        "text": "Merge indices 3..4 (3 9) with 5..6 (10 82). Both halves were sorted by the steps before.",
+        "panels": [
+         {
+          "type": "row",
+          "cells": [
+           27,
+           38,
+           43,
+           3,
+           9,
+           10,
+           82
+          ],
+          "states": {
+           "3": "found",
+           "4": "found",
+           "5": "found",
+           "6": "found"
+          },
+          "slots": true
+         },
+         {
+          "type": "vars",
+          "items": {
+           "merging:": "[3, 9] + [10, 82]",
+           "result:": "3 9 10 82"
+          }
+         }
+        ]
+       },
+       {
+        "text": "Merge indices 0..2 (27 38 43) with 3..6 (3 9 10 82). Both halves were sorted by the steps before. This was the last merge: the array is sorted.",
+        "panels": [
+         {
+          "type": "row",
+          "cells": [
+           3,
+           9,
+           10,
+           27,
+           38,
+           43,
+           82
+          ],
+          "states": {
+           "0": "found",
+           "1": "found",
+           "2": "found",
+           "3": "found",
+           "4": "found",
+           "5": "found",
+           "6": "found"
+          },
+          "slots": true
+         },
+         {
+          "type": "vars",
+          "items": {
+           "merging:": "[27, 38, 43] + [3, 9, 10, 82]",
+           "result:": "3 9 10 27 38 43 82"
+          }
+         }
+        ]
+       }
+      ],
+      "title": "The whole of `merge_sort([38, 27, 43, 3, 9, 82, 10])`. The recursion finishes the left half completely before it starts the right half.",
+      "legend": [
+       {
+        "state": "found",
+        "text": "the range just merged (now sorted)"
+       }
+      ]
+     }
+    },
+    {
+     "md": "Now quick sort. Each step is a whole partition: the pivot lands in its final place, and the range splits in\ntwo. Unlike merge sort, nothing is ever merged back; once every value has been placed, the sort is done."
+    },
+    {
+     "walk": {
+      "steps": [
+       {
+        "text": "Nothing is in its final place yet. The first range is the whole array.",
+        "panels": [
+         {
+          "type": "row",
+          "cells": [
+           7,
+           2,
+           9,
+           4,
+           3,
+           8,
+           5,
+           1
+          ],
+          "slots": true
+         },
+         {
+          "type": "vars",
+          "items": {
+           "range:": "0..7",
+           "pivot:": "–",
+           "lands at:": "–"
+          }
+         }
+        ]
+       },
+       {
+        "text": "Partition 0..7 around 1: 0 smaller values go left, 7 go right, and 1 lands at index 0. A lopsided split: 1 was the smallest value in the range, so only one value got placed.",
+        "panels": [
+         {
+          "type": "row",
+          "cells": [
+           1,
+           2,
+           9,
+           4,
+           3,
+           8,
+           5,
+           7
+          ],
+          "states": {
+           "0": "answer",
+           "1": "mark",
+           "2": "mark",
+           "3": "mark",
+           "4": "mark",
+           "5": "mark",
+           "6": "mark",
+           "7": "mark"
+          },
+          "slots": true
+         },
+         {
+          "type": "vars",
+          "items": {
+           "range:": "0..7",
+           "pivot:": "1",
+           "lands at:": "0"
+          }
+         }
+        ]
+       },
+       {
+        "text": "Partition 1..7 around 7: 4 smaller values go left, 2 go right, and 7 lands at index 5.",
+        "panels": [
+         {
+          "type": "row",
+          "cells": [
+           1,
+           2,
+           4,
+           3,
+           5,
+           7,
+           9,
+           8
+          ],
+          "states": {
+           "1": "mark",
+           "2": "mark",
+           "3": "mark",
+           "4": "mark",
+           "5": "answer",
+           "6": "mark",
+           "7": "mark",
+           "0": "found"
+          },
+          "slots": true
+         },
+         {
+          "type": "vars",
+          "items": {
+           "range:": "1..7",
+           "pivot:": "7",
+           "lands at:": "5"
+          }
+         }
+        ]
+       },
+       {
+        "text": "Partition 1..4 around 5: 3 smaller values go left, 0 go right, and 5 lands at index 4. A lopsided split: 5 was the largest value in the range, so only one value got placed.",
+        "panels": [
+         {
+          "type": "row",
+          "cells": [
+           1,
+           2,
+           4,
+           3,
+           5,
+           7,
+           9,
+           8
+          ],
+          "states": {
+           "1": "mark",
+           "2": "mark",
+           "3": "mark",
+           "4": "answer",
+           "0": "found",
+           "5": "found"
+          },
+          "slots": true
+         },
+         {
+          "type": "vars",
+          "items": {
+           "range:": "1..4",
+           "pivot:": "5",
+           "lands at:": "4"
+          }
+         }
+        ]
+       },
+       {
+        "text": "Partition 1..3 around 3: 1 smaller value goes left, 1 goes right, and 3 lands at index 2. Index 1 (2) and index 3 (4) are ranges of one, so final too.",
+        "panels": [
+         {
+          "type": "row",
+          "cells": [
+           1,
+           2,
+           3,
+           4,
+           5,
+           7,
+           9,
+           8
+          ],
+          "states": {
+           "1": "found",
+           "2": "answer",
+           "3": "found",
+           "0": "found",
+           "4": "found",
+           "5": "found"
+          },
+          "slots": true
+         },
+         {
+          "type": "vars",
+          "items": {
+           "range:": "1..3",
+           "pivot:": "3",
+           "lands at:": "2"
+          }
+         }
+        ]
+       },
+       {
+        "text": "Partition 6..7 around 8: 0 smaller values go left, 1 goes right, and 8 lands at index 6. Index 7 (9) is a range of one, so final too.",
+        "panels": [
+         {
+          "type": "row",
+          "cells": [
+           1,
+           2,
+           3,
+           4,
+           5,
+           7,
+           8,
+           9
+          ],
+          "states": {
+           "6": "answer",
+           "7": "found",
+           "0": "found",
+           "1": "found",
+           "2": "found",
+           "3": "found",
+           "4": "found",
+           "5": "found"
+          },
+          "slots": true
+         },
+         {
+          "type": "vars",
+          "items": {
+           "range:": "6..7",
+           "pivot:": "8",
+           "lands at:": "6"
+          }
+         }
+        ]
+       },
+       {
+        "text": "No ranges left: every value has been a pivot or sat in a range of one, so every value is in its final place.",
+        "panels": [
+         {
+          "type": "row",
+          "cells": [
+           1,
+           2,
+           3,
+           4,
+           5,
+           7,
+           8,
+           9
+          ],
+          "states": {
+           "0": "found",
+           "1": "found",
+           "2": "found",
+           "3": "found",
+           "4": "found",
+           "5": "found",
+           "6": "found",
+           "7": "found"
+          },
+          "slots": true
+         },
+         {
+          "type": "vars",
+          "items": {
+           "range:": "none left",
+           "pivot:": "–",
+           "lands at:": "–"
+          }
+         }
+        ]
+       }
+      ],
+      "title": "The whole of a quick sort on `[7, 2, 9, 4, 3, 8, 5, 1]`, with the last value of each range as the pivot so you can follow it.",
+      "legend": [
+       {
+        "state": "mark",
+        "text": "the range being partitioned"
+       },
+       {
+        "state": "answer",
+        "text": "the pivot, placed this step"
+       },
+       {
+        "state": "found",
+        "text": "in its final place"
+       }
+      ]
+     }
+    },
+    {
+     "md": "On paper, draw the recursion as a tree with one node per range. Merge sort's work shows up on the way back\nup the tree, quick sort's on the way down."
+    }
+   ]
+  },
+  {
+   "id": "examples",
+   "title": "More examples",
+   "blocks": [
+    {
+     "md": "### Nearly sorted input\n\nIf every value is only a few places from home, use insertion sort. It takes each value in\nturn and slides it left past the bigger values before it. On `[2, 1, 3, 5, 4, 6, 8, 7]` the number of slides per value is\n`[1, 0, 0, 1, 0, 0, 1]`, a total of 3 instead of the ~14 you'd expect on random input. In\ngeneral, if every value is at most `k` places from home, it's O(n·k). (With large `k`, a heap does better;\nthat comes in the Heaps topic.)\n\n### Sorting a linked list\n\nYou can't jump to the middle of a linked list, and swapping far-apart nodes is awkward, so quick sort is a poor\nfit. Merge sort is natural: find the middle with a slow and a fast pointer, cut the list there, sort both\nhalves, and merge them by relinking nodes. No buffer is needed.\n\n### Many equal values\n\nLook again at the last column of the comparison table. Before you use quick sort on data like \"most\nvalues are one of three readings\", make the partition group equal values together, or use merge sort."
+    }
+   ]
+  },
+  {
+   "id": "variations",
+   "title": "Variations",
+   "blocks": [
+    {
+     "md": "### Insertion sort\n\nInsertion sort is short to write and stable, needs no extra memory, and beats the others on small or nearly\nsorted arrays. Library sorts switch to it once a range drops below about 16 to 32 values."
+    },
+    {
+     "code": {
+      "python": "def insertion_sort(a):\n    for i in range(1, len(a)):\n        x = a[i]\n        j = i - 1\n        while j >= 0 and a[j] > x:\n            a[j + 1] = a[j]\n            j -= 1\n        a[j + 1] = x\n    return a\n",
+      "java": "static int[] insertionSort(int[] a) {\n    for (int i = 1; i < a.length; i++) {\n        int x = a[i];\n        int j = i - 1;\n        while (j >= 0 && a[j] > x) {\n            a[j + 1] = a[j];\n            j--;\n        }\n        a[j + 1] = x;\n    }\n    return a;\n}\n",
+      "cpp": "vector<int>& insertionSort(vector<int>& a) {\n    for (int i = 1; i < (int)a.size(); i++) {\n        int x = a[i];\n        int j = i - 1;\n        while (j >= 0 && a[j] > x) {\n            a[j + 1] = a[j];\n            j--;\n        }\n        a[j + 1] = x;\n    }\n    return a;\n}\n",
+      "c": "void insertionSort(int* a, int n) {\n    for (int i = 1; i < n; i++) {\n        int x = a[i];\n        int j = i - 1;\n        while (j >= 0 && a[j] > x) {\n            a[j + 1] = a[j];\n            j--;\n        }\n        a[j + 1] = x;\n    }\n}\n"
+     },
+     "title": "Insertion sort",
+     "lines": [
+      {
+       "text": "Values left of `i` are already sorted. Insert `a[i]` among them.",
+       "at": {
+        "python": [
+         [
+          2,
+          2
+         ]
+        ],
+        "java": [
+         [
+          2,
+          2
+         ]
+        ],
+        "cpp": [
+         [
+          2,
+          2
+         ]
+        ],
+        "c": [
+         [
+          2,
+          2
+         ]
+        ]
+       }
+      },
+      {
+       "text": "Lift the value out, leaving a gap.",
+       "at": {
+        "python": [
+         [
+          3,
+          3
+         ]
+        ],
+        "java": [
+         [
+          3,
+          3
+         ]
+        ],
+        "cpp": [
+         [
+          3,
+          3
+         ]
+        ],
+        "c": [
+         [
+          3,
+          3
+         ]
+        ]
+       }
+      },
+      {
+       "text": "Slide bigger values one place right, moving the gap left. `>` (not `>=`) keeps it stable.",
+       "at": {
+        "python": [
+         [
+          4,
+          7
+         ]
+        ],
+        "java": [
+         [
+          4,
+          7
+         ]
+        ],
+        "cpp": [
+         [
+          4,
+          7
+         ]
+        ],
+        "c": [
+         [
+          4,
+          7
+         ]
+        ]
+       }
+      },
+      {
+       "text": "Put the value into the gap.",
+       "at": {
+        "python": [
+         [
+          8,
+          8
+         ]
+        ],
+        "java": [
+         [
+          9,
+          9
+         ]
+        ],
+        "cpp": [
+         [
+          9,
+          9
+         ]
+        ],
+        "c": [
+         [
+          9,
+          9
+         ]
+        ]
+       }
+      },
+      {
+       "text": "The sorted array.",
+       "at": {
+        "python": [
+         [
+          9,
+          9
+         ]
+        ],
+        "java": [
+         [
+          11,
+          11
+         ]
+        ],
+        "cpp": [
+         [
+          11,
+          11
+         ]
+        ]
+       }
+      }
+     ],
+     "run": {
+      "call": "insertion_sort([5, 2, 4, 6, 1, 3])",
+      "output": "1 2 3 4 5 6"
+     }
+    },
+    {
+     "md": "### Bottom-up merge sort\n\nInstead of recursing, merge pieces of size 1 into size 2, then 2 into 4, and so on, with a loop over the piece\nsize. It's still O(n log n) and needs no recursion. The figure in *The idea* merges in this order.\n\n### Hybrid sorts\n\nLibrary sorts mix these ideas. Introsort (C++'s `std::sort`) is quick sort that switches to heap\nsort if the recursion gets too deep (so it's never O(n²)), and to insertion sort for small ranges. Timsort\n(Python, Java for objects) is a merge sort that finds runs already in order and merges those, so nearly sorted\ndata is close to O(n)."
+    }
+   ]
+  },
+  {
+   "id": "complexity",
+   "title": "What it costs",
+   "blocks": [
+    {
+     "md": "Merge sort: O(n log n) time always; O(n) extra space for the buffer, plus O(log n) for the recursion. Quick\nsort: O(n log n) expected time with a random pivot, O(n²) in the worst case (and on many equal values without\na three-way partition); O(log n) extra space when you recurse into the smaller side."
+    },
+    {
+     "table": {
+      "head": [
+       "Sort",
+       "Best",
+       "Average",
+       "Worst",
+       "Extra space",
+       "Stable"
+      ],
+      "rows": [
+       [
+        "Insertion sort",
+        "O(n)",
+        "O(n²)",
+        "O(n²)",
+        "O(1)",
+        "yes"
+       ],
+       [
+        "Merge sort",
+        "O(n log n)",
+        "O(n log n)",
+        "O(n log n)",
+        "O(n)",
+        "yes"
+       ],
+       [
+        "Quick sort (random pivot)",
+        "O(n log n)",
+        "O(n log n)",
+        "O(n²)",
+        "O(log n)",
+        "no"
+       ],
+       [
+        "Library sort (introsort / Timsort)",
+        "O(n) to O(n log n)",
+        "O(n log n)",
+        "O(n log n)",
+        "varies",
+        "Timsort yes"
+       ]
+      ]
+     }
+    }
+   ]
+  },
+  {
+   "id": "languages",
+   "title": "In your language",
+   "blocks": [
+    {
+     "md": "### Python\n\n`list.sort()` (in place) and `sorted()` (new list) use Timsort: stable, O(n log n), and very fast on partly\nsorted data. Python's recursion limit (about 1000) is fine for merge sort, whose depth is `log₂ n`, but a\nquick sort that recurses into both sides can hit it on bad input.\n\n### Java\n\n`Arrays.sort(int[])` is a dual-pivot quick sort: fast, but not stable (stability doesn't matter for plain\nnumbers). `Arrays.sort(Object[])` and `Collections.sort` use Timsort, which is stable. Use `>>> 1` or\n`lo + (hi - lo) / 2` for midpoints.\n\n### C++\n\n`std::sort` is introsort: O(n log n) worst case, not stable. `std::stable_sort` is a merge sort.\n`std::partition` and `std::nth_element` give you quick sort's pieces.\n\n### C\n\n`qsort(base, n, size, cmp)` takes a comparator returning negative, zero or positive. Its algorithm and\nstability aren't specified. Write the comparator as `(a > b) - (a < b)`, never `a - b`, which can overflow."
+    }
+   ]
+  },
+  {
+   "id": "pitfalls",
+   "title": "Pitfalls and edge cases",
+   "blocks": [
+    {
+     "md": "- Using `<` instead of `<=` when merging, which takes from the right half on ties and loses stability.\n- Forgetting to copy the leftovers after one half runs out.\n- Allocating a new list in every merge call: correct, but slow. Share one buffer.\n- Always taking the first or last value as the pivot. Sorted input becomes O(n²).\n- Many equal values with a two-way partition: O(n²) even with a random pivot.\n- Recursing into both sides of quick sort and overflowing the stack on bad input.\n- `(lo + hi) / 2` overflowing in Java, C and C++ for very large arrays.\n- Empty and single-value arrays: both sorts must handle `n = 0` and `n = 1`."
+    }
+   ]
+  },
+  {
+   "id": "check",
+   "title": "Check yourself",
+   "blocks": [
+    {
+     "quiz": [
+      {
+       "q": "Why is merge sort O(n log n) on every input?",
+       "a": "It always splits in half, so there are about log₂ n levels, and the merges at each level touch every value once."
+      },
+      {
+       "q": "What makes quick sort O(n²), and how does a random pivot help?",
+       "a": "Pivots that are always the smallest or largest value, so each partition removes only one value. A random pivot makes that very unlikely on any input, giving O(n log n) on average."
+      },
+      {
+       "q": "Why can't a random pivot rescue quick sort when every value is equal?",
+       "a": "With a two-way partition, every value is 'not smaller' than the pivot, so the pivot always lands at the edge. You need a three-way partition that sets the equal values aside."
+      },
+      {
+       "q": "Which line makes merge sort stable?",
+       "a": "Taking from the left half when the two front values are equal (`a[i] <= a[j]`). The left half's items came first in the input."
+      },
+      {
+       "q": "Why is insertion sort fast on nearly sorted input?",
+       "a": "Each value only slides past the few bigger values before it. If every value is within k places of home, that's at most k slides each, so O(n·k)."
+      }
+     ]
+    }
+   ]
+  }
+ ],
+ "leetcode": [
+  {
+   "id": 88,
+   "title": "Merge Sorted Array",
+   "url": "https://leetcode.com/problems/merge-sorted-array/",
+   "difficulty": "easy"
+  },
+  {
+   "id": 977,
+   "title": "Squares of a Sorted Array",
+   "url": "https://leetcode.com/problems/squares-of-a-sorted-array/",
+   "difficulty": "easy"
+  },
+  {
+   "id": 905,
+   "title": "Sort Array By Parity",
+   "url": "https://leetcode.com/problems/sort-array-by-parity/",
+   "difficulty": "easy"
+  },
+  {
+   "id": 912,
+   "title": "Sort an Array",
+   "url": "https://leetcode.com/problems/sort-an-array/",
+   "difficulty": "medium"
+  },
+  {
+   "id": 75,
+   "title": "Sort Colors",
+   "url": "https://leetcode.com/problems/sort-colors/",
+   "difficulty": "medium"
+  },
+  {
+   "id": 148,
+   "title": "Sort List",
+   "url": "https://leetcode.com/problems/sort-list/",
+   "difficulty": "medium"
+  },
+  {
+   "id": 147,
+   "title": "Insertion Sort List",
+   "url": "https://leetcode.com/problems/insertion-sort-list/",
+   "difficulty": "medium"
+  },
+  {
+   "id": 2161,
+   "title": "Partition Array According to Given Pivot",
+   "url": "https://leetcode.com/problems/partition-array-according-to-given-pivot/",
+   "difficulty": "medium"
+  },
+  {
+   "id": 23,
+   "title": "Merge k Sorted Lists",
+   "url": "https://leetcode.com/problems/merge-k-sorted-lists/",
+   "difficulty": "hard"
+  }
+ ]
+}

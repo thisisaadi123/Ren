@@ -1,0 +1,1785 @@
+{
+ "version": 1,
+ "id": "quickselect",
+ "topic": "sorting",
+ "summary": "To find the k-th smallest value you don't need to sort everything. Partition around a pivot as quick sort does:\nthe pivot lands in its final sorted position. If that's position k, you're done; otherwise the answer is on one\nside, so throw the other side away and repeat. On average that's O(n), not O(n log n).",
+ "minutes": 12,
+ "sections": [
+  {
+   "id": "idea",
+   "title": "The idea",
+   "blocks": [
+    {
+     "md": "Say a class of 30 students lines up by height, and you only want to know who would be 10th shortest. Sorting\nthe whole line is overkill. Pick any student, say Ravi, and send everyone shorter than him to the left and\neveryone taller to the right. If 12 students went left, Ravi is 13th, and the 10th shortest must be among those\n12 on the left. The 17 on the right can go home. Now do the same with just the 12.\n\nEach round sends part of the class home, and on average about half. So the total work is roughly\n`30 + 15 + 8 + 4 + …`, which is less than `2 × 30`. Sorting everyone would cost far more.\n\nThat's **quickselect**: quick sort's partition, but recursing into only the side that holds the answer."
+    },
+    {
+     "panels": [
+      {
+       "type": "bars",
+       "values": [
+        64,
+        35,
+        20,
+        12,
+        5,
+        4
+       ],
+       "labels": [
+        "1",
+        "2",
+        "3",
+        "4",
+        "5",
+        "6"
+       ],
+       "label": "values still in play, round by round (n = 64, looking for the median)"
+      }
+     ],
+     "caption": "A real run: 6 rounds, 140 values looked at in total, compared with about 384 for a full sort."
+    },
+    {
+     "key": "Want index `k - 1` of the sorted order. Partition `[lo, hi]` around a random pivot; it lands at `p`. If\n`p == k - 1`, return it. If `p < k - 1`, search `[p + 1, hi]`; otherwise `[lo, p - 1]`. Expected O(n)."
+    }
+   ]
+  },
+  {
+   "id": "signals",
+   "title": "When to reach for it",
+   "blocks": [
+    {
+     "md": "\"The k-th smallest (or largest)\", \"the median\", \"the top k\" or \"the k closest\", when you don't need them in\norder and don't want to pay for a full sort. Phrases like \"in O(n) on average\" or \"faster than sorting\" point\nhere too.\n\nConverting the question:\n\n- The k-th largest of `n` values is the `(n - k + 1)`-th smallest.\n- The median of an odd number of values is the `(n + 1) / 2`-th smallest.\n- For the k smallest in any order, select the k-th. The first `k` positions of the array then hold the `k`\n  smallest values (unordered), because every partition put smaller values to the left.\n\nNot a fit:\n\n- You need the top k *in order* and `k` is close to `n`: just sort.\n- Values arrive one at a time and you need the k-th after each one: keep a heap of size `k` (Heaps topic).\n- Many questions about different `k` on the same data: sort once, then each answer is an index."
+    },
+    {
+     "table": {
+      "head": [
+       "approach",
+       "time",
+       "best when"
+      ],
+      "rows": [
+       [
+        "sort, then index",
+        "O(n log n)",
+        "several k on the same data"
+       ],
+       [
+        "heap of size k",
+        "O(n log k)",
+        "k is small, or data arrives as a stream"
+       ],
+       [
+        "quickselect",
+        "O(n) on average",
+        "one k, all data available, order of the rest doesn't matter"
+       ]
+      ]
+     }
+    }
+   ]
+  },
+  {
+   "id": "theory",
+   "title": "Why it works",
+   "blocks": [
+    {
+     "md": "### The pivot lands in its final position\n\nAfter a partition, every value left of the pivot is smaller and every value right of it is not. So the pivot\nsits exactly where it would in the sorted array, and the values on each side are the right *set*, even though\nthey're in a jumble. If the pivot is at index `p` and we want index `k - 1`:\n\n- `p == k - 1`: the pivot is the answer;\n- `p < k - 1`: the answer is one of the values right of `p`, and those values keep their positions relative\n  to the whole array, so we keep looking for index `k - 1` there;\n- `p > k - 1`: likewise on the left.\n\nThe target index never changes; only the range around it shrinks.\n\n### Why it's O(n) on average\n\nWith a random pivot, the expected size of the side we keep is at most about three quarters of the range.\nSo the expected work is at most `n + ¾n + (¾)²n + …`, a geometric series that adds up to `4n`. A finer count\ngives about `3.4n` comparisons to find the median, and less for k near either end. Either way it's linear,\nwhereas sorting is `n log n`.\n\n### The worst case, and the guarantee\n\nUnlucky pivots (always the smallest or largest in range) shrink the range by one each time, which is O(n²).\nRandom pivots make that astronomically unlikely. If you need a *guaranteed* O(n), the \"median of medians\"\nmethod picks the pivot by splitting the values into groups of 5, taking each group's median, and recursively\nselecting the median of those. That pivot always keeps at least 30% of the values out of each side. It's\nslower in practice and rarely asked for in interviews, but it's good to know it exists.\n\n### Repeated values\n\nWith many equal values, the two-way partition puts every value equal to the pivot on the same side, just as\nin quick sort, and the range shrinks by one each round. Counting comparisons on arrays where every value is\nthe same:"
+    },
+    {
+     "table": {
+      "head": [
+       "n (all values equal)",
+       "two-way partition",
+       "three-way partition"
+      ],
+      "rows": [
+       [
+        "100",
+        "3774",
+        "100"
+       ],
+       [
+        "1000",
+        "375249",
+        "1000"
+       ],
+       [
+        "4000",
+        "6000999",
+        "4000"
+       ]
+      ]
+     }
+    },
+    {
+     "md": "A three-way partition groups the values equal to the pivot in the middle. If the target index falls among\nthem, the answer is the pivot, and you stop at once."
+    }
+   ]
+  },
+  {
+   "id": "template",
+   "title": "The template",
+   "blocks": [
+    {
+     "md": "The k-th smallest value (k counts from 1), on a copy so the caller's array is left alone."
+    },
+    {
+     "code": {
+      "python": "import random\n\n\ndef kth_smallest(nums, k):\n    a = list(nums)\n    lo, hi, want = 0, len(a) - 1, k - 1\n    while True:\n        p = random.randint(lo, hi)\n        a[p], a[hi] = a[hi], a[p]\n        store = lo\n        for i in range(lo, hi):\n            if a[i] < a[hi]:\n                a[i], a[store] = a[store], a[i]\n                store += 1\n        a[store], a[hi] = a[hi], a[store]\n        if store == want:\n            return a[store]\n        if store < want:\n            lo = store + 1\n        else:\n            hi = store - 1\n",
+      "java": "static final Random RNG = new Random(7);\n\nstatic void swap(int[] a, int i, int j) {\n    int t = a[i]; a[i] = a[j]; a[j] = t;\n}\n\nstatic int kthSmallest(int[] nums, int k) {\n    int[] a = nums.clone();\n    int lo = 0, hi = a.length - 1, want = k - 1;\n    while (true) {\n        swap(a, lo + RNG.nextInt(hi - lo + 1), hi);\n        int store = lo;\n        for (int i = lo; i < hi; i++)\n            if (a[i] < a[hi]) swap(a, i, store++);\n        swap(a, store, hi);\n        if (store == want) return a[store];\n        if (store < want) lo = store + 1;\n        else hi = store - 1;\n    }\n}\n",
+      "cpp": "mt19937 rng(7);\n\nint kthSmallest(vector<int> a, int k) {\n    int lo = 0, hi = (int)a.size() - 1, want = k - 1;\n    while (true) {\n        swap(a[uniform_int_distribution<int>(lo, hi)(rng)], a[hi]);\n        int store = lo;\n        for (int i = lo; i < hi; i++)\n            if (a[i] < a[hi]) swap(a[i], a[store++]);\n        swap(a[store], a[hi]);\n        if (store == want) return a[store];\n        if (store < want) lo = store + 1;\n        else hi = store - 1;\n    }\n}\n",
+      "c": "static void swap(int* a, int i, int j) {\n    int t = a[i]; a[i] = a[j]; a[j] = t;\n}\n\nint kthSmallest(const int* nums, int n, int k) {\n    int* a = malloc(n * sizeof(int));\n    memcpy(a, nums, n * sizeof(int));\n    int lo = 0, hi = n - 1, want = k - 1;\n    while (true) {\n        swap(a, lo + rand() % (hi - lo + 1), hi);\n        int store = lo;\n        for (int i = lo; i < hi; i++)\n            if (a[i] < a[hi]) swap(a, i, store++);\n        swap(a, store, hi);\n        if (store == want) {\n            int answer = a[store];\n            free(a);\n            return answer;\n        }\n        if (store < want) lo = store + 1;\n        else hi = store - 1;\n    }\n}\n"
+     },
+     "title": "Quickselect",
+     "lines": [
+      {
+       "text": "Work on a copy: quickselect rearranges the array.",
+       "at": {
+        "python": [
+         [
+          5,
+          5
+         ]
+        ],
+        "java": [
+         [
+          8,
+          8
+         ]
+        ],
+        "c": [
+         [
+          6,
+          7
+         ]
+        ]
+       }
+      },
+      {
+       "text": "The part still in play, and the sorted index we want (k is 1-based, indices are 0-based).",
+       "at": {
+        "python": [
+         [
+          6,
+          6
+         ]
+        ],
+        "java": [
+         [
+          9,
+          9
+         ]
+        ],
+        "cpp": [
+         [
+          4,
+          4
+         ]
+        ],
+        "c": [
+         [
+          8,
+          8
+         ]
+        ]
+       },
+       "notes": {
+        "cpp": "Taking `a` by value already made the copy."
+       }
+      },
+      {
+       "text": "Each round partitions the range and keeps one side. A valid `k` guarantees the loop ends.",
+       "at": {
+        "python": [
+         [
+          7,
+          7
+         ]
+        ],
+        "java": [
+         [
+          10,
+          10
+         ]
+        ],
+        "cpp": [
+         [
+          5,
+          5
+         ]
+        ],
+        "c": [
+         [
+          9,
+          9
+         ]
+        ]
+       }
+      },
+      {
+       "text": "A random pivot, parked at the end of the range.",
+       "at": {
+        "python": [
+         [
+          8,
+          9
+         ]
+        ],
+        "java": [
+         [
+          11,
+          11
+         ]
+        ],
+        "cpp": [
+         [
+          6,
+          6
+         ]
+        ],
+        "c": [
+         [
+          10,
+          10
+         ]
+        ]
+       }
+      },
+      {
+       "text": "The same partition as in quick sort: smaller values to the left, then the pivot into its final position `store`.",
+       "at": {
+        "python": [
+         [
+          10,
+          15
+         ]
+        ],
+        "java": [
+         [
+          12,
+          15
+         ]
+        ],
+        "cpp": [
+         [
+          7,
+          10
+         ]
+        ],
+        "c": [
+         [
+          11,
+          14
+         ]
+        ]
+       }
+      },
+      {
+       "text": "The pivot landed on the index we want: that's the answer.",
+       "at": {
+        "python": [
+         [
+          16,
+          17
+         ]
+        ],
+        "java": [
+         [
+          16,
+          16
+         ]
+        ],
+        "cpp": [
+         [
+          11,
+          11
+         ]
+        ],
+        "c": [
+         [
+          15,
+          18
+         ]
+        ]
+       },
+       "notes": {
+        "c": "Free the copy before returning."
+       }
+      },
+      {
+       "text": "Otherwise keep only the side that contains the wanted index.",
+       "at": {
+        "python": [
+         [
+          18,
+          21
+         ]
+        ],
+        "java": [
+         [
+          17,
+          18
+         ]
+        ],
+        "cpp": [
+         [
+          12,
+          13
+         ]
+        ],
+        "c": [
+         [
+          20,
+          21
+         ]
+        ]
+       }
+      }
+     ],
+     "run": {
+      "call": "kth_smallest([7, 2, 9, 4, 3, 8, 5], 3); ([5, 5, 5, 1], 2); ([42], 1)",
+      "output": "4\n5\n42"
+     }
+    }
+   ]
+  },
+  {
+   "id": "trace",
+   "title": "Trace it by hand",
+   "blocks": [
+    {
+     "md": "Grey values have been ruled out. Notice that the target index never moves:"
+    },
+    {
+     "walk": {
+      "steps": [
+       {
+        "text": "We want whatever belongs at index 2. The whole array is still in play.",
+        "panels": [
+         {
+          "type": "row",
+          "cells": [
+           7,
+           2,
+           9,
+           4,
+           3,
+           8,
+           5
+          ],
+          "pointers": {
+           "want": 2
+          },
+          "slots": true
+         },
+         {
+          "type": "vars",
+          "items": {
+           "range:": "0..6",
+           "pivot:": "–",
+           "smaller found:": "–"
+          }
+         }
+        ]
+       },
+       {
+        "text": "Partition 0..6. The pivot is its last value, 5.",
+        "panels": [
+         {
+          "type": "row",
+          "cells": [
+           7,
+           2,
+           9,
+           4,
+           3,
+           8,
+           5
+          ],
+          "states": {
+           "6": "active"
+          },
+          "pointers": {
+           "want": 2,
+           "store": 0
+          },
+          "slots": true
+         },
+         {
+          "type": "vars",
+          "items": {
+           "range:": "0..6",
+           "pivot:": "5",
+           "smaller found:": "0"
+          }
+         }
+        ]
+       },
+       {
+        "text": "7 ≥ 5: it stays on the bigger side.",
+        "panels": [
+         {
+          "type": "row",
+          "cells": [
+           7,
+           2,
+           9,
+           4,
+           3,
+           8,
+           5
+          ],
+          "states": {
+           "0": "mark",
+           "6": "active"
+          },
+          "pointers": {
+           "want": 2,
+           "store": 0
+          },
+          "slots": true
+         },
+         {
+          "type": "vars",
+          "items": {
+           "range:": "0..6",
+           "pivot:": "5",
+           "smaller found:": "0"
+          }
+         }
+        ]
+       },
+       {
+        "text": "2 < 5: it joins the smaller side (swapped into index 0).",
+        "panels": [
+         {
+          "type": "row",
+          "cells": [
+           2,
+           7,
+           9,
+           4,
+           3,
+           8,
+           5
+          ],
+          "states": {
+           "0": "found",
+           "1": "mark",
+           "6": "active"
+          },
+          "pointers": {
+           "want": 2,
+           "store": 1
+          },
+          "slots": true
+         },
+         {
+          "type": "vars",
+          "items": {
+           "range:": "0..6",
+           "pivot:": "5",
+           "smaller found:": "1"
+          }
+         }
+        ]
+       },
+       {
+        "text": "9 ≥ 5: it stays on the bigger side.",
+        "panels": [
+         {
+          "type": "row",
+          "cells": [
+           2,
+           7,
+           9,
+           4,
+           3,
+           8,
+           5
+          ],
+          "states": {
+           "0": "found",
+           "1": "mark",
+           "2": "mark",
+           "6": "active"
+          },
+          "pointers": {
+           "want": 2,
+           "store": 1
+          },
+          "slots": true
+         },
+         {
+          "type": "vars",
+          "items": {
+           "range:": "0..6",
+           "pivot:": "5",
+           "smaller found:": "1"
+          }
+         }
+        ]
+       },
+       {
+        "text": "4 < 5: it joins the smaller side (swapped into index 1).",
+        "panels": [
+         {
+          "type": "row",
+          "cells": [
+           2,
+           4,
+           9,
+           7,
+           3,
+           8,
+           5
+          ],
+          "states": {
+           "0": "found",
+           "1": "found",
+           "2": "mark",
+           "3": "mark",
+           "6": "active"
+          },
+          "pointers": {
+           "want": 2,
+           "store": 2
+          },
+          "slots": true
+         },
+         {
+          "type": "vars",
+          "items": {
+           "range:": "0..6",
+           "pivot:": "5",
+           "smaller found:": "2"
+          }
+         }
+        ]
+       },
+       {
+        "text": "3 < 5: it joins the smaller side (swapped into index 2).",
+        "panels": [
+         {
+          "type": "row",
+          "cells": [
+           2,
+           4,
+           3,
+           7,
+           9,
+           8,
+           5
+          ],
+          "states": {
+           "0": "found",
+           "1": "found",
+           "2": "found",
+           "3": "mark",
+           "4": "mark",
+           "6": "active"
+          },
+          "pointers": {
+           "want": 2,
+           "store": 3
+          },
+          "slots": true
+         },
+         {
+          "type": "vars",
+          "items": {
+           "range:": "0..6",
+           "pivot:": "5",
+           "smaller found:": "3"
+          }
+         }
+        ]
+       },
+       {
+        "text": "8 ≥ 5: it stays on the bigger side.",
+        "panels": [
+         {
+          "type": "row",
+          "cells": [
+           2,
+           4,
+           3,
+           7,
+           9,
+           8,
+           5
+          ],
+          "states": {
+           "0": "found",
+           "1": "found",
+           "2": "found",
+           "3": "mark",
+           "4": "mark",
+           "5": "mark",
+           "6": "active"
+          },
+          "pointers": {
+           "want": 2,
+           "store": 3
+          },
+          "slots": true
+         },
+         {
+          "type": "vars",
+          "items": {
+           "range:": "0..6",
+           "pivot:": "5",
+           "smaller found:": "3"
+          }
+         }
+        ]
+       },
+       {
+        "text": "5 goes into index 3, its final place. We want index 2, which is to the left, so the other side is never looked at again.",
+        "panels": [
+         {
+          "type": "row",
+          "cells": [
+           2,
+           4,
+           3,
+           5,
+           9,
+           8,
+           7
+          ],
+          "states": {
+           "0": "found",
+           "1": "found",
+           "2": "found",
+           "3": "answer",
+           "4": "mark",
+           "5": "mark",
+           "6": "mark"
+          },
+          "pointers": {
+           "want": 2,
+           "store": 3
+          },
+          "slots": true
+         },
+         {
+          "type": "vars",
+          "items": {
+           "range:": "0..6",
+           "pivot:": "5",
+           "smaller found:": "3"
+          }
+         }
+        ]
+       },
+       {
+        "text": "Partition 0..2. The pivot is its last value, 3.",
+        "panels": [
+         {
+          "type": "row",
+          "cells": [
+           2,
+           4,
+           3,
+           5,
+           9,
+           8,
+           7
+          ],
+          "states": {
+           "3": "dim",
+           "4": "dim",
+           "5": "dim",
+           "6": "dim",
+           "2": "active"
+          },
+          "pointers": {
+           "want": 2,
+           "store": 0
+          },
+          "slots": true
+         },
+         {
+          "type": "vars",
+          "items": {
+           "range:": "0..2",
+           "pivot:": "3",
+           "smaller found:": "0"
+          }
+         }
+        ]
+       },
+       {
+        "text": "2 < 3: it joins the smaller side.",
+        "panels": [
+         {
+          "type": "row",
+          "cells": [
+           2,
+           4,
+           3,
+           5,
+           9,
+           8,
+           7
+          ],
+          "states": {
+           "3": "dim",
+           "4": "dim",
+           "5": "dim",
+           "6": "dim",
+           "0": "found",
+           "2": "active"
+          },
+          "pointers": {
+           "want": 2,
+           "store": 1
+          },
+          "slots": true
+         },
+         {
+          "type": "vars",
+          "items": {
+           "range:": "0..2",
+           "pivot:": "3",
+           "smaller found:": "1"
+          }
+         }
+        ]
+       },
+       {
+        "text": "4 ≥ 3: it stays on the bigger side.",
+        "panels": [
+         {
+          "type": "row",
+          "cells": [
+           2,
+           4,
+           3,
+           5,
+           9,
+           8,
+           7
+          ],
+          "states": {
+           "3": "dim",
+           "4": "dim",
+           "5": "dim",
+           "6": "dim",
+           "0": "found",
+           "1": "mark",
+           "2": "active"
+          },
+          "pointers": {
+           "want": 2,
+           "store": 1
+          },
+          "slots": true
+         },
+         {
+          "type": "vars",
+          "items": {
+           "range:": "0..2",
+           "pivot:": "3",
+           "smaller found:": "1"
+          }
+         }
+        ]
+       },
+       {
+        "text": "3 goes into index 1, its final place. We want index 2, which is to the right, so the other side is never looked at again.",
+        "panels": [
+         {
+          "type": "row",
+          "cells": [
+           2,
+           3,
+           4,
+           5,
+           9,
+           8,
+           7
+          ],
+          "states": {
+           "3": "dim",
+           "4": "dim",
+           "5": "dim",
+           "6": "dim",
+           "0": "found",
+           "1": "answer",
+           "2": "mark"
+          },
+          "pointers": {
+           "want": 2,
+           "store": 1
+          },
+          "slots": true
+         },
+         {
+          "type": "vars",
+          "items": {
+           "range:": "0..2",
+           "pivot:": "3",
+           "smaller found:": "1"
+          }
+         }
+        ]
+       },
+       {
+        "text": "Partition 2..2. The pivot is its last value, 4.",
+        "panels": [
+         {
+          "type": "row",
+          "cells": [
+           2,
+           3,
+           4,
+           5,
+           9,
+           8,
+           7
+          ],
+          "states": {
+           "0": "dim",
+           "1": "dim",
+           "3": "dim",
+           "4": "dim",
+           "5": "dim",
+           "6": "dim",
+           "2": "active"
+          },
+          "pointers": {
+           "want": 2,
+           "store": 2
+          },
+          "slots": true
+         },
+         {
+          "type": "vars",
+          "items": {
+           "range:": "2..2",
+           "pivot:": "4",
+           "smaller found:": "0"
+          }
+         }
+        ]
+       },
+       {
+        "text": "4 goes into index 2, its final place, and that's exactly the index we want. The answer is 4. Nothing else had to be sorted.",
+        "panels": [
+         {
+          "type": "row",
+          "cells": [
+           2,
+           3,
+           4,
+           5,
+           9,
+           8,
+           7
+          ],
+          "states": {
+           "0": "dim",
+           "1": "dim",
+           "3": "dim",
+           "4": "dim",
+           "5": "dim",
+           "6": "dim",
+           "2": "answer"
+          },
+          "pointers": {
+           "want": 2,
+           "store": 2
+          },
+          "slots": true
+         },
+         {
+          "type": "vars",
+          "items": {
+           "range:": "2..2",
+           "pivot:": "4",
+           "smaller found:": "0"
+          }
+         }
+        ],
+        "result": "4"
+       }
+      ],
+      "title": "`kth_smallest([7, 2, 9, 4, 3, 8, 5], 3)`: the 3rd smallest, which would sit at index 2 if the array were sorted. (Here the pivot is always the last value in range, to keep it easy to follow.)",
+      "legend": [
+       {
+        "state": "dim",
+        "text": "ruled out"
+       },
+       {
+        "state": "active",
+        "text": "the pivot"
+       },
+       {
+        "state": "found",
+        "text": "smaller than the pivot"
+       },
+       {
+        "state": "mark",
+        "text": "not smaller"
+       },
+       {
+        "state": "answer",
+        "text": "the pivot in its final place"
+       }
+      ]
+     }
+    }
+   ]
+  },
+  {
+   "id": "examples",
+   "title": "More examples",
+   "blocks": [
+    {
+     "md": "### The k-th largest\n\nThe 2nd largest of `[7, 2, 9, 4, 3, 8, 5]` is the 6th smallest (`7 - 2 + 1`). Converting at the start keeps the template\nunchanged, and avoids the classic off-by-one of mixing \"from the top\" and \"from the bottom\".\n\n### The k smallest, not just the k-th\n\nAfter `kth_smallest` (on the array itself rather than a copy), positions `0` to `k - 1` hold the `k` smallest\nvalues, in no particular order. If you need them sorted, sort just those `k`: O(n + k log k) in total. If the\nitems are records, partition by whatever value defines \"smallest\", such as a distance.\n\n### Many repeats\n\nReadings from a sensor often repeat the same few values. Here's the three-way partition on `[3, 5, 1, 3, 4, 3, 0, 3]`, which\nsorts values into smaller, equal and bigger in one pass:"
+    },
+    {
+     "walk": {
+      "steps": [
+       {
+        "text": "Three markers: before `lt` is smaller than 3, from `lt` up to `i` equals 3, after `gt` is bigger. From `i` to `gt` hasn't been looked at.",
+        "panels": [
+         {
+          "type": "row",
+          "cells": [
+           3,
+           5,
+           1,
+           3,
+           4,
+           3,
+           0,
+           3
+          ],
+          "pointers": {
+           "lt": 0,
+           "i": 0,
+           "gt": 7
+          },
+          "slots": true
+         },
+         {
+          "type": "vars",
+          "items": {
+           "smaller:": "0",
+           "equal:": "0",
+           "bigger:": "0",
+           "unexamined:": "8"
+          }
+         }
+        ]
+       },
+       {
+        "text": "Equal to 3: it's already in the middle part. `i` moves on.",
+        "panels": [
+         {
+          "type": "row",
+          "cells": [
+           3,
+           5,
+           1,
+           3,
+           4,
+           3,
+           0,
+           3
+          ],
+          "states": {
+           "0": "answer"
+          },
+          "pointers": {
+           "lt": 0,
+           "i": 1,
+           "gt": 7
+          },
+          "slots": true
+         },
+         {
+          "type": "vars",
+          "items": {
+           "smaller:": "0",
+           "equal:": "1",
+           "bigger:": "0",
+           "unexamined:": "7"
+          }
+         }
+        ]
+       },
+       {
+        "text": "5 > 3: swap it into the bigger part at `gt`, which moves left. `i` stays, because the value that came back (3) hasn't been looked at.",
+        "panels": [
+         {
+          "type": "row",
+          "cells": [
+           3,
+           3,
+           1,
+           3,
+           4,
+           3,
+           0,
+           5
+          ],
+          "states": {
+           "0": "answer",
+           "7": "mark"
+          },
+          "pointers": {
+           "lt": 0,
+           "i": 1,
+           "gt": 6
+          },
+          "slots": true
+         },
+         {
+          "type": "vars",
+          "items": {
+           "smaller:": "0",
+           "equal:": "1",
+           "bigger:": "1",
+           "unexamined:": "6"
+          }
+         }
+        ]
+       },
+       {
+        "text": "Equal to 3: it's already in the middle part. `i` moves on.",
+        "panels": [
+         {
+          "type": "row",
+          "cells": [
+           3,
+           3,
+           1,
+           3,
+           4,
+           3,
+           0,
+           5
+          ],
+          "states": {
+           "0": "answer",
+           "1": "answer",
+           "7": "mark"
+          },
+          "pointers": {
+           "lt": 0,
+           "i": 2,
+           "gt": 6
+          },
+          "slots": true
+         },
+         {
+          "type": "vars",
+          "items": {
+           "smaller:": "0",
+           "equal:": "2",
+           "bigger:": "1",
+           "unexamined:": "5"
+          }
+         }
+        ]
+       },
+       {
+        "text": "1 < 3: swap it to the end of the smaller part; `lt` and `i` both move on.",
+        "panels": [
+         {
+          "type": "row",
+          "cells": [
+           1,
+           3,
+           3,
+           3,
+           4,
+           3,
+           0,
+           5
+          ],
+          "states": {
+           "0": "found",
+           "1": "answer",
+           "2": "answer",
+           "7": "mark"
+          },
+          "pointers": {
+           "lt": 1,
+           "i": 3,
+           "gt": 6
+          },
+          "slots": true
+         },
+         {
+          "type": "vars",
+          "items": {
+           "smaller:": "1",
+           "equal:": "2",
+           "bigger:": "1",
+           "unexamined:": "4"
+          }
+         }
+        ]
+       },
+       {
+        "text": "Equal to 3: it's already in the middle part. `i` moves on.",
+        "panels": [
+         {
+          "type": "row",
+          "cells": [
+           1,
+           3,
+           3,
+           3,
+           4,
+           3,
+           0,
+           5
+          ],
+          "states": {
+           "0": "found",
+           "1": "answer",
+           "2": "answer",
+           "3": "answer",
+           "7": "mark"
+          },
+          "pointers": {
+           "lt": 1,
+           "i": 4,
+           "gt": 6
+          },
+          "slots": true
+         },
+         {
+          "type": "vars",
+          "items": {
+           "smaller:": "1",
+           "equal:": "3",
+           "bigger:": "1",
+           "unexamined:": "3"
+          }
+         }
+        ]
+       },
+       {
+        "text": "4 > 3: swap it into the bigger part at `gt`, which moves left. `i` stays, because the value that came back (0) hasn't been looked at.",
+        "panels": [
+         {
+          "type": "row",
+          "cells": [
+           1,
+           3,
+           3,
+           3,
+           0,
+           3,
+           4,
+           5
+          ],
+          "states": {
+           "0": "found",
+           "1": "answer",
+           "2": "answer",
+           "3": "answer",
+           "6": "mark",
+           "7": "mark"
+          },
+          "pointers": {
+           "lt": 1,
+           "i": 4,
+           "gt": 5
+          },
+          "slots": true
+         },
+         {
+          "type": "vars",
+          "items": {
+           "smaller:": "1",
+           "equal:": "3",
+           "bigger:": "2",
+           "unexamined:": "2"
+          }
+         }
+        ]
+       },
+       {
+        "text": "0 < 3: swap it to the end of the smaller part; `lt` and `i` both move on.",
+        "panels": [
+         {
+          "type": "row",
+          "cells": [
+           1,
+           0,
+           3,
+           3,
+           3,
+           3,
+           4,
+           5
+          ],
+          "states": {
+           "0": "found",
+           "1": "found",
+           "2": "answer",
+           "3": "answer",
+           "4": "answer",
+           "6": "mark",
+           "7": "mark"
+          },
+          "pointers": {
+           "lt": 2,
+           "i": 5,
+           "gt": 5
+          },
+          "slots": true
+         },
+         {
+          "type": "vars",
+          "items": {
+           "smaller:": "2",
+           "equal:": "3",
+           "bigger:": "2",
+           "unexamined:": "1"
+          }
+         }
+        ]
+       },
+       {
+        "text": "Equal to 3: it's already in the middle part. `i` moves on. Done. Indices 2 to 5 all hold 3, so any k from 3 to 6 is answered at once.",
+        "panels": [
+         {
+          "type": "row",
+          "cells": [
+           1,
+           0,
+           3,
+           3,
+           3,
+           3,
+           4,
+           5
+          ],
+          "states": {
+           "0": "found",
+           "1": "found",
+           "2": "answer",
+           "3": "answer",
+           "4": "answer",
+           "5": "answer",
+           "6": "mark",
+           "7": "mark"
+          },
+          "pointers": {
+           "lt": 2,
+           "i": 6,
+           "gt": 5
+          },
+          "slots": true
+         },
+         {
+          "type": "vars",
+          "items": {
+           "smaller:": "2",
+           "equal:": "4",
+           "bigger:": "2",
+           "unexamined:": "0"
+          }
+         }
+        ]
+       }
+      ],
+      "title": "A three-way partition of `[3, 5, 1, 3, 4, 3, 0, 3]` around 3: smaller values to the left, equal ones in the middle, bigger ones to the right.",
+      "legend": [
+       {
+        "state": "found",
+        "text": "smaller than 3"
+       },
+       {
+        "state": "answer",
+        "text": "equal to 3"
+       },
+       {
+        "state": "mark",
+        "text": "bigger than 3"
+       }
+      ]
+     }
+    }
+   ]
+  },
+  {
+   "id": "variations",
+   "title": "Variations",
+   "blocks": [
+    {
+     "md": "### Three-way quickselect\n\nThe template with a three-way partition (the \"Dutch national flag\" partition). If the wanted index falls\ninside the block of values equal to the pivot, the pivot is the answer. It's never slower than the two-way\nversion by more than a little, and it's much faster when values repeat. The third test below is 50,000\nequal values."
+    },
+    {
+     "code": {
+      "python": "import random\n\n\ndef kth_smallest_3way(nums, k):\n    a = list(nums)\n    lo, hi, want = 0, len(a) - 1, k - 1\n    while True:\n        pivot = a[random.randint(lo, hi)]\n        lt, i, gt = lo, lo, hi\n        while i <= gt:\n            if a[i] < pivot:\n                a[lt], a[i] = a[i], a[lt]\n                lt, i = lt + 1, i + 1\n            elif a[i] > pivot:\n                a[i], a[gt] = a[gt], a[i]\n                gt -= 1\n            else:\n                i += 1\n        if want < lt:\n            hi = lt - 1\n        elif want > gt:\n            lo = gt + 1\n        else:\n            return pivot\n",
+      "java": "static final Random RNG = new Random(7);\n\nstatic void swap(int[] a, int i, int j) {\n    int t = a[i]; a[i] = a[j]; a[j] = t;\n}\n\nstatic int kthSmallest3way(int[] nums, int k) {\n    int[] a = nums.clone();\n    int lo = 0, hi = a.length - 1, want = k - 1;\n    while (true) {\n        int pivot = a[lo + RNG.nextInt(hi - lo + 1)];\n        int lt = lo, i = lo, gt = hi;\n        while (i <= gt) {\n            if (a[i] < pivot) swap(a, lt++, i++);\n            else if (a[i] > pivot) swap(a, i, gt--);\n            else i++;\n        }\n        if (want < lt) hi = lt - 1;\n        else if (want > gt) lo = gt + 1;\n        else return pivot;\n    }\n}\n",
+      "cpp": "mt19937 rng(7);\n\nint kthSmallest3way(vector<int> a, int k) {\n    int lo = 0, hi = (int)a.size() - 1, want = k - 1;\n    while (true) {\n        int pivot = a[uniform_int_distribution<int>(lo, hi)(rng)];\n        int lt = lo, i = lo, gt = hi;\n        while (i <= gt) {\n            if (a[i] < pivot) swap(a[lt++], a[i++]);\n            else if (a[i] > pivot) swap(a[i], a[gt--]);\n            else i++;\n        }\n        if (want < lt) hi = lt - 1;\n        else if (want > gt) lo = gt + 1;\n        else return pivot;\n    }\n}\n",
+      "c": "static void swap(int* a, int i, int j) {\n    int t = a[i]; a[i] = a[j]; a[j] = t;\n}\n\nint kthSmallest3way(const int* nums, int n, int k) {\n    int* a = malloc(n * sizeof(int));\n    memcpy(a, nums, n * sizeof(int));\n    int lo = 0, hi = n - 1, want = k - 1;\n    while (true) {\n        int pivot = a[lo + rand() % (hi - lo + 1)];\n        int lt = lo, i = lo, gt = hi;\n        while (i <= gt) {\n            if (a[i] < pivot) swap(a, lt++, i++);\n            else if (a[i] > pivot) swap(a, i, gt--);\n            else i++;\n        }\n        if (want < lt) hi = lt - 1;\n        else if (want > gt) lo = gt + 1;\n        else {\n            free(a);\n            return pivot;\n        }\n    }\n}\n"
+     },
+     "title": "Quickselect with a three-way partition",
+     "lines": [
+      {
+       "text": "A copy, the range, and the wanted index.",
+       "at": {
+        "python": [
+         [
+          5,
+          6
+         ]
+        ],
+        "java": [
+         [
+          8,
+          9
+         ]
+        ],
+        "cpp": [
+         [
+          4,
+          4
+         ]
+        ],
+        "c": [
+         [
+          6,
+          8
+         ]
+        ]
+       }
+      },
+      {
+       "text": "One partition per round.",
+       "at": {
+        "python": [
+         [
+          7,
+          7
+         ]
+        ],
+        "java": [
+         [
+          10,
+          10
+         ]
+        ],
+        "cpp": [
+         [
+          5,
+          5
+         ]
+        ],
+        "c": [
+         [
+          9,
+          9
+         ]
+        ]
+       }
+      },
+      {
+       "text": "Pick a random pivot *value*; the three-way partition doesn't need it parked anywhere.",
+       "at": {
+        "python": [
+         [
+          8,
+          8
+         ]
+        ],
+        "java": [
+         [
+          11,
+          11
+         ]
+        ],
+        "cpp": [
+         [
+          6,
+          6
+         ]
+        ],
+        "c": [
+         [
+          10,
+          10
+         ]
+        ]
+       }
+      },
+      {
+       "text": "`[lo, lt)` is smaller than the pivot, `[lt, i)` equals it, `(gt, hi]` is bigger, and `[i, gt]` is still unexamined.",
+       "at": {
+        "python": [
+         [
+          9,
+          9
+         ]
+        ],
+        "java": [
+         [
+          12,
+          12
+         ]
+        ],
+        "cpp": [
+         [
+          7,
+          7
+         ]
+        ],
+        "c": [
+         [
+          11,
+          11
+         ]
+        ]
+       }
+      },
+      {
+       "text": "Until nothing is unexamined.",
+       "at": {
+        "python": [
+         [
+          10,
+          10
+         ]
+        ],
+        "java": [
+         [
+          13,
+          13
+         ]
+        ],
+        "cpp": [
+         [
+          8,
+          8
+         ]
+        ],
+        "c": [
+         [
+          12,
+          12
+         ]
+        ]
+       }
+      },
+      {
+       "text": "A smaller value swaps to the end of the smaller part. The value it swaps with is equal to the pivot (or is itself), so `i` can move on.",
+       "at": {
+        "python": [
+         [
+          11,
+          13
+         ]
+        ],
+        "java": [
+         [
+          14,
+          14
+         ]
+        ],
+        "cpp": [
+         [
+          9,
+          9
+         ]
+        ],
+        "c": [
+         [
+          13,
+          13
+         ]
+        ]
+       }
+      },
+      {
+       "text": "A bigger value swaps to the bigger part. The value that comes back hasn't been examined, so `i` stays put.",
+       "at": {
+        "python": [
+         [
+          14,
+          16
+         ]
+        ],
+        "java": [
+         [
+          15,
+          15
+         ]
+        ],
+        "cpp": [
+         [
+          10,
+          10
+         ]
+        ],
+        "c": [
+         [
+          14,
+          14
+         ]
+        ]
+       }
+      },
+      {
+       "text": "An equal value is already in the right part.",
+       "at": {
+        "python": [
+         [
+          17,
+          18
+         ]
+        ],
+        "java": [
+         [
+          16,
+          16
+         ]
+        ],
+        "cpp": [
+         [
+          11,
+          11
+         ]
+        ],
+        "c": [
+         [
+          15,
+          15
+         ]
+        ]
+       }
+      },
+      {
+       "text": "The wanted index is in the smaller part or the bigger part: keep only that one.",
+       "at": {
+        "python": [
+         [
+          19,
+          22
+         ]
+        ],
+        "java": [
+         [
+          18,
+          19
+         ]
+        ],
+        "cpp": [
+         [
+          13,
+          14
+         ]
+        ],
+        "c": [
+         [
+          17,
+          18
+         ]
+        ]
+       }
+      },
+      {
+       "text": "Otherwise it's in the equal part, and the pivot is the answer.",
+       "at": {
+        "python": [
+         [
+          23,
+          24
+         ]
+        ],
+        "java": [
+         [
+          20,
+          20
+         ]
+        ],
+        "cpp": [
+         [
+          15,
+          15
+         ]
+        ],
+        "c": [
+         [
+          19,
+          21
+         ]
+        ]
+       },
+       "notes": {
+        "c": "Free the copy before returning."
+       }
+      }
+     ],
+     "run": {
+      "call": "kth_smallest_3way([3, 1, 3, 3, 2, 3, 3, 0], 6); (same, 2); (50,000 nines, 25,000)",
+      "output": "3\n1\n9"
+     }
+    },
+    {
+     "md": "### Library versions\n\nC++ has `std::nth_element(first, nth, last)`, which is quickselect (introselect, with a worst-case guarantee):\nafterwards `*nth` is the value that would be there if sorted, with smaller values before it and bigger ones\nafter. Python has no quickselect, but `heapq.nsmallest(k, items)` and `heapq.nlargest` do the heap version in\nO(n log k). Java's `PriorityQueue` gives you the same heap approach.\n\n### Choosing a pivot well\n\nA random pivot is simplest. \"Median of three\" (the median of the first, middle and last values) avoids the\nworst case on sorted input without randomness, but adversarial inputs can still beat it. For guarantees, use\nmedian of medians."
+    }
+   ]
+  },
+  {
+   "id": "complexity",
+   "title": "What it costs",
+   "blocks": [
+    {
+     "md": "Expected O(n) time with random pivots; O(n²) in the worst case (vanishingly unlikely with random pivots; made\nimpossible with median of medians). O(1) extra space for the iterative version working in place, or O(n) if\nyou copy the input first."
+    },
+    {
+     "table": {
+      "head": [
+       "Approach",
+       "Time",
+       "Extra space"
+      ],
+      "rows": [
+       [
+        "Sort, then index",
+        "O(n log n)",
+        "O(1) to O(n)"
+       ],
+       [
+        "Heap of size k",
+        "O(n log k)",
+        "O(k)"
+       ],
+       [
+        "Quickselect (random pivot)",
+        "O(n) expected, O(n²) worst",
+        "O(1) in place"
+       ],
+       [
+        "Three-way quickselect",
+        "O(n) expected, fast with repeats",
+        "O(1) in place"
+       ],
+       [
+        "Median of medians",
+        "O(n) worst case",
+        "O(log n) recursion"
+       ]
+      ]
+     }
+    }
+   ]
+  },
+  {
+   "id": "languages",
+   "title": "In your language",
+   "blocks": [
+    {
+     "md": "### Python\n\n`random.randint(lo, hi)` includes both ends. For one-off answers, `sorted(nums)[k - 1]` is often fast enough\nand hard to get wrong; `heapq.nsmallest(k, nums)[-1]` is the O(n log k) alternative. Write quickselect\niteratively to stay clear of the recursion limit.\n\n### Java\n\n`new Random(seed).nextInt(bound)` gives `0..bound-1`, so add `lo`. Clone the input if the caller still needs\nits order. `PriorityQueue<Integer>` with a size limit gives the heap approach.\n\n### C++\n\nPrefer `std::nth_element(v.begin(), v.begin() + (k - 1), v.end())` in real code; it's well tested and has a\nworst-case guarantee. `uniform_int_distribution<int>(lo, hi)` includes both ends.\n\n### C\n\n`rand() % (hi - lo + 1)` is good enough for pivots. Copy the input with `malloc` and `memcpy` if it's\n`const`, and `free` it on every return path."
+    }
+   ]
+  },
+  {
+   "id": "pitfalls",
+   "title": "Pitfalls and edge cases",
+   "blocks": [
+    {
+     "md": "- Mixing 1-based `k` with 0-based indices. Convert once (`want = k - 1`) and never again.\n- Converting \"k-th largest\" wrongly: it's index `n - k` in sorted order (0-based).\n- A fixed pivot (first or last value) on sorted input: O(n²).\n- Many equal values with a two-way partition: O(n²) even with a random pivot.\n- Recursing into *both* sides, which turns quickselect back into quick sort.\n- Forgetting that quickselect rearranges the array. Copy it if the caller cares."
+    }
+   ]
+  },
+  {
+   "id": "check",
+   "title": "Check yourself",
+   "blocks": [
+    {
+     "quiz": [
+      {
+       "q": "Why does quickselect only recurse into one side?",
+       "a": "After the partition, the pivot is in its final sorted position, and the wanted index is either the pivot's index or on one side of it. The other side can't contain the answer."
+      },
+      {
+       "q": "Why is it O(n) on average, when quick sort is O(n log n)?",
+       "a": "Quick sort works on both sides at every level. Quickselect keeps one side, so the work shrinks geometrically: n + about ¾n + … adds up to a constant times n."
+      },
+      {
+       "q": "Which sorted index holds the 3rd largest of 10 values?",
+       "a": "Index 7 (0-based), since the 3rd largest is the 8th smallest."
+      },
+      {
+       "q": "After quickselect for k = 4 on the array itself, what do the first four positions hold?",
+       "a": "The four smallest values, in no particular order."
+      },
+      {
+       "q": "Why does the three-way partition help when values repeat?",
+       "a": "All values equal to the pivot are grouped in the middle. If the wanted index is among them, you're done; otherwise they're all discarded at once instead of one per round."
+      }
+     ]
+    }
+   ]
+  }
+ ],
+ "leetcode": [
+  {
+   "id": 2099,
+   "title": "Find Subsequence of Length K With the Largest Sum",
+   "url": "https://leetcode.com/problems/find-subsequence-of-length-k-with-the-largest-sum/",
+   "difficulty": "easy"
+  },
+  {
+   "id": 1985,
+   "title": "Find the Kth Largest Integer in the Array",
+   "url": "https://leetcode.com/problems/find-the-kth-largest-integer-in-the-array/",
+   "difficulty": "medium"
+  },
+  {
+   "id": 215,
+   "title": "Kth Largest Element in an Array",
+   "url": "https://leetcode.com/problems/kth-largest-element-in-an-array/",
+   "difficulty": "medium"
+  },
+  {
+   "id": 973,
+   "title": "K Closest Points to Origin",
+   "url": "https://leetcode.com/problems/k-closest-points-to-origin/",
+   "difficulty": "medium"
+  },
+  {
+   "id": 347,
+   "title": "Top K Frequent Elements",
+   "url": "https://leetcode.com/problems/top-k-frequent-elements/",
+   "difficulty": "medium"
+  },
+  {
+   "id": 462,
+   "title": "Minimum Moves to Equal Array Elements II",
+   "url": "https://leetcode.com/problems/minimum-moves-to-equal-array-elements-ii/",
+   "difficulty": "medium"
+  },
+  {
+   "id": 1471,
+   "title": "The k Strongest Values in an Array",
+   "url": "https://leetcode.com/problems/the-k-strongest-values-in-an-array/",
+   "difficulty": "medium"
+  },
+  {
+   "id": 324,
+   "title": "Wiggle Sort II",
+   "url": "https://leetcode.com/problems/wiggle-sort-ii/",
+   "difficulty": "medium"
+  },
+  {
+   "id": 296,
+   "title": "Best Meeting Point",
+   "url": "https://leetcode.com/problems/best-meeting-point/",
+   "difficulty": "hard",
+   "premium": true
+  }
+ ]
+}

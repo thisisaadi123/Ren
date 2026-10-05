@@ -426,8 +426,8 @@ lesson(
             you've already passed, and only then add the current element to the table.
             """),
             """
-            That last bit, adding the element *after* the lookup, matters more than it looks. It means each element
-            only ever pairs with elements that came before it. So every pair gets found exactly once (when you reach
+            Because the element goes into the table *after* the lookup, each element only ever pairs with elements
+            that came before it. So every pair gets found exactly once (when you reach
             its second element), nothing pairs with itself, and nothing is counted twice.
             """,
         ]),
@@ -480,7 +480,7 @@ lesson(
 
             ### Why one pass is enough
 
-            Here's the fact the whole loop rests on:
+            The loop keeps one thing true:
 
             > Just before the loop looks at index `j`, the table holds exactly the elements at indices `0` to `j - 1`.
 
@@ -517,7 +517,7 @@ lesson(
             fig(Row(MA, label="a"), Row(MB, label="b"), M({str(k): v for k, v in ab.items()}, "a + b → how many ways"),
                 caption="Every a + b sum, counted. There are only four, but with lists of 1,000 there'd be a million instead of a trillion combinations."),
             table(["c + d", "need a + b =", "ways"], *mm_rows),
-            f"So there are **{MM}** ways for the four to add up to zero, found with 4 + 4 steps instead of 16.",
+            f"So there are {MM} ways for the four to add up to zero, found with 4 + 4 steps instead of 16.",
         ]),
         ("template", "The template", [
             """

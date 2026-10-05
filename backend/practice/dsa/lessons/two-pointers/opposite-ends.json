@@ -1,0 +1,1821 @@
+{
+ "version": 1,
+ "id": "opposite-ends",
+ "topic": "two-pointers",
+ "summary": "Put one pointer at each end of a sorted array (or of any sequence you're comparing with itself back to front)\nand walk them towards each other. Every comparison tells you which end can't be part of an answer, so one of them\nmoves in, and the whole search takes a single pass.",
+ "minutes": 14,
+ "sections": [
+  {
+   "id": "idea",
+   "title": "The idea",
+   "blocks": [
+    {
+     "md": "You're at a market with a voucher worth exactly 11 and a row of stalls sorted by price: `[1, 2, 4, 5, 7, 9]`. You want two\nitems that use the voucher exactly.\n\nStand at both ends. Take the cheapest item (1) and the dearest (9): 10, not enough. Could the 1 work with\nanything else? No: 9 was the dearest thing on offer, and even that wasn't enough. So the 1 is out, and you\nstep in from the left. Now 2 and 9 make 11. Found one. Step in from both sides and keep going: 4 and 7 make\n11 too.\n\nEvery comparison either finds a pair or proves that one of the two items can't be in any pair. That\nitem is dropped, so the row shrinks by one each time. After at most `n - 1` comparisons the two pointers\nmeet and you've checked every pair, most of them without looking at them."
+    },
+    {
+     "panels": [
+      {
+       "type": "bars",
+       "values": [
+        1,
+        2,
+        4,
+        5,
+        7,
+        9
+       ],
+       "pointers": {
+        "lo": 0,
+        "hi": 5
+       },
+       "label": "sorted prices"
+      }
+     ],
+     "caption": "Too small? The left value is out, because it already had the biggest partner available. Too big? The right value is out, for the mirror reason."
+    },
+    {
+     "key": "Start with `lo` at the left end and `hi` at the right end of a sorted array. If `a[lo] + a[hi]` is too\nsmall, move `lo` right. If it's too big, move `hi` left. If it's right, record it and move. Stop when they\nmeet. O(n) time, O(1) space."
+    }
+   ]
+  },
+  {
+   "id": "signals",
+   "title": "When to reach for it",
+   "blocks": [
+    {
+     "md": "The input is sorted (or you're allowed to sort it), and the question is about pairs whose *sum* has to hit,\nstay under or get close to a target. Or the question compares a sequence with its own mirror image:\npalindromes, reversing in place, matching the first item with the last."
+    },
+    {
+     "table": {
+      "head": [
+       "The problem says…",
+       "what the two ends do"
+      ],
+      "rows": [
+       [
+        "sorted array, two values adding up to `t`",
+        "too small: `lo++`; too big: `hi--`"
+       ],
+       [
+        "the pair with the biggest (or closest) sum under a cap",
+        "record every pair that fits, then move as above"
+       ],
+       [
+        "count pairs with sum below `t`",
+        "when `a[lo] + a[hi] < t`, all `hi - lo` partners of `a[lo]` count at once"
+       ],
+       [
+        "palindrome, reverse in place",
+        "compare or swap `a[lo]` and `a[hi]`, then move both"
+       ],
+       [
+        "pair people up so no pair is too heavy",
+        "try the lightest with the heaviest"
+       ],
+       [
+        "the widest container, the biggest area between two walls",
+        "move the shorter wall, which can't do better"
+       ]
+      ]
+     }
+    },
+    {
+     "md": "Not a fit:\n\n- The array isn't sorted and you can't sort it (you need the original positions, say). Use a hash map\n  (*Complement lookup*).\n- The condition is a *difference*, like `a[j] - a[i] = k`. From the two ends a gap that's too big doesn't\n  tell you which pointer to move: moving either one could shrink it. Put both pointers at the left and move\n  them in the same direction instead.\n- You need every pair in a range of sums printed out. There can be about `n² / 2` of them, and no pointer\n  trick prints them faster than that."
+    }
+   ]
+  },
+  {
+   "id": "theory",
+   "title": "Why it works",
+   "blocks": [
+    {
+     "md": "### The search space is a triangle\n\nDraw every pair `i < j` as a cell in a grid: row `i`, column `j`. Because the array is sorted, sums grow as\nyou go right along a row and as you go down a column. The pointers always sit at the top-right corner of\nthe part that's still in play.\n\nThat corner is special. It's the biggest sum in its row and the smallest in its column. So:\n\n- if it's too small, every cell to its left in the same row is smaller still, and the whole row can go;\n- if it's too big, every cell below it in the same column is bigger still, and the whole column can go.\n\nEither way a full row or column disappears with one comparison. There are only `n - 1` rows and columns\nto remove, so that's at most `n - 1` comparisons."
+    },
+    {
+     "walk": {
+      "steps": [
+       {
+        "text": "There are 15 pairs. Checking them all is the slow way. Start with the pointers at the two ends.",
+        "panels": [
+         {
+          "type": "grid",
+          "cells": [
+           [
+            "",
+            3,
+            5,
+            6,
+            8,
+            10
+           ],
+           [
+            "",
+            "",
+            6,
+            7,
+            9,
+            11
+           ],
+           [
+            "",
+            "",
+            "",
+            9,
+            11,
+            13
+           ],
+           [
+            "",
+            "",
+            "",
+            "",
+            12,
+            14
+           ],
+           [
+            "",
+            "",
+            "",
+            "",
+            "",
+            16
+           ],
+           [
+            "",
+            "",
+            "",
+            "",
+            "",
+            ""
+           ]
+          ],
+          "label": "a[i] + a[j]"
+         },
+         {
+          "type": "row",
+          "cells": [
+           1,
+           2,
+           4,
+           5,
+           7,
+           9
+          ],
+          "pointers": {
+           "lo": 0,
+           "hi": 5
+          },
+          "label": "a",
+          "slots": true
+         }
+        ]
+       },
+       {
+        "text": "1 + 9 = 10, less than 12. 9 is the biggest value still in play, so 1 is too small to reach 12 with anything. Its whole row goes: 5 pairs ruled out with one comparison. Move `lo` right.",
+        "panels": [
+         {
+          "type": "grid",
+          "cells": [
+           [
+            "",
+            3,
+            5,
+            6,
+            8,
+            10
+           ],
+           [
+            "",
+            "",
+            6,
+            7,
+            9,
+            11
+           ],
+           [
+            "",
+            "",
+            "",
+            9,
+            11,
+            13
+           ],
+           [
+            "",
+            "",
+            "",
+            "",
+            12,
+            14
+           ],
+           [
+            "",
+            "",
+            "",
+            "",
+            "",
+            16
+           ],
+           [
+            "",
+            "",
+            "",
+            "",
+            "",
+            ""
+           ]
+          ],
+          "states": {
+           "0,1": "dim",
+           "0,2": "dim",
+           "0,4": "dim",
+           "0,5": "active",
+           "0,3": "dim"
+          },
+          "label": "a[i] + a[j]"
+         },
+         {
+          "type": "row",
+          "cells": [
+           1,
+           2,
+           4,
+           5,
+           7,
+           9
+          ],
+          "pointers": {
+           "lo": 1,
+           "hi": 5
+          },
+          "label": "a",
+          "slots": true
+         }
+        ]
+       },
+       {
+        "text": "2 + 9 = 11, less than 12. 9 is the biggest value still in play, so 2 is too small to reach 12 with anything. Its whole row goes: 4 pairs ruled out with one comparison. Move `lo` right.",
+        "panels": [
+         {
+          "type": "grid",
+          "cells": [
+           [
+            "",
+            3,
+            5,
+            6,
+            8,
+            10
+           ],
+           [
+            "",
+            "",
+            6,
+            7,
+            9,
+            11
+           ],
+           [
+            "",
+            "",
+            "",
+            9,
+            11,
+            13
+           ],
+           [
+            "",
+            "",
+            "",
+            "",
+            12,
+            14
+           ],
+           [
+            "",
+            "",
+            "",
+            "",
+            "",
+            16
+           ],
+           [
+            "",
+            "",
+            "",
+            "",
+            "",
+            ""
+           ]
+          ],
+          "states": {
+           "0,1": "dim",
+           "1,2": "dim",
+           "0,4": "dim",
+           "1,5": "active",
+           "0,3": "dim",
+           "1,4": "dim",
+           "0,2": "dim",
+           "0,5": "dim",
+           "1,3": "dim"
+          },
+          "label": "a[i] + a[j]"
+         },
+         {
+          "type": "row",
+          "cells": [
+           1,
+           2,
+           4,
+           5,
+           7,
+           9
+          ],
+          "pointers": {
+           "lo": 2,
+           "hi": 5
+          },
+          "label": "a",
+          "slots": true
+         }
+        ]
+       },
+       {
+        "text": "4 + 9 = 13, more than 12. 4 is the smallest value still in play, so 9 overshoots with everything. Its whole column goes: 3 pairs ruled out. Move `hi` left.",
+        "panels": [
+         {
+          "type": "grid",
+          "cells": [
+           [
+            "",
+            3,
+            5,
+            6,
+            8,
+            10
+           ],
+           [
+            "",
+            "",
+            6,
+            7,
+            9,
+            11
+           ],
+           [
+            "",
+            "",
+            "",
+            9,
+            11,
+            13
+           ],
+           [
+            "",
+            "",
+            "",
+            "",
+            12,
+            14
+           ],
+           [
+            "",
+            "",
+            "",
+            "",
+            "",
+            16
+           ],
+           [
+            "",
+            "",
+            "",
+            "",
+            "",
+            ""
+           ]
+          ],
+          "states": {
+           "0,1": "dim",
+           "1,2": "dim",
+           "0,4": "dim",
+           "1,5": "dim",
+           "0,3": "dim",
+           "1,4": "dim",
+           "0,2": "dim",
+           "4,5": "dim",
+           "0,5": "dim",
+           "2,5": "active",
+           "1,3": "dim",
+           "3,5": "dim"
+          },
+          "label": "a[i] + a[j]"
+         },
+         {
+          "type": "row",
+          "cells": [
+           1,
+           2,
+           4,
+           5,
+           7,
+           9
+          ],
+          "pointers": {
+           "lo": 2,
+           "hi": 4
+          },
+          "label": "a",
+          "slots": true
+         }
+        ]
+       },
+       {
+        "text": "4 + 7 = 11, less than 12. 7 is the biggest value still in play, so 4 is too small to reach 12 with anything. Its whole row goes: 2 pairs ruled out with one comparison. Move `lo` right.",
+        "panels": [
+         {
+          "type": "grid",
+          "cells": [
+           [
+            "",
+            3,
+            5,
+            6,
+            8,
+            10
+           ],
+           [
+            "",
+            "",
+            6,
+            7,
+            9,
+            11
+           ],
+           [
+            "",
+            "",
+            "",
+            9,
+            11,
+            13
+           ],
+           [
+            "",
+            "",
+            "",
+            "",
+            12,
+            14
+           ],
+           [
+            "",
+            "",
+            "",
+            "",
+            "",
+            16
+           ],
+           [
+            "",
+            "",
+            "",
+            "",
+            "",
+            ""
+           ]
+          ],
+          "states": {
+           "0,1": "dim",
+           "2,4": "active",
+           "1,2": "dim",
+           "0,4": "dim",
+           "1,5": "dim",
+           "0,3": "dim",
+           "1,4": "dim",
+           "2,3": "dim",
+           "0,2": "dim",
+           "4,5": "dim",
+           "0,5": "dim",
+           "2,5": "dim",
+           "1,3": "dim",
+           "3,5": "dim"
+          },
+          "label": "a[i] + a[j]"
+         },
+         {
+          "type": "row",
+          "cells": [
+           1,
+           2,
+           4,
+           5,
+           7,
+           9
+          ],
+          "pointers": {
+           "lo": 3,
+           "hi": 4
+          },
+          "label": "a",
+          "slots": true
+         }
+        ]
+       },
+       {
+        "text": "5 + 7 = 12. A pair. All values are different, so 5 can't pair with anything else and neither can 7: cross out both the row and the column, and move both pointers. The pointers have met. 5 comparisons covered all 15 pairs, and found 1.",
+        "panels": [
+         {
+          "type": "grid",
+          "cells": [
+           [
+            "",
+            3,
+            5,
+            6,
+            8,
+            10
+           ],
+           [
+            "",
+            "",
+            6,
+            7,
+            9,
+            11
+           ],
+           [
+            "",
+            "",
+            "",
+            9,
+            11,
+            13
+           ],
+           [
+            "",
+            "",
+            "",
+            "",
+            12,
+            14
+           ],
+           [
+            "",
+            "",
+            "",
+            "",
+            "",
+            16
+           ],
+           [
+            "",
+            "",
+            "",
+            "",
+            "",
+            ""
+           ]
+          ],
+          "states": {
+           "0,1": "dim",
+           "2,4": "dim",
+           "1,2": "dim",
+           "0,4": "dim",
+           "3,4": "answer",
+           "1,5": "dim",
+           "0,3": "dim",
+           "1,4": "dim",
+           "2,3": "dim",
+           "0,2": "dim",
+           "4,5": "dim",
+           "0,5": "dim",
+           "2,5": "dim",
+           "1,3": "dim",
+           "3,5": "dim"
+          },
+          "label": "a[i] + a[j]"
+         },
+         {
+          "type": "row",
+          "cells": [
+           1,
+           2,
+           4,
+           5,
+           7,
+           9
+          ],
+          "pointers": {
+           "lo": 4,
+           "hi": 3
+          },
+          "label": "a",
+          "slots": true
+         }
+        ]
+       }
+      ],
+      "title": "Pairs from `[1, 2, 4, 5, 7, 9]` that add up to 12. Each cell is one pair: row `i`, column `j`, holding `a[i] + a[j]`.",
+      "legend": [
+       {
+        "state": "dim",
+        "text": "ruled out without being checked"
+       },
+       {
+        "state": "active",
+        "text": "the pair being checked"
+       },
+       {
+        "state": "answer",
+        "text": "adds up to 12"
+       }
+      ]
+     }
+    },
+    {
+     "md": "### What the loop keeps true\n\n> Every pair that could still be an answer has both its positions between `lo` and `hi`.\n\nIt's true at the start. When `a[lo] + a[hi]` is too small, the pairs that use `lo` have partners at most\n`a[hi]`, so they're all too small, and dropping `lo` loses nothing. The same argument, mirrored, covers\ndropping `hi`. When the loop ends with `lo ≥ hi`, no pair is left, so none was missed.\n\n### When the sum matches\n\nIf every value is different, a match uses up both ends: the left value's only possible partner is the right\nvalue, and the other way round. Move both.\n\nWith repeats, a match can stand for many pairs. If the left end's value appears `a` times in a row and the\nright end's value `b` times, every left copy pairs with every right copy: `a × b` pairs. If the two ends hold\nthe *same* value, everything between them is that value too, and any 2 of those `k` positions make a pair:\n`k(k - 1) / 2`. The template handles both.\n\n### Sorting first\n\nIf the input isn't sorted, sorting it costs O(n log n), which then dominates. That's still much better\nthan O(n²), and it uses no extra memory if you can sort in place. The price is that the original positions\nare gone. If the answer needs them, sort `(value, index)` pairs or use a hash map instead."
+    }
+   ]
+  },
+  {
+   "id": "template",
+   "title": "The template",
+   "blocks": [
+    {
+     "md": "Count the pairs of positions `i < j` in a sorted array with `nums[i] + nums[j] == target`. Values can repeat,\nand each pair of positions counts once."
+    },
+    {
+     "code": {
+      "python": "def count_pairs(nums, target):\n    lo, hi = 0, len(nums) - 1\n    count = 0\n    while lo < hi:\n        s = nums[lo] + nums[hi]\n        if s < target:\n            lo += 1\n        elif s > target:\n            hi -= 1\n        elif nums[lo] == nums[hi]:\n            k = hi - lo + 1\n            count += k * (k - 1) // 2\n            break\n        else:\n            a = 1\n            while nums[lo + a] == nums[lo]:\n                a += 1\n            b = 1\n            while nums[hi - b] == nums[hi]:\n                b += 1\n            count += a * b\n            lo, hi = lo + a, hi - b\n    return count\n",
+      "java": "static long countPairs(int[] nums, long target) {\n    int lo = 0, hi = nums.length - 1;\n    long count = 0;\n    while (lo < hi) {\n        long s = (long) nums[lo] + nums[hi];\n        if (s < target) lo++;\n        else if (s > target) hi--;\n        else if (nums[lo] == nums[hi]) {\n            long k = hi - lo + 1;\n            count += k * (k - 1) / 2;\n            break;\n        } else {\n            int a = 1, b = 1;\n            while (nums[lo + a] == nums[lo]) a++;\n            while (nums[hi - b] == nums[hi]) b++;\n            count += (long) a * b;\n            lo += a;\n            hi -= b;\n        }\n    }\n    return count;\n}\n",
+      "cpp": "long long countPairs(const vector<int>& nums, long long target) {\n    int lo = 0, hi = (int)nums.size() - 1;\n    long long count = 0;\n    while (lo < hi) {\n        long long s = (long long)nums[lo] + nums[hi];\n        if (s < target) lo++;\n        else if (s > target) hi--;\n        else if (nums[lo] == nums[hi]) {\n            long long k = hi - lo + 1;\n            count += k * (k - 1) / 2;\n            break;\n        } else {\n            int a = 1, b = 1;\n            while (nums[lo + a] == nums[lo]) a++;\n            while (nums[hi - b] == nums[hi]) b++;\n            count += (long long)a * b;\n            lo += a;\n            hi -= b;\n        }\n    }\n    return count;\n}\n",
+      "c": "long long countPairs(const int* nums, int n, long long target) {\n    int lo = 0, hi = n - 1;\n    long long count = 0;\n    while (lo < hi) {\n        long long s = (long long)nums[lo] + nums[hi];\n        if (s < target) lo++;\n        else if (s > target) hi--;\n        else if (nums[lo] == nums[hi]) {\n            long long k = hi - lo + 1;\n            count += k * (k - 1) / 2;\n            break;\n        } else {\n            int a = 1, b = 1;\n            while (nums[lo + a] == nums[lo]) a++;\n            while (nums[hi - b] == nums[hi]) b++;\n            count += (long long)a * b;\n            lo += a;\n            hi -= b;\n        }\n    }\n    return count;\n}\n"
+     },
+     "title": "Count pairs with a given sum (sorted input)",
+     "lines": [
+      {
+       "text": "One pointer at each end, and nothing counted yet. The count can reach about n²/2, so it's 64-bit.",
+       "at": {
+        "python": [
+         [
+          2,
+          3
+         ]
+        ],
+        "java": [
+         [
+          2,
+          3
+         ]
+        ],
+        "cpp": [
+         [
+          2,
+          3
+         ]
+        ],
+        "c": [
+         [
+          2,
+          3
+         ]
+        ]
+       }
+      },
+      {
+       "text": "While there are at least two positions in play.",
+       "at": {
+        "python": [
+         [
+          4,
+          4
+         ]
+        ],
+        "java": [
+         [
+          4,
+          4
+         ]
+        ],
+        "cpp": [
+         [
+          4,
+          4
+         ]
+        ],
+        "c": [
+         [
+          4,
+          4
+         ]
+        ]
+       }
+      },
+      {
+       "text": "The sum of the two ends.",
+       "at": {
+        "python": [
+         [
+          5,
+          5
+         ]
+        ],
+        "java": [
+         [
+          5,
+          5
+         ]
+        ],
+        "cpp": [
+         [
+          5,
+          5
+         ]
+        ],
+        "c": [
+         [
+          5,
+          5
+         ]
+        ]
+       },
+       "notes": {
+        "java": "Widen to `long` before adding: two values near 10⁹ overflow an `int`.",
+        "cpp": "Widen before adding, so two large `int`s can't overflow.",
+        "c": "Widen before adding, so two large `int`s can't overflow."
+       }
+      },
+      {
+       "text": "Too small. `nums[lo]` was paired with the biggest value left and still fell short, so it can't be in any pair. Drop it.",
+       "at": {
+        "python": [
+         [
+          6,
+          7
+         ]
+        ],
+        "java": [
+         [
+          6,
+          6
+         ]
+        ],
+        "cpp": [
+         [
+          6,
+          6
+         ]
+        ],
+        "c": [
+         [
+          6,
+          6
+         ]
+        ]
+       }
+      },
+      {
+       "text": "Too big. `nums[hi]` overshoots even with the smallest value left. Drop it.",
+       "at": {
+        "python": [
+         [
+          8,
+          9
+         ]
+        ],
+        "java": [
+         [
+          7,
+          7
+         ]
+        ],
+        "cpp": [
+         [
+          7,
+          7
+         ]
+        ],
+        "c": [
+         [
+          7,
+          7
+         ]
+        ]
+       }
+      },
+      {
+       "text": "A match where both ends hold the same value. Everything between them is equal too, so any two of those `k` positions make a pair. Nothing else is left to check.",
+       "at": {
+        "python": [
+         [
+          10,
+          13
+         ]
+        ],
+        "java": [
+         [
+          8,
+          11
+         ]
+        ],
+        "cpp": [
+         [
+          8,
+          11
+         ]
+        ],
+        "c": [
+         [
+          8,
+          11
+         ]
+        ]
+       }
+      },
+      {
+       "text": "A match with different values. Count the run of equal values at each end. Each run stops before reaching the other end, because the values there differ.",
+       "at": {
+        "python": [
+         [
+          15,
+          20
+         ]
+        ],
+        "java": [
+         [
+          13,
+          15
+         ]
+        ],
+        "cpp": [
+         [
+          13,
+          15
+         ]
+        ],
+        "c": [
+         [
+          13,
+          15
+         ]
+        ]
+       }
+      },
+      {
+       "text": "Every copy on the left pairs with every copy on the right. Then step past both runs.",
+       "at": {
+        "python": [
+         [
+          21,
+          22
+         ]
+        ],
+        "java": [
+         [
+          16,
+          18
+         ]
+        ],
+        "cpp": [
+         [
+          16,
+          18
+         ]
+        ],
+        "c": [
+         [
+          16,
+          18
+         ]
+        ]
+       }
+      },
+      {
+       "text": "The number of pairs.",
+       "at": {
+        "python": [
+         [
+          23,
+          23
+         ]
+        ],
+        "java": [
+         [
+          21,
+          21
+         ]
+        ],
+        "cpp": [
+         [
+          21,
+          21
+         ]
+        ],
+        "c": [
+         [
+          21,
+          21
+         ]
+        ]
+       }
+      }
+     ],
+     "run": {
+      "call": "count_pairs([1, 2, 3, 4, 5, 6, 7], 8); ([1, 1, 2, 3, 3, 3, 4], 5); ([2, 2, 2, 2], 4); ([1, 3], 10)",
+      "output": "3\n5\n6\n0"
+     }
+    },
+    {
+     "md": "`[2, 2, 2, 2]` with target 4 is the \"same value\" branch: any 2 of the 4 positions, which is 6 pairs."
+    }
+   ]
+  },
+  {
+   "id": "trace",
+   "title": "Trace it by hand",
+   "blocks": [
+    {
+     "md": "`count_pairs` on `[0, 1, 1, 2, 3, 3, 3, 4, 5, 5, 9]` with target 6, one comparison per step:"
+    },
+    {
+     "walk": {
+      "steps": [
+       {
+        "text": "Both ends in play, nothing counted.",
+        "panels": [
+         {
+          "type": "row",
+          "cells": [
+           0,
+           1,
+           1,
+           2,
+           3,
+           3,
+           3,
+           4,
+           5,
+           5,
+           9
+          ],
+          "states": {
+           "0": "active",
+           "10": "active"
+          },
+          "pointers": {
+           "lo": 0,
+           "hi": 10
+          },
+          "label": "nums",
+          "slots": true
+         },
+         {
+          "type": "vars",
+          "items": {
+           "sum:": "–",
+           "pairs:": "0"
+          }
+         }
+        ]
+       },
+       {
+        "text": "0 + 9 = 9, too big. Move `hi` left.",
+        "panels": [
+         {
+          "type": "row",
+          "cells": [
+           0,
+           1,
+           1,
+           2,
+           3,
+           3,
+           3,
+           4,
+           5,
+           5,
+           9
+          ],
+          "states": {
+           "10": "dim",
+           "0": "active",
+           "9": "active"
+          },
+          "pointers": {
+           "lo": 0,
+           "hi": 9
+          },
+          "label": "nums",
+          "slots": true
+         },
+         {
+          "type": "vars",
+          "items": {
+           "sum:": "9",
+           "pairs:": "0"
+          }
+         }
+        ]
+       },
+       {
+        "text": "0 + 5 = 5, too small. Move `lo` right.",
+        "panels": [
+         {
+          "type": "row",
+          "cells": [
+           0,
+           1,
+           1,
+           2,
+           3,
+           3,
+           3,
+           4,
+           5,
+           5,
+           9
+          ],
+          "states": {
+           "0": "dim",
+           "10": "dim",
+           "1": "active",
+           "9": "active"
+          },
+          "pointers": {
+           "lo": 1,
+           "hi": 9
+          },
+          "label": "nums",
+          "slots": true
+         },
+         {
+          "type": "vars",
+          "items": {
+           "sum:": "5",
+           "pairs:": "0"
+          }
+         }
+        ]
+       },
+       {
+        "text": "1 + 5 = 6, a match. There are 2 copies of 1 on the left and 2 of 5 on the right, and every one on the left pairs with every one on the right: 2 × 2 = 4 pairs. Jump both pointers past their runs.",
+        "panels": [
+         {
+          "type": "row",
+          "cells": [
+           0,
+           1,
+           1,
+           2,
+           3,
+           3,
+           3,
+           4,
+           5,
+           5,
+           9
+          ],
+          "states": {
+           "0": "dim",
+           "1": "answer",
+           "2": "answer",
+           "8": "answer",
+           "9": "answer",
+           "10": "dim",
+           "3": "active",
+           "7": "active"
+          },
+          "pointers": {
+           "lo": 3,
+           "hi": 7
+          },
+          "label": "nums",
+          "slots": true
+         },
+         {
+          "type": "vars",
+          "items": {
+           "sum:": "6",
+           "pairs:": "4"
+          }
+         }
+        ]
+       },
+       {
+        "text": "2 + 4 = 6, a match. There is 1 copy of 2 on the left and 1 of 4 on the right, and every one on the left pairs with every one on the right: 1 × 1 = 1 pair. Jump both pointers past their runs.",
+        "panels": [
+         {
+          "type": "row",
+          "cells": [
+           0,
+           1,
+           1,
+           2,
+           3,
+           3,
+           3,
+           4,
+           5,
+           5,
+           9
+          ],
+          "states": {
+           "0": "dim",
+           "1": "dim",
+           "2": "dim",
+           "3": "answer",
+           "7": "answer",
+           "8": "dim",
+           "9": "dim",
+           "10": "dim",
+           "4": "active",
+           "6": "active"
+          },
+          "pointers": {
+           "lo": 4,
+           "hi": 6
+          },
+          "label": "nums",
+          "slots": true
+         },
+         {
+          "type": "vars",
+          "items": {
+           "sum:": "6",
+           "pairs:": "5"
+          }
+         }
+        ]
+       },
+       {
+        "text": "3 + 3 = 6, and both ends hold the same value, so everything between is that value too: any 2 of these 3 make a pair, 3 in all. `lo` has passed `hi`, so we're done: 8 pairs.",
+        "panels": [
+         {
+          "type": "row",
+          "cells": [
+           0,
+           1,
+           1,
+           2,
+           3,
+           3,
+           3,
+           4,
+           5,
+           5,
+           9
+          ],
+          "states": {
+           "0": "dim",
+           "1": "dim",
+           "2": "dim",
+           "3": "dim",
+           "4": "answer",
+           "5": "answer",
+           "6": "answer",
+           "7": "dim",
+           "8": "dim",
+           "9": "dim",
+           "10": "dim"
+          },
+          "pointers": {
+           "lo": 4,
+           "hi": 3
+          },
+          "label": "nums",
+          "slots": true
+         },
+         {
+          "type": "vars",
+          "items": {
+           "sum:": "6",
+           "pairs:": "8"
+          }
+         }
+        ]
+       }
+      ],
+      "title": "`count_pairs([0, 1, 1, 2, 3, 3, 3, 4, 5, 5, 9], 6)`. Repeated values mean one match can stand for several pairs of positions.",
+      "legend": [
+       {
+        "state": "active",
+        "text": "the two ends being added"
+       },
+       {
+        "state": "answer",
+        "text": "counted in this step"
+       },
+       {
+        "state": "dim",
+        "text": "out of play"
+       }
+      ]
+     }
+    },
+    {
+     "md": "On paper, write the array once and draw `lo` and `hi` under it. For each step write the sum, then cross out\nwhichever end the rule drops. If you ever feel the urge to move both pointers on a mismatch, stop: only a\nmatch lets both move."
+    }
+   ]
+  },
+  {
+   "id": "examples",
+   "title": "More examples",
+   "blocks": [
+    {
+     "md": "### Counting pairs with a sum below a target\n\nIn `[1, 3, 4, 6, 8, 11]`, how many pairs add up to less than 10? When `a[lo] + a[hi]` is below 10, the left value is\nbelow 10 with `a[hi]`, and so with every value between `lo` and `hi` as well, because those are smaller.\nThat's `hi - lo` pairs counted in one step. Then `lo` can move on."
+    },
+    {
+     "table": {
+      "head": [
+       "ends",
+       "what it means",
+       "pairs so far"
+      ],
+      "rows": [
+       [
+        "1 + 11 = 12",
+        "not below 10: drop 11",
+        "0"
+       ],
+       [
+        "1 + 8 = 9",
+        "below 10: 1 pairs with all 4 values from index 1 to 4",
+        "4"
+       ],
+       [
+        "3 + 8 = 11",
+        "not below 10: drop 8",
+        "4"
+       ],
+       [
+        "3 + 6 = 9",
+        "below 10: 3 pairs with all 2 values from index 2 to 3",
+        "6"
+       ],
+       [
+        "4 + 6 = 10",
+        "not below 10: drop 6",
+        "6"
+       ]
+      ]
+     }
+    },
+    {
+     "md": "6 pairs, found in 5 comparisons. The same counting step is the inner loop of several\n*k-Sum* problems.\n\n### Pairing heavy with light\n\nPeople with weights go two at a time on a ride with a weight limit. Sort them. The heaviest person has to go\nwith *someone* or alone. If even the lightest person is too heavy to join them, nobody can, so they ride\nalone and `hi` moves. Otherwise pairing them with the lightest is safe: the lightest person fits with\nanyone the heaviest fits with. This is the same \"drop the end that can't do better\" argument, used to make\na greedy choice instead of to search.\n\n### Why differences need a different walk\n\nLook for two values in `[1, 3, 6, 10]` that differ by exactly 5. From the ends, 10 - 1 = 9 is too big. Moving `hi`\nleft gives 6 - 1 = 5, but moving `lo` right would give 10 - 3 = 7, also smaller. Both moves shrink the gap,\nso the comparison doesn't say which end is useless, and the argument that made opposite ends safe falls\napart. For differences, start both pointers on the left and move whichever one makes the gap move in the\ndirection you need."
+    }
+   ]
+  },
+  {
+   "id": "variations",
+   "title": "Variations",
+   "blocks": [
+    {
+     "md": "### The best pair under a cap\n\nInstead of an exact target, find the largest sum that doesn't go over `cap`. Every pair that fits is a\ncandidate, so record it before moving. The moves are the same as before: a pair that fits means `lo` can't\ndo better with any smaller partner, so `lo` moves; a pair that's over means `hi` is too big for everyone left."
+    },
+    {
+     "code": {
+      "python": "def best_under(prices, cap):\n    lo, hi = 0, len(prices) - 1\n    best = -1\n    while lo < hi:\n        s = prices[lo] + prices[hi]\n        if s <= cap:\n            best = max(best, s)\n            lo += 1\n        else:\n            hi -= 1\n    return best\n",
+      "java": "static long bestUnder(int[] prices, long cap) {\n    int lo = 0, hi = prices.length - 1;\n    long best = -1;\n    while (lo < hi) {\n        long s = (long) prices[lo] + prices[hi];\n        if (s <= cap) {\n            best = Math.max(best, s);\n            lo++;\n        } else {\n            hi--;\n        }\n    }\n    return best;\n}\n",
+      "cpp": "long long bestUnder(const vector<int>& prices, long long cap) {\n    int lo = 0, hi = (int)prices.size() - 1;\n    long long best = -1;\n    while (lo < hi) {\n        long long s = (long long)prices[lo] + prices[hi];\n        if (s <= cap) {\n            best = max(best, s);\n            lo++;\n        } else {\n            hi--;\n        }\n    }\n    return best;\n}\n",
+      "c": "long long bestUnder(const int* prices, int n, long long cap) {\n    int lo = 0, hi = n - 1;\n    long long best = -1;\n    while (lo < hi) {\n        long long s = (long long)prices[lo] + prices[hi];\n        if (s <= cap) {\n            if (s > best) best = s;\n            lo++;\n        } else {\n            hi--;\n        }\n    }\n    return best;\n}\n"
+     },
+     "title": "Largest pair sum not above a cap",
+     "lines": [
+      {
+       "text": "Both ends, and no pair found yet. Prices are positive, so -1 can stand for \"no pair fits\".",
+       "at": {
+        "python": [
+         [
+          2,
+          3
+         ]
+        ],
+        "java": [
+         [
+          2,
+          3
+         ]
+        ],
+        "cpp": [
+         [
+          2,
+          3
+         ]
+        ],
+        "c": [
+         [
+          2,
+          3
+         ]
+        ]
+       }
+      },
+      {
+       "text": "Two positions still in play.",
+       "at": {
+        "python": [
+         [
+          4,
+          4
+         ]
+        ],
+        "java": [
+         [
+          4,
+          4
+         ]
+        ],
+        "cpp": [
+         [
+          4,
+          4
+         ]
+        ],
+        "c": [
+         [
+          4,
+          4
+         ]
+        ]
+       }
+      },
+      {
+       "text": "The sum of the two ends, widened so it can't overflow.",
+       "at": {
+        "python": [
+         [
+          5,
+          5
+         ]
+        ],
+        "java": [
+         [
+          5,
+          5
+         ]
+        ],
+        "cpp": [
+         [
+          5,
+          5
+         ]
+        ],
+        "c": [
+         [
+          5,
+          5
+         ]
+        ]
+       }
+      },
+      {
+       "text": "It fits. It's the best pair for `prices[lo]`, since `prices[hi]` is its biggest possible partner, so record it and move `lo` on.",
+       "at": {
+        "python": [
+         [
+          6,
+          8
+         ]
+        ],
+        "java": [
+         [
+          6,
+          8
+         ]
+        ],
+        "cpp": [
+         [
+          6,
+          8
+         ]
+        ],
+        "c": [
+         [
+          6,
+          8
+         ]
+        ]
+       }
+      },
+      {
+       "text": "Over the cap. `prices[hi]` is too expensive with every remaining partner.",
+       "at": {
+        "python": [
+         [
+          9,
+          10
+         ]
+        ],
+        "java": [
+         [
+          9,
+          10
+         ]
+        ],
+        "cpp": [
+         [
+          9,
+          10
+         ]
+        ],
+        "c": [
+         [
+          9,
+          10
+         ]
+        ]
+       }
+      },
+      {
+       "text": "The best sum found, or -1.",
+       "at": {
+        "python": [
+         [
+          11,
+          11
+         ]
+        ],
+        "java": [
+         [
+          13,
+          13
+         ]
+        ],
+        "cpp": [
+         [
+          13,
+          13
+         ]
+        ],
+        "c": [
+         [
+          13,
+          13
+         ]
+        ]
+       }
+      }
+     ],
+     "run": {
+      "call": "best_under([3, 5, 8, 10, 14], 16); ([2, 5, 7, 11, 15], 20); ([10, 20], 5)",
+      "output": "15\n20\n-1"
+     }
+    },
+    {
+     "md": "### Comparing a sequence with its mirror\n\nThe two ends don't need a sorted array at all when the question is about symmetry. A palindrome check\ncompares the first character with the last, the second with the second last, and so on, until the pointers\nmeet. Reversing in place swaps the same pairs."
+    },
+    {
+     "code": {
+      "python": "def is_palindrome(word):\n    lo, hi = 0, len(word) - 1\n    while lo < hi:\n        if word[lo] != word[hi]:\n            return False\n        lo, hi = lo + 1, hi - 1\n    return True\n",
+      "java": "static boolean isPalindrome(String word) {\n    int lo = 0, hi = word.length() - 1;\n    while (lo < hi) {\n        if (word.charAt(lo) != word.charAt(hi))\n            return false;\n        lo++;\n        hi--;\n    }\n    return true;\n}\n",
+      "cpp": "bool isPalindrome(const string& word) {\n    int lo = 0, hi = (int)word.size() - 1;\n    while (lo < hi) {\n        if (word[lo] != word[hi])\n            return false;\n        lo++;\n        hi--;\n    }\n    return true;\n}\n",
+      "c": "bool isPalindrome(const char* word) {\n    int lo = 0, hi = (int)strlen(word) - 1;\n    while (lo < hi) {\n        if (word[lo] != word[hi])\n            return false;\n        lo++;\n        hi--;\n    }\n    return true;\n}\n"
+     },
+     "title": "Palindrome check",
+     "lines": [
+      {
+       "text": "The first and last positions.",
+       "at": {
+        "python": [
+         [
+          2,
+          2
+         ]
+        ],
+        "java": [
+         [
+          2,
+          2
+         ]
+        ],
+        "cpp": [
+         [
+          2,
+          2
+         ]
+        ],
+        "c": [
+         [
+          2,
+          2
+         ]
+        ]
+       }
+      },
+      {
+       "text": "Until the pointers meet. A middle character in an odd-length word is compared with nothing.",
+       "at": {
+        "python": [
+         [
+          3,
+          3
+         ]
+        ],
+        "java": [
+         [
+          3,
+          3
+         ]
+        ],
+        "cpp": [
+         [
+          3,
+          3
+         ]
+        ],
+        "c": [
+         [
+          3,
+          3
+         ]
+        ]
+       }
+      },
+      {
+       "text": "One mismatched pair is enough to say no.",
+       "at": {
+        "python": [
+         [
+          4,
+          5
+         ]
+        ],
+        "java": [
+         [
+          4,
+          5
+         ]
+        ],
+        "cpp": [
+         [
+          4,
+          5
+         ]
+        ],
+        "c": [
+         [
+          4,
+          5
+         ]
+        ]
+       }
+      },
+      {
+       "text": "This pair matched. Move both pointers inward.",
+       "at": {
+        "python": [
+         [
+          6,
+          6
+         ]
+        ],
+        "java": [
+         [
+          6,
+          7
+         ]
+        ],
+        "cpp": [
+         [
+          6,
+          7
+         ]
+        ],
+        "c": [
+         [
+          6,
+          7
+         ]
+        ]
+       }
+      },
+      {
+       "text": "Every mirrored pair matched. An empty word and a single letter both get here straight away.",
+       "at": {
+        "python": [
+         [
+          7,
+          7
+         ]
+        ],
+        "java": [
+         [
+          9,
+          9
+         ]
+        ],
+        "cpp": [
+         [
+          9,
+          9
+         ]
+        ],
+        "c": [
+         [
+          9,
+          9
+         ]
+        ]
+       }
+      }
+     ],
+     "run": {
+      "call": "is_palindrome(\"racecar\"); (\"level\"); (\"ab\"); (\"x\"); (\"\")",
+      "output": "true\ntrue\nfalse\ntrue\ntrue"
+     }
+    },
+    {
+     "md": "Real questions add a twist, like skipping characters that aren't letters or allowing one mismatch. The\nskeleton stays: two pointers, compare, move inward.\n\n### Moving the weaker side\n\nSome problems don't have a target at all. \"Pick two walls and maximise the water between them\" has a value\nthat depends on the width (which shrinks every step) and the shorter wall. Moving the taller wall can't help,\nbecause the shorter one still caps the height and the width got smaller. So the shorter wall is the one\nthat moves. The general habit: work out which end can't possibly improve, and drop that one."
+    }
+   ]
+  },
+  {
+   "id": "complexity",
+   "title": "What it costs",
+   "blocks": [
+    {
+     "md": "Each step moves at least one pointer inward, and they start `n - 1` apart, so there are at most `n - 1`\nsteps. The template's run-counting loops also only move the pointers forward, so they don't add to that.\nO(n) time and O(1) extra space. If you have to sort first, the sort's O(n log n) dominates.\n\nChecking every pair is `n(n - 1) / 2` comparisons: for `n = 100,000` that's 4,999,950,000, against\nfewer than 100,000 here."
+    },
+    {
+     "table": {
+      "head": [
+       "Approach",
+       "Time",
+       "Extra space",
+       "Needs"
+      ],
+      "rows": [
+       [
+        "Check every pair",
+        "O(n²)",
+        "O(1)",
+        "nothing"
+       ],
+       [
+        "Hash map of values seen",
+        "O(n) on average",
+        "O(n)",
+        "exact targets only"
+       ],
+       [
+        "Opposite ends on sorted input",
+        "O(n)",
+        "O(1)",
+        "sorted input"
+       ],
+       [
+        "Sort, then opposite ends",
+        "O(n log n)",
+        "O(1) to O(n)",
+        "positions aren't needed"
+       ]
+      ]
+     }
+    }
+   ]
+  },
+  {
+   "id": "languages",
+   "title": "In your language",
+   "blocks": [
+    {
+     "md": "### Python\n\n`lo, hi = 0, len(a) - 1` and tuple assignment to move both at once. Integers don't overflow. If you sort a\ncopy, `sorted(a)` leaves the caller's list alone; `a.sort()` doesn't.\n\n### Java\n\nAdd in `long`: `(long) a[lo] + a[hi]`. `Arrays.sort(int[])` sorts primitives in place. For strings,\n`charAt` reads a character; there's no in-place reverse, so work on a `char[]` from `toCharArray()`.\n\n### C++\n\nCast before adding: `(long long)a[lo] + a[hi]`. `std::reverse` does the \"swap the ends, move inward\" loop for\nyou. Be careful with `size() - 1` on an empty vector: it's unsigned and wraps to a huge number. Cast to\n`int` first, as the template does.\n\n### C\n\nPass the length with the array. Cast to `long long` before adding. `strlen` gives a string's length, and an\nempty string gives `hi = -1`, which the loop condition handles."
+    }
+   ]
+  },
+  {
+   "id": "pitfalls",
+   "title": "Pitfalls and edge cases",
+   "blocks": [
+    {
+     "md": "- Using it on unsorted input. The \"drop this end\" argument depends on sorted order.\n- Moving both pointers on a mismatch. Only a match uses up both ends (and with repeats, only past the runs).\n- `lo <= hi` instead of `lo < hi`, which pairs an element with itself.\n- Overflow when adding two large values in Java, C or C++.\n- With repeats, counting a match as one pair when it stands for `a × b` (or `k(k - 1) / 2`).\n- Trying it on differences from opposite ends. Both moves can shrink the gap, so neither is safe to drop.\n- `size() - 1` on an empty container in C++."
+    }
+   ]
+  },
+  {
+   "id": "check",
+   "title": "Check yourself",
+   "blocks": [
+    {
+     "quiz": [
+      {
+       "q": "`a[lo] + a[hi]` is less than the target. Why is it safe to drop `a[lo]`?",
+       "a": "`a[hi]` is the biggest value still in play, so it's the best partner `a[lo]` could have. If even that falls short, every other partner does too."
+      },
+      {
+       "q": "Why does the loop run at most n - 1 times?",
+       "a": "Every step moves at least one pointer one place inward, and they start n - 1 places apart."
+      },
+      {
+       "q": "Sorted [2, 2, 3, 3, 3, 4], target 6. How many pairs of positions add up to 6?",
+       "a": "2 + 4: two 2s and one 4 make 2 pairs. 3 + 3: any two of the three 3s, which is 3 pairs. 5 in total."
+      },
+      {
+       "q": "Count pairs with sum below t: why can you add `hi - lo` in one go?",
+       "a": "If `a[lo] + a[hi] < t`, then `a[lo]` plus any value between `lo + 1` and `hi` is smaller still, because those values are at most `a[hi]`. That's `hi - lo` pairs."
+      },
+      {
+       "q": "Why doesn't the opposite-ends walk work for \"two values that differ by exactly k\"?",
+       "a": "When the gap is too big, moving either pointer inward makes it smaller, so the comparison doesn't tell you which end is useless. Put both pointers on the left and move them in the same direction instead."
+      }
+     ]
+    }
+   ]
+  }
+ ],
+ "leetcode": [
+  {
+   "id": 344,
+   "title": "Reverse String",
+   "url": "https://leetcode.com/problems/reverse-string/",
+   "difficulty": "easy"
+  },
+  {
+   "id": 125,
+   "title": "Valid Palindrome",
+   "url": "https://leetcode.com/problems/valid-palindrome/",
+   "difficulty": "easy"
+  },
+  {
+   "id": 977,
+   "title": "Squares of a Sorted Array",
+   "url": "https://leetcode.com/problems/squares-of-a-sorted-array/",
+   "difficulty": "easy"
+  },
+  {
+   "id": 917,
+   "title": "Reverse Only Letters",
+   "url": "https://leetcode.com/problems/reverse-only-letters/",
+   "difficulty": "easy"
+  },
+  {
+   "id": 345,
+   "title": "Reverse Vowels of a String",
+   "url": "https://leetcode.com/problems/reverse-vowels-of-a-string/",
+   "difficulty": "easy"
+  },
+  {
+   "id": 2824,
+   "title": "Count Pairs Whose Sum is Less than Target",
+   "url": "https://leetcode.com/problems/count-pairs-whose-sum-is-less-than-target/",
+   "difficulty": "easy"
+  },
+  {
+   "id": 167,
+   "title": "Two Sum II - Input Array Is Sorted",
+   "url": "https://leetcode.com/problems/two-sum-ii-input-array-is-sorted/",
+   "difficulty": "medium"
+  },
+  {
+   "id": 11,
+   "title": "Container With Most Water",
+   "url": "https://leetcode.com/problems/container-with-most-water/",
+   "difficulty": "medium"
+  },
+  {
+   "id": 881,
+   "title": "Boats to Save People",
+   "url": "https://leetcode.com/problems/boats-to-save-people/",
+   "difficulty": "medium"
+  },
+  {
+   "id": 1679,
+   "title": "Max Number of K-Sum Pairs",
+   "url": "https://leetcode.com/problems/max-number-of-k-sum-pairs/",
+   "difficulty": "medium"
+  },
+  {
+   "id": 2563,
+   "title": "Count the Number of Fair Pairs",
+   "url": "https://leetcode.com/problems/count-the-number-of-fair-pairs/",
+   "difficulty": "medium"
+  },
+  {
+   "id": 1750,
+   "title": "Minimum Length of String After Deleting Similar Ends",
+   "url": "https://leetcode.com/problems/minimum-length-of-string-after-deleting-similar-ends/",
+   "difficulty": "medium"
+  },
+  {
+   "id": 42,
+   "title": "Trapping Rain Water",
+   "url": "https://leetcode.com/problems/trapping-rain-water/",
+   "difficulty": "hard"
+  },
+  {
+   "id": 1099,
+   "title": "Two Sum Less Than K",
+   "url": "https://leetcode.com/problems/two-sum-less-than-k/",
+   "difficulty": "easy",
+   "premium": true
+  },
+  {
+   "id": 2422,
+   "title": "Merge Operations to Turn Array Into a Palindrome",
+   "url": "https://leetcode.com/problems/merge-operations-to-turn-array-into-a-palindrome/",
+   "difficulty": "medium",
+   "premium": true
+  }
+ ]
+}

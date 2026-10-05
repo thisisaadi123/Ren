@@ -309,19 +309,18 @@ lesson(
             """
             ### The array is already a table
 
-            A "seen" table for values 1 to `n` is just `n` booleans. A boolean array of size `n` indexed by `v - 1`.
-            The input array already has `n` slots indexed `0` to `n - 1`, and each slot holds a number we still need. So
+            A "seen" table for values 1 to `n` is just a boolean array of size `n`, indexed by `v - 1`. The input array already has `n` slots indexed `0` to `n - 1`, and each slot holds a number we still need. So
             the trick is to squeeze one extra bit of information (seen or not) into each slot without losing the
             number already there.
 
             ### Ways to hide a bit in a slot
 
-            - **The sign.** Values are positive, so the sign bit is free. Negative means "seen". `abs(slot)` gives the
+            - The sign. Values are positive, so the sign bit is free. Negative means "seen". `abs(slot)` gives the
               original back. This is the most common choice.
-            - **Adding n.** Values are 1 to `n`. Add `n` once per sighting and the slot holds `original + n × count`.
+            - Adding n. Values are 1 to `n`. Add `n` once per sighting and the slot holds `original + n × count`.
               `(slot - 1) % n + 1` recovers the original, and `(slot - 1) // n` gives the count. It stores a whole count,
               not just one bit.
-            - **Bitwise NOT (`~x`).** For values from 0 to `n - 1`, the sign trick fails on 0 (there's no "-0"). `~x`
+            - Bitwise NOT (`~x`). For values from 0 to `n - 1`, the sign trick fails on 0 (there's no "-0"). `~x`
               turns 0 into -1, 1 into -2 and so on, and applying it again undoes it. Negative still means marked.
             """,
             table(["value x", "~x"], *z_rows),
@@ -390,7 +389,6 @@ lesson(
             walk(walk3),
             f"""
             So value 1 appears {CRES[0]} times, value 3 appears {CRES[2]} times, and values 2, 5 and 6 don't appear.
-            That's a full count table, built inside the input itself.
 
             ### Values from 0 instead of 1
 
@@ -447,8 +445,8 @@ lesson(
         ]),
         ("complexity", "What it costs", [
             """
-            Marking is one pass, O(n), plus one pass to restore or read the marks, another O(n). Extra memory is O(1):
-            a couple of variables. Not counting the answer itself, if the problem asks you to return a list.
+            Marking is one pass, O(n), plus one pass to restore or read the marks, another O(n). Extra memory is O(1),
+            a couple of variables, not counting the answer itself if the problem asks you to return a list.
 
             Compare the alternatives: a hash set is O(n) time on average and O(n) memory; sorting is O(n log n) time and
             changes the order; checking every value against every other is O(n²).

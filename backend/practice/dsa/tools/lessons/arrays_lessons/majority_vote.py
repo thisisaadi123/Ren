@@ -338,7 +338,7 @@ lesson(
 
             Not a fit:
 
-            - "The most common value" (the mode). The majority vote only finds a value with **more than half**. If no
+            - "The most common value" (the mode). The majority vote only finds a value with more than half. If no
               value has that many, the candidate it hands back can be anything, even a value that appears once.
             - "The top k most frequent". That's counting plus sorting or a heap.
             - "At least half" (rather than more than half). Two values can each fill exactly half, so there may be two
@@ -492,7 +492,7 @@ lesson(
             For "more than `n / 3`" keep two slots, for "more than `n / k`" keep `k - 1`, exactly as in the walkthrough in
             *Why it works*. Two details matter when you write it:
 
-            - Check "does this value already have a slot?" for **every** slot before you consider taking a free one.
+            - Check "does this value already have a slot?" for *every* slot before you consider taking a free one.
               Otherwise the same value can end up in two slots.
             - When all slots are full and the value has none, the value itself is crossed out too; it doesn't move
               into a slot that just freed up.
@@ -538,7 +538,7 @@ lesson(
 
             ### C
 
-            The same loop with an explicit length. Nothing to allocate, nothing to free.
+            The same loop with an explicit length. There's nothing to allocate or free.
             """,
         ]),
         ("pitfalls", "Pitfalls and edge cases", [

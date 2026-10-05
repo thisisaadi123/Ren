@@ -26,6 +26,7 @@
   const ICON = {
     chev: '<svg class="topic-chev" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m6 9 6 6 6-6"/></svg>',
     go: '<svg class="prob-go" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 8h10M9 4l4 4-4 4"/></svg>',
+    check: '<svg class="read-i" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m3.5 8.5 3 3 6-7"/></svg>',
     lock: '<svg class="lock-i" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="7" width="10" height="7" rx="1.5"/><path d="M5.5 7V5a2.5 2.5 0 0 1 5 0v2"/></svg>',
   };
 
@@ -191,7 +192,9 @@
           <a class="prob lesson" href="learn.html?id=${encodeURIComponent(p.id)}">
             <span class="prob-title">Learn the pattern</span>
             <span class="prob-meta">${
-              learned(p.id) ? `<span class="prob-read">Read · ${p.lesson} min</span>` : `<span class="prob-type">${p.lesson} min read</span>`
+              learned(p.id)
+                ? `<span class="prob-read" title="You've read this lesson">${ICON.check}${p.lesson} min read<span class="sr-only"> (read)</span></span>`
+                : `<span class="prob-type">${p.lesson} min read</span>`
             }</span>
             ${ICON.go}
           </a>
@@ -261,7 +264,7 @@
     if (lessonsOnly()) {
       const lessons = sum(topics, (t) => t.nLessons);
       const minutes = sum(topics, (t) => sum(t.shown, (p) => p.lesson || 0));
-      text = lessons ? `${b(lessons)} ${lessons === 1 ? "lesson" : "lessons"} · about ${minutes} min of reading` : "";
+      text = lessons ? `${b(lessons)} ${lessons === 1 ? "lesson" : "lessons"} · ${minutes} min read in all` : "";
     } else if (!filtering()) text = `${b(shown)} of ${shown + soon} problems ready`;
     else if (!shown) text = soon ? `${b(soon)} ${soon === 1 ? "problem" : "problems"} coming soon` : "";
     else {

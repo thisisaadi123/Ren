@@ -1,0 +1,1455 @@
+{
+ "version": 1,
+ "id": "k-sum",
+ "topic": "two-pointers",
+ "summary": "To find three (or four, or k) values that add up to a target, sort once, fix the first value with a loop, and\nsolve the rest as a smaller problem of the same kind. When only two values are left, opposite ends finish the job\nin one pass. Skipping repeated values at each level makes every answer come out exactly once.",
+ "minutes": 14,
+ "sections": [
+  {
+   "id": "idea",
+   "title": "The idea",
+   "blocks": [
+    {
+     "md": "You're packing a crate that has to weigh exactly 9 kg, using three of the boxes on a shelf sorted by\nweight: `[1, 2, 2, 3, 4, 6]`. Trying every three boxes works but grows fast. Instead, pick up the first box and hold it.\nNow the question is smaller: which *two* of the boxes after it make up the rest? That's a pair-sum on a\nsorted shelf, which two pointers answer in one sweep. Put the box down, pick up the next one, and repeat.\n\nFour boxes works the same way: hold two, sweep for the last two. In general, `k` values means `k - 2`\nnested loops around one opposite-ends sweep.\n\nThe shelf being sorted does a second job too. Two boxes of the same weight sit side by side, so if you've\nalready held a 2 kg box and found everything that goes with it, the next 2 kg box can only find the same\ntriples again. Skip it."
+    },
+    {
+     "panels": [
+      {
+       "type": "row",
+       "cells": [
+        1,
+        2,
+        2,
+        3,
+        4,
+        6
+       ],
+       "states": {
+        "0": "mark",
+        "2": "answer",
+        "5": "answer"
+       },
+       "pointers": {
+        "i": 0,
+        "lo": 2,
+        "hi": 5
+       },
+       "label": "hold one, sweep the rest",
+       "slots": true
+      }
+     ],
+     "caption": "With 1 held, the pair must make 8. Opposite ends over everything to its right find it."
+    },
+    {
+     "key": "Sort. Loop over the first value (skipping repeats), then (for 4-sum) the second, then find the last two\nwith opposite ends on what's left, moving past repeats after each find. 3-sum is O(n²) and 4-sum is O(n³),\nwith O(1) extra space besides the output."
+    }
+   ]
+  },
+  {
+   "id": "signals",
+   "title": "When to reach for it",
+   "blocks": [
+    {
+     "md": "Three or more values from one array whose sum must equal, approach or stay under a target, especially with\n\"distinct triples\", \"no duplicate answers\", or `n` up to a few thousand (which allows O(n²) but not O(n³))."
+    },
+    {
+     "table": {
+      "head": [
+       "The problem says…",
+       "inside the two-pointer sweep"
+      ],
+      "rows": [
+       [
+        "all distinct triples (or quadruples) with sum `t`",
+        "record a hit, move both, skip repeats"
+       ],
+       [
+        "the triple whose sum is closest to `t`",
+        "track the closest sum seen; move towards `t`"
+       ],
+       [
+        "count triples with sum below `t`",
+        "when the pair fits, add `hi - lo` at once"
+       ],
+       [
+        "count triples that can form a triangle",
+        "fix the longest side, count pairs whose sum beats it"
+       ],
+       [
+        "count triples by position, values repeat",
+        "count runs, as in *Opposite ends*"
+       ]
+      ]
+     }
+    },
+    {
+     "md": "Not a fit:\n\n- Two values only. That's plain *Opposite ends*, or a hash map if the array isn't sorted and positions matter.\n- The values come from separate lists and you only need a count, as in \"how many `a + b + c + d = 0` with\n  one from each of four lists\". Meet in the middle with a hash map is O(n²) for that (*Complement\n  lookup*).\n- `k` is large or variable, and the values are small non-negative integers. That's a subset-sum dynamic\n  programming problem.\n- The answer needs the original positions in order (`i < j < k` matters, not just the values). Sorting\n  shuffles positions; you'd sort `(value, index)` pairs or think again."
+    }
+   ]
+  },
+  {
+   "id": "theory",
+   "title": "Why it works",
+   "blocks": [
+    {
+     "md": "### One level at a time\n\nEvery triple, once sorted, has a smallest value. Fixing `a[i]` as that smallest value and searching only to\nits right means each triple is looked for exactly once, under its first value. What's left is \"two values\nafter `i` adding up to `t - a[i]`\", which is a pair-sum on a sorted suffix. Opposite ends solves it in\nO(n), so 3-sum costs O(n) per first value, O(n²) in all.\n\nFour values is the same with one more loop: fix `a[i]`, then `a[j]` with `j > i`, then sweep. Each extra\nvalue costs one more factor of `n`."
+    },
+    {
+     "table": {
+      "head": [
+       "k",
+       "two pointers inside k - 2 loops",
+       "trying every k-tuple"
+      ],
+      "rows": [
+       [
+        "2",
+        "O(n)",
+        "O(n^2)"
+       ],
+       [
+        "3",
+        "O(n^2)",
+        "O(n^3)"
+       ],
+       [
+        "4",
+        "O(n^3)",
+        "O(n^4)"
+       ]
+      ]
+     }
+    },
+    {
+     "md": "### Skipping repeats\n\nSorting puts equal values next to each other, and that's what makes duplicate answers easy to stop. There\nare two places where the same answer could appear twice:\n\n- The same value fixed twice at one level. If `a[i] == a[i - 1]`, every combination using `a[i]` as the\n  first value was already found with `a[i - 1]`, which had at least as many values after it. Skip. The same\n  goes for `a[j] == a[j - 1]` at the second level, but only when `j` isn't the first index of its loop\n  (`j > i + 1`): the first `j` is allowed to equal `a[i]`, since `[2, 2, …]` uses two different 2s.\n- The same pair found twice in the sweep. After a hit, move `lo` past every copy of the value it just used.\n  (`hi` doesn't need its own skip: once `lo` holds a new, bigger value, the same pair of values can't\n  come up again.)"
+    },
+    {
+     "walk": {
+      "steps": [
+       {
+        "text": "Sorted, so equal values sit together and opposite ends work on any suffix.",
+        "panels": [
+         {
+          "type": "row",
+          "cells": [
+           1,
+           2,
+           2,
+           3,
+           4,
+           6
+          ],
+          "label": "sorted",
+          "slots": true
+         },
+         {
+          "type": "vars",
+          "items": {
+           "first value:": "–",
+           "need from the pair:": "–",
+           "triples:": "none yet"
+          }
+         }
+        ]
+       },
+       {
+        "text": "Fix 1 at index 0: the other two must add up to 9 - 1 = 8. 2 + 6 = 8. Found (1, 2, 6). Move both pointers. The next value on the left is another 2, which would only find the same triple, so `lo` skips past it.",
+        "panels": [
+         {
+          "type": "row",
+          "cells": [
+           1,
+           2,
+           2,
+           3,
+           4,
+           6
+          ],
+          "states": {
+           "0": "mark",
+           "1": "answer",
+           "5": "answer"
+          },
+          "pointers": {
+           "i": 0,
+           "lo": 1,
+           "hi": 5
+          },
+          "label": "sorted",
+          "slots": true
+         },
+         {
+          "type": "vars",
+          "items": {
+           "first value:": "1",
+           "need from the pair:": "8",
+           "triples:": "(1 2 6)"
+          }
+         }
+        ]
+       },
+       {
+        "text": "3 + 4 = 7, too small: move `lo` right.",
+        "panels": [
+         {
+          "type": "row",
+          "cells": [
+           1,
+           2,
+           2,
+           3,
+           4,
+           6
+          ],
+          "states": {
+           "0": "mark",
+           "3": "active",
+           "4": "active"
+          },
+          "pointers": {
+           "i": 0,
+           "lo": 3,
+           "hi": 4
+          },
+          "label": "sorted",
+          "slots": true
+         },
+         {
+          "type": "vars",
+          "items": {
+           "first value:": "1",
+           "need from the pair:": "8",
+           "triples:": "(1 2 6)"
+          }
+         }
+        ]
+       },
+       {
+        "text": "Fix 2 at index 1: the other two must add up to 9 - 2 = 7. 2 + 6 = 8, too big: move `hi` left.",
+        "panels": [
+         {
+          "type": "row",
+          "cells": [
+           1,
+           2,
+           2,
+           3,
+           4,
+           6
+          ],
+          "states": {
+           "1": "mark",
+           "2": "active",
+           "5": "active"
+          },
+          "pointers": {
+           "i": 1,
+           "lo": 2,
+           "hi": 5
+          },
+          "label": "sorted",
+          "slots": true
+         },
+         {
+          "type": "vars",
+          "items": {
+           "first value:": "2",
+           "need from the pair:": "7",
+           "triples:": "(1 2 6)"
+          }
+         }
+        ]
+       },
+       {
+        "text": "2 + 4 = 6, too small: move `lo` right.",
+        "panels": [
+         {
+          "type": "row",
+          "cells": [
+           1,
+           2,
+           2,
+           3,
+           4,
+           6
+          ],
+          "states": {
+           "1": "mark",
+           "2": "active",
+           "4": "active"
+          },
+          "pointers": {
+           "i": 1,
+           "lo": 2,
+           "hi": 4
+          },
+          "label": "sorted",
+          "slots": true
+         },
+         {
+          "type": "vars",
+          "items": {
+           "first value:": "2",
+           "need from the pair:": "7",
+           "triples:": "(1 2 6)"
+          }
+         }
+        ]
+       },
+       {
+        "text": "3 + 4 = 7. Found (2, 3, 4). Move both pointers.",
+        "panels": [
+         {
+          "type": "row",
+          "cells": [
+           1,
+           2,
+           2,
+           3,
+           4,
+           6
+          ],
+          "states": {
+           "1": "mark",
+           "3": "answer",
+           "4": "answer"
+          },
+          "pointers": {
+           "i": 1,
+           "lo": 3,
+           "hi": 4
+          },
+          "label": "sorted",
+          "slots": true
+         },
+         {
+          "type": "vars",
+          "items": {
+           "first value:": "2",
+           "need from the pair:": "7",
+           "triples:": "(1 2 6), (2 3 4)"
+          }
+         }
+        ]
+       },
+       {
+        "text": "Index 2 holds 2 again. Every triple starting with 2 was already found with the first 2, so skip it.",
+        "panels": [
+         {
+          "type": "row",
+          "cells": [
+           1,
+           2,
+           2,
+           3,
+           4,
+           6
+          ],
+          "states": {
+           "2": "dim"
+          },
+          "pointers": {
+           "i": 2
+          },
+          "label": "sorted",
+          "slots": true
+         },
+         {
+          "type": "vars",
+          "items": {
+           "first value:": "2",
+           "need from the pair:": "–",
+           "triples:": "(1 2 6), (2 3 4)"
+          }
+         }
+        ]
+       },
+       {
+        "text": "Fix 3 at index 3: the other two must add up to 9 - 3 = 6. 4 + 6 = 10, too big: move `hi` left. Every first value has been tried: 2 triples, each found once.",
+        "panels": [
+         {
+          "type": "row",
+          "cells": [
+           1,
+           2,
+           2,
+           3,
+           4,
+           6
+          ],
+          "states": {
+           "3": "mark",
+           "4": "active",
+           "5": "active"
+          },
+          "pointers": {
+           "i": 3,
+           "lo": 4,
+           "hi": 5
+          },
+          "label": "sorted",
+          "slots": true
+         },
+         {
+          "type": "vars",
+          "items": {
+           "first value:": "3",
+           "need from the pair:": "6",
+           "triples:": "(1 2 6), (2 3 4)"
+          }
+         }
+        ]
+       }
+      ],
+      "title": "Distinct triples from `[1, 2, 2, 3, 4, 6]` (already sorted) adding up to 9. Fix the first value, then run opposite ends on the rest.",
+      "legend": [
+       {
+        "state": "mark",
+        "text": "the fixed first value"
+       },
+       {
+        "state": "active",
+        "text": "the pair being tried"
+       },
+       {
+        "state": "answer",
+        "text": "a triple that works"
+       },
+       {
+        "state": "dim",
+        "text": "a repeated first value, skipped"
+       }
+      ]
+     }
+    },
+    {
+     "md": "### Counting instead of listing\n\nWhen the question asks \"how many\" rather than \"which\", the sweep can often count many triples in one step.\nFor \"sum below `t`\", if `a[lo] + a[hi]` fits, so does `a[lo]` with every value between `lo` and `hi`: add\n`hi - lo` and move `lo`. For \"can form a triangle\", fix the *largest* side `a[k]` and count pairs whose sum\nbeats it: if `a[lo] + a[hi] > a[k]`, every `lo` between them works with `hi`, so add `hi - lo` and move\n`hi`. Each sweep stays O(n), so counting is O(n²) even when the answer is O(n³) large.\n\n### Overflow\n\nFour values near 10⁹ add up to 4 × 10⁹, more than a 32-bit `int` holds. Compute the remaining target and\nthe pair sums in 64 bits. The template's last test is the classic trap: four copies of 10⁹ wrap around to\nexactly the target in 32-bit arithmetic."
+    }
+   ]
+  },
+  {
+   "id": "template",
+   "title": "The template",
+   "blocks": [
+    {
+     "md": "Every distinct set of four values from `nums` that adds up to `target`. Each answer is listed in increasing\norder, and the answers come out sorted."
+    },
+    {
+     "code": {
+      "python": "def four_sum(nums, target):\n    a = sorted(nums)\n    n, out = len(a), []\n    for i in range(n - 3):\n        if i > 0 and a[i] == a[i - 1]:\n            continue\n        for j in range(i + 1, n - 2):\n            if j > i + 1 and a[j] == a[j - 1]:\n                continue\n            need = target - a[i] - a[j]\n            lo, hi = j + 1, n - 1\n            while lo < hi:\n                s = a[lo] + a[hi]\n                if s < need:\n                    lo += 1\n                elif s > need:\n                    hi -= 1\n                else:\n                    out.append([a[i], a[j], a[lo], a[hi]])\n                    lo, hi = lo + 1, hi - 1\n                    while lo < hi and a[lo] == a[lo - 1]:\n                        lo += 1\n    return out\n",
+      "java": "static List<int[]> fourSum(int[] nums, long target) {\n    int[] a = nums.clone();\n    Arrays.sort(a);\n    int n = a.length;\n    List<int[]> out = new ArrayList<>();\n    for (int i = 0; i < n - 3; i++) {\n        if (i > 0 && a[i] == a[i - 1]) continue;\n        for (int j = i + 1; j < n - 2; j++) {\n            if (j > i + 1 && a[j] == a[j - 1]) continue;\n            long need = target - a[i] - a[j];\n            int lo = j + 1, hi = n - 1;\n            while (lo < hi) {\n                long s = (long) a[lo] + a[hi];\n                if (s < need) lo++;\n                else if (s > need) hi--;\n                else {\n                    out.add(new int[] {a[i], a[j], a[lo], a[hi]});\n                    lo++;\n                    hi--;\n                    while (lo < hi && a[lo] == a[lo - 1]) lo++;\n                }\n            }\n        }\n    }\n    return out;\n}\n",
+      "cpp": "vector<array<int, 4>> fourSum(vector<int> a, long long target) {\n    sort(a.begin(), a.end());\n    int n = a.size();\n    vector<array<int, 4>> out;\n    for (int i = 0; i < n - 3; i++) {\n        if (i > 0 && a[i] == a[i - 1]) continue;\n        for (int j = i + 1; j < n - 2; j++) {\n            if (j > i + 1 && a[j] == a[j - 1]) continue;\n            long long need = target - a[i] - a[j];\n            int lo = j + 1, hi = n - 1;\n            while (lo < hi) {\n                long long s = (long long)a[lo] + a[hi];\n                if (s < need) lo++;\n                else if (s > need) hi--;\n                else {\n                    out.push_back({a[i], a[j], a[lo], a[hi]});\n                    lo++;\n                    hi--;\n                    while (lo < hi && a[lo] == a[lo - 1]) lo++;\n                }\n            }\n        }\n    }\n    return out;\n}\n",
+      "c": "static int cmpInt(const void* x, const void* y) {\n    int a = *(const int*)x, b = *(const int*)y;\n    return (a > b) - (a < b);\n}\n\nint fourSum(const int* nums, int n, long long target, int (*out)[4]) {\n    int* a = malloc((n > 0 ? n : 1) * sizeof(int));\n    memcpy(a, nums, n * sizeof(int));\n    qsort(a, n, sizeof(int), cmpInt);\n    int found = 0;\n    for (int i = 0; i < n - 3; i++) {\n        if (i > 0 && a[i] == a[i - 1]) continue;\n        for (int j = i + 1; j < n - 2; j++) {\n            if (j > i + 1 && a[j] == a[j - 1]) continue;\n            long long need = target - a[i] - a[j];\n            int lo = j + 1, hi = n - 1;\n            while (lo < hi) {\n                long long s = (long long)a[lo] + a[hi];\n                if (s < need) lo++;\n                else if (s > need) hi--;\n                else {\n                    int* q = out[found++];\n                    q[0] = a[i]; q[1] = a[j]; q[2] = a[lo]; q[3] = a[hi];\n                    lo++;\n                    hi--;\n                    while (lo < hi && a[lo] == a[lo - 1]) lo++;\n                }\n            }\n        }\n    }\n    free(a);\n    return found;\n}\n"
+     },
+     "title": "Four values with a given sum",
+     "lines": [
+      {
+       "text": "Sort a copy. Equal values become neighbours, and every suffix is ready for opposite ends.",
+       "at": {
+        "python": [
+         [
+          2,
+          3
+         ]
+        ],
+        "java": [
+         [
+          2,
+          5
+         ]
+        ],
+        "cpp": [
+         [
+          2,
+          4
+         ]
+        ],
+        "c": [
+         [
+          7,
+          10
+         ]
+        ]
+       },
+       "notes": {
+        "c": "Copy with `malloc` and `memcpy`, then `qsort`. At least one element is allocated so `n = 0` is fine."
+       }
+      },
+      {
+       "text": "The `qsort` comparator: -1, 0 or 1 without subtracting, so it can't overflow.",
+       "at": {
+        "c": [
+         [
+          2,
+          3
+         ]
+        ]
+       }
+      },
+      {
+       "text": "The smallest value of the four. At least three values must be left after it.",
+       "at": {
+        "python": [
+         [
+          4,
+          4
+         ]
+        ],
+        "java": [
+         [
+          6,
+          6
+         ]
+        ],
+        "cpp": [
+         [
+          5,
+          5
+         ]
+        ],
+        "c": [
+         [
+          11,
+          11
+         ]
+        ]
+       }
+      },
+      {
+       "text": "A repeat of the previous first value would only find the same quadruples.",
+       "at": {
+        "python": [
+         [
+          5,
+          6
+         ]
+        ],
+        "java": [
+         [
+          7,
+          7
+         ]
+        ],
+        "cpp": [
+         [
+          6,
+          6
+         ]
+        ],
+        "c": [
+         [
+          12,
+          12
+         ]
+        ]
+       }
+      },
+      {
+       "text": "The second value, to the right of the first.",
+       "at": {
+        "python": [
+         [
+          7,
+          7
+         ]
+        ],
+        "java": [
+         [
+          8,
+          8
+         ]
+        ],
+        "cpp": [
+         [
+          7,
+          7
+         ]
+        ],
+        "c": [
+         [
+          13,
+          13
+         ]
+        ]
+       }
+      },
+      {
+       "text": "Repeats are skipped here too, except for the first `j`, which may equal `a[i]` (two different copies of the same value).",
+       "at": {
+        "python": [
+         [
+          8,
+          9
+         ]
+        ],
+        "java": [
+         [
+          9,
+          9
+         ]
+        ],
+        "cpp": [
+         [
+          8,
+          8
+         ]
+        ],
+        "c": [
+         [
+          14,
+          14
+         ]
+        ]
+       }
+      },
+      {
+       "text": "What the last two must add up to, in 64 bits.",
+       "at": {
+        "python": [
+         [
+          10,
+          10
+         ]
+        ],
+        "java": [
+         [
+          10,
+          10
+         ]
+        ],
+        "cpp": [
+         [
+          9,
+          9
+         ]
+        ],
+        "c": [
+         [
+          15,
+          15
+         ]
+        ]
+       },
+       "notes": {
+        "java": "`target` is a `long`, so the subtraction happens in `long`."
+       }
+      },
+      {
+       "text": "Opposite ends over everything after `j`.",
+       "at": {
+        "python": [
+         [
+          11,
+          13
+         ]
+        ],
+        "java": [
+         [
+          11,
+          13
+         ]
+        ],
+        "cpp": [
+         [
+          10,
+          12
+         ]
+        ],
+        "c": [
+         [
+          16,
+          18
+         ]
+        ]
+       }
+      },
+      {
+       "text": "Too small: the left value can't work with anything. Too big: the right one can't.",
+       "at": {
+        "python": [
+         [
+          14,
+          17
+         ]
+        ],
+        "java": [
+         [
+          14,
+          15
+         ]
+        ],
+        "cpp": [
+         [
+          13,
+          14
+         ]
+        ],
+        "c": [
+         [
+          19,
+          20
+         ]
+        ]
+       }
+      },
+      {
+       "text": "A match. Record it and move both pointers inward.",
+       "at": {
+        "python": [
+         [
+          18,
+          20
+         ]
+        ],
+        "java": [
+         [
+          16,
+          19
+         ]
+        ],
+        "cpp": [
+         [
+          15,
+          18
+         ]
+        ],
+        "c": [
+         [
+          21,
+          25
+         ]
+        ]
+       },
+       "notes": {
+        "c": "The caller supplies room for the answers; `found` counts them."
+       }
+      },
+      {
+       "text": "Step `lo` past copies of the value just used, so the same pair isn't found again.",
+       "at": {
+        "python": [
+         [
+          21,
+          22
+         ]
+        ],
+        "java": [
+         [
+          20,
+          20
+         ]
+        ],
+        "cpp": [
+         [
+          19,
+          19
+         ]
+        ],
+        "c": [
+         [
+          26,
+          26
+         ]
+        ]
+       }
+      },
+      {
+       "text": "Every distinct quadruple, in sorted order.",
+       "at": {
+        "python": [
+         [
+          23,
+          23
+         ]
+        ],
+        "java": [
+         [
+          25,
+          25
+         ]
+        ],
+        "cpp": [
+         [
+          24,
+          24
+         ]
+        ],
+        "c": [
+         [
+          31,
+          32
+         ]
+        ]
+       },
+       "notes": {
+        "c": "Free the sorted copy and return how many were found."
+       }
+      }
+     ],
+     "run": {
+      "call": "four_sum([1, 0, -1, 0, -2, 2], 0); ([2, 2, 2, 2, 2], 8); ([1, 2, 3], 6); ([10⁹] × 4, -294967296)",
+      "output": "-2 -1 1 2 | -2 0 0 2 | -1 0 0 1\n2 2 2 2\nnone\nnone"
+     }
+    },
+    {
+     "md": "The last test is four copies of 10⁹. Their real sum is 4 × 10⁹, nowhere near the target. In 32-bit\narithmetic it wraps around to exactly -294967296, and code that adds in `int` reports a quadruple that\ndoesn't exist."
+    }
+   ]
+  },
+  {
+   "id": "trace",
+   "title": "Trace it by hand",
+   "blocks": [
+    {
+     "md": "One step per choice of the first two values. The sweep inside each step is the same as in *Opposite ends*:"
+    },
+    {
+     "walk": {
+      "steps": [
+       {
+        "text": "Sorted. The two outer loops choose `a[i]` and `a[j]`; opposite ends find every pair after `j` that completes them.",
+        "panels": [
+         {
+          "type": "row",
+          "cells": [
+           -2,
+           -1,
+           0,
+           0,
+           1,
+           2
+          ],
+          "label": "sorted",
+          "slots": true
+         },
+         {
+          "type": "vars",
+          "items": {
+           "first two:": "–",
+           "need:": "–",
+           "found:": "none yet"
+          }
+         }
+        ]
+       },
+       {
+        "text": "`i` = 0, `j` = 1: -2 and -1, so the last two must add up to 3. Opposite ends over indices 2 to 5: 1 + 2 works, giving 1 quadruple.",
+        "panels": [
+         {
+          "type": "row",
+          "cells": [
+           -2,
+           -1,
+           0,
+           0,
+           1,
+           2
+          ],
+          "states": {
+           "0": "mark",
+           "1": "mark",
+           "4": "answer",
+           "5": "answer"
+          },
+          "label": "sorted",
+          "slots": true
+         },
+         {
+          "type": "vars",
+          "items": {
+           "first two:": "-2, -1",
+           "need:": "3",
+           "found:": "-2 -1 1 2"
+          }
+         }
+        ]
+       },
+       {
+        "text": "`i` = 0, `j` = 2: -2 and 0, so the last two must add up to 2. Opposite ends over indices 3 to 5: 0 + 2 works, giving 1 quadruple.",
+        "panels": [
+         {
+          "type": "row",
+          "cells": [
+           -2,
+           -1,
+           0,
+           0,
+           1,
+           2
+          ],
+          "states": {
+           "0": "mark",
+           "2": "mark",
+           "3": "answer",
+           "5": "answer"
+          },
+          "label": "sorted",
+          "slots": true
+         },
+         {
+          "type": "vars",
+          "items": {
+           "first two:": "-2, 0",
+           "need:": "2",
+           "found:": "-2 -1 1 2 | -2 0 0 2"
+          }
+         }
+        ]
+       },
+       {
+        "text": "`i` = 0, `j` = 3: 0 again as the second value, after -2. Skip it.",
+        "panels": [
+         {
+          "type": "row",
+          "cells": [
+           -2,
+           -1,
+           0,
+           0,
+           1,
+           2
+          ],
+          "states": {
+           "0": "mark",
+           "3": "dim"
+          },
+          "label": "sorted",
+          "slots": true
+         },
+         {
+          "type": "vars",
+          "items": {
+           "first two:": "-2, 0",
+           "need:": "–",
+           "found:": "-2 -1 1 2 | -2 0 0 2"
+          }
+         }
+        ]
+       },
+       {
+        "text": "`i` = 1, `j` = 2: -1 and 0, so the last two must add up to 1. Opposite ends over indices 3 to 5: 0 + 1 works, giving 1 quadruple.",
+        "panels": [
+         {
+          "type": "row",
+          "cells": [
+           -2,
+           -1,
+           0,
+           0,
+           1,
+           2
+          ],
+          "states": {
+           "1": "mark",
+           "2": "mark",
+           "3": "answer",
+           "4": "answer"
+          },
+          "label": "sorted",
+          "slots": true
+         },
+         {
+          "type": "vars",
+          "items": {
+           "first two:": "-1, 0",
+           "need:": "1",
+           "found:": "-2 -1 1 2 | -2 0 0 2 | -1 0 0 1"
+          }
+         }
+        ]
+       },
+       {
+        "text": "`i` = 1, `j` = 3: 0 again as the second value, after -1. Skip it.",
+        "panels": [
+         {
+          "type": "row",
+          "cells": [
+           -2,
+           -1,
+           0,
+           0,
+           1,
+           2
+          ],
+          "states": {
+           "1": "mark",
+           "3": "dim"
+          },
+          "label": "sorted",
+          "slots": true
+         },
+         {
+          "type": "vars",
+          "items": {
+           "first two:": "-1, 0",
+           "need:": "–",
+           "found:": "-2 -1 1 2 | -2 0 0 2 | -1 0 0 1"
+          }
+         }
+        ]
+       },
+       {
+        "text": "`i` = 2, `j` = 3: 0 and 0, so the last two must add up to 0. Opposite ends over indices 4 to 5: no pair works.",
+        "panels": [
+         {
+          "type": "row",
+          "cells": [
+           -2,
+           -1,
+           0,
+           0,
+           1,
+           2
+          ],
+          "states": {
+           "2": "mark",
+           "3": "mark"
+          },
+          "label": "sorted",
+          "slots": true
+         },
+         {
+          "type": "vars",
+          "items": {
+           "first two:": "0, 0",
+           "need:": "0",
+           "found:": "-2 -1 1 2 | -2 0 0 2 | -1 0 0 1"
+          }
+         }
+        ]
+       }
+      ],
+      "title": "`four_sum([1, 0, -1, 0, -2, 2], 0)` after sorting to `[-2, -1, 0, 0, 1, 2]`. One step per choice of the first two values.",
+      "legend": [
+       {
+        "state": "mark",
+        "text": "the two fixed values"
+       },
+       {
+        "state": "answer",
+        "text": "a pair that completes them"
+       },
+       {
+        "state": "dim",
+        "text": "a repeated value, skipped"
+       }
+      ]
+     }
+    },
+    {
+     "md": "When you trace 3-sum or 4-sum on paper, write the sorted array once and make a small table: the fixed\nvalues, the target left for the pair, and the pairs found. Most mistakes show up as the same answer appearing\nin two rows, which means a skip is missing."
+    }
+   ]
+  },
+  {
+   "id": "examples",
+   "title": "More examples",
+   "blocks": [
+    {
+     "md": "### One value from each of three lists\n\nPick one value from `[2, 5, 9]`, one from `[1, 3, 4, 8]` and one from `[2, 6, 7, 10]` so they add up to 15. Loop over the first\nlist, and for each value run a sweep with `lo` at the *start* of the second list and `hi` at the *end* of the\nthird. The two pointers are in different lists, but the logic is unchanged: too small moves `lo` forward,\ntoo big moves `hi` back."
+    },
+    {
+     "table": {
+      "head": [
+       "from the first list",
+       "the other two must make",
+       "pairs found"
+      ],
+      "rows": [
+       [
+        "2",
+        "13",
+        "3 + 10"
+       ],
+       [
+        "5",
+        "10",
+        "3 + 7, 4 + 6, 8 + 2"
+       ],
+       [
+        "9",
+        "6",
+        "4 + 2"
+       ]
+      ]
+     }
+    },
+    {
+     "md": "5 combinations. Both lists in the sweep have to be sorted; the first doesn't.\n\n### Closest instead of exact\n\nFor \"the triple whose sum is closest to the target\", there's no hit to wait for. Every pair the sweep looks\nat is a candidate: compare its distance with the best so far, then move towards the target (too small, `lo`\nright; too big, `hi` left). If a sum equals the target exactly, nothing can be closer, so you can stop.\n\n### When the order of positions matters\n\n\"Count `i < j < k` with `a[i] < a[k] < a[j]`\" mentions values *and* positions. Sorting would destroy the\npositions, so this isn't k-sum at all. Before you sort, check that the question only cares about which\nvalues are picked."
+    }
+   ]
+  },
+  {
+   "id": "variations",
+   "title": "Variations",
+   "blocks": [
+    {
+     "md": "### Counting triangles\n\nThree lengths `x ≤ y ≤ z` form a triangle when `x + y > z` (the other two conditions hold automatically).\nFix the longest side `z` from the right end, and sweep the values before it. If `a[lo] + a[hi] > z`, then\nevery value from `lo` up to `hi - 1` also works with `a[hi]`, because those values are at least `a[lo]`.\nThat's `hi - lo` triangles in one step, and `hi` moves left. Otherwise `a[lo]` is too short for anything,\nand `lo` moves right."
+    },
+    {
+     "code": {
+      "python": "def count_triangles(sides):\n    a = sorted(sides)\n    count = 0\n    for k in range(len(a) - 1, 1, -1):\n        lo, hi = 0, k - 1\n        while lo < hi:\n            if a[lo] + a[hi] > a[k]:\n                count += hi - lo\n                hi -= 1\n            else:\n                lo += 1\n    return count\n",
+      "java": "static long countTriangles(int[] sides) {\n    int[] a = sides.clone();\n    Arrays.sort(a);\n    long count = 0;\n    for (int k = a.length - 1; k >= 2; k--) {\n        int lo = 0, hi = k - 1;\n        while (lo < hi) {\n            if (a[lo] + a[hi] > a[k]) {\n                count += hi - lo;\n                hi--;\n            } else {\n                lo++;\n            }\n        }\n    }\n    return count;\n}\n",
+      "cpp": "long long countTriangles(vector<int> a) {\n    sort(a.begin(), a.end());\n    long long count = 0;\n    for (int k = (int)a.size() - 1; k >= 2; k--) {\n        int lo = 0, hi = k - 1;\n        while (lo < hi) {\n            if (a[lo] + a[hi] > a[k]) {\n                count += hi - lo;\n                hi--;\n            } else {\n                lo++;\n            }\n        }\n    }\n    return count;\n}\n",
+      "c": "static int cmpSide(const void* x, const void* y) {\n    int a = *(const int*)x, b = *(const int*)y;\n    return (a > b) - (a < b);\n}\n\nlong long countTriangles(const int* sides, int n) {\n    int* a = malloc((n > 0 ? n : 1) * sizeof(int));\n    memcpy(a, sides, n * sizeof(int));\n    qsort(a, n, sizeof(int), cmpSide);\n    long long count = 0;\n    for (int k = n - 1; k >= 2; k--) {\n        int lo = 0, hi = k - 1;\n        while (lo < hi) {\n            if (a[lo] + a[hi] > a[k]) {\n                count += hi - lo;\n                hi--;\n            } else {\n                lo++;\n            }\n        }\n    }\n    free(a);\n    return count;\n}\n"
+     },
+     "title": "Count the triples that can form a triangle",
+     "lines": [
+      {
+       "text": "Sort a copy, so the largest side of any triple is the one furthest right.",
+       "at": {
+        "python": [
+         [
+          2,
+          2
+         ]
+        ],
+        "java": [
+         [
+          2,
+          3
+         ]
+        ],
+        "cpp": [
+         [
+          2,
+          2
+         ]
+        ],
+        "c": [
+         [
+          2,
+          3
+         ],
+         [
+          7,
+          9
+         ]
+        ]
+       },
+       "notes": {
+        "c": "Copy, then `qsort` with an overflow-safe comparator."
+       }
+      },
+      {
+       "text": "The count can grow like n³/6, so it's 64-bit.",
+       "at": {
+        "python": [
+         [
+          3,
+          3
+         ]
+        ],
+        "java": [
+         [
+          4,
+          4
+         ]
+        ],
+        "cpp": [
+         [
+          3,
+          3
+         ]
+        ],
+        "c": [
+         [
+          10,
+          10
+         ]
+        ]
+       }
+      },
+      {
+       "text": "Fix the longest side, from the right end down to index 2.",
+       "at": {
+        "python": [
+         [
+          4,
+          4
+         ]
+        ],
+        "java": [
+         [
+          5,
+          5
+         ]
+        ],
+        "cpp": [
+         [
+          4,
+          4
+         ]
+        ],
+        "c": [
+         [
+          11,
+          11
+         ]
+        ]
+       }
+      },
+      {
+       "text": "Opposite ends over everything before it.",
+       "at": {
+        "python": [
+         [
+          5,
+          6
+         ]
+        ],
+        "java": [
+         [
+          6,
+          7
+         ]
+        ],
+        "cpp": [
+         [
+          5,
+          6
+         ]
+        ],
+        "c": [
+         [
+          12,
+          13
+         ]
+        ]
+       }
+      },
+      {
+       "text": "These two beat the longest side, and so does every value between `lo` and `hi` paired with `a[hi]`: `hi - lo` triangles. Then `a[hi]` has been fully counted.",
+       "at": {
+        "python": [
+         [
+          7,
+          9
+         ]
+        ],
+        "java": [
+         [
+          8,
+          10
+         ]
+        ],
+        "cpp": [
+         [
+          7,
+          9
+         ]
+        ],
+        "c": [
+         [
+          14,
+          16
+         ]
+        ]
+       }
+      },
+      {
+       "text": "Too short together. `a[lo]` can't work with any remaining partner, which are all at most `a[hi]`.",
+       "at": {
+        "python": [
+         [
+          10,
+          11
+         ]
+        ],
+        "java": [
+         [
+          11,
+          12
+         ]
+        ],
+        "cpp": [
+         [
+          10,
+          11
+         ]
+        ],
+        "c": [
+         [
+          17,
+          18
+         ]
+        ]
+       }
+      },
+      {
+       "text": "The number of triangles.",
+       "at": {
+        "python": [
+         [
+          12,
+          12
+         ]
+        ],
+        "java": [
+         [
+          16,
+          16
+         ]
+        ],
+        "cpp": [
+         [
+          15,
+          15
+         ]
+        ],
+        "c": [
+         [
+          22,
+          23
+         ]
+        ]
+       },
+       "notes": {
+        "c": "Free the copy first."
+       }
+      }
+     ],
+     "run": {
+      "call": "count_triangles([2, 2, 3, 4]); ([4, 2, 3, 4]); ([1, 2, 3]); ([5, 5, 5, 5])",
+      "output": "3\n4\n0\n4"
+     }
+    },
+    {
+     "md": "`[1, 2, 3]` is no triangle: 1 + 2 is equal to 3, not bigger, so the three sides lie flat.\n\n### Any k, recursively\n\nThe loops can be written once as a recursive function: `k_sum(start, k, target)` loops `i` from `start`,\nskips repeats, and calls `k_sum(i + 1, k - 1, target - a[i])`, with `k = 2` handled by opposite ends. It's\ntidy, and it makes the cost obvious: O(n^(k-1)) for `k ≥ 2`.\n\n### Pruning\n\nBecause the array is sorted, a loop can stop early. If the smallest possible sum from here\n(`a[i]` plus the next `k - 1` values) is already above the target, no later `i` can do better, so break.\nIf the largest possible sum (`a[i]` plus the last `k - 1` values) is below it, this `i` is hopeless, so\ncontinue. It doesn't change the worst case, but it can skip a lot of work on real data."
+    }
+   ]
+  },
+  {
+   "id": "complexity",
+   "title": "What it costs",
+   "blocks": [
+    {
+     "md": "Sorting costs O(n log n). For 3-sum, each of the `n` first values runs an O(n) sweep: O(n²). For 4-sum it's\nO(n³), and in general O(n^(k-1)). Extra space is O(1) besides the output, or O(n) if you sort a copy.\n\nFor `n = 2,000`, 3-sum does about 2,000,000 sweep steps; trying every triple would be about\n1,333,333,333."
+    },
+    {
+     "table": {
+      "head": [
+       "Approach (3 values)",
+       "Time",
+       "Extra space",
+       "Duplicates"
+      ],
+      "rows": [
+       [
+        "Try every triple",
+        "O(n³)",
+        "O(1)",
+        "needs a set to remove"
+       ],
+       [
+        "Fix one, hash set for the pair",
+        "O(n²) on average",
+        "O(n)",
+        "awkward to remove"
+       ],
+       [
+        "Sort, fix one, opposite ends",
+        "O(n²)",
+        "O(1) to O(n)",
+        "skipped as you go"
+       ]
+      ]
+     }
+    }
+   ]
+  },
+  {
+   "id": "languages",
+   "title": "In your language",
+   "blocks": [
+    {
+     "md": "### Python\n\n`sorted(nums)` for a copy. Integers never overflow, so the 32-bit trap doesn't apply. For speed on large\ninputs, keep the inner sweep simple; Python's per-step cost is high, and O(n²) at `n = 3000` is already\nmillions of steps.\n\n### Java\n\n`Arrays.sort(int[])` sorts primitives. Compute the remaining target as `long`. Return\n`List<List<Integer>>` if the problem demands it; `List<int[]>` is lighter while you work.\n\n### C++\n\n`sort` then the same loops. `vector<array<int, 4>>` or `vector<vector<int>>` for answers. Use `long long`\nfor `need`. Watch `n - 3` on an unsigned `size()`: with fewer than three elements it wraps around. Cast to\n`int` first.\n\n### C\n\n`qsort` with a comparator that doesn't subtract. The caller usually provides the output buffer; know the\nworst-case number of answers, or grow the buffer with `realloc`."
+    }
+   ]
+  },
+  {
+   "id": "pitfalls",
+   "title": "Pitfalls and edge cases",
+   "blocks": [
+    {
+     "md": "- Forgetting to sort, or sorting after you've started.\n- Skipping a repeat at the *first* index of an inner loop (`j > i + 1`, not `j > 0`), which loses answers\n  like `[2, 2, 2, 2]`.\n- Not moving `lo` past repeats after a hit, which lists the same answer twice.\n- Adding in 32 bits. Four values near 10⁹ overflow.\n- Loop bounds that leave fewer than enough values for the inner levels (`i < n - 3` for 4-sum).\n- Using the k-sum loops when the question cares about the original positions' order.\n- `size() - 3` on an unsigned size in C++ when `n < 3`."
+    }
+   ]
+  },
+  {
+   "id": "check",
+   "title": "Check yourself",
+   "blocks": [
+    {
+     "quiz": [
+      {
+       "q": "Why does 3-sum cost O(n²) and not O(n³)?",
+       "a": "Fixing the first value leaves a pair-sum on a sorted suffix, which opposite ends solves in O(n). That's O(n) per first value, so O(n²) overall."
+      },
+      {
+       "q": "Why is `a[i] == a[i - 1]` safe to skip at the first level?",
+       "a": "Every combination that starts with that value was already found when the previous copy was fixed, and that copy had at least as many values after it to choose from."
+      },
+      {
+       "q": "In 4-sum, why is the second-level skip `j > i + 1 && a[j] == a[j - 1]` rather than `j > 0`?",
+       "a": "The first `j` after `i` may hold the same value as `a[i]`. That's a different copy, and quadruples like [2, 2, 2, 2] need it."
+      },
+      {
+       "q": "Counting triangles: why does a match add `hi - lo` and move `hi`?",
+       "a": "If `a[lo] + a[hi]` beats the longest side, so does any value between them paired with `a[hi]`, since those are at least `a[lo]`. That's `hi - lo` triangles that use `a[hi]`, all counted, so `a[hi]` is done."
+      },
+      {
+       "q": "[10⁹, 10⁹, 10⁹, 10⁹] with target -294967296 reports a quadruple in some code. Why?",
+       "a": "The sum is 4 × 10⁹, which wraps around to -294967296 in 32-bit arithmetic. Doing the sums in 64 bits fixes it."
+      }
+     ]
+    }
+   ]
+  }
+ ],
+ "leetcode": [
+  {
+   "id": 15,
+   "title": "3Sum",
+   "url": "https://leetcode.com/problems/3sum/",
+   "difficulty": "medium"
+  },
+  {
+   "id": 16,
+   "title": "3Sum Closest",
+   "url": "https://leetcode.com/problems/3sum-closest/",
+   "difficulty": "medium"
+  },
+  {
+   "id": 18,
+   "title": "4Sum",
+   "url": "https://leetcode.com/problems/4sum/",
+   "difficulty": "medium"
+  },
+  {
+   "id": 611,
+   "title": "Valid Triangle Number",
+   "url": "https://leetcode.com/problems/valid-triangle-number/",
+   "difficulty": "medium"
+  },
+  {
+   "id": 923,
+   "title": "3Sum With Multiplicity",
+   "url": "https://leetcode.com/problems/3sum-with-multiplicity/",
+   "difficulty": "medium"
+  },
+  {
+   "id": 1577,
+   "title": "Number of Ways Where Square of Number Is Equal to Product of Two Numbers",
+   "url": "https://leetcode.com/problems/number-of-ways-where-square-of-number-is-equal-to-product-of-two-numbers/",
+   "difficulty": "medium"
+  },
+  {
+   "id": 259,
+   "title": "3Sum Smaller",
+   "url": "https://leetcode.com/problems/3sum-smaller/",
+   "difficulty": "medium",
+   "premium": true
+  }
+ ]
+}

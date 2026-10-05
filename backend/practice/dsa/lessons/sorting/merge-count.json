@@ -1,0 +1,1600 @@
+{
+ "version": 1,
+ "id": "merge-count",
+ "topic": "sorting",
+ "summary": "Some questions count pairs (i, j) with i < j that satisfy a condition, like \"the earlier value is bigger\". Checking\nevery pair is O(n²). Merge sort does it in O(n log n): when it merges two sorted halves, every left value came\nbefore every right value, and sortedness lets you count whole groups of pairs in one step.",
+ "minutes": 12,
+ "sections": [
+  {
+   "id": "idea",
+   "title": "The idea",
+   "blocks": [
+    {
+     "md": "A judge lists contestants in the order they performed, with the rank each one got: `[5, 2, 6, 1, 3]`. How \"out of\norder\" is this list? A natural measure is the number of **inversions**: pairs where the earlier contestant\ngot a bigger rank number than a later one. Here there are 6:"
+    },
+    {
+     "table": {
+      "head": [
+       "earlier",
+       "later"
+      ],
+      "rows": [
+       [
+        "index 0 (5)",
+        "index 1 (2)"
+       ],
+       [
+        "index 0 (5)",
+        "index 3 (1)"
+       ],
+       [
+        "index 0 (5)",
+        "index 4 (3)"
+       ],
+       [
+        "index 1 (2)",
+        "index 3 (1)"
+       ],
+       [
+        "index 2 (6)",
+        "index 3 (1)"
+       ],
+       [
+        "index 2 (6)",
+        "index 4 (3)"
+       ]
+      ]
+     }
+    },
+    {
+     "md": "Checking every pair takes `n(n - 1) / 2` comparisons (10 here, but half a trillion for a million\nvalues). Merge sort can count them while it sorts. Split the list in half. Every pair is either inside the\nleft half, inside the right half, or **crossing**: one value from each. The first two kinds are counted when\nsorting the halves. The crossing ones are counted during the merge, and that's cheap, because both halves\nare sorted by then: the moment a right value is taken before some left values, it's smaller than *all* of\nthe left values still waiting."
+    },
+    {
+     "key": "Merge sort, plus one line: when the merge takes `a[j]` from the right half while left values `a[i..mid-1]` are\nstill waiting, add `mid - i`. Each half counts its own pairs recursively. O(n log n) instead of O(n²)."
+    }
+   ]
+  },
+  {
+   "id": "signals",
+   "title": "When to reach for it",
+   "blocks": [
+    {
+     "md": "The question counts pairs `i < j` (an earlier item and a later item) under a condition that compares their\nvalues: \"how many pairs are out of order\", \"how many pairs where the earlier one is more than twice the later\none\", \"for each item, how many later items are smaller\", \"the fewest swaps of neighbours to sort\". With `n`\nup to 10⁵ or more, O(n²) is too slow, and that's the hint.\n\nIt works when, once both halves are sorted, you can count the condition for a whole range of left values at\nonce with a pointer that only moves forward. Conditions like `a[i] > a[j]`, `a[i] > 2·a[j]`\nand `a[i] - a[j] > d` all have that shape.\n\nNot a fit:\n\n- The condition depends on positions as well as values (\"pairs at most k apart\"). Sorting scrambles positions.\n- Values are small integers: a counting array or a Fenwick tree (Binary Indexed Tree, a later topic) may be\n  simpler."
+    },
+    {
+     "table": {
+      "head": [
+       "n",
+       "check every pair",
+       "merge and count (≈ n log₂ n)"
+      ],
+      "rows": [
+       [
+        "1,000",
+        "499,500",
+        "9,000"
+       ],
+       [
+        "100,000",
+        "4,999,950,000",
+        "1,600,000"
+       ],
+       [
+        "1,000,000",
+        "499,999,500,000",
+        "19,000,000"
+       ]
+      ]
+     }
+    }
+   ]
+  },
+  {
+   "id": "theory",
+   "title": "Why it works",
+   "blocks": [
+    {
+     "md": "### Every pair is counted exactly once\n\nPick any pair of positions `i < j`. At the top level they're either on the same side (then they're counted\ninside that side's recursion) or on opposite sides, with `i` on the left (then they're a crossing pair at this\nlevel). Following the recursion down, every pair is split apart at exactly one level, and that's the only\nmerge that counts it. Here are the merges for `[5, 2, 6, 1, 3]` and the crossing pairs each one finds:"
+    },
+    {
+     "table": {
+      "head": [
+       "left (sorted)",
+       "right (sorted)",
+       "crossing pairs counted"
+      ],
+      "rows": [
+       [
+        "5",
+        "2",
+        "1"
+       ],
+       [
+        "1",
+        "3",
+        "0"
+       ],
+       [
+        "6",
+        "1 3",
+        "2"
+       ],
+       [
+        "2 5",
+        "1 3 6",
+        "3"
+       ]
+      ]
+     }
+    },
+    {
+     "md": "### Sorting the halves doesn't change the crossing pairs\n\nSorting the left half reorders values *within* it, but each of them still came before every right value in\nthe original array. So \"left value bigger than right value\" counts exactly the crossing inversions, whatever\norder the halves are in. Having them sorted only makes the counting fast.\n\n### Counting a group at once\n\nDuring the merge, suppose the next smallest value is `a[j]` from the right half, while `a[i..mid-1]` are still\nwaiting on the left. All of those are bigger than `a[j]` (otherwise one of them would have been taken first),\nand all of them came earlier. So `a[j]` forms `mid - i` inversions, counted in one addition."
+    },
+    {
+     "walk": {
+      "steps": [
+       {
+        "text": "Two sorted halves. A crossing pair is any left value bigger than any right value.",
+        "panels": [
+         {
+          "type": "row",
+          "cells": [
+           2,
+           5,
+           8
+          ],
+          "pointers": {
+           "i": 0
+          },
+          "label": "left"
+         },
+         {
+          "type": "row",
+          "cells": [
+           1,
+           3,
+           9
+          ],
+          "pointers": {
+           "j": 0
+          },
+          "label": "right"
+         },
+         {
+          "type": "row",
+          "cells": [
+           null,
+           null,
+           null,
+           null,
+           null,
+           null
+          ],
+          "label": "merged"
+         },
+         {
+          "type": "vars",
+          "items": {
+           "crossing pairs:": "0"
+          }
+         }
+        ]
+       },
+       {
+        "text": "1 < 2: take 1 from the right. The left half is sorted, so 2 and everything after it (2, 5, 8) are bigger than 1: 3 crossing pairs at once.",
+        "panels": [
+         {
+          "type": "row",
+          "cells": [
+           2,
+           5,
+           8
+          ],
+          "states": {
+           "0": "mark",
+           "1": "mark",
+           "2": "mark"
+          },
+          "pointers": {
+           "i": 0
+          },
+          "label": "left"
+         },
+         {
+          "type": "row",
+          "cells": [
+           1,
+           3,
+           9
+          ],
+          "states": {
+           "0": "dim"
+          },
+          "pointers": {
+           "j": 1
+          },
+          "label": "right"
+         },
+         {
+          "type": "row",
+          "cells": [
+           1,
+           null,
+           null,
+           null,
+           null,
+           null
+          ],
+          "states": {
+           "0": "new"
+          },
+          "label": "merged"
+         },
+         {
+          "type": "vars",
+          "items": {
+           "crossing pairs:": "3"
+          }
+         }
+        ]
+       },
+       {
+        "text": "2 ≤ 3: take 2 from the left. Every right value still waiting is at least 3, so 2 isn't bigger than any of them. Nothing to count.",
+        "panels": [
+         {
+          "type": "row",
+          "cells": [
+           2,
+           5,
+           8
+          ],
+          "states": {
+           "0": "dim"
+          },
+          "pointers": {
+           "i": 1
+          },
+          "label": "left"
+         },
+         {
+          "type": "row",
+          "cells": [
+           1,
+           3,
+           9
+          ],
+          "states": {
+           "0": "dim"
+          },
+          "pointers": {
+           "j": 1
+          },
+          "label": "right"
+         },
+         {
+          "type": "row",
+          "cells": [
+           1,
+           2,
+           null,
+           null,
+           null,
+           null
+          ],
+          "states": {
+           "1": "new"
+          },
+          "label": "merged"
+         },
+         {
+          "type": "vars",
+          "items": {
+           "crossing pairs:": "3"
+          }
+         }
+        ]
+       },
+       {
+        "text": "3 < 5: take 3 from the right. The left half is sorted, so 5 and everything after it (5, 8) are bigger than 3: 2 crossing pairs at once.",
+        "panels": [
+         {
+          "type": "row",
+          "cells": [
+           2,
+           5,
+           8
+          ],
+          "states": {
+           "0": "dim",
+           "1": "mark",
+           "2": "mark"
+          },
+          "pointers": {
+           "i": 1
+          },
+          "label": "left"
+         },
+         {
+          "type": "row",
+          "cells": [
+           1,
+           3,
+           9
+          ],
+          "states": {
+           "0": "dim",
+           "1": "dim"
+          },
+          "pointers": {
+           "j": 2
+          },
+          "label": "right"
+         },
+         {
+          "type": "row",
+          "cells": [
+           1,
+           2,
+           3,
+           null,
+           null,
+           null
+          ],
+          "states": {
+           "2": "new"
+          },
+          "label": "merged"
+         },
+         {
+          "type": "vars",
+          "items": {
+           "crossing pairs:": "5"
+          }
+         }
+        ]
+       },
+       {
+        "text": "5 ≤ 9: take 5 from the left. Every right value still waiting is at least 9, so 5 isn't bigger than any of them. Nothing to count.",
+        "panels": [
+         {
+          "type": "row",
+          "cells": [
+           2,
+           5,
+           8
+          ],
+          "states": {
+           "0": "dim",
+           "1": "dim"
+          },
+          "pointers": {
+           "i": 2
+          },
+          "label": "left"
+         },
+         {
+          "type": "row",
+          "cells": [
+           1,
+           3,
+           9
+          ],
+          "states": {
+           "0": "dim",
+           "1": "dim"
+          },
+          "pointers": {
+           "j": 2
+          },
+          "label": "right"
+         },
+         {
+          "type": "row",
+          "cells": [
+           1,
+           2,
+           3,
+           5,
+           null,
+           null
+          ],
+          "states": {
+           "3": "new"
+          },
+          "label": "merged"
+         },
+         {
+          "type": "vars",
+          "items": {
+           "crossing pairs:": "5"
+          }
+         }
+        ]
+       },
+       {
+        "text": "8 ≤ 9: take 8 from the left. Every right value still waiting is at least 9, so 8 isn't bigger than any of them. Nothing to count.",
+        "panels": [
+         {
+          "type": "row",
+          "cells": [
+           2,
+           5,
+           8
+          ],
+          "states": {
+           "0": "dim",
+           "1": "dim",
+           "2": "dim"
+          },
+          "pointers": {},
+          "label": "left"
+         },
+         {
+          "type": "row",
+          "cells": [
+           1,
+           3,
+           9
+          ],
+          "states": {
+           "0": "dim",
+           "1": "dim"
+          },
+          "pointers": {
+           "j": 2
+          },
+          "label": "right"
+         },
+         {
+          "type": "row",
+          "cells": [
+           1,
+           2,
+           3,
+           5,
+           8,
+           null
+          ],
+          "states": {
+           "4": "new"
+          },
+          "label": "merged"
+         },
+         {
+          "type": "vars",
+          "items": {
+           "crossing pairs:": "5"
+          }
+         }
+        ]
+       },
+       {
+        "text": "The left half is used up, so copy the rest of the right (9). Leftover right values are bigger than every left value, so they add nothing. Total: 5.",
+        "panels": [
+         {
+          "type": "row",
+          "cells": [
+           2,
+           5,
+           8
+          ],
+          "states": {
+           "0": "dim",
+           "1": "dim",
+           "2": "dim"
+          },
+          "pointers": {},
+          "label": "left"
+         },
+         {
+          "type": "row",
+          "cells": [
+           1,
+           3,
+           9
+          ],
+          "states": {
+           "0": "dim",
+           "1": "dim",
+           "2": "dim"
+          },
+          "pointers": {},
+          "label": "right"
+         },
+         {
+          "type": "row",
+          "cells": [
+           1,
+           2,
+           3,
+           5,
+           8,
+           9
+          ],
+          "states": {
+           "5": "new"
+          },
+          "label": "merged"
+         },
+         {
+          "type": "vars",
+          "items": {
+           "crossing pairs:": "5"
+          }
+         }
+        ],
+        "result": "5"
+       }
+      ],
+      "title": "Merging [2, 5, 8] and [1, 3, 9], counting pairs where a left value is bigger than a right value. Every left value came earlier in the array than every right value.",
+      "legend": [
+       {
+        "state": "dim",
+        "text": "already taken"
+       },
+       {
+        "state": "mark",
+        "text": "each forms a pair with the value just taken"
+       },
+       {
+        "state": "new",
+        "text": "just placed"
+       }
+      ]
+     }
+    },
+    {
+     "md": "Equal values aren't inversions, which is why ties take from the left: the left value goes out first and isn't\ncounted against an equal right value.\n\n### When the condition isn't plain \"bigger than\"\n\nFor a condition like `a[i] > a[j] + d` (or `a[i] > 2·a[j]`), the merge's comparisons don't line up with the\ncondition any more. So count in a separate pass *before* merging: walk the right half in sorted order with a\npointer into the sorted left half. As right values grow, the threshold grows, and the pointer only moves\nforward. That pass is O(length), so the whole thing stays O(n log n).\n\n### Inversions and neighbour swaps\n\nSwapping two neighbours that are out of order removes exactly one inversion and creates none (no other pair\nchanges its relative order). Bubble sort and insertion sort sort by such swaps, so the number of swaps they\nmake equals the number of inversions, so the inversion count is a fair measure of how far a list is from\nsorted."
+    }
+   ]
+  },
+  {
+   "id": "template",
+   "title": "The template",
+   "blocks": [
+    {
+     "md": "Count inversions, pairs `i < j` with `a[i] > a[j]`, while merge sorting a copy."
+    },
+    {
+     "code": {
+      "python": "def sort_count(a, buf, lo, hi):\n    if hi - lo < 2:\n        return 0\n    mid = (lo + hi) // 2\n    count = sort_count(a, buf, lo, mid) + sort_count(a, buf, mid, hi)\n    i, j, k = lo, mid, lo\n    while i < mid and j < hi:\n        if a[i] <= a[j]:\n            buf[k] = a[i]\n            i += 1\n        else:\n            buf[k] = a[j]\n            j += 1\n            count += mid - i\n        k += 1\n    rest = a[i:mid] + a[j:hi]\n    buf[k:hi] = rest\n    a[lo:hi] = buf[lo:hi]\n    return count\n\n\ndef count_inversions(nums):\n    a = list(nums)\n    return sort_count(a, [0] * len(a), 0, len(a))\n",
+      "java": "static long sortCount(int[] a, int[] buf, int lo, int hi) {\n    if (hi - lo < 2) return 0;\n    int mid = (lo + hi) >>> 1;\n    long count = sortCount(a, buf, lo, mid) + sortCount(a, buf, mid, hi);\n    int i = lo, j = mid, k = lo;\n    while (i < mid && j < hi) {\n        if (a[i] <= a[j]) buf[k++] = a[i++];\n        else {\n            buf[k++] = a[j++];\n            count += mid - i;\n        }\n    }\n    while (i < mid) buf[k++] = a[i++];\n    while (j < hi) buf[k++] = a[j++];\n    System.arraycopy(buf, lo, a, lo, hi - lo);\n    return count;\n}\n\nstatic long countInversions(int[] nums) {\n    int[] a = nums.clone();\n    return sortCount(a, new int[a.length], 0, a.length);\n}\n",
+      "cpp": "long long sortCount(vector<int>& a, vector<int>& buf, int lo, int hi) {\n    if (hi - lo < 2) return 0;\n    int mid = lo + (hi - lo) / 2;\n    long long count = sortCount(a, buf, lo, mid) + sortCount(a, buf, mid, hi);\n    int i = lo, j = mid, k = lo;\n    while (i < mid && j < hi) {\n        if (a[i] <= a[j]) buf[k++] = a[i++];\n        else {\n            buf[k++] = a[j++];\n            count += mid - i;\n        }\n    }\n    while (i < mid) buf[k++] = a[i++];\n    while (j < hi) buf[k++] = a[j++];\n    copy(buf.begin() + lo, buf.begin() + hi, a.begin() + lo);\n    return count;\n}\n\nlong long countInversions(vector<int> a) {\n    vector<int> buf(a.size());\n    return sortCount(a, buf, 0, a.size());\n}\n",
+      "c": "static long long sortCount(int* a, int* buf, int lo, int hi) {\n    if (hi - lo < 2) return 0;\n    int mid = lo + (hi - lo) / 2;\n    long long count = sortCount(a, buf, lo, mid) + sortCount(a, buf, mid, hi);\n    int i = lo, j = mid, k = lo;\n    while (i < mid && j < hi) {\n        if (a[i] <= a[j]) buf[k++] = a[i++];\n        else {\n            buf[k++] = a[j++];\n            count += mid - i;\n        }\n    }\n    while (i < mid) buf[k++] = a[i++];\n    while (j < hi) buf[k++] = a[j++];\n    memcpy(a + lo, buf + lo, (hi - lo) * sizeof(int));\n    return count;\n}\n\nlong long countInversions(const int* nums, int n) {\n    int* a = malloc((n > 0 ? n : 1) * sizeof(int));\n    int* buf = malloc((n > 0 ? n : 1) * sizeof(int));\n    memcpy(a, nums, n * sizeof(int));\n    long long count = sortCount(a, buf, 0, n);\n    free(a);\n    free(buf);\n    return count;\n}\n"
+     },
+     "title": "Count inversions with merge sort",
+     "lines": [
+      {
+       "text": "Fewer than two values: no pairs.",
+       "at": {
+        "python": [
+         [
+          2,
+          3
+         ]
+        ],
+        "java": [
+         [
+          2,
+          2
+         ]
+        ],
+        "cpp": [
+         [
+          2,
+          2
+         ]
+        ],
+        "c": [
+         [
+          2,
+          2
+         ]
+        ]
+       }
+      },
+      {
+       "text": "The middle of `[lo, hi)`.",
+       "at": {
+        "python": [
+         [
+          4,
+          4
+         ]
+        ],
+        "java": [
+         [
+          3,
+          3
+         ]
+        ],
+        "cpp": [
+         [
+          3,
+          3
+         ]
+        ],
+        "c": [
+         [
+          3,
+          3
+         ]
+        ]
+       }
+      },
+      {
+       "text": "Pairs inside each half, counted (and sorted) recursively.",
+       "at": {
+        "python": [
+         [
+          5,
+          5
+         ]
+        ],
+        "java": [
+         [
+          4,
+          4
+         ]
+        ],
+        "cpp": [
+         [
+          4,
+          4
+         ]
+        ],
+        "c": [
+         [
+          4,
+          4
+         ]
+        ]
+       },
+       "notes": {
+        "java": "Counts can reach about n²/2, so they're `long`.",
+        "cpp": "`long long`: up to about n²/2 pairs.",
+        "c": "`long long`: up to about n²/2 pairs."
+       }
+      },
+      {
+       "text": "The usual merge: `i` in the left half, `j` in the right, `k` in the buffer.",
+       "at": {
+        "python": [
+         [
+          6,
+          7
+         ],
+         [
+          15,
+          15
+         ]
+        ],
+        "java": [
+         [
+          5,
+          6
+         ]
+        ],
+        "cpp": [
+         [
+          5,
+          6
+         ]
+        ],
+        "c": [
+         [
+          5,
+          6
+         ]
+        ]
+       }
+      },
+      {
+       "text": "A left value goes first (ties too). It's not bigger than anything still waiting on the right.",
+       "at": {
+        "python": [
+         [
+          8,
+          10
+         ]
+        ],
+        "java": [
+         [
+          7,
+          7
+         ]
+        ],
+        "cpp": [
+         [
+          7,
+          7
+         ]
+        ],
+        "c": [
+         [
+          7,
+          7
+         ]
+        ]
+       }
+      },
+      {
+       "text": "A right value goes first: it's smaller than every left value still waiting.",
+       "at": {
+        "python": [
+         [
+          11,
+          13
+         ]
+        ],
+        "java": [
+         [
+          8,
+          9
+         ]
+        ],
+        "cpp": [
+         [
+          8,
+          9
+         ]
+        ],
+        "c": [
+         [
+          8,
+          9
+         ]
+        ]
+       }
+      },
+      {
+       "text": "Those `mid - i` waiting left values each form an inversion with it.",
+       "at": {
+        "python": [
+         [
+          14,
+          14
+         ]
+        ],
+        "java": [
+         [
+          10,
+          10
+         ]
+        ],
+        "cpp": [
+         [
+          10,
+          10
+         ]
+        ],
+        "c": [
+         [
+          10,
+          10
+         ]
+        ]
+       }
+      },
+      {
+       "text": "Copy the leftovers and write the merged range back.",
+       "at": {
+        "python": [
+         [
+          16,
+          18
+         ]
+        ],
+        "java": [
+         [
+          13,
+          15
+         ]
+        ],
+        "cpp": [
+         [
+          13,
+          15
+         ]
+        ],
+        "c": [
+         [
+          13,
+          15
+         ]
+        ]
+       }
+      },
+      {
+       "text": "Inversions inside this range.",
+       "at": {
+        "python": [
+         [
+          19,
+          19
+         ]
+        ],
+        "java": [
+         [
+          16,
+          16
+         ]
+        ],
+        "cpp": [
+         [
+          16,
+          16
+         ]
+        ],
+        "c": [
+         [
+          16,
+          16
+         ]
+        ]
+       }
+      },
+      {
+       "text": "Sort a copy (the caller's order is the whole point) with one shared buffer.",
+       "at": {
+        "python": [
+         [
+          23,
+          24
+         ]
+        ],
+        "java": [
+         [
+          20,
+          21
+         ]
+        ],
+        "cpp": [
+         [
+          20,
+          21
+         ]
+        ],
+        "c": [
+         [
+          20,
+          26
+         ]
+        ]
+       },
+       "notes": {
+        "c": "Copy the input, sort-and-count, then free both arrays."
+       }
+      }
+     ],
+     "run": {
+      "call": "count_inversions([5, 2, 6, 1, 3]); ([1, 2, 3]); ([4, 3, 2, 1]); ([2, 2, 1])",
+      "output": "6\n0\n6\n2"
+     }
+    },
+    {
+     "md": "`[4, 3, 2, 1]` is fully reversed, so every one of its 6 pairs is an inversion. `[2, 2, 1]` has 2: the equal 2s\ndon't count."
+    }
+   ]
+  },
+  {
+   "id": "trace",
+   "title": "Trace it by hand",
+   "blocks": [
+    {
+     "md": "For a small list, write out the recursion: split down to single values, then merge back up, writing the count\nnext to each merge. For `[5, 2, 6, 1, 3]` the merges count 1, 0, 2, 3, which adds up to\n6, the same as the table of pairs in *The idea*. If your hand trace and a brute-force count disagree,\nthe mistake is almost always in which side ties go to, or in counting `mid - i` versus `mid - i + 1`.\n\nAs a check, bubble sort on `[5, 2, 6, 1, 3]` makes exactly 6 neighbour swaps.\n\nHere's the whole recursion, one merge per step:"
+    },
+    {
+     "walk": {
+      "steps": [
+       {
+        "text": "Nothing merged yet. Single values have no pairs inside them.",
+        "panels": [
+         {
+          "type": "row",
+          "cells": [
+           5,
+           2,
+           6,
+           1,
+           3
+          ],
+          "slots": true
+         },
+         {
+          "type": "vars",
+          "items": {
+           "merging:": "–",
+           "pairs crossing:": "–",
+           "total:": "0"
+          }
+         }
+        ]
+       },
+       {
+        "text": "Merge [5] with [2]: 1 crossing pair: (5, 2).",
+        "panels": [
+         {
+          "type": "row",
+          "cells": [
+           2,
+           5,
+           6,
+           1,
+           3
+          ],
+          "states": {
+           "0": "found",
+           "1": "found"
+          },
+          "slots": true
+         },
+         {
+          "type": "vars",
+          "items": {
+           "merging:": "[5] + [2]",
+           "pairs crossing:": "1",
+           "total:": "1"
+          }
+         }
+        ]
+       },
+       {
+        "text": "Merge [1] with [3]: no left value is bigger than a right one, so nothing to count.",
+        "panels": [
+         {
+          "type": "row",
+          "cells": [
+           2,
+           5,
+           6,
+           1,
+           3
+          ],
+          "states": {
+           "3": "found",
+           "4": "found"
+          },
+          "slots": true
+         },
+         {
+          "type": "vars",
+          "items": {
+           "merging:": "[1] + [3]",
+           "pairs crossing:": "0",
+           "total:": "1"
+          }
+         }
+        ]
+       },
+       {
+        "text": "Merge [6] with [1, 3]: 2 crossing pairs: (6, 1), (6, 3).",
+        "panels": [
+         {
+          "type": "row",
+          "cells": [
+           2,
+           5,
+           1,
+           3,
+           6
+          ],
+          "states": {
+           "2": "found",
+           "3": "found",
+           "4": "found"
+          },
+          "slots": true
+         },
+         {
+          "type": "vars",
+          "items": {
+           "merging:": "[6] + [1, 3]",
+           "pairs crossing:": "2",
+           "total:": "3"
+          }
+         }
+        ]
+       },
+       {
+        "text": "Merge [2, 5] with [1, 3, 6]: 3 crossing pairs: (2, 1), (5, 1), (5, 3). That was the last merge.",
+        "panels": [
+         {
+          "type": "row",
+          "cells": [
+           1,
+           2,
+           3,
+           5,
+           6
+          ],
+          "states": {
+           "0": "found",
+           "1": "found",
+           "2": "found",
+           "3": "found",
+           "4": "found"
+          },
+          "slots": true
+         },
+         {
+          "type": "vars",
+          "items": {
+           "merging:": "[2, 5] + [1, 3, 6]",
+           "pairs crossing:": "3",
+           "total:": "6"
+          }
+         }
+        ]
+       }
+      ],
+      "title": "`count_inversions([5, 2, 6, 1, 3])`, one merge per step. Each merge counts only the pairs that cross between its two halves.",
+      "legend": [
+       {
+        "state": "found",
+        "text": "the range just merged (now sorted)"
+       }
+      ]
+     }
+    }
+   ]
+  },
+  {
+   "id": "examples",
+   "title": "More examples",
+   "blocks": [
+    {
+     "md": "### Drops of more than d\n\nCount pairs of days `i < j` where the price fell by more than `d`: `a[i] - a[j] > d`. That's not the merge's\nown comparison, so count with a separate two-pointer pass on the sorted halves before merging them:"
+    },
+    {
+     "walk": {
+      "steps": [
+       {
+        "text": "For each right value `r`, count the left values greater than `r + 4`. As `r` grows, so does the threshold, so `i` only ever moves right.",
+        "panels": [
+         {
+          "type": "row",
+          "cells": [
+           2,
+           7,
+           9
+          ],
+          "pointers": {
+           "i": 0
+          },
+          "label": "left"
+         },
+         {
+          "type": "row",
+          "cells": [
+           1,
+           3,
+           8
+          ],
+          "label": "right"
+         },
+         {
+          "type": "vars",
+          "items": {
+           "pairs:": "0"
+          }
+         }
+        ]
+       },
+       {
+        "text": "r = 1, threshold 5. Skip 2 (not more than 4 bigger). Everything from `i` on (7, 9) qualifies: 2 pairs.",
+        "panels": [
+         {
+          "type": "row",
+          "cells": [
+           2,
+           7,
+           9
+          ],
+          "states": {
+           "0": "dim",
+           "1": "found",
+           "2": "found"
+          },
+          "pointers": {
+           "i": 1
+          },
+          "label": "left"
+         },
+         {
+          "type": "row",
+          "cells": [
+           1,
+           3,
+           8
+          ],
+          "states": {
+           "0": "active"
+          },
+          "label": "right"
+         },
+         {
+          "type": "vars",
+          "items": {
+           "pairs:": "2"
+          }
+         }
+        ]
+       },
+       {
+        "text": "r = 3, threshold 7. Skip 7 (not more than 4 bigger). Everything from `i` on (9) qualifies: 1 pair.",
+        "panels": [
+         {
+          "type": "row",
+          "cells": [
+           2,
+           7,
+           9
+          ],
+          "states": {
+           "0": "dim",
+           "1": "dim",
+           "2": "found"
+          },
+          "pointers": {
+           "i": 2
+          },
+          "label": "left"
+         },
+         {
+          "type": "row",
+          "cells": [
+           1,
+           3,
+           8
+          ],
+          "states": {
+           "1": "active"
+          },
+          "label": "right"
+         },
+         {
+          "type": "vars",
+          "items": {
+           "pairs:": "3"
+          }
+         }
+        ]
+       },
+       {
+        "text": "r = 8, threshold 12. Skip 9 (not more than 4 bigger). Nothing left in the left half qualifies. Then merge the halves as usual; the counting and the merging are separate.",
+        "panels": [
+         {
+          "type": "row",
+          "cells": [
+           2,
+           7,
+           9
+          ],
+          "states": {
+           "0": "dim",
+           "1": "dim",
+           "2": "dim"
+          },
+          "pointers": {},
+          "label": "left"
+         },
+         {
+          "type": "row",
+          "cells": [
+           1,
+           3,
+           8
+          ],
+          "states": {
+           "2": "active"
+          },
+          "label": "right"
+         },
+         {
+          "type": "vars",
+          "items": {
+           "pairs:": "3"
+          }
+         }
+        ]
+       }
+      ],
+      "title": "Counting pairs where a left value is more than 4 bigger than a right value, *before* merging [2, 7, 9] and [1, 3, 8].",
+      "legend": [
+       {
+        "state": "dim",
+        "text": "skipped: not more than d bigger"
+       },
+       {
+        "state": "found",
+        "text": "more than d bigger: counted"
+       },
+       {
+        "state": "active",
+        "text": "the right value being matched"
+       }
+      ]
+     }
+    },
+    {
+     "md": "On the whole of `[9, 2, 7, 1, 8, 3]` with `d = 4` that finds 5 drops.\n\n### A count for every item\n\nSometimes you want, for each item, how many later items are smaller than it: here `[3, 1, 2, 0, 0]` for `[5, 2, 6, 1, 3]`. The\nmerge works the same way, but the counts must be credited to the right item, and items move around while\nsorting. So sort *indices* (or `(value, index)` pairs) instead of bare values, and keep a result array indexed\nby original position. When a left item is placed, it's bigger than every right item that has already been\nplaced before it, so credit it with that number.\n\n### How far from sorted?\n\nComparing two rankings of the same items (two judges, or a list before and after a change) comes down to\ninversions: rewrite one ranking in terms of the other's order, and count. Zero means they agree completely;\n`n(n - 1) / 2` means one is the reverse of the other."
+    }
+   ]
+  },
+  {
+   "id": "variations",
+   "title": "Variations",
+   "blocks": [
+    {
+     "md": "### Counting with a separate pass\n\nThe general form: recurse, then count crossing pairs with a forward-only pointer, then merge. Counting and\nmerging are kept apart, so any condition that's monotonic in the right value works."
+    },
+    {
+     "code": {
+      "python": "def sort_drops(a, buf, lo, hi, d):\n    if hi - lo < 2:\n        return 0\n    mid = (lo + hi) // 2\n    count = sort_drops(a, buf, lo, mid, d) + sort_drops(a, buf, mid, hi, d)\n    i = lo\n    for j in range(mid, hi):\n        while i < mid and a[i] <= a[j] + d:\n            i += 1\n        count += mid - i\n    buf[lo:hi] = sorted(a[lo:mid] + a[mid:hi])\n    a[lo:hi] = buf[lo:hi]\n    return count\n\n\ndef count_drops(nums, d):\n    a = list(nums)\n    return sort_drops(a, [0] * len(a), 0, len(a), d)\n",
+      "java": "static long sortDrops(int[] a, int[] buf, int lo, int hi, long d) {\n    if (hi - lo < 2) return 0;\n    int mid = (lo + hi) >>> 1;\n    long count = sortDrops(a, buf, lo, mid, d) + sortDrops(a, buf, mid, hi, d);\n    int i = lo;\n    for (int j = mid; j < hi; j++) {\n        while (i < mid && a[i] <= a[j] + d) i++;\n        count += mid - i;\n    }\n    int l = lo, r = mid, k = lo;\n    while (l < mid && r < hi) buf[k++] = a[l] <= a[r] ? a[l++] : a[r++];\n    while (l < mid) buf[k++] = a[l++];\n    while (r < hi) buf[k++] = a[r++];\n    System.arraycopy(buf, lo, a, lo, hi - lo);\n    return count;\n}\n\nstatic long countDrops(int[] nums, int d) {\n    int[] a = nums.clone();\n    return sortDrops(a, new int[a.length], 0, a.length, d);\n}\n",
+      "cpp": "long long sortDrops(vector<int>& a, vector<int>& buf, int lo, int hi, long long d) {\n    if (hi - lo < 2) return 0;\n    int mid = lo + (hi - lo) / 2;\n    long long count = sortDrops(a, buf, lo, mid, d) + sortDrops(a, buf, mid, hi, d);\n    int i = lo;\n    for (int j = mid; j < hi; j++) {\n        while (i < mid && a[i] <= a[j] + d) i++;\n        count += mid - i;\n    }\n    merge(a.begin() + lo, a.begin() + mid, a.begin() + mid, a.begin() + hi, buf.begin() + lo);\n    copy(buf.begin() + lo, buf.begin() + hi, a.begin() + lo);\n    return count;\n}\n\nlong long countDrops(vector<int> a, int d) {\n    vector<int> buf(a.size());\n    return sortDrops(a, buf, 0, a.size(), d);\n}\n",
+      "c": "static long long sortDrops(int* a, int* buf, int lo, int hi, long long d) {\n    if (hi - lo < 2) return 0;\n    int mid = lo + (hi - lo) / 2;\n    long long count = sortDrops(a, buf, lo, mid, d) + sortDrops(a, buf, mid, hi, d);\n    int i = lo;\n    for (int j = mid; j < hi; j++) {\n        while (i < mid && a[i] <= a[j] + d) i++;\n        count += mid - i;\n    }\n    int l = lo, r = mid, k = lo;\n    while (l < mid && r < hi) buf[k++] = a[l] <= a[r] ? a[l++] : a[r++];\n    while (l < mid) buf[k++] = a[l++];\n    while (r < hi) buf[k++] = a[r++];\n    memcpy(a + lo, buf + lo, (hi - lo) * sizeof(int));\n    return count;\n}\n\nlong long countDrops(const int* nums, int n, int d) {\n    int* a = malloc((n > 0 ? n : 1) * sizeof(int));\n    int* buf = malloc((n > 0 ? n : 1) * sizeof(int));\n    memcpy(a, nums, n * sizeof(int));\n    long long count = sortDrops(a, buf, 0, n, d);\n    free(a);\n    free(buf);\n    return count;\n}\n"
+     },
+     "title": "Count pairs where the earlier value is more than d bigger",
+     "lines": [
+      {
+       "text": "Split, and count each half's own pairs (sorting it) recursively.",
+       "at": {
+        "python": [
+         [
+          2,
+          5
+         ]
+        ],
+        "java": [
+         [
+          2,
+          4
+         ]
+        ],
+        "cpp": [
+         [
+          2,
+          4
+         ]
+        ],
+        "c": [
+         [
+          2,
+          4
+         ]
+        ]
+       },
+       "notes": {
+        "java": "`d` is a `long`, so `a[j] + d` can't overflow.",
+        "cpp": "`d` is `long long`, so `a[j] + d` can't overflow.",
+        "c": "`d` is `long long`, so `a[j] + d` can't overflow."
+       }
+      },
+      {
+       "text": "Both halves are sorted. Walk the right half, with `i` pointing into the left half.",
+       "at": {
+        "python": [
+         [
+          6,
+          7
+         ]
+        ],
+        "java": [
+         [
+          5,
+          6
+         ]
+        ],
+        "cpp": [
+         [
+          5,
+          6
+         ]
+        ],
+        "c": [
+         [
+          5,
+          6
+         ]
+        ]
+       }
+      },
+      {
+       "text": "Move past left values that aren't more than `d` bigger than this right value. The threshold only rises, so `i` never moves back.",
+       "at": {
+        "python": [
+         [
+          8,
+          9
+         ]
+        ],
+        "java": [
+         [
+          7,
+          7
+         ]
+        ],
+        "cpp": [
+         [
+          7,
+          7
+         ]
+        ],
+        "c": [
+         [
+          7,
+          7
+         ]
+        ]
+       }
+      },
+      {
+       "text": "Every left value from `i` on is more than `d` bigger.",
+       "at": {
+        "python": [
+         [
+          10,
+          10
+         ]
+        ],
+        "java": [
+         [
+          8,
+          8
+         ]
+        ],
+        "cpp": [
+         [
+          8,
+          8
+         ]
+        ],
+        "c": [
+         [
+          8,
+          8
+         ]
+        ]
+       }
+      },
+      {
+       "text": "Now merge the halves, exactly as in merge sort.",
+       "at": {
+        "python": [
+         [
+          11,
+          12
+         ]
+        ],
+        "java": [
+         [
+          10,
+          14
+         ]
+        ],
+        "cpp": [
+         [
+          10,
+          11
+         ]
+        ],
+        "c": [
+         [
+          10,
+          14
+         ]
+        ]
+       },
+       "notes": {
+        "python": "`sorted` on two sorted runs is a merge in practice (Timsort spots the runs); it keeps the code short.",
+        "cpp": "`std::merge` merges two sorted ranges into the buffer."
+       }
+      },
+      {
+       "text": "Pairs in this range.",
+       "at": {
+        "python": [
+         [
+          13,
+          13
+         ]
+        ],
+        "java": [
+         [
+          15,
+          15
+         ]
+        ],
+        "cpp": [
+         [
+          12,
+          12
+         ]
+        ],
+        "c": [
+         [
+          15,
+          15
+         ]
+        ]
+       }
+      },
+      {
+       "text": "Work on a copy, with one shared buffer.",
+       "at": {
+        "python": [
+         [
+          17,
+          18
+         ]
+        ],
+        "java": [
+         [
+          19,
+          20
+         ]
+        ],
+        "cpp": [
+         [
+          16,
+          17
+         ]
+        ],
+        "c": [
+         [
+          19,
+          25
+         ]
+        ]
+       },
+       "notes": {
+        "c": "Copy, count, then free both arrays."
+       }
+      }
+     ],
+     "run": {
+      "call": "count_drops([9, 2, 7, 1, 8, 3], 4); (same, 0); ([1, 2, 3], 0)",
+      "output": "5\n9\n0"
+     }
+    },
+    {
+     "md": "With `d = 0` it counts ordinary inversions, which is a good way to test it against the template.\n\n### Fenwick trees\n\nAnother way to count inversions: walk the array from the right, and for each value ask \"how many values\nalready seen are smaller?\" using a Fenwick tree over the values (compressed to ranks first). Also O(n log n),\nand it handles values arriving one at a time. You'll meet it later; merge sort needs nothing new.\n\n### Counting ranges of sums\n\nCount the subarrays whose sum lies in `[low, high]`: build prefix sums (*Prefix sums*), and count pairs\n`i < j` with `low ≤ P[j] - P[i] ≤ high`. That's this pattern again, with two forward-only pointers in the\ncounting pass."
+    }
+   ]
+  },
+  {
+   "id": "complexity",
+   "title": "What it costs",
+   "blocks": [
+    {
+     "md": "The same as merge sort: O(n log n) time, because each level does O(n) merging plus O(n) counting, and there\nare `log n` levels. O(n) extra space for the buffer (and the copy of the input). The count itself can be as\nlarge as `n(n - 1) / 2`, about 5 × 10⁹ for n = 10⁵, which doesn't fit in a 32-bit `int`."
+    },
+    {
+     "table": {
+      "head": [
+       "Approach",
+       "Time",
+       "Extra space"
+      ],
+      "rows": [
+       [
+        "Check every pair",
+        "O(n²)",
+        "O(1)"
+       ],
+       [
+        "Merge sort, count during the merge",
+        "O(n log n)",
+        "O(n)"
+       ],
+       [
+        "Merge sort, separate counting pass",
+        "O(n log n)",
+        "O(n)"
+       ],
+       [
+        "Fenwick tree over ranks",
+        "O(n log n)",
+        "O(n)"
+       ]
+      ]
+     }
+    }
+   ]
+  },
+  {
+   "id": "languages",
+   "title": "In your language",
+   "blocks": [
+    {
+     "md": "### Python\n\nIntegers don't overflow, so counts are safe. Recursion depth is only `log₂ n`. For speed on big inputs, avoid\nslicing inside the merge loop; index into one shared buffer as the template does.\n\n### Java\n\nReturn counts as `long`. Use `>>> 1` for the midpoint and `System.arraycopy` to write merged ranges back.\nClone the input so the caller's array keeps its order.\n\n### C++\n\n`long long` for counts and for `a[j] + d` style thresholds. `std::merge` can do the merging, but the counting\nin the template has to be inside your own merge loop.\n\n### C\n\n`long long` counts, printed with `%lld`. `malloc` the copy and the buffer once, pass them down, and `free`\nthem at the end."
+    }
+   ]
+  },
+  {
+   "id": "pitfalls",
+   "title": "Pitfalls and edge cases",
+   "blocks": [
+    {
+     "md": "- Counting in a 32-bit `int`: the count overflows long before `n` is large.\n- Taking from the right on ties, which counts equal values as inversions.\n- Adding `mid - i + 1` or `hi - j`: draw a three-element example and check.\n- Doing the counting pass *after* merging, when the halves are no longer separate.\n- Thresholds like `a[j] + d` or `2 * a[j]` overflowing.\n- Counting on the caller's array and sorting it as a side effect.\n- Credit going to the wrong item in per-item counts because values moved; carry original indices."
+    }
+   ]
+  },
+  {
+   "id": "check",
+   "title": "Check yourself",
+   "blocks": [
+    {
+     "quiz": [
+      {
+       "q": "Why is every inversion counted exactly once?",
+       "a": "Each pair of positions is split onto opposite sides at exactly one level of the recursion, and only that level's merge counts crossing pairs."
+      },
+      {
+       "q": "When a right value is taken during the merge, why add mid - i?",
+       "a": "The left values a[i..mid-1] are all still waiting, so they're all bigger than it, and every left value came earlier in the array."
+      },
+      {
+       "q": "How many inversions does [3, 1, 2] have, and how many neighbour swaps sort it?",
+       "a": "Two: (3, 1) and (3, 2). And two neighbour swaps: 3↔1, then 3↔2."
+      },
+      {
+       "q": "Why count 'more than twice' pairs in a separate pass instead of during the merge?",
+       "a": "The merge compares a[i] with a[j], but the condition compares a[i] with 2·a[j]. A separate pass with its own forward-only pointer counts the condition correctly."
+      },
+      {
+       "q": "What's the largest possible inversion count for n values?",
+       "a": "n(n - 1) / 2, when the values are strictly decreasing."
+      }
+     ]
+    }
+   ]
+  }
+ ],
+ "leetcode": [
+  {
+   "id": 775,
+   "title": "Global and Local Inversions",
+   "url": "https://leetcode.com/problems/global-and-local-inversions/",
+   "difficulty": "medium"
+  },
+  {
+   "id": 315,
+   "title": "Count of Smaller Numbers After Self",
+   "url": "https://leetcode.com/problems/count-of-smaller-numbers-after-self/",
+   "difficulty": "hard"
+  },
+  {
+   "id": 493,
+   "title": "Reverse Pairs",
+   "url": "https://leetcode.com/problems/reverse-pairs/",
+   "difficulty": "hard"
+  },
+  {
+   "id": 327,
+   "title": "Count of Range Sum",
+   "url": "https://leetcode.com/problems/count-of-range-sum/",
+   "difficulty": "hard"
+  },
+  {
+   "id": 2426,
+   "title": "Number of Pairs Satisfying Inequality",
+   "url": "https://leetcode.com/problems/number-of-pairs-satisfying-inequality/",
+   "difficulty": "hard"
+  },
+  {
+   "id": 1649,
+   "title": "Create Sorted Array through Instructions",
+   "url": "https://leetcode.com/problems/create-sorted-array-through-instructions/",
+   "difficulty": "hard"
+  },
+  {
+   "id": 2179,
+   "title": "Count Good Triplets in an Array",
+   "url": "https://leetcode.com/problems/count-good-triplets-in-an-array/",
+   "difficulty": "hard"
+  }
+ ]
+}

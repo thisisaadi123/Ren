@@ -419,11 +419,11 @@ lesson(
 
             When to think twice:
 
-            - **Original positions matter** (return indices, or "first occurrence"). Sorting loses them. Sort `(value,
+            - Original positions matter (return indices, or "first occurrence"). Sorting loses them. Sort `(value,
               index)` pairs instead, or use a hash map.
-            - **O(n) is required.** Sorting is O(n log n). A hash map or counting may be the intended solution. (Counting
+            - O(n) is required. Sorting is O(n log n). A hash map or counting may be the intended solution. (Counting
               sort is O(n + range) if values are small.)
-            - **The data keeps changing.** Re-sorting after every update is slow. A heap or a balanced tree keeps things
+            - The data keeps changing. Re-sorting after every update is slow. A heap or a balanced tree keeps things
               in order as you go.
             """,
         ]),
@@ -558,7 +558,7 @@ lesson(
             """
             ### The smallest amount you can't pay
 
-            You have some coins (positive values, repeats allowed). What's the smallest amount you **can't** pay exactly
+            You have some coins (positive values, repeats allowed). What's the smallest amount you *can't* pay exactly
             using some of them? Trying every subset is 2ⁿ. Sorting gives a neat O(n log n) answer with a real proof
             behind it.
 

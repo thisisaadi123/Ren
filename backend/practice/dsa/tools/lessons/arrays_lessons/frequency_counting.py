@@ -477,7 +477,7 @@ lesson(
 
             If the values are small whole numbers in a known range, use an array and let the value be the index. For
             lowercase letters, `ch - 'a'` turns `'a'..'z'` into `0..25`, so 26 slots cover everything. Ratings from 1
-            to 5 fit in 5 (or 6) slots. Every update is one memory access, guaranteed. No hashing, no surprises.
+            to 5 fit in 5 (or 6) slots. Every update is exactly one memory access, with no hashing involved.
 
             The catch is the range. An array of 26 is free. An array big enough for values up to a billion is not. And
             if values can be negative you need to shift them first (`count[v - lowest]`), or you'll index outside the
@@ -594,7 +594,7 @@ lesson(
             table(["i", "x", "count before", "count after", "table so far"], *trace_rows),
             f"""
             In the second pass, 4 has a count of {TALLY[4]} (skip), 7 has {TALLY[7]} (skip), and 9 has {TALLY[9]}, so
-            the answer is **{ANSWER}**. The 2 at the end also appears once, but it comes later. The table alone
+            the answer is {ANSWER}. The 2 at the end also appears once, but it comes later. The table alone
             couldn't have told us which of the two comes first, which is exactly why the second pass walks the array.
             """,
         ]),
@@ -630,8 +630,9 @@ lesson(
             """,
             table(["i", "x", "seen so far", "what happens"], *rep_rows),
             f"""
-            The answer is {FIRST_REPEAT}. Notice that 3 also repeats, and it appeared first, but its second copy comes
-            later. Reading the question carefully decides which loop you write.
+            The answer is {FIRST_REPEAT}. 3 also repeats, and it appeared first, but its second copy comes later. "The
+            first value to appear twice" and "the earliest value that has a duplicate" are different questions, so check
+            which one you've been asked.
             """,
         ]),
         ("variations", "Variations", [
@@ -728,8 +729,8 @@ lesson(
 
             Memory is O(R) for the array or O(d) for the map, and `d` can't be bigger than `n`.
 
-            The contrast with re-scanning is the whole reason this pattern exists. Comparing every pair of elements for
-            `n = 100,000` is {NAIVE:,} comparisons. Counting is about {2 * N:,} table operations.
+            Compare that with re-scanning. Checking every pair of elements for `n = 100,000` is {NAIVE:,} comparisons,
+            while counting is about {2 * N:,} table operations.
             """,
             table(
                 ["Method", "Time", "Extra space", "Notes"],

@@ -68,11 +68,31 @@ def key(md):
     return {"key": dd(md)}
 
 
-def walk(steps, intro=None):
+def walk(steps, intro=None, legend=None):
+    """legend: {state: what that colour means here}, shown under the player."""
     b = {"walk": steps.spec()}
     if intro:
         b["intro"] = dd(intro)
+    if legend:
+        b["walk"]["legend"] = [{"state": k, "text": dd(v)} for k, v in legend.items()]
     return b
+
+
+# Topics written before walkthroughs had to keep one layout and explain their colours.
+# Their walkthroughs still change panels between steps; new topics must not.
+LAYOUT_EXEMPT = {"arrays-hashing"}
+SAME_LOOK = {"found", "new"}  # drawn identically, so one walkthrough may use only one of them
+
+
+def check_walk(where, w):
+    """Every step shows the same panels (types and labels) in the same order, and every colour used is in the legend."""
+    looks = [tuple((p["type"], p.get("label")) for p in s["panels"]) for s in w["steps"]]
+    assert len(set(looks)) == 1, f"{where}: walkthrough panels change between steps: {sorted(set(looks), key=str)}"
+    used = {v for s in w["steps"] for p in s["panels"] for v in (p.get("states") or {}).values()}
+    keyed = {x["state"] for x in w.get("legend", [])}
+    assert used <= keyed, f"{where}: colours {sorted(used - keyed)} are used but not in the legend"
+    assert not (keyed - used), f"{where}: legend lists colours {sorted(keyed - used)} that no step uses"
+    assert not SAME_LOOK <= used, f"{where}: 'found' and 'new' look the same; use one of them"
 
 
 def quiz(*pairs):
@@ -179,6 +199,11 @@ def lesson(topic, pattern, summary, sections):
         for b in s["blocks"]:
             if "code" in b:
                 CHECKS.append((pattern, b["title"], b.pop("_check"), b.pop("_output"), b["code"]))
+    if topic not in LAYOUT_EXEMPT:
+        for s in out:
+            for b in s["blocks"]:
+                if "walk" in b:
+                    check_walk(f"{pattern}/{s['id']}", b["walk"])
     words = sum(_words(s["blocks"]) for s in out)
     data = {
         "version": 1,

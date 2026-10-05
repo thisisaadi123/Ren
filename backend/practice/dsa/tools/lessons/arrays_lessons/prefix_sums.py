@@ -356,7 +356,7 @@ for j, x in enumerate(LD):
         note = f"{hit + 1}..{j}, length {cand}"
     else:
         msg = f"Running total {pre}. We'd need an earlier total of {pre - LK}; there isn't one."
-        note = "—"
+        note = "none"
     if pre not in first:
         first[pre] = j
         msg += f" {pre} is new, so remember index {j}."
@@ -379,7 +379,7 @@ def region(r_hi, c_hi, state):
     return {(r, c): state for r in range(r_hi + 1) for c in range(c_hi + 1)}
 
 
-q2 = Steps(f"Sum of rows {R1}–{R2}, columns {C1}–{C2}, using four values from P.")
+q2 = Steps(f"Sum of rows {R1} to {R2}, columns {C1} to {C2}, using four values from P.")
 big, top, left, corner = GP[R2 + 1][C2 + 1], GP[R1][C2 + 1], GP[R2 + 1][C1], GP[R1][C1]
 q2.step(f"Start with everything from the top-left corner down to ({R2}, {C2}): P[{R2 + 1}][{C2 + 1}] = {big}.",
         Grid(G, st=region(R2, C2, "found")))
@@ -466,7 +466,7 @@ lesson(
             table(
                 ["The problem says…", "what prefix sums give you"],
                 ["lots of questions like \"sum from `l` to `r`\" on an array that doesn't change", "each answer in O(1) after O(n) setup"],
-                ["count (or find the longest / shortest) **subarrays** that add up to `k`", "`P[j] - P[i] = k`, so look up `P[j] - k` in a map"],
+                ["count (or find the longest / shortest) subarrays that add up to `k`", "`P[j] - P[i] = k`, so look up `P[j] - k` in a map"],
                 ["a balance point where the left side equals the right side", "left = `P[i]`, right = `total - P[i + 1]`"],
                 ["as many 0s as 1s, as many A's as B's", "turn one into `-1` and the other into `+1`, then look for a sum of 0"],
                 ["subarray sum divisible by `k`", "two running totals with the same remainder"],
@@ -483,7 +483,7 @@ lesson(
             `[0..r]` and in `[0..l-1]` doesn't tell you the biggest in `[l..r]`.
 
             And if every value is positive and you need a window, a sliding window with two pointers is often simpler.
-            Prefix sums plus a hash map are what you want when values can be **negative**, which is exactly when the
+            Prefix sums plus a hash map are what you want when values can be negative, which is exactly when the
             sliding window's "make it bigger and the sum goes up" logic stops working.
             """,
         ]),
@@ -496,8 +496,8 @@ lesson(
             `(nums[0] + … + nums[l - 1] + nums[l] + … + nums[r]) - (nums[0] + … + nums[l - 1])`
 
             The first `l` terms appear once with a plus and once with a minus, so they cancel, and you're left with
-            exactly `nums[l] + … + nums[r]`. And that's the proof. (This kind of cancelling is called
-            **telescoping**, like a telescope folding up.)
+            exactly `nums[l] + … + nums[r]`. (This kind of cancelling is called **telescoping**, like a telescope
+            folding up.)
 
             ### Why `P` has one extra slot
 
@@ -517,10 +517,10 @@ lesson(
             themselves. And the same reasoning applies: the map only holds totals from before `j`, so each stretch is
             found once, when you reach its end.
 
-            What you keep in the map depends on the question. To **count** stretches, store how many times each total
-            has appeared, and start the map with `{0: 1}` for the empty prefix, so stretches starting at index 0 get
-            counted. For the **longest** stretch, store the *first* index where each total appeared (starting with
-            `{0: -1}`). For the **shortest**, store the *latest* index.
+            What you keep in the map depends on the question. To count stretches, store how many times each total has
+            appeared, and start the map with `{0: 1}` for the empty prefix, so stretches starting at index 0 get
+            counted. For the longest stretch, store the *first* index where each total appeared (starting with
+            `{0: -1}`). For the shortest, store the *latest* index.
 
             Here's the counting version, step by step:
             """,
@@ -528,7 +528,7 @@ lesson(
             table(["j", "x", "running total", "looking for", "earlier matches", "stretches so far"], *c_rows),
             f"""
             Each step adds the number of earlier gaps that start a stretch summing to {CK} and ending at `j`. That gives
-            **{tot}**, the same as checking all {len(CD) * (len(CD) + 1) // 2} stretches one by one.
+            {tot}, the same as checking all {len(CD) * (len(CD) + 1) // 2} stretches one by one.
 
             ### Why negative numbers are fine
 
@@ -539,8 +539,8 @@ lesson(
 
             ### Divisible by `k`
 
-            A stretch's sum is divisible by `k` exactly when the two running totals at its ends leave the **same
-            remainder** when divided by `k` (their difference is then a multiple of `k`). So count remainders instead
+            A stretch's sum is divisible by `k` exactly when the two running totals at its ends leave the same
+            remainder when divided by `k` (their difference is then a multiple of `k`). So count remainders instead
             of totals. The map has at most `k` keys. Watch out for negative remainders and fix them with
             `((p % k) + k) % k`.
 
@@ -589,7 +589,7 @@ lesson(
 
             Now something harder: the longest stretch that adds up to exactly `k`. Some values are negative, so a
             sliding window won't work. For each `j`, the longest stretch ending at `j` starts just after the
-            **earliest** gap where the running total was `P[j] - k`. So the map remembers the first index of every
+            *earliest* gap where the running total was `P[j] - k`. So the map remembers the first index of every
             running total.
             """,
             walk(lwalk),

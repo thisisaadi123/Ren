@@ -397,12 +397,12 @@ lesson(
             particular order, and the positions don't matter. "Longest consecutive sequence", "longest streak of days",
             "group the numbers into ranges", "how many runs", usually with "in O(n)" or "without sorting".
 
-            The thing to notice is that the *order* in the array is irrelevant. Only which values are present matters.
-            That's the moment to throw the values into a set.
+            In these questions the *order* of the array doesn't matter, only which values are present, so the values
+            can go straight into a set.
 
             Not a fit:
 
-            - The run must be consecutive in **position** (adjacent in the array), like "longest increasing
+            - The run must be consecutive in *position* (adjacent in the array), like "longest increasing
               subarray". That's a simple left-to-right scan; a set throws away positions.
             - "Longest increasing subsequence" (keep the order, values just increase). That's dynamic programming.
             - Small inputs, or when you need the values sorted anyway. Sorting and scanning (*Sort then scan*) gives
@@ -441,7 +441,7 @@ lesson(
 
             ### Duplicates
 
-            The set holds each value once, so duplicates disappear before the counting starts. Loop over the **set**,
+            The set holds each value once, so duplicates disappear before the counting starts. Loop over the *set*,
             not the original array. Looping over the array still gives the right answer, but if the start of a long run
             appears a thousand times, you'd walk that run a thousand times.
             """,
@@ -589,7 +589,7 @@ lesson(
         ]),
         ("pitfalls", "Pitfalls and edge cases", [
             f"""
-            - Walking from every value. It's correct but O(n²) on one long run. The `x - 1` check is the whole point.
+            - Walking from every value. It's correct but O(n²) on one long run. The `x - 1` check is what prevents that.
             - Looping over the original array with many duplicates of a run start. Loop over the set.
             - Counting duplicates as part of a run: `{DUP}` has a run of length 2, not 4.
             - An empty input: the answer is 0, not 1.

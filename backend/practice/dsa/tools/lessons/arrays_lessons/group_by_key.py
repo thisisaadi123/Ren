@@ -322,9 +322,9 @@ lesson(
 
             A good key has to get both directions right:
 
-            - If two items belong together, their keys must be **equal**. Get this wrong and one real group gets split
+            - If two items belong together, their keys must be equal. Get this wrong and one real group gets split
               into two.
-            - If two keys are equal, the items must really **belong together**. Get this wrong and two different groups
+            - If two keys are equal, the items must really belong together. Get this wrong and two different groups
               get merged into one.
 
             A key that gets both right is called a **canonical form**: one standard representative for each group. The
@@ -361,7 +361,7 @@ lesson(
 
             For anagrams of words of length `L`, both "sorted letters" and "26 letter counts" are correct. Sorting
             costs O(L log L) per word; counting costs O(L + 26). For short words it hardly matters. For long strings
-            over a small alphabet, counting wins. Let the constraints decide.
+            over a small alphabet, counting wins.
 
             ### Numbers can be keys too
 

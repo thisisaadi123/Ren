@@ -708,11 +708,11 @@ lesson(
                 GRID2_RUN,
                 "paint_rects(4, 5, [[0, 0, 1, 2, 1], [1, 1, 3, 3, 2], [2, 4, 3, 4, 5]])",
             ),
-            fig(Grid(PAINT, label="result"), caption="Three rectangles, twelve corner changes, one 2D sweep."),
+            fig(Grid(PAINT, label="result"), caption="Three rectangles take twelve corner changes and one 2D sweep."),
             """
             ### Updates and questions mixed together
 
-            If you need to read values between updates, keep the difference array inside a **Fenwick tree**. A range
+            If you need to read values between updates, keep the difference array inside a Fenwick tree. A range
             update is still two point changes, and reading `A[i]` is a running-total query. Both take O(log n).
             """,
         ]),
@@ -721,7 +721,7 @@ lesson(
             Updating every element directly costs up to O(n) per update, so O(n × m) for `m` updates. With `n` and `m`
             both 100,000, that's up to {N * N:,} additions.
 
-            A difference array costs O(1) per update plus one O(n) rebuild, so **O(n + m)** time and O(n) memory.
+            A difference array costs O(1) per update plus one O(n) rebuild, so O(n + m) time and O(n) memory.
             Sweeping sorted events costs O(m log m) to sort `2m` events and O(m) memory, however large the positions
             are. In 2D, it's O(1) per rectangle and O(rows × cols) to rebuild.
             """,
@@ -760,7 +760,7 @@ lesson(
         ]),
         ("pitfalls", "Pitfalls and edge cases", [
             """
-            The usual suspects:
+            Common mistakes:
 
             - No spare slot. With `r = n - 1`, `diff[r + 1]` writes past the end unless `diff` has `n + 1` entries.
             - Mixing up inclusive and half-open ranges. Inclusive ranges stop at `r + 1`, half-open ones at `end`. Get

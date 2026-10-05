@@ -437,12 +437,29 @@
 
   /* Walkthroughs ---------------------------------------------------------------- */
 
+  // Step text may use `code` and *emphasis*; everything else is plain text.
+  const stepText = (s) =>
+    esc(s)
+      .replace(/`([^`]+)`/g, "<code>$1</code>")
+      .replace(/\*([^*\s][^*]*?)\*/g, "<em>$1</em>");
+
+  // What each colour means in this walkthrough: [{ state, text }], drawn with the cells' own styles.
+  const legendHTML = (legend) =>
+    Array.isArray(legend) && legend.length
+      ? `<ul class="walk-legend" aria-label="Colours">${legend
+          .map(
+            (x) => `<li><svg class="walk-swatch" width="16" height="16" viewBox="0 0 16 16" aria-hidden="true"><g class="vz-cell is-${esc(x.state)}"><rect x="1" y="1" width="14" height="14" rx="4"/></g></svg>${stepText(x.text)}</li>`
+          )
+          .join("")}</ul>`
+      : "";
+
   function walkthrough(el, spec) {
     if (!spec || !Array.isArray(spec.steps) || !spec.steps.length) return;
     const reduce = window.matchMedia && matchMedia("(prefers-reduced-motion: reduce)").matches;
     el.innerHTML = `
       <div class="walk">
         <div class="walk-stage" data-stage></div>
+        ${legendHTML(spec.legend)}
         <p class="walk-text" data-text aria-live="polite"></p>
         <div class="walk-bar">
           <button type="button" class="ghost-btn" data-prev>Back</button>
@@ -471,7 +488,7 @@
       tallest = Math.max(tallest, stage.offsetHeight);
       stage.style.minHeight = `${tallest}px`;
       const call = step.call ? `<code>${esc(step.call)}</code>${step.result !== undefined ? ` → <code>${esc(step.result)}</code>` : ""}` : "";
-      textEl.innerHTML = [call, esc(step.text || "")].filter(Boolean).join(" ");
+      textEl.innerHTML = [call, stepText(step.text || "")].filter(Boolean).join(" ");
       count.textContent = `${at + 1} / ${spec.steps.length}`;
       prev.disabled = at === 0;
       next.disabled = at === last;

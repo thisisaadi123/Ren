@@ -1,0 +1,1743 @@
+{
+ "version": 1,
+ "id": "subsequence-check",
+ "topic": "two-pointers",
+ "summary": "A word is a subsequence of a text if its letters appear in the text in the same order, not necessarily next to\neach other. One pointer reads the text, one waits on the next letter of the word, and the word's pointer moves\nonly on a match. If it reaches the end of the word, the word is in there.",
+ "minutes": 11,
+ "sections": [
+  {
+   "id": "idea",
+   "title": "The idea",
+   "blocks": [
+    {
+     "md": "You're reading a long sign, \"pineapple\", and wondering whether the word \"pale\" is hidden in it if you're allowed\nto skip letters. Put a finger on the \"p\" of \"pale\". Read the sign from the left. The first letter is a \"p\":\nthat's the one you wanted, so move your finger to \"a\". Keep reading, skipping everything that isn't \"a\",\nuntil an \"a\" turns up. Then wait for \"l\", then \"e\". If your finger reaches the end of the word before the\nsign ends, the word is hidden.\n\nTwo pointers, one per string. The text's pointer moves every step. The word's pointer moves only on a\nmatch. Nothing ever goes backwards, so it's one pass over the text."
+    },
+    {
+     "panels": [
+      {
+       "type": "row",
+       "cells": [
+        "p",
+        "i",
+        "n",
+        "e",
+        "a",
+        "p",
+        "p",
+        "l",
+        "e"
+       ],
+       "states": {
+        "0": "found",
+        "4": "found",
+        "7": "found",
+        "8": "found"
+       },
+       "label": "text",
+       "slots": true
+      },
+      {
+       "type": "row",
+       "cells": [
+        "p",
+        "a",
+        "l",
+        "e"
+       ],
+       "states": {
+        "0": "found",
+        "1": "found",
+        "2": "found",
+        "3": "found"
+       },
+       "label": "word",
+       "slots": true
+      }
+     ],
+     "caption": "Each letter of the word is matched the first time it can be, left to right."
+    },
+    {
+     "key": "`j = 0`. For each character of the text, if it equals `word[j]`, move `j` on. At the end, `j` is how much of\nthe word was found in order: all of it means the word is a subsequence. O(length of the text), O(1) space."
+    }
+   ]
+  },
+  {
+   "id": "signals",
+   "title": "When to reach for it",
+   "blocks": [
+    {
+     "md": "The question talks about deleting characters, skipping letters, \"in the same order but not necessarily\nnext to each other\", or \"can you get this from that by removing some\". Also: typing with repeated keys,\nmatching patterns where some letters are optional, and checking a list of words against one text."
+    },
+    {
+     "table": {
+      "head": [
+       "word is a …",
+       "means",
+       "example",
+       "tool"
+      ],
+      "rows": [
+       [
+        "subsequence",
+        "letters in order, gaps allowed",
+        "\"ace\" in \"abcde\": yes",
+        "two pointers"
+       ],
+       [
+        "substring",
+        "letters in order, no gaps",
+        "\"bcd\" in \"abcde\": yes; \"ace\": no",
+        "string search (KMP, Z)"
+       ],
+       [
+        "anagram",
+        "same letters, any order",
+        "\"dcbae\" of \"abcde\": yes",
+        "counting"
+       ]
+      ]
+     }
+    },
+    {
+     "md": "Not a fit:\n\n- The longest *common* subsequence of two strings, or the fewest edits between them. Choosing which letters\n  to keep from *both* sides needs dynamic programming, not one greedy pass.\n- Letters must be next to each other (substring). Use string search.\n- Order doesn't matter (anagram, \"made from these letters\"). Count letters instead."
+    }
+   ]
+  },
+  {
+   "id": "theory",
+   "title": "Why it works",
+   "blocks": [
+    {
+     "md": "### Taking the earliest match is never a mistake\n\nThe loop matches each letter of the word at the *first* place it can. Why is that safe? Because matching\nearlier only leaves more text for the rest of the word.\n\nSuppose the word can be found at some positions `p₀ < p₁ < p₂ < …`. The greedy scan matches the first letter\nat some position `g₀ ≤ p₀`, since it takes the earliest one. Then it matches the second letter at the first\nspot after `g₀`, and `p₁` is after `p₀ ≥ g₀`, so that spot is at most `p₁`. Carrying on, every greedy position\nis at or before the corresponding position of *any* valid match. So if a match exists, greedy finds one,\nand if greedy runs out of text, no match exists."
+    },
+    {
+     "walk": {
+      "steps": [
+       {
+        "text": "`j` points at the first letter of \"pale\" still to find. `i` will read \"pineapple\" once, left to right.",
+        "panels": [
+         {
+          "type": "row",
+          "cells": [
+           "p",
+           "i",
+           "n",
+           "e",
+           "a",
+           "p",
+           "p",
+           "l",
+           "e"
+          ],
+          "label": "text",
+          "slots": true
+         },
+         {
+          "type": "row",
+          "cells": [
+           "p",
+           "a",
+           "l",
+           "e"
+          ],
+          "pointers": {
+           "j": 0
+          },
+          "label": "word",
+          "slots": true
+         }
+        ]
+       },
+       {
+        "text": "'p' is the letter we're waiting for. Match it and wait for the next one, 'a'.",
+        "panels": [
+         {
+          "type": "row",
+          "cells": [
+           "p",
+           "i",
+           "n",
+           "e",
+           "a",
+           "p",
+           "p",
+           "l",
+           "e"
+          ],
+          "states": {
+           "0": "found"
+          },
+          "pointers": {
+           "i": 0
+          },
+          "label": "text",
+          "slots": true
+         },
+         {
+          "type": "row",
+          "cells": [
+           "p",
+           "a",
+           "l",
+           "e"
+          ],
+          "states": {
+           "0": "found"
+          },
+          "pointers": {
+           "j": 1
+          },
+          "label": "word",
+          "slots": true
+         }
+        ]
+       },
+       {
+        "text": "'i' isn't 'a'. Skip it; the text moves on and the word waits.",
+        "panels": [
+         {
+          "type": "row",
+          "cells": [
+           "p",
+           "i",
+           "n",
+           "e",
+           "a",
+           "p",
+           "p",
+           "l",
+           "e"
+          ],
+          "states": {
+           "0": "found",
+           "1": "active"
+          },
+          "pointers": {
+           "i": 1
+          },
+          "label": "text",
+          "slots": true
+         },
+         {
+          "type": "row",
+          "cells": [
+           "p",
+           "a",
+           "l",
+           "e"
+          ],
+          "states": {
+           "0": "found",
+           "1": "active"
+          },
+          "pointers": {
+           "j": 1
+          },
+          "label": "word",
+          "slots": true
+         }
+        ]
+       },
+       {
+        "text": "'n' isn't 'a'. Skip it; the text moves on and the word waits.",
+        "panels": [
+         {
+          "type": "row",
+          "cells": [
+           "p",
+           "i",
+           "n",
+           "e",
+           "a",
+           "p",
+           "p",
+           "l",
+           "e"
+          ],
+          "states": {
+           "0": "found",
+           "1": "dim",
+           "2": "active"
+          },
+          "pointers": {
+           "i": 2
+          },
+          "label": "text",
+          "slots": true
+         },
+         {
+          "type": "row",
+          "cells": [
+           "p",
+           "a",
+           "l",
+           "e"
+          ],
+          "states": {
+           "0": "found",
+           "1": "active"
+          },
+          "pointers": {
+           "j": 1
+          },
+          "label": "word",
+          "slots": true
+         }
+        ]
+       },
+       {
+        "text": "'e' isn't 'a'. Skip it; the text moves on and the word waits.",
+        "panels": [
+         {
+          "type": "row",
+          "cells": [
+           "p",
+           "i",
+           "n",
+           "e",
+           "a",
+           "p",
+           "p",
+           "l",
+           "e"
+          ],
+          "states": {
+           "0": "found",
+           "1": "dim",
+           "2": "dim",
+           "3": "active"
+          },
+          "pointers": {
+           "i": 3
+          },
+          "label": "text",
+          "slots": true
+         },
+         {
+          "type": "row",
+          "cells": [
+           "p",
+           "a",
+           "l",
+           "e"
+          ],
+          "states": {
+           "0": "found",
+           "1": "active"
+          },
+          "pointers": {
+           "j": 1
+          },
+          "label": "word",
+          "slots": true
+         }
+        ]
+       },
+       {
+        "text": "'a' is the letter we're waiting for. Match it and wait for the next one, 'l'.",
+        "panels": [
+         {
+          "type": "row",
+          "cells": [
+           "p",
+           "i",
+           "n",
+           "e",
+           "a",
+           "p",
+           "p",
+           "l",
+           "e"
+          ],
+          "states": {
+           "0": "found",
+           "1": "dim",
+           "2": "dim",
+           "3": "dim",
+           "4": "found"
+          },
+          "pointers": {
+           "i": 4
+          },
+          "label": "text",
+          "slots": true
+         },
+         {
+          "type": "row",
+          "cells": [
+           "p",
+           "a",
+           "l",
+           "e"
+          ],
+          "states": {
+           "0": "found",
+           "1": "found"
+          },
+          "pointers": {
+           "j": 2
+          },
+          "label": "word",
+          "slots": true
+         }
+        ]
+       },
+       {
+        "text": "'p' isn't 'l'. Skip it; the text moves on and the word waits.",
+        "panels": [
+         {
+          "type": "row",
+          "cells": [
+           "p",
+           "i",
+           "n",
+           "e",
+           "a",
+           "p",
+           "p",
+           "l",
+           "e"
+          ],
+          "states": {
+           "0": "found",
+           "1": "dim",
+           "2": "dim",
+           "3": "dim",
+           "4": "found",
+           "5": "active"
+          },
+          "pointers": {
+           "i": 5
+          },
+          "label": "text",
+          "slots": true
+         },
+         {
+          "type": "row",
+          "cells": [
+           "p",
+           "a",
+           "l",
+           "e"
+          ],
+          "states": {
+           "0": "found",
+           "1": "found",
+           "2": "active"
+          },
+          "pointers": {
+           "j": 2
+          },
+          "label": "word",
+          "slots": true
+         }
+        ]
+       },
+       {
+        "text": "'p' isn't 'l'. Skip it; the text moves on and the word waits.",
+        "panels": [
+         {
+          "type": "row",
+          "cells": [
+           "p",
+           "i",
+           "n",
+           "e",
+           "a",
+           "p",
+           "p",
+           "l",
+           "e"
+          ],
+          "states": {
+           "0": "found",
+           "1": "dim",
+           "2": "dim",
+           "3": "dim",
+           "4": "found",
+           "5": "dim",
+           "6": "active"
+          },
+          "pointers": {
+           "i": 6
+          },
+          "label": "text",
+          "slots": true
+         },
+         {
+          "type": "row",
+          "cells": [
+           "p",
+           "a",
+           "l",
+           "e"
+          ],
+          "states": {
+           "0": "found",
+           "1": "found",
+           "2": "active"
+          },
+          "pointers": {
+           "j": 2
+          },
+          "label": "word",
+          "slots": true
+         }
+        ]
+       },
+       {
+        "text": "'l' is the letter we're waiting for. Match it and wait for the next one, 'e'.",
+        "panels": [
+         {
+          "type": "row",
+          "cells": [
+           "p",
+           "i",
+           "n",
+           "e",
+           "a",
+           "p",
+           "p",
+           "l",
+           "e"
+          ],
+          "states": {
+           "0": "found",
+           "1": "dim",
+           "2": "dim",
+           "3": "dim",
+           "4": "found",
+           "5": "dim",
+           "6": "dim",
+           "7": "found"
+          },
+          "pointers": {
+           "i": 7
+          },
+          "label": "text",
+          "slots": true
+         },
+         {
+          "type": "row",
+          "cells": [
+           "p",
+           "a",
+           "l",
+           "e"
+          ],
+          "states": {
+           "0": "found",
+           "1": "found",
+           "2": "found"
+          },
+          "pointers": {
+           "j": 3
+          },
+          "label": "word",
+          "slots": true
+         }
+        ]
+       },
+       {
+        "text": "'e' is the letter we're waiting for. Match it: that was the last letter of the word. All 4 letters were found, in order: it's hidden.",
+        "panels": [
+         {
+          "type": "row",
+          "cells": [
+           "p",
+           "i",
+           "n",
+           "e",
+           "a",
+           "p",
+           "p",
+           "l",
+           "e"
+          ],
+          "states": {
+           "0": "found",
+           "1": "dim",
+           "2": "dim",
+           "3": "dim",
+           "4": "found",
+           "5": "dim",
+           "6": "dim",
+           "7": "found",
+           "8": "found"
+          },
+          "pointers": {
+           "i": 8
+          },
+          "label": "text",
+          "slots": true
+         },
+         {
+          "type": "row",
+          "cells": [
+           "p",
+           "a",
+           "l",
+           "e"
+          ],
+          "states": {
+           "0": "found",
+           "1": "found",
+           "2": "found",
+           "3": "found"
+          },
+          "pointers": {},
+          "label": "word",
+          "slots": true
+         }
+        ]
+       }
+      ],
+      "title": "Is \"pale\" hidden in \"pineapple\"? Take each letter of the word the first time it can appear.",
+      "legend": [
+       {
+        "state": "found",
+        "text": "matched"
+       },
+       {
+        "state": "active",
+        "text": "compared now"
+       },
+       {
+        "state": "dim",
+        "text": "skipped"
+       }
+      ]
+     }
+    },
+    {
+     "md": "Here is that comparison for \"aba\" in \"abracadabra\": the greedy positions against the latest valid way of picking\nthe letters. Greedy is never later, letter by letter."
+    },
+    {
+     "table": {
+      "head": [
+       "letter",
+       "greedy position",
+       "another valid choice"
+      ],
+      "rows": [
+       [
+        "'a'",
+        "0",
+        "7"
+       ],
+       [
+        "'b'",
+        "1",
+        "8"
+       ],
+       [
+        "'a'",
+        "3",
+        "10"
+       ]
+      ]
+     }
+    },
+    {
+     "md": "### What `j` tells you at the end\n\nThe loop doesn't just answer yes or no. When the text runs out, `j` is the length of the longest *prefix* of\nthe word that's a subsequence of the text, by the same argument: no other way of matching could get further.\nThat's what the template uses: `len(word) - j` letters are missing at the end.\n\n### Stopping early\n\nOnce `j` reaches the end of the word, nothing else in the text matters, so you can stop reading. And if the\nword is longer than the text, the answer is no before you start."
+    }
+   ]
+  },
+  {
+   "id": "template",
+   "title": "The template",
+   "blocks": [
+    {
+     "md": "How many letters must be added to the end of `text` so that `word` becomes a subsequence of it? Match as\nmuch of `word` as the text allows; whatever is left over has to be appended."
+    },
+    {
+     "code": {
+      "python": "def letters_to_append(text, word):\n    j = 0\n    for ch in text:\n        if j < len(word) and ch == word[j]:\n            j += 1\n    return len(word) - j\n",
+      "java": "static int lettersToAppend(String text, String word) {\n    int j = 0;\n    for (int i = 0; i < text.length(); i++) {\n        if (j < word.length() && text.charAt(i) == word.charAt(j))\n            j++;\n    }\n    return word.length() - j;\n}\n",
+      "cpp": "int lettersToAppend(const string& text, const string& word) {\n    size_t j = 0;\n    for (char ch : text) {\n        if (j < word.size() && ch == word[j])\n            j++;\n    }\n    return word.size() - j;\n}\n",
+      "c": "int lettersToAppend(const char* text, const char* word) {\n    int j = 0, n = strlen(word);\n    for (const char* p = text; *p != '\\0'; p++) {\n        if (j < n && *p == word[j])\n            j++;\n    }\n    return n - j;\n}\n"
+     },
+     "title": "Letters to append so the word is hidden",
+     "lines": [
+      {
+       "text": "`j` is the next letter of the word to find.",
+       "at": {
+        "python": [
+         [
+          2,
+          2
+         ]
+        ],
+        "java": [
+         [
+          2,
+          2
+         ]
+        ],
+        "cpp": [
+         [
+          2,
+          2
+         ]
+        ],
+        "c": [
+         [
+          2,
+          2
+         ]
+        ]
+       },
+       "notes": {
+        "c": "`n` is the word's length, found once with `strlen`."
+       }
+      },
+      {
+       "text": "Read every character of the text once.",
+       "at": {
+        "python": [
+         [
+          3,
+          3
+         ]
+        ],
+        "java": [
+         [
+          3,
+          3
+         ]
+        ],
+        "cpp": [
+         [
+          3,
+          3
+         ]
+        ],
+        "c": [
+         [
+          3,
+          3
+         ]
+        ]
+       },
+       "notes": {
+        "c": "Walk the text with a pointer until the terminating `'\\0'`."
+       }
+      },
+      {
+       "text": "If it's the letter the word is waiting for, take it. Otherwise skip it: the word waits. The `j <` check stops once the whole word has been found.",
+       "at": {
+        "python": [
+         [
+          4,
+          5
+         ]
+        ],
+        "java": [
+         [
+          4,
+          5
+         ]
+        ],
+        "cpp": [
+         [
+          4,
+          5
+         ]
+        ],
+        "c": [
+         [
+          4,
+          5
+         ]
+        ]
+       }
+      },
+      {
+       "text": "`j` letters were found in order; the other `len(word) - j` have to be appended.",
+       "at": {
+        "python": [
+         [
+          6,
+          6
+         ]
+        ],
+        "java": [
+         [
+          7,
+          7
+         ]
+        ],
+        "cpp": [
+         [
+          7,
+          7
+         ]
+        ],
+        "c": [
+         [
+          7,
+          7
+         ]
+        ]
+       },
+       "notes": {
+        "cpp": "Both sizes are unsigned and `j` never exceeds `word.size()`, so the difference is safe."
+       }
+      }
+     ],
+     "run": {
+      "call": "letters_to_append(\"travelling\", \"tile\"); (\"pineapple\", \"pale\"); (\"z\", \"abc\"); (\"abc\", \"\")",
+      "output": "2\n0\n3\n0"
+     }
+    },
+    {
+     "md": "0 means the word is already hidden. An empty word is always hidden, and a text with none of the word's\nletters needs the whole word appended."
+    }
+   ]
+  },
+  {
+   "id": "trace",
+   "title": "Trace it by hand",
+   "blocks": [
+    {
+     "md": "The first example, character by character:"
+    },
+    {
+     "walk": {
+      "steps": [
+       {
+        "text": "`j` points at the first letter of \"tile\" still to find. `i` will read \"travelling\" once, left to right.",
+        "panels": [
+         {
+          "type": "row",
+          "cells": [
+           "t",
+           "r",
+           "a",
+           "v",
+           "e",
+           "l",
+           "l",
+           "i",
+           "n",
+           "g"
+          ],
+          "label": "text",
+          "slots": true
+         },
+         {
+          "type": "row",
+          "cells": [
+           "t",
+           "i",
+           "l",
+           "e"
+          ],
+          "pointers": {
+           "j": 0
+          },
+          "label": "word",
+          "slots": true
+         }
+        ]
+       },
+       {
+        "text": "'t' is the letter we're waiting for. Match it and wait for the next one, 'i'.",
+        "panels": [
+         {
+          "type": "row",
+          "cells": [
+           "t",
+           "r",
+           "a",
+           "v",
+           "e",
+           "l",
+           "l",
+           "i",
+           "n",
+           "g"
+          ],
+          "states": {
+           "0": "found"
+          },
+          "pointers": {
+           "i": 0
+          },
+          "label": "text",
+          "slots": true
+         },
+         {
+          "type": "row",
+          "cells": [
+           "t",
+           "i",
+           "l",
+           "e"
+          ],
+          "states": {
+           "0": "found"
+          },
+          "pointers": {
+           "j": 1
+          },
+          "label": "word",
+          "slots": true
+         }
+        ]
+       },
+       {
+        "text": "'r' isn't 'i'. Skip it; the text moves on and the word waits.",
+        "panels": [
+         {
+          "type": "row",
+          "cells": [
+           "t",
+           "r",
+           "a",
+           "v",
+           "e",
+           "l",
+           "l",
+           "i",
+           "n",
+           "g"
+          ],
+          "states": {
+           "0": "found",
+           "1": "active"
+          },
+          "pointers": {
+           "i": 1
+          },
+          "label": "text",
+          "slots": true
+         },
+         {
+          "type": "row",
+          "cells": [
+           "t",
+           "i",
+           "l",
+           "e"
+          ],
+          "states": {
+           "0": "found",
+           "1": "active"
+          },
+          "pointers": {
+           "j": 1
+          },
+          "label": "word",
+          "slots": true
+         }
+        ]
+       },
+       {
+        "text": "'a' isn't 'i'. Skip it; the text moves on and the word waits.",
+        "panels": [
+         {
+          "type": "row",
+          "cells": [
+           "t",
+           "r",
+           "a",
+           "v",
+           "e",
+           "l",
+           "l",
+           "i",
+           "n",
+           "g"
+          ],
+          "states": {
+           "0": "found",
+           "1": "dim",
+           "2": "active"
+          },
+          "pointers": {
+           "i": 2
+          },
+          "label": "text",
+          "slots": true
+         },
+         {
+          "type": "row",
+          "cells": [
+           "t",
+           "i",
+           "l",
+           "e"
+          ],
+          "states": {
+           "0": "found",
+           "1": "active"
+          },
+          "pointers": {
+           "j": 1
+          },
+          "label": "word",
+          "slots": true
+         }
+        ]
+       },
+       {
+        "text": "'v' isn't 'i'. Skip it; the text moves on and the word waits.",
+        "panels": [
+         {
+          "type": "row",
+          "cells": [
+           "t",
+           "r",
+           "a",
+           "v",
+           "e",
+           "l",
+           "l",
+           "i",
+           "n",
+           "g"
+          ],
+          "states": {
+           "0": "found",
+           "1": "dim",
+           "2": "dim",
+           "3": "active"
+          },
+          "pointers": {
+           "i": 3
+          },
+          "label": "text",
+          "slots": true
+         },
+         {
+          "type": "row",
+          "cells": [
+           "t",
+           "i",
+           "l",
+           "e"
+          ],
+          "states": {
+           "0": "found",
+           "1": "active"
+          },
+          "pointers": {
+           "j": 1
+          },
+          "label": "word",
+          "slots": true
+         }
+        ]
+       },
+       {
+        "text": "'e' isn't 'i'. Skip it; the text moves on and the word waits.",
+        "panels": [
+         {
+          "type": "row",
+          "cells": [
+           "t",
+           "r",
+           "a",
+           "v",
+           "e",
+           "l",
+           "l",
+           "i",
+           "n",
+           "g"
+          ],
+          "states": {
+           "0": "found",
+           "1": "dim",
+           "2": "dim",
+           "3": "dim",
+           "4": "active"
+          },
+          "pointers": {
+           "i": 4
+          },
+          "label": "text",
+          "slots": true
+         },
+         {
+          "type": "row",
+          "cells": [
+           "t",
+           "i",
+           "l",
+           "e"
+          ],
+          "states": {
+           "0": "found",
+           "1": "active"
+          },
+          "pointers": {
+           "j": 1
+          },
+          "label": "word",
+          "slots": true
+         }
+        ]
+       },
+       {
+        "text": "'l' isn't 'i'. Skip it; the text moves on and the word waits.",
+        "panels": [
+         {
+          "type": "row",
+          "cells": [
+           "t",
+           "r",
+           "a",
+           "v",
+           "e",
+           "l",
+           "l",
+           "i",
+           "n",
+           "g"
+          ],
+          "states": {
+           "0": "found",
+           "1": "dim",
+           "2": "dim",
+           "3": "dim",
+           "4": "dim",
+           "5": "active"
+          },
+          "pointers": {
+           "i": 5
+          },
+          "label": "text",
+          "slots": true
+         },
+         {
+          "type": "row",
+          "cells": [
+           "t",
+           "i",
+           "l",
+           "e"
+          ],
+          "states": {
+           "0": "found",
+           "1": "active"
+          },
+          "pointers": {
+           "j": 1
+          },
+          "label": "word",
+          "slots": true
+         }
+        ]
+       },
+       {
+        "text": "'l' isn't 'i'. Skip it; the text moves on and the word waits.",
+        "panels": [
+         {
+          "type": "row",
+          "cells": [
+           "t",
+           "r",
+           "a",
+           "v",
+           "e",
+           "l",
+           "l",
+           "i",
+           "n",
+           "g"
+          ],
+          "states": {
+           "0": "found",
+           "1": "dim",
+           "2": "dim",
+           "3": "dim",
+           "4": "dim",
+           "5": "dim",
+           "6": "active"
+          },
+          "pointers": {
+           "i": 6
+          },
+          "label": "text",
+          "slots": true
+         },
+         {
+          "type": "row",
+          "cells": [
+           "t",
+           "i",
+           "l",
+           "e"
+          ],
+          "states": {
+           "0": "found",
+           "1": "active"
+          },
+          "pointers": {
+           "j": 1
+          },
+          "label": "word",
+          "slots": true
+         }
+        ]
+       },
+       {
+        "text": "'i' is the letter we're waiting for. Match it and wait for the next one, 'l'.",
+        "panels": [
+         {
+          "type": "row",
+          "cells": [
+           "t",
+           "r",
+           "a",
+           "v",
+           "e",
+           "l",
+           "l",
+           "i",
+           "n",
+           "g"
+          ],
+          "states": {
+           "0": "found",
+           "1": "dim",
+           "2": "dim",
+           "3": "dim",
+           "4": "dim",
+           "5": "dim",
+           "6": "dim",
+           "7": "found"
+          },
+          "pointers": {
+           "i": 7
+          },
+          "label": "text",
+          "slots": true
+         },
+         {
+          "type": "row",
+          "cells": [
+           "t",
+           "i",
+           "l",
+           "e"
+          ],
+          "states": {
+           "0": "found",
+           "1": "found"
+          },
+          "pointers": {
+           "j": 2
+          },
+          "label": "word",
+          "slots": true
+         }
+        ]
+       },
+       {
+        "text": "'n' isn't 'l'. Skip it; the text moves on and the word waits.",
+        "panels": [
+         {
+          "type": "row",
+          "cells": [
+           "t",
+           "r",
+           "a",
+           "v",
+           "e",
+           "l",
+           "l",
+           "i",
+           "n",
+           "g"
+          ],
+          "states": {
+           "0": "found",
+           "1": "dim",
+           "2": "dim",
+           "3": "dim",
+           "4": "dim",
+           "5": "dim",
+           "6": "dim",
+           "7": "found",
+           "8": "active"
+          },
+          "pointers": {
+           "i": 8
+          },
+          "label": "text",
+          "slots": true
+         },
+         {
+          "type": "row",
+          "cells": [
+           "t",
+           "i",
+           "l",
+           "e"
+          ],
+          "states": {
+           "0": "found",
+           "1": "found",
+           "2": "active"
+          },
+          "pointers": {
+           "j": 2
+          },
+          "label": "word",
+          "slots": true
+         }
+        ]
+       },
+       {
+        "text": "'g' isn't 'l'. Skip it; the text moves on and the word waits. The text is used up. 2 of 4 letters matched, so 2 must be added at the end: \"le\".",
+        "panels": [
+         {
+          "type": "row",
+          "cells": [
+           "t",
+           "r",
+           "a",
+           "v",
+           "e",
+           "l",
+           "l",
+           "i",
+           "n",
+           "g"
+          ],
+          "states": {
+           "0": "found",
+           "1": "dim",
+           "2": "dim",
+           "3": "dim",
+           "4": "dim",
+           "5": "dim",
+           "6": "dim",
+           "7": "found",
+           "8": "dim",
+           "9": "active"
+          },
+          "pointers": {
+           "i": 9
+          },
+          "label": "text",
+          "slots": true
+         },
+         {
+          "type": "row",
+          "cells": [
+           "t",
+           "i",
+           "l",
+           "e"
+          ],
+          "states": {
+           "0": "found",
+           "1": "found",
+           "2": "active"
+          },
+          "pointers": {
+           "j": 2
+          },
+          "label": "word",
+          "slots": true
+         }
+        ]
+       }
+      ],
+      "title": "`letters_to_append(\"travelling\", \"tile\")`. Match as much of the word as possible, then count what's left.",
+      "legend": [
+       {
+        "state": "found",
+        "text": "matched"
+       },
+       {
+        "state": "active",
+        "text": "compared now"
+       },
+       {
+        "state": "dim",
+        "text": "skipped"
+       }
+      ]
+     }
+    },
+    {
+     "md": "On paper, write the word under the text and draw a line from each word letter to the text letter it\nmatched. The lines never cross, and each one goes to the first possible letter after the previous line."
+    }
+   ]
+  },
+  {
+   "id": "examples",
+   "title": "More examples",
+   "blocks": [
+    {
+     "md": "### A name typed with sticky keys\n\nSomeone typed their name, \"alex\", and some keys repeated: \"aaleexx\". Is that a possible result? This is a\nsubsequence check with an extra rule: a text letter that doesn't match the name's next letter is only\nallowed if it repeats the letter typed just before it. Walk both strings: on a match, move both; on a\nrepeat of the previous typed letter, move only the typed pointer; anything else means no. At the end, the\nwhole name must have been matched.\n\n### Many words against one text\n\nChecking `w` words against a text of length `t` one at a time costs O(w · t). When there are thousands of\nwords, it helps to precompute, for every position in the text and every letter, where that letter next\nappears. Each word is then checked by jumping straight from match to match, in time proportional to the\nword's length. The matching rule is the same; only the \"scan until the letter appears\" part got faster.\n\n### Words you can make by deleting\n\n\"Which dictionary words can be made by deleting letters from the text?\" is a subsequence check for each\nword. If the question wants the longest such word, sort or compare candidates by length (and then\nalphabetically) and check them, skipping any that are longer than the text."
+    }
+   ]
+  },
+  {
+   "id": "variations",
+   "title": "Variations",
+   "blocks": [
+    {
+     "md": "### Reading the text more than once\n\nHow many copies of `source`, written one after another, does it take for `target` to be a subsequence? Each\npass over `source` matches as much of `target` as it can (greedy, as before). If a whole pass matches\nnothing, the next letter of `target` doesn't appear in `source` at all, and the answer is -1."
+    },
+    {
+     "code": {
+      "python": "def copies_needed(source, target):\n    copies, j = 0, 0\n    while j < len(target):\n        start = j\n        for ch in source:\n            if j < len(target) and ch == target[j]:\n                j += 1\n        if j == start:\n            return -1\n        copies += 1\n    return copies\n",
+      "java": "static int copiesNeeded(String source, String target) {\n    int copies = 0, j = 0;\n    while (j < target.length()) {\n        int start = j;\n        for (int i = 0; i < source.length(); i++)\n            if (j < target.length() && source.charAt(i) == target.charAt(j)) j++;\n        if (j == start) return -1;\n        copies++;\n    }\n    return copies;\n}\n",
+      "cpp": "int copiesNeeded(const string& source, const string& target) {\n    int copies = 0;\n    size_t j = 0;\n    while (j < target.size()) {\n        size_t start = j;\n        for (char ch : source)\n            if (j < target.size() && ch == target[j]) j++;\n        if (j == start) return -1;\n        copies++;\n    }\n    return copies;\n}\n",
+      "c": "int copiesNeeded(const char* source, const char* target) {\n    int copies = 0, j = 0, n = strlen(target);\n    while (j < n) {\n        int start = j;\n        for (const char* p = source; *p != '\\0'; p++)\n            if (j < n && *p == target[j]) j++;\n        if (j == start) return -1;\n        copies++;\n    }\n    return copies;\n}\n"
+     },
+     "title": "Copies of the source needed to hide the target",
+     "lines": [
+      {
+       "text": "No copies used yet, and `j` waits at the start of `target`.",
+       "at": {
+        "python": [
+         [
+          2,
+          2
+         ]
+        ],
+        "java": [
+         [
+          2,
+          2
+         ]
+        ],
+        "cpp": [
+         [
+          2,
+          3
+         ]
+        ],
+        "c": [
+         [
+          2,
+          2
+         ]
+        ]
+       },
+       "notes": {
+        "c": "`n` is the target's length."
+       }
+      },
+      {
+       "text": "Until all of `target` has been matched.",
+       "at": {
+        "python": [
+         [
+          3,
+          3
+         ]
+        ],
+        "java": [
+         [
+          3,
+          3
+         ]
+        ],
+        "cpp": [
+         [
+          4,
+          4
+         ]
+        ],
+        "c": [
+         [
+          3,
+          3
+         ]
+        ]
+       }
+      },
+      {
+       "text": "One pass over a fresh copy of `source`, matching greedily from where `j` left off.",
+       "at": {
+        "python": [
+         [
+          4,
+          7
+         ]
+        ],
+        "java": [
+         [
+          4,
+          6
+         ]
+        ],
+        "cpp": [
+         [
+          5,
+          7
+         ]
+        ],
+        "c": [
+         [
+          4,
+          6
+         ]
+        ]
+       }
+      },
+      {
+       "text": "A full pass matched nothing: the letter `target[j]` isn't in `source`, so it can never be matched.",
+       "at": {
+        "python": [
+         [
+          8,
+          9
+         ]
+        ],
+        "java": [
+         [
+          7,
+          7
+         ]
+        ],
+        "cpp": [
+         [
+          8,
+          8
+         ]
+        ],
+        "c": [
+         [
+          7,
+          7
+         ]
+        ]
+       }
+      },
+      {
+       "text": "That pass used one copy.",
+       "at": {
+        "python": [
+         [
+          10,
+          10
+         ]
+        ],
+        "java": [
+         [
+          8,
+          8
+         ]
+        ],
+        "cpp": [
+         [
+          9,
+          9
+         ]
+        ],
+        "c": [
+         [
+          8,
+          8
+         ]
+        ]
+       }
+      },
+      {
+       "text": "The number of copies. An empty target needs none.",
+       "at": {
+        "python": [
+         [
+          11,
+          11
+         ]
+        ],
+        "java": [
+         [
+          10,
+          10
+         ]
+        ],
+        "cpp": [
+         [
+          11,
+          11
+         ]
+        ],
+        "c": [
+         [
+          10,
+          10
+         ]
+        ]
+       }
+      }
+     ],
+     "run": {
+      "call": "copies_needed(\"abc\", \"abcbc\"); (\"abc\", \"acdbc\"); (\"xyz\", \"xzyxz\"); (\"ab\", \"\")",
+      "output": "2\n-1\n3\n0"
+     }
+    },
+    {
+     "md": "\"abcbc\" takes 2 copies (\"abc\" then \"bc\"). \"acdbc\" can't be made: there's no \"d\" in \"abc\". \"xzyxz\" takes 3:\n\"x z\", then \"y\", then \"x z\". Each pass is greedy, and by the same argument as before, greedy wastes no copy.\n\n### Matching with optional letters\n\nSome checks allow the text to contain extra letters only of a certain kind. In camel-case matching, the\npattern \"FB\" matches \"FooBar\" (every extra letter is lowercase) but not \"FooBarTest\" (the extra \"T\" is a\ncapital). The skeleton doesn't change:\ndecide, for a text letter that doesn't match `word[j]`, whether skipping it is allowed. If not, the answer\nis no.\n\n### Deleting from the other side\n\n\"What's the smallest number of letters to delete from the text so that the word is *no longer* hidden?\" or\n\"the longest word hidden in both of two texts\" sound similar but need more than one greedy pass. When both\nstrings are free to lose letters, it's dynamic programming."
+    }
+   ]
+  },
+  {
+   "id": "complexity",
+   "title": "What it costs",
+   "blocks": [
+    {
+     "md": "The text pointer moves every step and the word pointer never moves back, so a check takes at most `t`\nsteps, where `t` is the text's length: O(t) time and O(1) extra space.\n\nReading the source again and again costs O(s) per copy, and at most one copy per target letter, so\nO(s · m) for a target of length `m`. With a next-occurrence table it drops to O(m log s) or O(m), plus the\ntable."
+    },
+    {
+     "table": {
+      "head": [
+       "Task",
+       "Time",
+       "Extra space"
+      ],
+      "rows": [
+       [
+        "Is one word hidden in the text?",
+        "O(t)",
+        "O(1)"
+       ],
+       [
+        "w words, one at a time",
+        "O(w · t)",
+        "O(1)"
+       ],
+       [
+        "w words with a next-occurrence table",
+        "O(26 · t + total word length)",
+        "O(26 · t)"
+       ],
+       [
+        "Copies of the source needed",
+        "O(s · m)",
+        "O(1)"
+       ],
+       [
+        "Longest common subsequence (not this pattern)",
+        "O(t · m)",
+        "O(t · m) or O(m)"
+       ]
+      ]
+     }
+    }
+   ]
+  },
+  {
+   "id": "languages",
+   "title": "In your language",
+   "blocks": [
+    {
+     "md": "### Python\n\nA neat one-liner uses an iterator: `it = iter(text); all(ch in it for ch in word)`. Each `in` consumes the\niterator up to and including the match, which is exactly the two-pointer walk. Write the loop out when you\nneed `j` afterwards.\n\n### Java\n\n`charAt(i)` reads a character. For very long texts, `toCharArray()` once and index the array; it avoids a\nbounds check per call.\n\n### C++\n\n`string::find(ch, from)` jumps to the next occurrence of a character, which is a convenient way to write\nthe \"skip until the letter appears\" step. Mixing `size_t` and `int` in comparisons gives warnings; pick one.\n\n### C\n\nWalk the text with a `const char*` until `'\\0'`. Call `strlen` on the word once, not in the loop condition,\nor each check costs O(length) again."
+    }
+   ]
+  },
+  {
+   "id": "pitfalls",
+   "title": "Pitfalls and edge cases",
+   "blocks": [
+    {
+     "md": "- Moving the word pointer on a mismatch. Only a match moves it.\n- Reading `word[j]` after the whole word is matched. Check `j < len(word)` first, or stop early.\n- Confusing subsequence with substring. Gaps are allowed here.\n- An empty word: it's always hidden, even in an empty text.\n- Restarting the text from the beginning after a match. The text pointer never goes back.\n- Calling `strlen` in a C loop condition, which makes the loop quadratic."
+    }
+   ]
+  },
+  {
+   "id": "check",
+   "title": "Check yourself",
+   "blocks": [
+    {
+     "quiz": [
+      {
+       "q": "Why is matching each letter at its earliest possible position never a mistake?",
+       "a": "Any other valid matching uses positions at or after greedy's, letter by letter. Matching earlier leaves at least as much text for the rest of the word, so greedy never falls behind."
+      },
+      {
+       "q": "What does `j` mean when the text runs out?",
+       "a": "It's the length of the longest prefix of the word that is hidden in the text."
+      },
+      {
+       "q": "Is \"ace\" hidden in \"abcde\"? Is \"aec\"?",
+       "a": "\"ace\" is: a, then c, then e appear in that order. \"aec\" isn't: after the e at index 4 there's no c."
+      },
+      {
+       "q": "letters_to_append(\"banana\", \"bnx\"): what's the answer?",
+       "a": "1. b and n are found in order; x isn't in the text, so it has to be appended."
+      },
+      {
+       "q": "Why can't this greedy pass find the longest common subsequence of two strings?",
+       "a": "Here only the text may skip letters; the word must be matched in full. When both strings may drop letters, choosing which to keep needs dynamic programming."
+      }
+     ]
+    }
+   ]
+  }
+ ],
+ "leetcode": [
+  {
+   "id": 392,
+   "title": "Is Subsequence",
+   "url": "https://leetcode.com/problems/is-subsequence/",
+   "difficulty": "easy"
+  },
+  {
+   "id": 925,
+   "title": "Long Pressed Name",
+   "url": "https://leetcode.com/problems/long-pressed-name/",
+   "difficulty": "easy"
+  },
+  {
+   "id": 2486,
+   "title": "Append Characters to String to Make Subsequence",
+   "url": "https://leetcode.com/problems/append-characters-to-string-to-make-subsequence/",
+   "difficulty": "medium"
+  },
+  {
+   "id": 524,
+   "title": "Longest Word in Dictionary through Deleting",
+   "url": "https://leetcode.com/problems/longest-word-in-dictionary-through-deleting/",
+   "difficulty": "medium"
+  },
+  {
+   "id": 792,
+   "title": "Number of Matching Subsequences",
+   "url": "https://leetcode.com/problems/number-of-matching-subsequences/",
+   "difficulty": "medium"
+  },
+  {
+   "id": 2825,
+   "title": "Make String a Subsequence Using Cyclic Increments",
+   "url": "https://leetcode.com/problems/make-string-a-subsequence-using-cyclic-increments/",
+   "difficulty": "medium"
+  },
+  {
+   "id": 1023,
+   "title": "Camelcase Matching",
+   "url": "https://leetcode.com/problems/camelcase-matching/",
+   "difficulty": "medium"
+  },
+  {
+   "id": 1898,
+   "title": "Maximum Number of Removable Characters",
+   "url": "https://leetcode.com/problems/maximum-number-of-removable-characters/",
+   "difficulty": "medium"
+  },
+  {
+   "id": 522,
+   "title": "Longest Uncommon Subsequence II",
+   "url": "https://leetcode.com/problems/longest-uncommon-subsequence-ii/",
+   "difficulty": "medium"
+  },
+  {
+   "id": 1055,
+   "title": "Shortest Way to Form String",
+   "url": "https://leetcode.com/problems/shortest-way-to-form-string/",
+   "difficulty": "medium",
+   "premium": true
+  }
+ ]
+}

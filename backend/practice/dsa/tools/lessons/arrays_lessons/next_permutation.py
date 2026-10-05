@@ -466,7 +466,7 @@ lesson(
     """
     List every arrangement of some values in dictionary order. Which one comes right after the one you have? Find the
     rightmost place where the values go up, bump that value to the next bigger one from its right, and put everything
-    after it in increasing order. Three short scans, O(n), in place.
+    after it in increasing order. That takes three short scans, in place, in O(n) time.
     """,
     [
         ("idea", "The idea", [
@@ -544,7 +544,7 @@ lesson(
             After the swap, the pivot position is settled. The rest should be the smallest arrangement of what's left,
             which is increasing order. And the swap kept the tail downhill: the value placed into the tail (the old
             pivot) is smaller than everything left of where it lands and at least as big as everything right of it.
-            A downhill stretch reversed is an uphill one, so reversing the tail sorts it in O(n), no sort needed.
+            A downhill stretch reversed is an uphill one, so reversing the tail sorts it in O(n) without calling a sort.
 
             ### Duplicates take care of themselves
 
@@ -602,7 +602,7 @@ lesson(
             ### Every arrangement, in order, with repeats
 
             Sort the values (that's the first arrangement), then step until there's no next one. For `[2, 1, 1]` that's
-            {', '.join('`' + ' '.join(map(str, p)) + '`' for p in DUP_ALL)}. Each distinct arrangement once, in order.
+            {', '.join('`' + ' '.join(map(str, p)) + '`' for p in DUP_ALL)}: each distinct arrangement once, in order.
 
             ### Jumping straight to the k-th
 
