@@ -1,0 +1,1392 @@
+{
+ "version": 1,
+ "id": "palindrome-checks",
+ "topic": "strings",
+ "summary": "A palindrome check compares the first character with the last, the second with the second last, and so on.\nThe variations come from what happens at a mismatch: skip a character that doesn't count, allow one deletion, or\ncount what would need changing. Each one is still a single pass with two pointers moving inward.",
+ "minutes": 9,
+ "sections": [
+  {
+   "id": "idea",
+   "title": "The idea",
+   "blocks": [
+    {
+     "md": "Hold a word up to a mirror down its middle. The first letter faces the last, the second faces the second\nlast. If every facing pair matches, it's a palindrome. You never need more than one look at each pair, so\nthat's half the word's length in comparisons.\n\nMost palindrome questions are that check plus a rule for mismatches. \"Ignore punctuation\" says to skip\nsome characters before comparing. \"Allow one typo\" says a mismatch can be forgiven once. \"Delete some copies\nof one letter\" says a mismatch can be fixed only by removing that letter. The pointers still only move\ninward, so it's still O(n)."
+    },
+    {
+     "panels": [
+      {
+       "type": "row",
+       "cells": [
+        "r",
+        "a",
+        "c",
+        "e",
+        "c",
+        "a",
+        "r"
+       ],
+       "states": {
+        "0": "found",
+        "6": "found",
+        "1": "active",
+        "5": "active",
+        "3": "mark"
+       },
+       "label": "pairs, from the outside in",
+       "slots": true
+      }
+     ],
+     "caption": "Facing pairs are compared; the middle letter of an odd-length word faces itself."
+    },
+    {
+     "key": "`lo = 0`, `hi = n - 1`. While `lo < hi`: if the characters match, move both inward; otherwise apply the\nquestion's rule for a mismatch (skip, forgive once, delete, count). The rule is the only part that changes."
+    }
+   ]
+  },
+  {
+   "id": "signals",
+   "title": "When to reach for it",
+   "blocks": [
+    {
+     "md": "The question asks whether a string is (or can become) a palindrome, under some rule: ignoring certain\ncharacters, with a limited number of deletions or changes, or after removing some letter."
+    },
+    {
+     "table": {
+      "head": [
+       "the rule",
+       "what happens at a mismatch"
+      ],
+      "rows": [
+       [
+        "the whole string, as is",
+        "compare ends, move both inward"
+       ],
+       [
+        "only some characters count",
+        "skip characters that don't count, on each side, before comparing"
+       ],
+       [
+        "one deletion allowed (anywhere)",
+        "at the first mismatch, try skipping the left one or the right one"
+       ],
+       [
+        "delete copies of one letter",
+        "the letter must be one of the first mismatched pair (template)"
+       ],
+       [
+        "change letters",
+        "count the mismatched pairs (variation)"
+       ]
+      ]
+     }
+    },
+    {
+     "md": "Not a fit:\n\n- The *longest* palindromic substring, or counting them. That's *Expand around center*.\n- Can the letters be rearranged into a palindrome? Order doesn't matter there: count letters (*Anagrams and\n  signatures*).\n- Many deletions allowed anywhere (\"fewest deletions to make a palindrome\"). That's the longest palindromic\n  subsequence, a dynamic programming problem."
+    }
+   ]
+  },
+  {
+   "id": "theory",
+   "title": "Why it works",
+   "blocks": [
+    {
+     "md": "### Matching pairs can be kept\n\nWhen `s[lo] == s[hi]`, keeping both as a mirrored pair is never worse than removing either. If some solution\nremoved one of them, the remaining copy would need a partner somewhere else, and pairing the two outermost\nequal characters leaves the most room inside. So a match always means \"move both inward\".\n\n### The first mismatch narrows the choices\n\nScan from the ends until the first pair that differs, `s[lo]` and `s[hi]`. Everything outside it already\nmatches. To fix this pair, at least one of the two characters must go. So if the rule is \"delete copies of one\nchosen letter\", that letter must be `s[lo]` or `s[hi]`. Instead of trying all 26 letters, try two.\n\n### Deleting one letter, greedily\n\nWith the letter `c` fixed, walk from the ends again. A match is kept. A mismatch where one end is `c` deletes\nthat end; it has to go, since it can't pair with the other. A mismatch where neither end is `c` can't be\nfixed, so `c` doesn't work. Every deletion is forced, so the count is the fewest for that letter."
+    },
+    {
+     "walk": {
+      "steps": [
+       {
+        "text": "Both ends in play, nothing deleted.",
+        "panels": [
+         {
+          "type": "row",
+          "cells": [
+           "a",
+           "b",
+           "c",
+           "a",
+           "a",
+           "c",
+           "a",
+           "b"
+          ],
+          "pointers": {
+           "lo": 0,
+           "hi": 7
+          },
+          "label": "s",
+          "slots": true
+         },
+         {
+          "type": "vars",
+          "items": {
+           "deleting only:": "'a'",
+           "deleted:": "0"
+          }
+         }
+        ]
+       },
+       {
+        "text": "'a' and 'b' differ. The left one is an 'a', so delete it: 1 so far.",
+        "panels": [
+         {
+          "type": "row",
+          "cells": [
+           "a",
+           "b",
+           "c",
+           "a",
+           "a",
+           "c",
+           "a",
+           "b"
+          ],
+          "states": {
+           "0": "dim"
+          },
+          "pointers": {
+           "lo": 1,
+           "hi": 7
+          },
+          "label": "s",
+          "slots": true
+         },
+         {
+          "type": "vars",
+          "items": {
+           "deleting only:": "'a'",
+           "deleted:": "1"
+          }
+         }
+        ]
+       },
+       {
+        "text": "'b' and 'b' match. Keep both and move inward.",
+        "panels": [
+         {
+          "type": "row",
+          "cells": [
+           "a",
+           "b",
+           "c",
+           "a",
+           "a",
+           "c",
+           "a",
+           "b"
+          ],
+          "states": {
+           "0": "dim",
+           "1": "found",
+           "7": "found"
+          },
+          "pointers": {
+           "lo": 2,
+           "hi": 6
+          },
+          "label": "s",
+          "slots": true
+         },
+         {
+          "type": "vars",
+          "items": {
+           "deleting only:": "'a'",
+           "deleted:": "1"
+          }
+         }
+        ]
+       },
+       {
+        "text": "'c' and 'a' differ. The right one is an 'a', so delete it: 2 so far.",
+        "panels": [
+         {
+          "type": "row",
+          "cells": [
+           "a",
+           "b",
+           "c",
+           "a",
+           "a",
+           "c",
+           "a",
+           "b"
+          ],
+          "states": {
+           "0": "dim",
+           "1": "found",
+           "7": "found",
+           "6": "dim"
+          },
+          "pointers": {
+           "lo": 2,
+           "hi": 5
+          },
+          "label": "s",
+          "slots": true
+         },
+         {
+          "type": "vars",
+          "items": {
+           "deleting only:": "'a'",
+           "deleted:": "2"
+          }
+         }
+        ]
+       },
+       {
+        "text": "'c' and 'c' match. Keep both and move inward.",
+        "panels": [
+         {
+          "type": "row",
+          "cells": [
+           "a",
+           "b",
+           "c",
+           "a",
+           "a",
+           "c",
+           "a",
+           "b"
+          ],
+          "states": {
+           "0": "dim",
+           "1": "found",
+           "7": "found",
+           "6": "dim",
+           "2": "found",
+           "5": "found"
+          },
+          "pointers": {
+           "lo": 3,
+           "hi": 4
+          },
+          "label": "s",
+          "slots": true
+         },
+         {
+          "type": "vars",
+          "items": {
+           "deleting only:": "'a'",
+           "deleted:": "2"
+          }
+         }
+        ]
+       },
+       {
+        "text": "'a' and 'a' match. Keep both and move inward. The pointers have met: deleting 2 'a's leaves a palindrome.",
+        "panels": [
+         {
+          "type": "row",
+          "cells": [
+           "a",
+           "b",
+           "c",
+           "a",
+           "a",
+           "c",
+           "a",
+           "b"
+          ],
+          "states": {
+           "0": "dim",
+           "1": "found",
+           "7": "found",
+           "6": "dim",
+           "2": "found",
+           "5": "found",
+           "3": "found",
+           "4": "found"
+          },
+          "pointers": {},
+          "label": "s",
+          "slots": true
+         },
+         {
+          "type": "vars",
+          "items": {
+           "deleting only:": "'a'",
+           "deleted:": "2"
+          }
+         }
+        ]
+       }
+      ],
+      "title": "`deletions(\"abcaacab\", 'a')`: may we delete only 'a's? Compare the two ends; when they differ, delete whichever end is a 'a'.",
+      "legend": [
+       {
+        "state": "found",
+        "text": "kept: matches its mirror"
+       },
+       {
+        "state": "dim",
+        "text": "deleted (a 'a')"
+       }
+      ]
+     }
+    },
+    {
+     "md": "### Changing letters instead of deleting\n\nIf you may change any letter, each mismatched pair needs exactly one change (make one side equal the other),\nand matched pairs need none. So the fewest changes is the number of mismatched facing pairs. No search is\nneeded at all."
+    }
+   ]
+  },
+  {
+   "id": "template",
+   "title": "The template",
+   "blocks": [
+    {
+     "md": "Choose one letter and delete some of its copies (possibly none) so that `s` becomes a palindrome. What's the\nfewest deletions? Return -1 if no letter works."
+    },
+    {
+     "code": {
+      "python": "def deletions(s, c):\n    lo, hi, d = 0, len(s) - 1, 0\n    while lo < hi:\n        if s[lo] == s[hi]:\n            lo, hi = lo + 1, hi - 1\n        elif s[lo] == c:\n            lo, d = lo + 1, d + 1\n        elif s[hi] == c:\n            hi, d = hi - 1, d + 1\n        else:\n            return -1\n    return d\n\n\ndef fewest_deletions(s):\n    lo, hi = 0, len(s) - 1\n    while lo < hi and s[lo] == s[hi]:\n        lo, hi = lo + 1, hi - 1\n    if lo >= hi:\n        return 0\n    a, b = deletions(s, s[lo]), deletions(s, s[hi])\n    if a < 0 or b < 0:\n        return max(a, b)\n    return min(a, b)\n",
+      "java": "static int deletions(String s, char c) {\n    int lo = 0, hi = s.length() - 1, d = 0;\n    while (lo < hi) {\n        if (s.charAt(lo) == s.charAt(hi)) {\n            lo++;\n            hi--;\n        } else if (s.charAt(lo) == c) {\n            lo++;\n            d++;\n        } else if (s.charAt(hi) == c) {\n            hi--;\n            d++;\n        } else {\n            return -1;\n        }\n    }\n    return d;\n}\n\nstatic int fewestDeletions(String s) {\n    int lo = 0, hi = s.length() - 1;\n    while (lo < hi && s.charAt(lo) == s.charAt(hi)) {\n        lo++;\n        hi--;\n    }\n    if (lo >= hi) return 0;\n    int a = deletions(s, s.charAt(lo)), b = deletions(s, s.charAt(hi));\n    if (a < 0 || b < 0) return Math.max(a, b);\n    return Math.min(a, b);\n}\n",
+      "cpp": "int deletions(const string& s, char c) {\n    int lo = 0, hi = (int)s.size() - 1, d = 0;\n    while (lo < hi) {\n        if (s[lo] == s[hi]) {\n            lo++;\n            hi--;\n        } else if (s[lo] == c) {\n            lo++;\n            d++;\n        } else if (s[hi] == c) {\n            hi--;\n            d++;\n        } else {\n            return -1;\n        }\n    }\n    return d;\n}\n\nint fewestDeletions(const string& s) {\n    int lo = 0, hi = (int)s.size() - 1;\n    while (lo < hi && s[lo] == s[hi]) {\n        lo++;\n        hi--;\n    }\n    if (lo >= hi) return 0;\n    int a = deletions(s, s[lo]), b = deletions(s, s[hi]);\n    if (a < 0 || b < 0) return max(a, b);\n    return min(a, b);\n}\n",
+      "c": "int deletions(const char* s, int n, char c) {\n    int lo = 0, hi = n - 1, d = 0;\n    while (lo < hi) {\n        if (s[lo] == s[hi]) {\n            lo++;\n            hi--;\n        } else if (s[lo] == c) {\n            lo++;\n            d++;\n        } else if (s[hi] == c) {\n            hi--;\n            d++;\n        } else {\n            return -1;\n        }\n    }\n    return d;\n}\n\nint fewestDeletions(const char* s) {\n    int n = strlen(s), lo = 0, hi = n - 1;\n    while (lo < hi && s[lo] == s[hi]) {\n        lo++;\n        hi--;\n    }\n    if (lo >= hi) return 0;\n    int a = deletions(s, n, s[lo]), b = deletions(s, n, s[hi]);\n    if (a < 0 || b < 0) return a > b ? a : b;\n    return a < b ? a : b;\n}\n"
+     },
+     "title": "Fewest deletions of one chosen letter",
+     "lines": [
+      {
+       "text": "Both ends, and nothing deleted yet.",
+       "at": {
+        "python": [
+         [
+          2,
+          2
+         ]
+        ],
+        "java": [
+         [
+          2,
+          2
+         ]
+        ],
+        "cpp": [
+         [
+          2,
+          2
+         ]
+        ],
+        "c": [
+         [
+          2,
+          2
+         ]
+        ]
+       }
+      },
+      {
+       "text": "Until the pointers meet.",
+       "at": {
+        "python": [
+         [
+          3,
+          3
+         ]
+        ],
+        "java": [
+         [
+          3,
+          3
+         ]
+        ],
+        "cpp": [
+         [
+          3,
+          3
+         ]
+        ],
+        "c": [
+         [
+          3,
+          3
+         ]
+        ]
+       }
+      },
+      {
+       "text": "Equal ends stay as a mirrored pair.",
+       "at": {
+        "python": [
+         [
+          4,
+          5
+         ]
+        ],
+        "java": [
+         [
+          4,
+          6
+         ]
+        ],
+        "cpp": [
+         [
+          4,
+          6
+         ]
+        ],
+        "c": [
+         [
+          4,
+          6
+         ]
+        ]
+       }
+      },
+      {
+       "text": "They differ and the left one is the chosen letter: it has to go.",
+       "at": {
+        "python": [
+         [
+          6,
+          7
+         ]
+        ],
+        "java": [
+         [
+          7,
+          9
+         ]
+        ],
+        "cpp": [
+         [
+          7,
+          9
+         ]
+        ],
+        "c": [
+         [
+          7,
+          9
+         ]
+        ]
+       }
+      },
+      {
+       "text": "They differ and the right one is the chosen letter: it has to go.",
+       "at": {
+        "python": [
+         [
+          8,
+          9
+         ]
+        ],
+        "java": [
+         [
+          10,
+          12
+         ]
+        ],
+        "cpp": [
+         [
+          10,
+          12
+         ]
+        ],
+        "c": [
+         [
+          10,
+          12
+         ]
+        ]
+       }
+      },
+      {
+       "text": "They differ and neither is the chosen letter. No amount of deleting it helps.",
+       "at": {
+        "python": [
+         [
+          10,
+          11
+         ]
+        ],
+        "java": [
+         [
+          13,
+          14
+         ]
+        ],
+        "cpp": [
+         [
+          13,
+          14
+         ]
+        ],
+        "c": [
+         [
+          13,
+          14
+         ]
+        ]
+       }
+      },
+      {
+       "text": "The deletions this letter needs.",
+       "at": {
+        "python": [
+         [
+          12,
+          12
+         ]
+        ],
+        "java": [
+         [
+          17,
+          17
+         ]
+        ],
+        "cpp": [
+         [
+          17,
+          17
+         ]
+        ],
+        "c": [
+         [
+          17,
+          17
+         ]
+        ]
+       }
+      },
+      {
+       "text": "Skip the matching outer pairs to find the first mismatch.",
+       "at": {
+        "python": [
+         [
+          16,
+          18
+         ]
+        ],
+        "java": [
+         [
+          21,
+          24
+         ]
+        ],
+        "cpp": [
+         [
+          21,
+          24
+         ]
+        ],
+        "c": [
+         [
+          21,
+          24
+         ]
+        ]
+       }
+      },
+      {
+       "text": "No mismatch: it's already a palindrome.",
+       "at": {
+        "python": [
+         [
+          19,
+          20
+         ]
+        ],
+        "java": [
+         [
+          26,
+          26
+         ]
+        ],
+        "cpp": [
+         [
+          26,
+          26
+         ]
+        ],
+        "c": [
+         [
+          26,
+          26
+         ]
+        ]
+       }
+      },
+      {
+       "text": "The letter to delete must be one of the two that differ. Try both.",
+       "at": {
+        "python": [
+         [
+          21,
+          21
+         ]
+        ],
+        "java": [
+         [
+          27,
+          27
+         ]
+        ],
+        "cpp": [
+         [
+          27,
+          27
+         ]
+        ],
+        "c": [
+         [
+          27,
+          27
+         ]
+        ]
+       }
+      },
+      {
+       "text": "If one failed, take the other (or -1 if both did). Otherwise the smaller.",
+       "at": {
+        "python": [
+         [
+          22,
+          24
+         ]
+        ],
+        "java": [
+         [
+          28,
+          29
+         ]
+        ],
+        "cpp": [
+         [
+          28,
+          29
+         ]
+        ],
+        "c": [
+         [
+          28,
+          29
+         ]
+        ]
+       }
+      }
+     ],
+     "run": {
+      "call": "fewest_deletions(\"abcaacab\"); (\"abccbda\"); (\"racecar\"); (\"xyzxyz\")",
+      "output": "2\n1\n0\n-1"
+     }
+    },
+    {
+     "md": "`\"xyzxyz\"` fails with either candidate, so no letter works. `\"racecar\"` needs nothing."
+    }
+   ]
+  },
+  {
+   "id": "trace",
+   "title": "Trace it by hand",
+   "blocks": [
+    {
+     "md": "The second example, with both candidate letters:"
+    },
+    {
+     "walk": {
+      "steps": [
+       {
+        "text": "The outer 'a's match, then 'b' and 'd' don't. Any fix must delete one of these two, so the letter to delete is 'b' or 'd'.",
+        "panels": [
+         {
+          "type": "row",
+          "cells": [
+           "a",
+           "b",
+           "c",
+           "c",
+           "b",
+           "d",
+           "a"
+          ],
+          "states": {
+           "0": "found",
+           "6": "found",
+           "1": "mark",
+           "5": "mark"
+          },
+          "pointers": {
+           "lo": 1,
+           "hi": 5
+          },
+          "label": "s",
+          "slots": true
+         },
+         {
+          "type": "vars",
+          "items": {
+           "deleting only:": "?",
+           "deleted:": "0"
+          }
+         }
+        ]
+       },
+       {
+        "text": "Try 'b' first, starting again from the ends.",
+        "panels": [
+         {
+          "type": "row",
+          "cells": [
+           "a",
+           "b",
+           "c",
+           "c",
+           "b",
+           "d",
+           "a"
+          ],
+          "pointers": {
+           "lo": 0,
+           "hi": 6
+          },
+          "label": "s",
+          "slots": true
+         },
+         {
+          "type": "vars",
+          "items": {
+           "deleting only:": "'b'",
+           "deleted:": "0"
+          }
+         }
+        ]
+       },
+       {
+        "text": "'a' and 'a' match. Keep both and move inward.",
+        "panels": [
+         {
+          "type": "row",
+          "cells": [
+           "a",
+           "b",
+           "c",
+           "c",
+           "b",
+           "d",
+           "a"
+          ],
+          "states": {
+           "0": "found",
+           "6": "found"
+          },
+          "pointers": {
+           "lo": 1,
+           "hi": 5
+          },
+          "label": "s",
+          "slots": true
+         },
+         {
+          "type": "vars",
+          "items": {
+           "deleting only:": "'b'",
+           "deleted:": "0"
+          }
+         }
+        ]
+       },
+       {
+        "text": "'b' and 'd' differ. The left one is a 'b', so delete it: 1 so far.",
+        "panels": [
+         {
+          "type": "row",
+          "cells": [
+           "a",
+           "b",
+           "c",
+           "c",
+           "b",
+           "d",
+           "a"
+          ],
+          "states": {
+           "0": "found",
+           "6": "found",
+           "1": "dim"
+          },
+          "pointers": {
+           "lo": 2,
+           "hi": 5
+          },
+          "label": "s",
+          "slots": true
+         },
+         {
+          "type": "vars",
+          "items": {
+           "deleting only:": "'b'",
+           "deleted:": "1"
+          }
+         }
+        ]
+       },
+       {
+        "text": "'c' and 'd' differ, and neither is a 'b'. Deleting 'b's can't fix this pair: this letter doesn't work.",
+        "panels": [
+         {
+          "type": "row",
+          "cells": [
+           "a",
+           "b",
+           "c",
+           "c",
+           "b",
+           "d",
+           "a"
+          ],
+          "states": {
+           "0": "found",
+           "6": "found",
+           "1": "dim",
+           "2": "mark",
+           "5": "mark"
+          },
+          "pointers": {
+           "lo": 2,
+           "hi": 5
+          },
+          "label": "s",
+          "slots": true
+         },
+         {
+          "type": "vars",
+          "items": {
+           "deleting only:": "'b'",
+           "deleted:": "1"
+          }
+         }
+        ]
+       },
+       {
+        "text": "Now try 'd'.",
+        "panels": [
+         {
+          "type": "row",
+          "cells": [
+           "a",
+           "b",
+           "c",
+           "c",
+           "b",
+           "d",
+           "a"
+          ],
+          "pointers": {
+           "lo": 0,
+           "hi": 6
+          },
+          "label": "s",
+          "slots": true
+         },
+         {
+          "type": "vars",
+          "items": {
+           "deleting only:": "'d'",
+           "deleted:": "0"
+          }
+         }
+        ]
+       },
+       {
+        "text": "'a' and 'a' match. Keep both and move inward.",
+        "panels": [
+         {
+          "type": "row",
+          "cells": [
+           "a",
+           "b",
+           "c",
+           "c",
+           "b",
+           "d",
+           "a"
+          ],
+          "states": {
+           "0": "found",
+           "6": "found"
+          },
+          "pointers": {
+           "lo": 1,
+           "hi": 5
+          },
+          "label": "s",
+          "slots": true
+         },
+         {
+          "type": "vars",
+          "items": {
+           "deleting only:": "'d'",
+           "deleted:": "0"
+          }
+         }
+        ]
+       },
+       {
+        "text": "'b' and 'd' differ. The right one is a 'd', so delete it: 1 so far.",
+        "panels": [
+         {
+          "type": "row",
+          "cells": [
+           "a",
+           "b",
+           "c",
+           "c",
+           "b",
+           "d",
+           "a"
+          ],
+          "states": {
+           "0": "found",
+           "6": "found",
+           "5": "dim"
+          },
+          "pointers": {
+           "lo": 1,
+           "hi": 4
+          },
+          "label": "s",
+          "slots": true
+         },
+         {
+          "type": "vars",
+          "items": {
+           "deleting only:": "'d'",
+           "deleted:": "1"
+          }
+         }
+        ]
+       },
+       {
+        "text": "'b' and 'b' match. Keep both and move inward.",
+        "panels": [
+         {
+          "type": "row",
+          "cells": [
+           "a",
+           "b",
+           "c",
+           "c",
+           "b",
+           "d",
+           "a"
+          ],
+          "states": {
+           "0": "found",
+           "6": "found",
+           "5": "dim",
+           "1": "found",
+           "4": "found"
+          },
+          "pointers": {
+           "lo": 2,
+           "hi": 3
+          },
+          "label": "s",
+          "slots": true
+         },
+         {
+          "type": "vars",
+          "items": {
+           "deleting only:": "'d'",
+           "deleted:": "1"
+          }
+         }
+        ]
+       },
+       {
+        "text": "'c' and 'c' match. Keep both and move inward. The pointers have met: deleting 1 'd' leaves a palindrome. Only 'd' worked, so the answer is 1.",
+        "panels": [
+         {
+          "type": "row",
+          "cells": [
+           "a",
+           "b",
+           "c",
+           "c",
+           "b",
+           "d",
+           "a"
+          ],
+          "states": {
+           "0": "found",
+           "6": "found",
+           "5": "dim",
+           "1": "found",
+           "4": "found",
+           "2": "found",
+           "3": "found"
+          },
+          "pointers": {},
+          "label": "s",
+          "slots": true
+         },
+         {
+          "type": "vars",
+          "items": {
+           "deleting only:": "'d'",
+           "deleted:": "1"
+          }
+         }
+        ]
+       }
+      ],
+      "title": "`fewest_deletions(\"abccbda\")`. Find the first pair that differs; only those two letters are worth trying.",
+      "legend": [
+       {
+        "state": "found",
+        "text": "kept: matches its mirror"
+       },
+       {
+        "state": "dim",
+        "text": "deleted"
+       },
+       {
+        "state": "mark",
+        "text": "a pair that differs"
+       }
+      ]
+     }
+    },
+    {
+     "md": "On paper, connect each kept pair with an arc and cross out each deleted letter. Arcs never cross, and every\nletter is either inside an arc pair, crossed out, or the single middle letter."
+    }
+   ]
+  },
+  {
+   "id": "examples",
+   "title": "More examples",
+   "blocks": [
+    {
+     "md": "### Skipping what doesn't count\n\n\"A man, a plan, a canal: Panama\" is a palindrome if you ignore everything but letters and compare letters\nwithout case. Before comparing, move `lo` right past characters that don't count, and `hi` left past them\ntoo (both moves guarded by `lo < hi`). Then compare in lowercase. Nothing is copied, so it stays O(1) space.\n\n### Numbers without strings\n\nIs 12321 a palindrome? Reverse its *second half* arithmetically: peel digits off the end into a new number\nuntil the new number is at least the remaining one. For 12321 that leaves 12 and 123; dropping the middle digit\n(`123 // 10 = 12`) gives a match, so it is. Reversing only half avoids overflow,\nand negative numbers are never palindromes because of the sign.\n\n### One deletion anywhere\n\nIf any single character may be deleted, the first mismatch still decides: delete the left one or the right\none, and check whether the rest between them is a palindrome. Two plain checks, so O(n). Allowing more\ndeletions makes the choices branch, and it becomes dynamic programming."
+    }
+   ]
+  },
+  {
+   "id": "variations",
+   "title": "Variations",
+   "blocks": [
+    {
+     "md": "### Changes instead of deletions\n\nEach mismatched facing pair costs exactly one change, so count them."
+    },
+    {
+     "code": {
+      "python": "def changes_needed(s):\n    lo, hi, changes = 0, len(s) - 1, 0\n    while lo < hi:\n        if s[lo] != s[hi]:\n            changes += 1\n        lo, hi = lo + 1, hi - 1\n    return changes\n",
+      "java": "static int changesNeeded(String s) {\n    int lo = 0, hi = s.length() - 1, changes = 0;\n    while (lo < hi) {\n        if (s.charAt(lo) != s.charAt(hi)) changes++;\n        lo++;\n        hi--;\n    }\n    return changes;\n}\n",
+      "cpp": "int changesNeeded(const string& s) {\n    int lo = 0, hi = (int)s.size() - 1, changes = 0;\n    while (lo < hi) {\n        if (s[lo] != s[hi]) changes++;\n        lo++;\n        hi--;\n    }\n    return changes;\n}\n",
+      "c": "int changesNeeded(const char* s) {\n    int lo = 0, hi = (int)strlen(s) - 1, changes = 0;\n    while (lo < hi) {\n        if (s[lo] != s[hi]) changes++;\n        lo++;\n        hi--;\n    }\n    return changes;\n}\n"
+     },
+     "title": "Fewest letter changes to make a palindrome",
+     "lines": [
+      {
+       "text": "Both ends, and no changes yet.",
+       "at": {
+        "python": [
+         [
+          2,
+          2
+         ]
+        ],
+        "java": [
+         [
+          2,
+          2
+         ]
+        ],
+        "cpp": [
+         [
+          2,
+          2
+         ]
+        ],
+        "c": [
+         [
+          2,
+          2
+         ]
+        ]
+       }
+      },
+      {
+       "text": "Each facing pair once.",
+       "at": {
+        "python": [
+         [
+          3,
+          3
+         ]
+        ],
+        "java": [
+         [
+          3,
+          3
+         ]
+        ],
+        "cpp": [
+         [
+          3,
+          3
+         ]
+        ],
+        "c": [
+         [
+          3,
+          3
+         ]
+        ]
+       }
+      },
+      {
+       "text": "A mismatched pair needs one change: set either letter to the other.",
+       "at": {
+        "python": [
+         [
+          4,
+          5
+         ]
+        ],
+        "java": [
+         [
+          4,
+          4
+         ]
+        ],
+        "cpp": [
+         [
+          4,
+          4
+         ]
+        ],
+        "c": [
+         [
+          4,
+          4
+         ]
+        ]
+       }
+      },
+      {
+       "text": "Both pointers move inward every time; nothing is skipped.",
+       "at": {
+        "python": [
+         [
+          6,
+          6
+         ]
+        ],
+        "java": [
+         [
+          5,
+          6
+         ]
+        ],
+        "cpp": [
+         [
+          5,
+          6
+         ]
+        ],
+        "c": [
+         [
+          5,
+          6
+         ]
+        ]
+       }
+      },
+      {
+       "text": "The number of mismatched pairs.",
+       "at": {
+        "python": [
+         [
+          7,
+          7
+         ]
+        ],
+        "java": [
+         [
+          8,
+          8
+         ]
+        ],
+        "cpp": [
+         [
+          8,
+          8
+         ]
+        ],
+        "c": [
+         [
+          8,
+          8
+         ]
+        ]
+       }
+      }
+     ],
+     "run": {
+      "call": "changes_needed(\"abcd\"); (\"abca\"); (\"racecar\"); (\"ab\")",
+      "output": "2\n1\n0\n1"
+     }
+    },
+    {
+     "md": "\"Can it become a palindrome with at most `k` changes?\" is then `changes_needed(s) <= k`. To get the *smallest*\nsuch palindrome in dictionary order, change each mismatched pair to the smaller of its two letters.\n\n### Palindromes across two strings\n\nSome questions glue a prefix of one string to a suffix of another. Compare from the outside in, one pointer in\neach string, until the first mismatch; whatever's left in the middle must be a palindrome on its own, in one\nstring or the other. Still two pointers, still O(n).\n\n### Linked lists\n\nA singly linked list can't walk backwards, so find the middle (fast and slow pointers), reverse the second\nhalf, and compare the two halves front to front. Reverse it back afterwards if the caller needs the list."
+    }
+   ]
+  },
+  {
+   "id": "complexity",
+   "title": "What it costs",
+   "blocks": [
+    {
+     "md": "A plain check is at most `n / 2` comparisons: O(n) time, O(1) space. The template runs one scan plus at most\ntwo full checks: still O(n). Counting changes is one pass. Building a reversed copy and comparing would also\nbe O(n) time, but O(n) extra space."
+    },
+    {
+     "table": {
+      "head": [
+       "Task",
+       "Time",
+       "Extra space"
+      ],
+      "rows": [
+       [
+        "Is it a palindrome?",
+        "O(n)",
+        "O(1)"
+       ],
+       [
+        "Ignoring some characters",
+        "O(n)",
+        "O(1)"
+       ],
+       [
+        "One deletion anywhere",
+        "O(n)",
+        "O(1)"
+       ],
+       [
+        "Delete copies of one letter (template)",
+        "O(n)",
+        "O(1)"
+       ],
+       [
+        "Fewest changes",
+        "O(n)",
+        "O(1)"
+       ],
+       [
+        "Fewest deletions, any letters",
+        "O(n²) (dynamic programming)",
+        "O(n) to O(n²)"
+       ]
+      ]
+     }
+    }
+   ]
+  },
+  {
+   "id": "languages",
+   "title": "In your language",
+   "blocks": [
+    {
+     "md": "### Python\n\n`s == s[::-1]` checks a whole string in one line, with an O(n) copy. For the two-pointer versions, index\ndirectly. `ch.isalnum()` and `ch.lower()` handle skipping and case.\n\n### Java\n\n`charAt` and `Character.isLetterOrDigit` / `Character.toLowerCase`. `new StringBuilder(s).reverse()` makes a\nreversed copy if you want the one-line version.\n\n### C++\n\n`std::equal(s.begin(), s.begin() + s.size() / 2, s.rbegin())` compares the first half with the reversed second\nhalf. `isalnum` and `tolower` take `unsigned char` values.\n\n### C\n\nTwo indices into the `char` array, `strlen` once. `isalnum` and `tolower` from `<ctype.h>`, with a cast to\n`unsigned char`."
+    }
+   ]
+  },
+  {
+   "id": "pitfalls",
+   "title": "Pitfalls and edge cases",
+   "blocks": [
+    {
+     "md": "- Moving only one pointer on a match.\n- Skipping characters without checking `lo < hi`, which can run a pointer past the other or off the string.\n- Trying all 26 letters when the first mismatch already names the two candidates (correct, but wasteful).\n- Treating -1 (\"impossible\") as a small number when taking the minimum of two answers.\n- Empty strings and single characters: both are palindromes.\n- Comparing characters of different case or type without normalising them first."
+    }
+   ]
+  },
+  {
+   "id": "check",
+   "title": "Check yourself",
+   "blocks": [
+    {
+     "quiz": [
+      {
+       "q": "Why is it safe to keep a matching pair instead of considering deleting one of them?",
+       "a": "The two outermost equal characters can always serve as a mirrored pair. Any solution that deletes one of them can keep it instead, pairing it with the other, without needing more deletions inside."
+      },
+      {
+       "q": "Why only two candidate letters in `fewest_deletions`?",
+       "a": "Everything outside the first mismatched pair already matches. At least one of the two mismatched characters must be deleted, so the chosen letter has to be one of them."
+      },
+      {
+       "q": "deletions(\"abca\", 'b'): what happens?",
+       "a": "a and a match. Then b and c differ; the left is a b, so it's deleted (1). The pointers meet on c: one deletion gives \"aca\"."
+      },
+      {
+       "q": "changes_needed(\"abcde\")?",
+       "a": "2: the pairs (a, e) and (b, d) differ; c is the middle."
+      },
+      {
+       "q": "How do you check that 1221 is a palindrome without converting it to a string?",
+       "a": "Peel digits off the end into a reversed number until it's at least what's left: 12 and 12. They're equal, so yes. (For odd lengths, drop the middle digit from the reversed half first.)"
+      }
+     ]
+    }
+   ]
+  }
+ ],
+ "leetcode": [
+  {
+   "id": 125,
+   "title": "Valid Palindrome",
+   "url": "https://leetcode.com/problems/valid-palindrome/",
+   "difficulty": "easy"
+  },
+  {
+   "id": 9,
+   "title": "Palindrome Number",
+   "url": "https://leetcode.com/problems/palindrome-number/",
+   "difficulty": "easy"
+  },
+  {
+   "id": 2108,
+   "title": "Find First Palindromic String in the Array",
+   "url": "https://leetcode.com/problems/find-first-palindromic-string-in-the-array/",
+   "difficulty": "easy"
+  },
+  {
+   "id": 2697,
+   "title": "Lexicographically Smallest Palindrome",
+   "url": "https://leetcode.com/problems/lexicographically-smallest-palindrome/",
+   "difficulty": "easy"
+  },
+  {
+   "id": 1332,
+   "title": "Remove Palindromic Subsequences",
+   "url": "https://leetcode.com/problems/remove-palindromic-subsequences/",
+   "difficulty": "easy"
+  },
+  {
+   "id": 680,
+   "title": "Valid Palindrome II",
+   "url": "https://leetcode.com/problems/valid-palindrome-ii/",
+   "difficulty": "easy"
+  },
+  {
+   "id": 1328,
+   "title": "Break a Palindrome",
+   "url": "https://leetcode.com/problems/break-a-palindrome/",
+   "difficulty": "medium"
+  },
+  {
+   "id": 1616,
+   "title": "Split Two Strings to Make Palindrome",
+   "url": "https://leetcode.com/problems/split-two-strings-to-make-palindrome/",
+   "difficulty": "medium"
+  },
+  {
+   "id": 2330,
+   "title": "Valid Palindrome IV",
+   "url": "https://leetcode.com/problems/valid-palindrome-iv/",
+   "difficulty": "medium",
+   "premium": true
+  }
+ ]
+}

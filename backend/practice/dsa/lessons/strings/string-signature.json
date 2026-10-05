@@ -1,0 +1,1787 @@
+{
+ "version": 1,
+ "id": "string-signature",
+ "topic": "strings",
+ "summary": "When a question only cares about which letters a string has and how many of each, not their order, replace the\nstring by a short signature: sorted letters, a table of 26 counts, or a bitmask. Comparing, grouping and\nmeasuring strings then becomes comparing signatures, in time proportional to the length.",
+ "minutes": 10,
+ "sections": [
+  {
+   "id": "idea",
+   "title": "The idea",
+   "blocks": [
+    {
+     "md": "Scrabble players know this instinctively. With the tiles `BACON` on your rack, it doesn't matter what\norder they're in: the question is what you have. \"Can I make `COBRA`?\" is answered by counting: one\nC, one O, one B, one R, one A. You have all of them except an R, and you have an N you won't use.\n\nA signature is that tile count, written down. Two strings with the same signature are anagrams. Two strings\nwith different signatures can be compared letter by letter to see exactly what's missing or extra. Order is\ngone, which is the point: whatever the question asks about order is irrelevant here, so the signature keeps\nonly what matters."
+    },
+    {
+     "panels": [
+      {
+       "type": "row",
+       "cells": [
+        "b",
+        "a",
+        "c",
+        "o",
+        "n"
+       ],
+       "label": "s",
+       "slots": true
+      },
+      {
+       "type": "row",
+       "cells": [
+        "c",
+        "o",
+        "b",
+        "r",
+        "a"
+       ],
+       "label": "t",
+       "slots": true
+      },
+      {
+       "type": "bars",
+       "values": [
+        0,
+        0,
+        0,
+        1,
+        0,
+        -1
+       ],
+       "labels": [
+        "a",
+        "b",
+        "c",
+        "n",
+        "o",
+        "r"
+       ],
+       "label": "count in s minus count in t",
+       "max": 1,
+       "min": -1
+      }
+     ],
+     "caption": "Every letter balances except n (s has one t doesn't) and r (the other way round)."
+    },
+    {
+     "key": "Pick the smallest signature that captures the question: 26 counts for \"same letters\", their difference for\n\"how far apart\", a parity bitmask for \"can it become a palindrome\", a presence bitmask for \"same set of\nletters\". Build it in one pass, O(n)."
+    }
+   ]
+  },
+  {
+   "id": "signals",
+   "title": "When to reach for it",
+   "blocks": [
+    {
+     "md": "Words like anagram, rearrange, permutation, scramble, \"using the letters of\", \"any order\", or \"could be made\ninto a palindrome\". If you can shuffle the input and the answer doesn't change, a signature is probably the\nright representation."
+    },
+    {
+     "table": {
+      "head": [
+       "what the question cares about",
+       "signature",
+       "example"
+      ],
+      "rows": [
+       [
+        "same letters, same counts (anagram)",
+        "sorted letters, or 26 counts",
+        "\"listen\" → \"eilnst\""
+       ],
+       [
+        "same counts, compared to a target",
+        "count difference",
+        "s minus t, as in the template"
+       ],
+       [
+        "could be rearranged into a palindrome",
+        "which counts are odd (a bitmask)",
+        "\"aab\" → only b odd"
+       ],
+       [
+        "same set of letters, any counts",
+        "which letters appear (a bitmask)",
+        "\"abba\" and \"ab\" → {a, b}"
+       ],
+       [
+        "one can be built from the other's letters",
+        "counts, compared letter by letter",
+        "every count in t ≤ the count in s"
+       ]
+      ]
+     }
+    },
+    {
+     "md": "Not a fit:\n\n- Order matters (subsequence, substring, the next arrangement). Signatures throw order away.\n- You need it for every window of a long string. Keep the counts and update them as the window slides\n  (Sliding Window topic) instead of rebuilding.\n- The alphabet is huge or unknown (any Unicode, words instead of letters). Use a hash map of counts rather\n  than a fixed array."
+    }
+   ]
+  },
+  {
+   "id": "theory",
+   "title": "Why it works",
+   "blocks": [
+    {
+     "md": "### Counts decide anagrams\n\nTwo strings are anagrams exactly when every letter appears the same number of times in both. One direction:\nrearranging doesn't change counts. The other: with equal counts you can build one from the other by putting\nthe letters in the other's order. So the count table is a complete signature: equal tables, anagrams;\ndifferent tables, not.\n\n### Counting up and down\n\nInstead of two tables, use one: add 1 for each letter of `s`, subtract 1 for each letter of `t`. A zero means\nthe letter balances. A positive count is a letter `s` has more of; a negative count, one `t` has more of."
+    },
+    {
+     "walk": {
+      "steps": [
+       {
+        "text": "One counter per letter, all 0. Only the letters that appear (a, b, c, n, o, r) are drawn.",
+        "panels": [
+         {
+          "type": "row",
+          "cells": [
+           "b",
+           "a",
+           "c",
+           "o",
+           "n"
+          ],
+          "label": "s",
+          "slots": true
+         },
+         {
+          "type": "row",
+          "cells": [
+           "c",
+           "o",
+           "b",
+           "r",
+           "a"
+          ],
+          "label": "t",
+          "slots": true
+         },
+         {
+          "type": "bars",
+          "values": [
+           0,
+           0,
+           0,
+           0,
+           0,
+           0
+          ],
+          "labels": [
+           "a",
+           "b",
+           "c",
+           "n",
+           "o",
+           "r"
+          ],
+          "label": "count (s minus t)",
+          "max": 1,
+          "min": -1
+         }
+        ]
+       },
+       {
+        "text": "'b' from s: its counter goes up to 1.",
+        "panels": [
+         {
+          "type": "row",
+          "cells": [
+           "b",
+           "a",
+           "c",
+           "o",
+           "n"
+          ],
+          "states": {
+           "0": "active"
+          },
+          "label": "s",
+          "slots": true
+         },
+         {
+          "type": "row",
+          "cells": [
+           "c",
+           "o",
+           "b",
+           "r",
+           "a"
+          ],
+          "label": "t",
+          "slots": true
+         },
+         {
+          "type": "bars",
+          "values": [
+           0,
+           1,
+           0,
+           0,
+           0,
+           0
+          ],
+          "labels": [
+           "a",
+           "b",
+           "c",
+           "n",
+           "o",
+           "r"
+          ],
+          "states": {
+           "1": "active"
+          },
+          "label": "count (s minus t)",
+          "max": 1,
+          "min": -1
+         }
+        ]
+       },
+       {
+        "text": "'a' from s: its counter goes up to 1.",
+        "panels": [
+         {
+          "type": "row",
+          "cells": [
+           "b",
+           "a",
+           "c",
+           "o",
+           "n"
+          ],
+          "states": {
+           "0": "dim",
+           "1": "active"
+          },
+          "label": "s",
+          "slots": true
+         },
+         {
+          "type": "row",
+          "cells": [
+           "c",
+           "o",
+           "b",
+           "r",
+           "a"
+          ],
+          "label": "t",
+          "slots": true
+         },
+         {
+          "type": "bars",
+          "values": [
+           1,
+           1,
+           0,
+           0,
+           0,
+           0
+          ],
+          "labels": [
+           "a",
+           "b",
+           "c",
+           "n",
+           "o",
+           "r"
+          ],
+          "states": {
+           "0": "active"
+          },
+          "label": "count (s minus t)",
+          "max": 1,
+          "min": -1
+         }
+        ]
+       },
+       {
+        "text": "'c' from s: its counter goes up to 1.",
+        "panels": [
+         {
+          "type": "row",
+          "cells": [
+           "b",
+           "a",
+           "c",
+           "o",
+           "n"
+          ],
+          "states": {
+           "0": "dim",
+           "1": "dim",
+           "2": "active"
+          },
+          "label": "s",
+          "slots": true
+         },
+         {
+          "type": "row",
+          "cells": [
+           "c",
+           "o",
+           "b",
+           "r",
+           "a"
+          ],
+          "label": "t",
+          "slots": true
+         },
+         {
+          "type": "bars",
+          "values": [
+           1,
+           1,
+           1,
+           0,
+           0,
+           0
+          ],
+          "labels": [
+           "a",
+           "b",
+           "c",
+           "n",
+           "o",
+           "r"
+          ],
+          "states": {
+           "2": "active"
+          },
+          "label": "count (s minus t)",
+          "max": 1,
+          "min": -1
+         }
+        ]
+       },
+       {
+        "text": "'o' from s: its counter goes up to 1.",
+        "panels": [
+         {
+          "type": "row",
+          "cells": [
+           "b",
+           "a",
+           "c",
+           "o",
+           "n"
+          ],
+          "states": {
+           "0": "dim",
+           "1": "dim",
+           "2": "dim",
+           "3": "active"
+          },
+          "label": "s",
+          "slots": true
+         },
+         {
+          "type": "row",
+          "cells": [
+           "c",
+           "o",
+           "b",
+           "r",
+           "a"
+          ],
+          "label": "t",
+          "slots": true
+         },
+         {
+          "type": "bars",
+          "values": [
+           1,
+           1,
+           1,
+           0,
+           1,
+           0
+          ],
+          "labels": [
+           "a",
+           "b",
+           "c",
+           "n",
+           "o",
+           "r"
+          ],
+          "states": {
+           "4": "active"
+          },
+          "label": "count (s minus t)",
+          "max": 1,
+          "min": -1
+         }
+        ]
+       },
+       {
+        "text": "'n' from s: its counter goes up to 1.",
+        "panels": [
+         {
+          "type": "row",
+          "cells": [
+           "b",
+           "a",
+           "c",
+           "o",
+           "n"
+          ],
+          "states": {
+           "0": "dim",
+           "1": "dim",
+           "2": "dim",
+           "3": "dim",
+           "4": "active"
+          },
+          "label": "s",
+          "slots": true
+         },
+         {
+          "type": "row",
+          "cells": [
+           "c",
+           "o",
+           "b",
+           "r",
+           "a"
+          ],
+          "label": "t",
+          "slots": true
+         },
+         {
+          "type": "bars",
+          "values": [
+           1,
+           1,
+           1,
+           1,
+           1,
+           0
+          ],
+          "labels": [
+           "a",
+           "b",
+           "c",
+           "n",
+           "o",
+           "r"
+          ],
+          "states": {
+           "3": "active"
+          },
+          "label": "count (s minus t)",
+          "max": 1,
+          "min": -1
+         }
+        ]
+       },
+       {
+        "text": "'c' from t: its counter goes down to 0. Back to 0: the two words agree on it so far.",
+        "panels": [
+         {
+          "type": "row",
+          "cells": [
+           "b",
+           "a",
+           "c",
+           "o",
+           "n"
+          ],
+          "states": {
+           "0": "dim",
+           "1": "dim",
+           "2": "dim",
+           "3": "dim",
+           "4": "dim"
+          },
+          "label": "s",
+          "slots": true
+         },
+         {
+          "type": "row",
+          "cells": [
+           "c",
+           "o",
+           "b",
+           "r",
+           "a"
+          ],
+          "states": {
+           "0": "active"
+          },
+          "label": "t",
+          "slots": true
+         },
+         {
+          "type": "bars",
+          "values": [
+           1,
+           1,
+           0,
+           1,
+           1,
+           0
+          ],
+          "labels": [
+           "a",
+           "b",
+           "c",
+           "n",
+           "o",
+           "r"
+          ],
+          "states": {
+           "2": "active"
+          },
+          "label": "count (s minus t)",
+          "max": 1,
+          "min": -1
+         }
+        ]
+       },
+       {
+        "text": "'o' from t: its counter goes down to 0. Back to 0: the two words agree on it so far.",
+        "panels": [
+         {
+          "type": "row",
+          "cells": [
+           "b",
+           "a",
+           "c",
+           "o",
+           "n"
+          ],
+          "states": {
+           "0": "dim",
+           "1": "dim",
+           "2": "dim",
+           "3": "dim",
+           "4": "dim"
+          },
+          "label": "s",
+          "slots": true
+         },
+         {
+          "type": "row",
+          "cells": [
+           "c",
+           "o",
+           "b",
+           "r",
+           "a"
+          ],
+          "states": {
+           "0": "dim",
+           "1": "active"
+          },
+          "label": "t",
+          "slots": true
+         },
+         {
+          "type": "bars",
+          "values": [
+           1,
+           1,
+           0,
+           1,
+           0,
+           0
+          ],
+          "labels": [
+           "a",
+           "b",
+           "c",
+           "n",
+           "o",
+           "r"
+          ],
+          "states": {
+           "4": "active"
+          },
+          "label": "count (s minus t)",
+          "max": 1,
+          "min": -1
+         }
+        ]
+       },
+       {
+        "text": "'b' from t: its counter goes down to 0. Back to 0: the two words agree on it so far.",
+        "panels": [
+         {
+          "type": "row",
+          "cells": [
+           "b",
+           "a",
+           "c",
+           "o",
+           "n"
+          ],
+          "states": {
+           "0": "dim",
+           "1": "dim",
+           "2": "dim",
+           "3": "dim",
+           "4": "dim"
+          },
+          "label": "s",
+          "slots": true
+         },
+         {
+          "type": "row",
+          "cells": [
+           "c",
+           "o",
+           "b",
+           "r",
+           "a"
+          ],
+          "states": {
+           "0": "dim",
+           "1": "dim",
+           "2": "active"
+          },
+          "label": "t",
+          "slots": true
+         },
+         {
+          "type": "bars",
+          "values": [
+           1,
+           0,
+           0,
+           1,
+           0,
+           0
+          ],
+          "labels": [
+           "a",
+           "b",
+           "c",
+           "n",
+           "o",
+           "r"
+          ],
+          "states": {
+           "1": "active"
+          },
+          "label": "count (s minus t)",
+          "max": 1,
+          "min": -1
+         }
+        ]
+       },
+       {
+        "text": "'r' from t: its counter goes down to -1. Below 0: t has an 'r' that s doesn't.",
+        "panels": [
+         {
+          "type": "row",
+          "cells": [
+           "b",
+           "a",
+           "c",
+           "o",
+           "n"
+          ],
+          "states": {
+           "0": "dim",
+           "1": "dim",
+           "2": "dim",
+           "3": "dim",
+           "4": "dim"
+          },
+          "label": "s",
+          "slots": true
+         },
+         {
+          "type": "row",
+          "cells": [
+           "c",
+           "o",
+           "b",
+           "r",
+           "a"
+          ],
+          "states": {
+           "0": "dim",
+           "1": "dim",
+           "2": "dim",
+           "3": "active"
+          },
+          "label": "t",
+          "slots": true
+         },
+         {
+          "type": "bars",
+          "values": [
+           1,
+           0,
+           0,
+           1,
+           0,
+           -1
+          ],
+          "labels": [
+           "a",
+           "b",
+           "c",
+           "n",
+           "o",
+           "r"
+          ],
+          "states": {
+           "5": "active"
+          },
+          "label": "count (s minus t)",
+          "max": 1,
+          "min": -1
+         }
+        ]
+       },
+       {
+        "text": "'a' from t: its counter goes down to 0. Back to 0: the two words agree on it so far.",
+        "panels": [
+         {
+          "type": "row",
+          "cells": [
+           "b",
+           "a",
+           "c",
+           "o",
+           "n"
+          ],
+          "states": {
+           "0": "dim",
+           "1": "dim",
+           "2": "dim",
+           "3": "dim",
+           "4": "dim"
+          },
+          "label": "s",
+          "slots": true
+         },
+         {
+          "type": "row",
+          "cells": [
+           "c",
+           "o",
+           "b",
+           "r",
+           "a"
+          ],
+          "states": {
+           "0": "dim",
+           "1": "dim",
+           "2": "dim",
+           "3": "dim",
+           "4": "active"
+          },
+          "label": "t",
+          "slots": true
+         },
+         {
+          "type": "bars",
+          "values": [
+           0,
+           0,
+           0,
+           1,
+           0,
+           -1
+          ],
+          "labels": [
+           "a",
+           "b",
+           "c",
+           "n",
+           "o",
+           "r"
+          ],
+          "states": {
+           "0": "active"
+          },
+          "label": "count (s minus t)",
+          "max": 1,
+          "min": -1
+         }
+        ]
+       },
+       {
+        "text": "Positive counters are letters s has that t is missing; negative ones are the letters t has instead. Each change in t fixes one of each: 1 step.",
+        "panels": [
+         {
+          "type": "row",
+          "cells": [
+           "b",
+           "a",
+           "c",
+           "o",
+           "n"
+          ],
+          "states": {
+           "0": "dim",
+           "1": "dim",
+           "2": "dim",
+           "3": "dim",
+           "4": "dim"
+          },
+          "label": "s",
+          "slots": true
+         },
+         {
+          "type": "row",
+          "cells": [
+           "c",
+           "o",
+           "b",
+           "r",
+           "a"
+          ],
+          "states": {
+           "0": "dim",
+           "1": "dim",
+           "2": "dim",
+           "3": "dim",
+           "4": "dim"
+          },
+          "label": "t",
+          "slots": true
+         },
+         {
+          "type": "bars",
+          "values": [
+           0,
+           0,
+           0,
+           1,
+           0,
+           -1
+          ],
+          "labels": [
+           "a",
+           "b",
+           "c",
+           "n",
+           "o",
+           "r"
+          ],
+          "states": {
+           "3": "answer"
+          },
+          "label": "count (s minus t)",
+          "max": 1,
+          "min": -1
+         }
+        ],
+        "result": "1"
+       }
+      ],
+      "title": "`steps_to_anagram(\"bacon\", \"cobra\")`: count up for the first word, down for the second.",
+      "legend": [
+       {
+        "state": "active",
+        "text": "the letter being counted"
+       },
+       {
+        "state": "dim",
+        "text": "already counted"
+       },
+       {
+        "state": "answer",
+        "text": "letters t is short of"
+       }
+      ]
+     }
+    },
+    {
+     "md": "### Measuring the gap\n\nIf the strings have the same length, the positive counts add up to the same total as the negative ones (each\nside has the same number of letters). To turn `t` into an anagram of `s` by changing letters of `t`, each\nchange can replace one surplus letter of `t` with one letter it's short of. So the number of changes needed is\nthe sum of the positive counts, and it can't be done in fewer.\n\n### Parity and palindromes\n\nA palindrome pairs each letter with its mirror, so every letter appears an even number of times, except\npossibly one in the middle. So a string can be rearranged into a palindrome exactly when at most one letter\nhas an odd count. Only parity matters, which fits in one bit per letter: flip the letter's bit on every\noccurrence. \"At most one bit set\" is the test `mask & (mask - 1) == 0`, because subtracting 1 clears the lowest\nset bit.\n\n### Sorting versus counting\n\nSorting the letters also gives a signature, in O(L log L) for a word of length `L`. Counting is O(L + 26),\nand the counts can be compared or subtracted directly. For short words either is fine; for long strings, or\nwhen you need the differences, count."
+    }
+   ]
+  },
+  {
+   "id": "template",
+   "title": "The template",
+   "blocks": [
+    {
+     "md": "`s` and `t` have the same length and use lowercase letters. In one step you may change any letter of `t` to\nany other letter. How many steps make `t` an anagram of `s`?"
+    },
+    {
+     "code": {
+      "python": "def steps_to_anagram(s, t):\n    count = [0] * 26\n    for ch in s:\n        count[ord(ch) - ord(\"a\")] += 1\n    for ch in t:\n        count[ord(ch) - ord(\"a\")] -= 1\n    return sum(c for c in count if c > 0)\n",
+      "java": "static int stepsToAnagram(String s, String t) {\n    int[] count = new int[26];\n    for (char ch : s.toCharArray()) count[ch - 'a']++;\n    for (char ch : t.toCharArray()) count[ch - 'a']--;\n    int steps = 0;\n    for (int c : count) if (c > 0) steps += c;\n    return steps;\n}\n",
+      "cpp": "int stepsToAnagram(const string& s, const string& t) {\n    int count[26] = {0};\n    for (char ch : s) count[ch - 'a']++;\n    for (char ch : t) count[ch - 'a']--;\n    int steps = 0;\n    for (int c : count) if (c > 0) steps += c;\n    return steps;\n}\n",
+      "c": "int stepsToAnagram(const char* s, const char* t) {\n    int count[26] = {0};\n    for (const char* p = s; *p; p++) count[*p - 'a']++;\n    for (const char* p = t; *p; p++) count[*p - 'a']--;\n    int steps = 0;\n    for (int i = 0; i < 26; i++) if (count[i] > 0) steps += count[i];\n    return steps;\n}\n"
+     },
+     "title": "Steps to make one word an anagram of another",
+     "lines": [
+      {
+       "text": "One counter per letter, all 0.",
+       "at": {
+        "python": [
+         [
+          2,
+          2
+         ]
+        ],
+        "java": [
+         [
+          2,
+          2
+         ]
+        ],
+        "cpp": [
+         [
+          2,
+          2
+         ]
+        ],
+        "c": [
+         [
+          2,
+          2
+         ]
+        ]
+       }
+      },
+      {
+       "text": "Count every letter of `s` up.",
+       "at": {
+        "python": [
+         [
+          3,
+          4
+         ]
+        ],
+        "java": [
+         [
+          3,
+          3
+         ]
+        ],
+        "cpp": [
+         [
+          3,
+          3
+         ]
+        ],
+        "c": [
+         [
+          3,
+          3
+         ]
+        ]
+       }
+      },
+      {
+       "text": "Count every letter of `t` down. Now each counter is (count in `s`) minus (count in `t`).",
+       "at": {
+        "python": [
+         [
+          5,
+          6
+         ]
+        ],
+        "java": [
+         [
+          4,
+          4
+         ]
+        ],
+        "cpp": [
+         [
+          4,
+          4
+         ]
+        ],
+        "c": [
+         [
+          4,
+          4
+         ]
+        ]
+       }
+      },
+      {
+       "text": "Positive counters are letters `t` is short of. Each change supplies one of them, so their total is the answer.",
+       "at": {
+        "python": [
+         [
+          7,
+          7
+         ]
+        ],
+        "java": [
+         [
+          5,
+          7
+         ]
+        ],
+        "cpp": [
+         [
+          5,
+          7
+         ]
+        ],
+        "c": [
+         [
+          5,
+          7
+         ]
+        ]
+       }
+      }
+     ],
+     "run": {
+      "call": "steps_to_anagram(\"bab\", \"aba\"); (\"leetcode\", \"practice\"); (\"anagram\", \"mangaar\"); (\"abc\", \"xyz\")",
+      "output": "1\n5\n0\n3"
+     }
+    },
+    {
+     "md": "`\"anagram\"` and `\"mangaar\"` are already anagrams: 0 steps. `\"abc\"` and `\"xyz\"` share nothing: all 3 letters\nchange."
+    }
+   ]
+  },
+  {
+   "id": "trace",
+   "title": "Trace it by hand",
+   "blocks": [
+    {
+     "md": "The parity bitmask from the variation below, on a palindrome-shaped word:"
+    },
+    {
+     "walk": {
+      "steps": [
+       {
+        "text": "Nothing read yet. Every count is 0, which is even.",
+        "panels": [
+         {
+          "type": "row",
+          "cells": [
+           "t",
+           "a",
+           "c",
+           "o",
+           "c",
+           "a",
+           "t"
+          ],
+          "label": "s",
+          "slots": true
+         },
+         {
+          "type": "row",
+          "cells": [
+           0,
+           0,
+           0,
+           0
+          ],
+          "label": "odd so far? (a c o t)",
+          "slots": true
+         },
+         {
+          "type": "vars",
+          "items": {
+           "odd letters:": "none",
+           "mask:": "0"
+          }
+         }
+        ]
+       },
+       {
+        "text": "'t': flip its bit to 1 (odd so far).",
+        "panels": [
+         {
+          "type": "row",
+          "cells": [
+           "t",
+           "a",
+           "c",
+           "o",
+           "c",
+           "a",
+           "t"
+          ],
+          "states": {
+           "0": "active"
+          },
+          "label": "s",
+          "slots": true
+         },
+         {
+          "type": "row",
+          "cells": [
+           0,
+           0,
+           0,
+           1
+          ],
+          "states": {
+           "3": "active"
+          },
+          "label": "odd so far? (a c o t)",
+          "slots": true
+         },
+         {
+          "type": "vars",
+          "items": {
+           "odd letters:": "t",
+           "mask:": "524288"
+          }
+         }
+        ]
+       },
+       {
+        "text": "'a': flip its bit to 1 (odd so far).",
+        "panels": [
+         {
+          "type": "row",
+          "cells": [
+           "t",
+           "a",
+           "c",
+           "o",
+           "c",
+           "a",
+           "t"
+          ],
+          "states": {
+           "0": "dim",
+           "1": "active"
+          },
+          "label": "s",
+          "slots": true
+         },
+         {
+          "type": "row",
+          "cells": [
+           1,
+           0,
+           0,
+           1
+          ],
+          "states": {
+           "0": "active"
+          },
+          "label": "odd so far? (a c o t)",
+          "slots": true
+         },
+         {
+          "type": "vars",
+          "items": {
+           "odd letters:": "a t",
+           "mask:": "524289"
+          }
+         }
+        ]
+       },
+       {
+        "text": "'c': flip its bit to 1 (odd so far).",
+        "panels": [
+         {
+          "type": "row",
+          "cells": [
+           "t",
+           "a",
+           "c",
+           "o",
+           "c",
+           "a",
+           "t"
+          ],
+          "states": {
+           "0": "dim",
+           "1": "dim",
+           "2": "active"
+          },
+          "label": "s",
+          "slots": true
+         },
+         {
+          "type": "row",
+          "cells": [
+           1,
+           1,
+           0,
+           1
+          ],
+          "states": {
+           "1": "active"
+          },
+          "label": "odd so far? (a c o t)",
+          "slots": true
+         },
+         {
+          "type": "vars",
+          "items": {
+           "odd letters:": "a c t",
+           "mask:": "524293"
+          }
+         }
+        ]
+       },
+       {
+        "text": "'o': flip its bit to 1 (odd so far).",
+        "panels": [
+         {
+          "type": "row",
+          "cells": [
+           "t",
+           "a",
+           "c",
+           "o",
+           "c",
+           "a",
+           "t"
+          ],
+          "states": {
+           "0": "dim",
+           "1": "dim",
+           "2": "dim",
+           "3": "active"
+          },
+          "label": "s",
+          "slots": true
+         },
+         {
+          "type": "row",
+          "cells": [
+           1,
+           1,
+           1,
+           1
+          ],
+          "states": {
+           "2": "active"
+          },
+          "label": "odd so far? (a c o t)",
+          "slots": true
+         },
+         {
+          "type": "vars",
+          "items": {
+           "odd letters:": "a c o t",
+           "mask:": "540677"
+          }
+         }
+        ]
+       },
+       {
+        "text": "'c': flip its bit to 0 (even so far).",
+        "panels": [
+         {
+          "type": "row",
+          "cells": [
+           "t",
+           "a",
+           "c",
+           "o",
+           "c",
+           "a",
+           "t"
+          ],
+          "states": {
+           "0": "dim",
+           "1": "dim",
+           "2": "dim",
+           "3": "dim",
+           "4": "active"
+          },
+          "label": "s",
+          "slots": true
+         },
+         {
+          "type": "row",
+          "cells": [
+           1,
+           0,
+           1,
+           1
+          ],
+          "states": {
+           "1": "active"
+          },
+          "label": "odd so far? (a c o t)",
+          "slots": true
+         },
+         {
+          "type": "vars",
+          "items": {
+           "odd letters:": "a o t",
+           "mask:": "540673"
+          }
+         }
+        ]
+       },
+       {
+        "text": "'a': flip its bit to 0 (even so far).",
+        "panels": [
+         {
+          "type": "row",
+          "cells": [
+           "t",
+           "a",
+           "c",
+           "o",
+           "c",
+           "a",
+           "t"
+          ],
+          "states": {
+           "0": "dim",
+           "1": "dim",
+           "2": "dim",
+           "3": "dim",
+           "4": "dim",
+           "5": "active"
+          },
+          "label": "s",
+          "slots": true
+         },
+         {
+          "type": "row",
+          "cells": [
+           0,
+           0,
+           1,
+           1
+          ],
+          "states": {
+           "0": "active"
+          },
+          "label": "odd so far? (a c o t)",
+          "slots": true
+         },
+         {
+          "type": "vars",
+          "items": {
+           "odd letters:": "o t",
+           "mask:": "540672"
+          }
+         }
+        ]
+       },
+       {
+        "text": "'t': flip its bit to 0 (even so far).",
+        "panels": [
+         {
+          "type": "row",
+          "cells": [
+           "t",
+           "a",
+           "c",
+           "o",
+           "c",
+           "a",
+           "t"
+          ],
+          "states": {
+           "0": "dim",
+           "1": "dim",
+           "2": "dim",
+           "3": "dim",
+           "4": "dim",
+           "5": "dim",
+           "6": "active"
+          },
+          "label": "s",
+          "slots": true
+         },
+         {
+          "type": "row",
+          "cells": [
+           0,
+           0,
+           1,
+           0
+          ],
+          "states": {
+           "3": "active"
+          },
+          "label": "odd so far? (a c o t)",
+          "slots": true
+         },
+         {
+          "type": "vars",
+          "items": {
+           "odd letters:": "o",
+           "mask:": "16384"
+          }
+         }
+        ]
+       },
+       {
+        "text": "At most one letter has an odd count (o), so a palindrome can be made: the odd one goes in the middle. In the mask, \"at most one bit set\" is `mask & (mask - 1) == 0`.",
+        "panels": [
+         {
+          "type": "row",
+          "cells": [
+           "t",
+           "a",
+           "c",
+           "o",
+           "c",
+           "a",
+           "t"
+          ],
+          "states": {
+           "0": "dim",
+           "1": "dim",
+           "2": "dim",
+           "3": "dim",
+           "4": "dim",
+           "5": "dim",
+           "6": "dim"
+          },
+          "label": "s",
+          "slots": true
+         },
+         {
+          "type": "row",
+          "cells": [
+           0,
+           0,
+           1,
+           0
+          ],
+          "label": "odd so far? (a c o t)",
+          "slots": true
+         },
+         {
+          "type": "vars",
+          "items": {
+           "odd letters:": "o",
+           "mask:": "16384"
+          }
+         }
+        ],
+        "result": "true"
+       }
+      ],
+      "title": "`can_be_palindrome(\"tacocat\")`. One bit per letter: 1 means the letter has been seen an odd number of times.",
+      "legend": [
+       {
+        "state": "active",
+        "text": "the letter just read, and its bit"
+       },
+       {
+        "state": "dim",
+        "text": "already read"
+       }
+      ]
+     }
+    },
+    {
+     "md": "On paper, list the alphabet's letters that appear, and tick or untick each one as you read. Whatever's still\nticked at the end has an odd count."
+    }
+   ]
+  },
+  {
+   "id": "examples",
+   "title": "More examples",
+   "blocks": [
+    {
+     "md": "### Many questions about substrings\n\n\"Can `s[l..r]` be rearranged into a palindrome?\" for lots of `(l, r)` pairs. Keep a prefix of masks:\n`pref[i]` is the parity mask of the first `i` letters. The parity of a substring is `pref[r + 1] ^ pref[l]`,\nbecause XOR cancels the shared prefix (like subtraction in *Prefix sums*). Each question is then O(1). For\n`abcbaab`:"
+    },
+    {
+     "table": {
+      "head": [
+       "substring",
+       "odd-count mask (c b a)",
+       "palindrome possible?"
+      ],
+      "rows": [
+       [
+        "[0, 4] \"abcba\"",
+        "100",
+        "yes"
+       ],
+       [
+        "[1, 3] \"bcb\"",
+        "100",
+        "yes"
+       ],
+       [
+        "[0, 6] \"abcbaab\"",
+        "111",
+        "no"
+       ],
+       [
+        "[2, 5] \"cbaa\"",
+        "110",
+        "no"
+       ]
+      ]
+     }
+    },
+    {
+     "md": "### Building one word from another's letters\n\n\"Can `note` be written using the letters of `magazine`?\" Count the magazine up and the note down; if any\ncounter goes below zero, a letter ran out. You can stop at the first negative.\n\n### Normalise before counting\n\nReal inputs have capitals, spaces and punctuation. Decide what counts as \"the same letter\" first (lowercase\neverything, drop spaces), then build the signature from the cleaned characters. Otherwise `'D'` and `'d'`\nland in different counters, or out of range of a 26-slot array."
+    }
+   ]
+  },
+  {
+   "id": "variations",
+   "title": "Variations",
+   "blocks": [
+    {
+     "md": "### A palindrome in some order\n\nCan the letters of `s` be rearranged into a palindrome? Flip one bit per letter; at most one bit may be left\nset."
+    },
+    {
+     "code": {
+      "python": "def can_be_palindrome(s):\n    odd = 0\n    for ch in s:\n        odd ^= 1 << (ord(ch) - ord(\"a\"))\n    return odd & (odd - 1) == 0\n",
+      "java": "static boolean canBePalindrome(String s) {\n    int odd = 0;\n    for (char ch : s.toCharArray()) odd ^= 1 << (ch - 'a');\n    return (odd & (odd - 1)) == 0;\n}\n",
+      "cpp": "bool canBePalindrome(const string& s) {\n    unsigned odd = 0;\n    for (char ch : s) odd ^= 1u << (ch - 'a');\n    return (odd & (odd - 1)) == 0;\n}\n",
+      "c": "bool canBePalindrome(const char* s) {\n    unsigned odd = 0;\n    for (const char* p = s; *p; p++) odd ^= 1u << (*p - 'a');\n    return (odd & (odd - 1)) == 0;\n}\n"
+     },
+     "title": "Can it be rearranged into a palindrome?",
+     "lines": [
+      {
+       "text": "One bit per letter, all 0: every count starts even.",
+       "at": {
+        "python": [
+         [
+          2,
+          2
+         ]
+        ],
+        "java": [
+         [
+          2,
+          2
+         ]
+        ],
+        "cpp": [
+         [
+          2,
+          2
+         ]
+        ],
+        "c": [
+         [
+          2,
+          2
+         ]
+        ]
+       },
+       "notes": {
+        "cpp": "Unsigned, so shifting a 1 into bit 25 is well defined.",
+        "c": "Unsigned, so shifting a 1 into bit 25 is well defined."
+       }
+      },
+      {
+       "text": "Each occurrence flips its letter's bit: odd becomes even and back.",
+       "at": {
+        "python": [
+         [
+          3,
+          4
+         ]
+        ],
+        "java": [
+         [
+          3,
+          3
+         ]
+        ],
+        "cpp": [
+         [
+          3,
+          3
+         ]
+        ],
+        "c": [
+         [
+          3,
+          3
+         ]
+        ]
+       }
+      },
+      {
+       "text": "`odd - 1` turns the lowest set bit off and the bits below it on. ANDing with `odd` leaves 0 exactly when at most one bit was set.",
+       "at": {
+        "python": [
+         [
+          5,
+          5
+         ]
+        ],
+        "java": [
+         [
+          4,
+          4
+         ]
+        ],
+        "cpp": [
+         [
+          4,
+          4
+         ]
+        ],
+        "c": [
+         [
+          4,
+          4
+         ]
+        ]
+       }
+      }
+     ],
+     "run": {
+      "call": "can_be_palindrome(\"carerac\"); (\"code\"); (\"aab\"); (\"\")",
+      "output": "true\nfalse\ntrue\ntrue"
+     }
+    },
+    {
+     "md": "### Signatures as dictionary keys\n\nTo group words by their letters, use the signature as a hash map key: sorted letters as a string, or the\n26 counts as a tuple or a string with separators. *Group by key* covers this in detail.\n\n### Comparing signatures, not strings\n\nSome questions compare signatures in a looser way: \"the same letters, and the same *multiset* of counts, in\nany assignment\" or \"the same set of letters\". Work out what's preserved by the allowed moves, and compare\nexactly that. For instance, if swapping any two letters is allowed, the counts are preserved; if\nrelabelling is also allowed, only the sorted list of counts is."
+    }
+   ]
+  },
+  {
+   "id": "complexity",
+   "title": "What it costs",
+   "blocks": [
+    {
+     "md": "Building a count signature is O(L) time for a string of length `L`, with O(σ) space for an alphabet of size\nσ (26 here). Comparing two count signatures is O(σ). A bitmask is O(L) to build and O(1) to test. Sorting\nletters instead is O(L log L).\n\nChecking anagrams by trying every rearrangement would be O(L!), and even \"for each letter of `s`, find and\nremove it from `t`\" is O(L²): for `L = 100,000` that's billions of steps against 100,000 here."
+    },
+    {
+     "table": {
+      "head": [
+       "Signature",
+       "Build",
+       "Compare",
+       "Space"
+      ],
+      "rows": [
+       [
+        "Sorted letters",
+        "O(L log L)",
+        "O(L)",
+        "O(L)"
+       ],
+       [
+        "26 counts",
+        "O(L)",
+        "O(26)",
+        "O(26)"
+       ],
+       [
+        "Hash map of counts (any alphabet)",
+        "O(L) average",
+        "O(distinct)",
+        "O(distinct)"
+       ],
+       [
+        "Parity bitmask",
+        "O(L)",
+        "O(1)",
+        "one integer"
+       ]
+      ]
+     }
+    }
+   ]
+  },
+  {
+   "id": "languages",
+   "title": "In your language",
+   "blocks": [
+    {
+     "md": "### Python\n\n`collections.Counter(s)` builds a count map; `Counter(s) == Counter(t)` compares; `Counter(s) - Counter(t)`\nkeeps only positive differences. `sorted(s)` returns a list; `\"\".join(sorted(s))` for a key.\n\n### Java\n\n`int[26]` with `ch - 'a'`. `Arrays.equals(a, b)` compares count arrays; `Arrays.toString(counts)` makes a key.\n`Integer.bitCount(mask) <= 1` is a readable parity test.\n\n### C++\n\n`array<int, 26>` compares with `==` and works as a `map` key. `__builtin_popcount(mask) <= 1` counts set bits.\n\n### C\n\n`int count[26] = {0};` and `memcmp` to compare two tables. Cast to `unsigned char` before indexing if the\ninput might contain characters outside `a` to `z`."
+    }
+   ]
+  },
+  {
+   "id": "pitfalls",
+   "title": "Pitfalls and edge cases",
+   "blocks": [
+    {
+     "md": "- Indexing `count[ch - 'a']` with a capital letter, space or digit: out of range.\n- Forgetting that different lengths can never be anagrams (check first; it's cheap).\n- Using a set of letters when counts matter (`\"aab\"` and `\"abb\"` have the same set).\n- Summing absolute differences instead of the positive ones, which double counts.\n- Shifting `1 << 31` or more in a 32-bit signed integer.\n- Rebuilding a signature for every window instead of updating it."
+    }
+   ]
+  },
+  {
+   "id": "check",
+   "title": "Check yourself",
+   "blocks": [
+    {
+     "quiz": [
+      {
+       "q": "Why are equal count tables enough to say two strings are anagrams?",
+       "a": "With the same number of each letter, you can rebuild one string from the other's letters by putting them in its order. And rearranging never changes counts, so it works both ways."
+      },
+      {
+       "q": "steps_to_anagram(\"aab\", \"bbc\"): what's the answer?",
+       "a": "Counts: a +2, b -1, c -1. The positive total is 2, so two letters of t must change."
+      },
+      {
+       "q": "Why does a palindrome allow at most one odd count?",
+       "a": "Mirrored positions pair up equal letters. Only the middle position of an odd-length palindrome has no partner."
+      },
+      {
+       "q": "What does `mask & (mask - 1)` do?",
+       "a": "It clears the lowest set bit. The result is 0 exactly when the mask had at most one bit set."
+      },
+      {
+       "q": "How do prefix masks answer \"can s[l..r] be a palindrome?\" in O(1)?",
+       "a": "The parity of s[l..r] is pref[r + 1] XOR pref[l]: the shared prefix cancels. Then test it for at most one set bit."
+      }
+     ]
+    }
+   ]
+  }
+ ],
+ "leetcode": [
+  {
+   "id": 242,
+   "title": "Valid Anagram",
+   "url": "https://leetcode.com/problems/valid-anagram/",
+   "difficulty": "easy"
+  },
+  {
+   "id": 1347,
+   "title": "Minimum Number of Steps to Make Two Strings Anagram",
+   "url": "https://leetcode.com/problems/minimum-number-of-steps-to-make-two-strings-anagram/",
+   "difficulty": "medium"
+  },
+  {
+   "id": 2186,
+   "title": "Minimum Number of Steps to Make Two Strings Anagram II",
+   "url": "https://leetcode.com/problems/minimum-number-of-steps-to-make-two-strings-anagram-ii/",
+   "difficulty": "medium"
+  },
+  {
+   "id": 1657,
+   "title": "Determine if Two Strings Are Close",
+   "url": "https://leetcode.com/problems/determine-if-two-strings-are-close/",
+   "difficulty": "medium"
+  },
+  {
+   "id": 49,
+   "title": "Group Anagrams",
+   "url": "https://leetcode.com/problems/group-anagrams/",
+   "difficulty": "medium"
+  },
+  {
+   "id": 1177,
+   "title": "Can Make Palindrome from Substring",
+   "url": "https://leetcode.com/problems/can-make-palindrome-from-substring/",
+   "difficulty": "medium"
+  },
+  {
+   "id": 1915,
+   "title": "Number of Wonderful Substrings",
+   "url": "https://leetcode.com/problems/number-of-wonderful-substrings/",
+   "difficulty": "medium"
+  },
+  {
+   "id": 1542,
+   "title": "Find Longest Awesome Substring",
+   "url": "https://leetcode.com/problems/find-longest-awesome-substring/",
+   "difficulty": "hard"
+  },
+  {
+   "id": 266,
+   "title": "Palindrome Permutation",
+   "url": "https://leetcode.com/problems/palindrome-permutation/",
+   "difficulty": "easy",
+   "premium": true
+  }
+ ]
+}

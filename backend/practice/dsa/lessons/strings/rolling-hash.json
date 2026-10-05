@@ -1,0 +1,1131 @@
+{
+ "version": 1,
+ "id": "rolling-hash",
+ "topic": "strings",
+ "summary": "Turn every substring into a number you can compute in O(1), so comparing two substrings is comparing two numbers.\nRead the string as digits of a big base, keep prefix values, and get any substring's value by subtracting. Sliding\na window by one letter updates its value in O(1) too.",
+ "minutes": 10,
+ "sections": [
+  {
+   "id": "idea",
+   "title": "The idea",
+   "blocks": [
+    {
+     "md": "Think of the digits `31415926`. The three digits starting at index 1 spell the number 141. You can read that off\ndirectly, but there's another way that doesn't look at the middle digits: the first four digits spell 3141,\nthe first one spells 3, and `3141 - 3 × 1000 = 141`. Prefix values plus one subtraction give any piece.\n\nStrings work the same way if each letter is treated as a \"digit\" in a big base, say 131. The prefix value of\n\"abc\" is `a·131² + b·131 + c`, using each letter's character code. These numbers get enormous, so everything\nis kept modulo a large prime. Two equal substrings always get equal values. Two different ones almost\nalways get different values; when they don't, that's a *collision*, and handling that risk is part of the\npattern."
+    },
+    {
+     "panels": [
+      {
+       "type": "row",
+       "cells": [
+        "3",
+        "1",
+        "4",
+        "1",
+        "5",
+        "9",
+        "2",
+        "6"
+       ],
+       "states": {
+        "1": "active",
+        "2": "active",
+        "3": "active"
+       },
+       "label": "digits",
+       "slots": true
+      }
+     ],
+     "caption": "Prefix 3141 minus prefix 3 shifted up three places gives 141, the highlighted window."
+    },
+    {
+     "key": "`h[i + 1] = h[i]·B + s[i]` and `pw[i + 1] = pw[i]·B`, all mod `M`. The hash of `s[a : a + L]` is\n`h[a + L] - h[a]·pw[L]` (mod `M`). Equal hashes mean \"probably equal\"; different hashes mean \"definitely\ndifferent\". O(n) to build, O(1) per comparison."
+    }
+   ]
+  },
+  {
+   "id": "signals",
+   "title": "When to reach for it",
+   "blocks": [
+    {
+     "md": "Lots of substring comparisons: \"do these two pieces match?\", \"has this window appeared before?\", \"how many\ndifferent substrings of length k?\", \"the longest substring that appears twice\". Comparing character by\ncharacter would cost O(length) each time; hashing makes it O(1)."
+    },
+    {
+     "table": {
+      "head": [
+       "The problem says…",
+       "what the hash buys"
+      ],
+      "rows": [
+       [
+        "many questions: is `s[a..]` equal to `s[b..]` for length `L`?",
+        "O(1) per question after O(n) setup"
+       ],
+       [
+        "how many different windows of length `k`",
+        "put each window's hash in a set"
+       ],
+       [
+        "find a pattern in a text",
+        "slide a window, compare hashes, confirm on a match"
+       ],
+       [
+        "the longest substring that repeats",
+        "for a guessed length, hash every window; binary search the length"
+       ],
+       [
+        "is `s[i..j]` a palindrome, many times",
+        "compare the forward hash with the hash of the reversed string"
+       ]
+      ]
+     }
+    },
+    {
+     "md": "Not a fit:\n\n- A single search for one pattern. KMP or the Z-function (*KMP and Z-function*) are exact and just as fast,\n  with no collision risk.\n- An answer that has to be exactly right on adversarial input, with no time to double-check matches.\n  Hashing is probabilistic.\n- Short strings and few comparisons. Just compare them."
+    }
+   ]
+  },
+  {
+   "id": "theory",
+   "title": "Why it works",
+   "blocks": [
+    {
+     "md": "### A string as a number\n\nRead `s` as a number in base `B`: the hash of `s[0..k-1]` is `s[0]·B^(k-1) + s[1]·B^(k-2) + … + s[k-1]`.\nBuilding it one letter at a time is Horner's rule: multiply what you have by `B`, add the next letter. So\n`h[i + 1] = h[i]·B + s[i]` gives every prefix hash in one pass.\n\n### Any substring from two prefixes\n\n`h[a + L]` is the number spelled by the first `a + L` letters. `h[a]` is the first `a` letters, and those\nsame letters sit `L` places further up inside `h[a + L]`, so they're worth `h[a]·B^L` there. Subtract that\nand what's left is exactly the number spelled by `s[a..a + L - 1]`. All of it works the same modulo `M`, as\nlong as you fix up a negative result by adding `M`.\n\n### Sliding a window\n\nTo move a window of length `m` one step right: subtract the leaving letter times `B^(m-1)` (its place\nvalue), multiply by `B`, and add the new letter. That's the same subtraction as above, done one step at a\ntime."
+    },
+    {
+     "walk": {
+      "steps": [
+       {
+        "text": "The first window reads 314, so its value is 314.",
+        "panels": [
+         {
+          "type": "row",
+          "cells": [
+           "3",
+           "1",
+           "4",
+           "1",
+           "5",
+           "9",
+           "2",
+           "6"
+          ],
+          "states": {
+           "0": "active",
+           "1": "active",
+           "2": "active"
+          },
+          "label": "digits",
+          "slots": true
+         },
+         {
+          "type": "vars",
+          "items": {
+           "window:": "314",
+           "worked out as:": "read directly"
+          }
+         }
+        ]
+       },
+       {
+        "text": "Slide right: take away the leading 3 (worth 300), shift everything up one place (× 10), and add 1. That's 141, without reading the middle digits again.",
+        "panels": [
+         {
+          "type": "row",
+          "cells": [
+           "3",
+           "1",
+           "4",
+           "1",
+           "5",
+           "9",
+           "2",
+           "6"
+          ],
+          "states": {
+           "0": "dim",
+           "1": "active",
+           "2": "active",
+           "3": "active"
+          },
+          "label": "digits",
+          "slots": true
+         },
+         {
+          "type": "vars",
+          "items": {
+           "window:": "141",
+           "worked out as:": "(314 - 3·100)·10 + 1"
+          }
+         }
+        ]
+       },
+       {
+        "text": "Slide right: take away the leading 1 (worth 100), shift everything up one place (× 10), and add 5. That's 415, without reading the middle digits again.",
+        "panels": [
+         {
+          "type": "row",
+          "cells": [
+           "3",
+           "1",
+           "4",
+           "1",
+           "5",
+           "9",
+           "2",
+           "6"
+          ],
+          "states": {
+           "1": "dim",
+           "2": "active",
+           "3": "active",
+           "4": "active"
+          },
+          "label": "digits",
+          "slots": true
+         },
+         {
+          "type": "vars",
+          "items": {
+           "window:": "415",
+           "worked out as:": "(141 - 1·100)·10 + 5"
+          }
+         }
+        ]
+       },
+       {
+        "text": "Slide right: take away the leading 4 (worth 400), shift everything up one place (× 10), and add 9. That's 159, without reading the middle digits again.",
+        "panels": [
+         {
+          "type": "row",
+          "cells": [
+           "3",
+           "1",
+           "4",
+           "1",
+           "5",
+           "9",
+           "2",
+           "6"
+          ],
+          "states": {
+           "2": "dim",
+           "3": "active",
+           "4": "active",
+           "5": "active"
+          },
+          "label": "digits",
+          "slots": true
+         },
+         {
+          "type": "vars",
+          "items": {
+           "window:": "159",
+           "worked out as:": "(415 - 4·100)·10 + 9"
+          }
+         }
+        ]
+       },
+       {
+        "text": "Slide right: take away the leading 1 (worth 100), shift everything up one place (× 10), and add 2. That's 592, without reading the middle digits again.",
+        "panels": [
+         {
+          "type": "row",
+          "cells": [
+           "3",
+           "1",
+           "4",
+           "1",
+           "5",
+           "9",
+           "2",
+           "6"
+          ],
+          "states": {
+           "3": "dim",
+           "4": "active",
+           "5": "active",
+           "6": "active"
+          },
+          "label": "digits",
+          "slots": true
+         },
+         {
+          "type": "vars",
+          "items": {
+           "window:": "592",
+           "worked out as:": "(159 - 1·100)·10 + 2"
+          }
+         }
+        ]
+       },
+       {
+        "text": "Slide right: take away the leading 5 (worth 500), shift everything up one place (× 10), and add 6. That's 926, without reading the middle digits again.",
+        "panels": [
+         {
+          "type": "row",
+          "cells": [
+           "3",
+           "1",
+           "4",
+           "1",
+           "5",
+           "9",
+           "2",
+           "6"
+          ],
+          "states": {
+           "4": "dim",
+           "5": "active",
+           "6": "active",
+           "7": "active"
+          },
+          "label": "digits",
+          "slots": true
+         },
+         {
+          "type": "vars",
+          "items": {
+           "window:": "926",
+           "worked out as:": "(592 - 5·100)·10 + 6"
+          }
+         }
+        ]
+       }
+      ],
+      "title": "A window of 3 digits sliding over 31415926. With base 10 the hash of a window is just the number it spells.",
+      "legend": [
+       {
+        "state": "active",
+        "text": "the window"
+       },
+       {
+        "state": "dim",
+        "text": "the digit that just left"
+       }
+      ]
+     }
+    },
+    {
+     "md": "### Collisions\n\nDifferent substrings can share a hash, because there are far more strings than values below `M`. With a good\nrandom-looking base, two different strings collide with probability about `1/M`. That's tiny for one\ncomparison, but it adds up: among 100,000 windows there are about 4,999,950,000 pairs, so with\n`M = 1,000,000,007` you'd expect around 5 colliding pairs. Three ways to deal with that:\n\n- Confirm every hash match by comparing the actual characters (Rabin-Karp does this). Exact, and cheap\n  when real matches are rare.\n- Use two independent moduli and compare both hashes. The expected number of collisions drops to about 5 in a billion.\n- Use one very large modulus such as `2⁶¹ - 1`, which needs 128-bit multiplication.\n\nEqual hashes say \"probably equal\". Different hashes always mean different strings, so a mismatch never\nneeds checking.\n\n### Choosing B and M\n\n`M` should be a large prime that keeps `M²` within 64 bits, so products don't overflow before the `%`:\n`10⁹ + 7` is the usual choice. `B` should be bigger than the alphabet (131 is above every ASCII code) and\nideally random, so nobody can build inputs that collide on purpose."
+    }
+   ]
+  },
+  {
+   "id": "template",
+   "title": "The template",
+   "blocks": [
+    {
+     "md": "Build prefix hashes for `s` once, then answer \"is `s[a : a + L]` the same as `s[b : b + L]`?\" in O(1) per\nquestion."
+    },
+    {
+     "code": {
+      "python": "MOD = 1_000_000_007\nBASE = 131\n\n\ndef build(s):\n    h = [0] * (len(s) + 1)\n    pw = [1] * (len(s) + 1)\n    for i, ch in enumerate(s):\n        h[i + 1] = (h[i] * BASE + ord(ch)) % MOD\n        pw[i + 1] = pw[i] * BASE % MOD\n    return h, pw\n\n\ndef window(h, pw, a, length):\n    return (h[a + length] - h[a] * pw[length]) % MOD\n\n\ndef same(h, pw, a, b, length):\n    return window(h, pw, a, length) == window(h, pw, b, length)\n",
+      "java": "static final long MOD = 1_000_000_007L, BASE = 131;\n\nstatic long[][] build(String s) {\n    int n = s.length();\n    long[] h = new long[n + 1], pw = new long[n + 1];\n    pw[0] = 1;\n    for (int i = 0; i < n; i++) {\n        h[i + 1] = (h[i] * BASE + s.charAt(i)) % MOD;\n        pw[i + 1] = pw[i] * BASE % MOD;\n    }\n    return new long[][] {h, pw};\n}\n\nstatic long window(long[] h, long[] pw, int a, int len) {\n    return ((h[a + len] - h[a] * pw[len] % MOD) % MOD + MOD) % MOD;\n}\n\nstatic boolean same(long[] h, long[] pw, int a, int b, int len) {\n    return window(h, pw, a, len) == window(h, pw, b, len);\n}\n",
+      "cpp": "const long long MOD = 1000000007LL, BASE = 131;\n\nvoid build(const string& s, vector<long long>& h, vector<long long>& pw) {\n    h.assign(s.size() + 1, 0);\n    pw.assign(s.size() + 1, 1);\n    for (size_t i = 0; i < s.size(); i++) {\n        h[i + 1] = (h[i] * BASE + s[i]) % MOD;\n        pw[i + 1] = pw[i] * BASE % MOD;\n    }\n}\n\nlong long window(const vector<long long>& h, const vector<long long>& pw, int a, int len) {\n    return ((h[a + len] - h[a] * pw[len] % MOD) % MOD + MOD) % MOD;\n}\n\nbool same(const vector<long long>& h, const vector<long long>& pw, int a, int b, int len) {\n    return window(h, pw, a, len) == window(h, pw, b, len);\n}\n",
+      "c": "#define MOD 1000000007LL\n#define BASE 131LL\n\nvoid build(const char* s, int n, long long* h, long long* pw) {\n    h[0] = 0;\n    pw[0] = 1;\n    for (int i = 0; i < n; i++) {\n        h[i + 1] = (h[i] * BASE + (unsigned char)s[i]) % MOD;\n        pw[i + 1] = pw[i] * BASE % MOD;\n    }\n}\n\nlong long window(const long long* h, const long long* pw, int a, int len) {\n    return ((h[a + len] - h[a] * pw[len] % MOD) % MOD + MOD) % MOD;\n}\n\nbool same(const long long* h, const long long* pw, int a, int b, int len) {\n    return window(h, pw, a, len) == window(h, pw, b, len);\n}\n"
+     },
+     "title": "Prefix hashes and O(1) substring comparison",
+     "lines": [
+      {
+       "text": "A prime modulus whose square fits in 64 bits, and a base bigger than any character code.",
+       "at": {
+        "python": [
+         [
+          1,
+          2
+         ]
+        ],
+        "java": [
+         [
+          1,
+          1
+         ]
+        ],
+        "cpp": [
+         [
+          1,
+          1
+         ]
+        ],
+        "c": [
+         [
+          1,
+          2
+         ]
+        ]
+       }
+      },
+      {
+       "text": "`h[i]` will be the hash of the first `i` letters (`h[0] = 0`). `pw[i]` is `B^i` mod `M`.",
+       "at": {
+        "python": [
+         [
+          6,
+          7
+         ]
+        ],
+        "java": [
+         [
+          5,
+          6
+         ]
+        ],
+        "cpp": [
+         [
+          4,
+          5
+         ]
+        ],
+        "c": [
+         [
+          5,
+          6
+         ]
+        ]
+       }
+      },
+      {
+       "text": "Horner's rule: shift the prefix up one place and add the next letter.",
+       "at": {
+        "python": [
+         [
+          8,
+          11
+         ]
+        ],
+        "java": [
+         [
+          7,
+          9
+         ],
+         [
+          11,
+          11
+         ]
+        ],
+        "cpp": [
+         [
+          6,
+          8
+         ]
+        ],
+        "c": [
+         [
+          7,
+          9
+         ]
+        ]
+       },
+       "notes": {
+        "c": "Casting to `unsigned char` keeps characters above 127 from turning negative."
+       }
+      },
+      {
+       "text": "The hash of `s[a : a + L]`: the longer prefix minus the shorter one shifted up `L` places.",
+       "at": {
+        "python": [
+         [
+          15,
+          15
+         ]
+        ],
+        "java": [
+         [
+          15,
+          15
+         ]
+        ],
+        "cpp": [
+         [
+          13,
+          13
+         ]
+        ],
+        "c": [
+         [
+          14,
+          14
+         ]
+        ]
+       },
+       "notes": {
+        "python": "Python's `%` never returns a negative number, so no fix-up is needed.",
+        "java": "`%` can return a negative number in Java. Adding `MOD` and taking `%` again fixes it.",
+        "cpp": "`%` can return a negative number in C++. Adding `MOD` and taking `%` again fixes it.",
+        "c": "`%` can return a negative number in C. Adding `MOD` and taking `%` again fixes it."
+       }
+      },
+      {
+       "text": "Equal hashes: almost certainly equal pieces. Different hashes: certainly different.",
+       "at": {
+        "python": [
+         [
+          19,
+          19
+         ]
+        ],
+        "java": [
+         [
+          19,
+          19
+         ]
+        ],
+        "cpp": [
+         [
+          17,
+          17
+         ]
+        ],
+        "c": [
+         [
+          18,
+          18
+         ]
+        ]
+       }
+      }
+     ],
+     "run": {
+      "call": "build(\"abracadabra\"); same for (0, 7, 4), (1, 8, 3), (0, 3, 2), (4, 6, 1), (0, 0, 11)",
+      "output": "true\ntrue\nfalse\nfalse\ntrue"
+     }
+    }
+   ]
+  },
+  {
+   "id": "trace",
+   "title": "Trace it by hand",
+   "blocks": [
+    {
+     "md": "The first four questions from the example run. Each is two subtractions, however long the pieces are:"
+    },
+    {
+     "walk": {
+      "steps": [
+       {
+        "text": "The prefix hashes are ready: `h[i]` is the hash of the first `i` letters. Now compare pieces of \"abracadabra\".",
+        "panels": [
+         {
+          "type": "row",
+          "cells": [
+           "a",
+           "b",
+           "r",
+           "a",
+           "c",
+           "a",
+           "d",
+           "a",
+           "b",
+           "r",
+           "a"
+          ],
+          "label": "s",
+          "slots": true
+         },
+         {
+          "type": "vars",
+          "items": {
+           "first piece:": "–",
+           "second piece:": "–",
+           "verdict:": "–"
+          }
+         }
+        ]
+       },
+       {
+        "text": "\"abra\" at 0 against \"abra\" at 7: hashes 219761636 and 219761636. Equal, so the pieces are (almost certainly) equal.",
+        "panels": [
+         {
+          "type": "row",
+          "cells": [
+           "a",
+           "b",
+           "r",
+           "a",
+           "c",
+           "a",
+           "d",
+           "a",
+           "b",
+           "r",
+           "a"
+          ],
+          "states": {
+           "0": "answer",
+           "1": "answer",
+           "2": "answer",
+           "3": "answer",
+           "7": "answer",
+           "8": "answer",
+           "9": "answer",
+           "10": "answer"
+          },
+          "label": "s",
+          "slots": true
+         },
+         {
+          "type": "vars",
+          "items": {
+           "first piece:": "219761636",
+           "second piece:": "219761636",
+           "verdict:": "same"
+          }
+         }
+        ]
+       },
+       {
+        "text": "\"bra\" at 1 against \"bra\" at 8: hashes 1696809 and 1696809. Equal, so the pieces are (almost certainly) equal.",
+        "panels": [
+         {
+          "type": "row",
+          "cells": [
+           "a",
+           "b",
+           "r",
+           "a",
+           "c",
+           "a",
+           "d",
+           "a",
+           "b",
+           "r",
+           "a"
+          ],
+          "states": {
+           "1": "answer",
+           "2": "answer",
+           "3": "answer",
+           "8": "answer",
+           "9": "answer",
+           "10": "answer"
+          },
+          "label": "s",
+          "slots": true
+         },
+         {
+          "type": "vars",
+          "items": {
+           "first piece:": "1696809",
+           "second piece:": "1696809",
+           "verdict:": "same"
+          }
+         }
+        ]
+       },
+       {
+        "text": "\"ab\" at 0 against \"ac\" at 3: hashes 12805 and 12806. Different, so the pieces are definitely different.",
+        "panels": [
+         {
+          "type": "row",
+          "cells": [
+           "a",
+           "b",
+           "r",
+           "a",
+           "c",
+           "a",
+           "d",
+           "a",
+           "b",
+           "r",
+           "a"
+          ],
+          "states": {
+           "0": "active",
+           "1": "active",
+           "3": "mark",
+           "4": "mark"
+          },
+          "label": "s",
+          "slots": true
+         },
+         {
+          "type": "vars",
+          "items": {
+           "first piece:": "12805",
+           "second piece:": "12806",
+           "verdict:": "different"
+          }
+         }
+        ]
+       },
+       {
+        "text": "\"c\" at 4 against \"d\" at 6: hashes 99 and 100. Different, so the pieces are definitely different.",
+        "panels": [
+         {
+          "type": "row",
+          "cells": [
+           "a",
+           "b",
+           "r",
+           "a",
+           "c",
+           "a",
+           "d",
+           "a",
+           "b",
+           "r",
+           "a"
+          ],
+          "states": {
+           "4": "active",
+           "6": "mark"
+          },
+          "label": "s",
+          "slots": true
+         },
+         {
+          "type": "vars",
+          "items": {
+           "first piece:": "99",
+           "second piece:": "100",
+           "verdict:": "different"
+          }
+         }
+        ]
+       }
+      ],
+      "title": "`same` on \"abracadabra\". `build` ran once; every question below costs two `window` calls.",
+      "legend": [
+       {
+        "state": "active",
+        "text": "first piece"
+       },
+       {
+        "state": "mark",
+        "text": "second piece"
+       },
+       {
+        "state": "answer",
+        "text": "both pieces, equal hashes"
+       }
+      ]
+     }
+    },
+    {
+     "md": "To check a hash by hand, use base 10 and digit strings, as in the theory walkthrough. The arithmetic is the\nsame; only the base and the modulus change."
+    }
+   ]
+  },
+  {
+   "id": "examples",
+   "title": "More examples",
+   "blocks": [
+    {
+     "md": "### Palindromes in O(1) per question\n\nBuild prefix hashes of `s` and of `s` reversed. `s[i..j]` is a palindrome exactly when it equals its own\nreverse, and its reverse is a substring of the reversed string (starting at `n - 1 - j`). So one comparison of\ntwo hashes answers it, after O(n) setup.\n\n### Different windows of length k\n\nSlide a window of length `k` across the string, keeping its hash, and add each hash to a set. The set's size\nis the number of different windows, as long as there are no collisions; with two moduli, store the pair.\n\n### Lengths you can binary search\n\n\"The longest substring that appears at least twice\" has a useful shape: if some length `L` works, every\nshorter length works too (take a piece of the repeat). So binary search on `L`, and for each guess hash every\nwindow of length `L` and look for a repeat. That's O(n log n) instead of trying every length."
+    }
+   ]
+  },
+  {
+   "id": "variations",
+   "title": "Variations",
+   "blocks": [
+    {
+     "md": "### Rabin-Karp search\n\nTo count where a pattern appears in a text, slide a window the pattern's length across the text, updating\nits hash in O(1) per step. When the window's hash equals the pattern's, compare the characters to rule out\na collision. Expected time O(n + m) when real matches are few."
+    },
+    {
+     "code": {
+      "python": "MOD = 1_000_000_007\nBASE = 131\n\n\ndef count_occurrences(text, pat):\n    n, m = len(text), len(pat)\n    if m == 0 or m > n:\n        return 0\n    top = 1\n    for _ in range(m - 1):\n        top = top * BASE % MOD\n    hp = ht = 0\n    for i in range(m):\n        hp = (hp * BASE + ord(pat[i])) % MOD\n        ht = (ht * BASE + ord(text[i])) % MOD\n    count = 0\n    for i in range(n - m + 1):\n        if ht == hp and text[i:i + m] == pat:\n            count += 1\n        if i + m < n:\n            ht = (ht - ord(text[i]) * top) % MOD\n            ht = (ht * BASE + ord(text[i + m])) % MOD\n    return count\n",
+      "java": "static final long MOD = 1_000_000_007L, BASE = 131;\n\nstatic int countOccurrences(String text, String pat) {\n    int n = text.length(), m = pat.length();\n    if (m == 0 || m > n) return 0;\n    long top = 1;\n    for (int k = 0; k < m - 1; k++) top = top * BASE % MOD;\n    long hp = 0, ht = 0;\n    for (int i = 0; i < m; i++) {\n        hp = (hp * BASE + pat.charAt(i)) % MOD;\n        ht = (ht * BASE + text.charAt(i)) % MOD;\n    }\n    int count = 0;\n    for (int i = 0; i + m <= n; i++) {\n        if (ht == hp && text.startsWith(pat, i)) count++;\n        if (i + m < n) {\n            ht = (ht - text.charAt(i) * top % MOD + MOD) % MOD;\n            ht = (ht * BASE + text.charAt(i + m)) % MOD;\n        }\n    }\n    return count;\n}\n",
+      "cpp": "const long long MOD = 1000000007LL, BASE = 131;\n\nint countOccurrences(const string& text, const string& pat) {\n    int n = text.size(), m = pat.size();\n    if (m == 0 || m > n) return 0;\n    long long top = 1;\n    for (int k = 0; k < m - 1; k++) top = top * BASE % MOD;\n    long long hp = 0, ht = 0;\n    for (int i = 0; i < m; i++) {\n        hp = (hp * BASE + pat[i]) % MOD;\n        ht = (ht * BASE + text[i]) % MOD;\n    }\n    int count = 0;\n    for (int i = 0; i + m <= n; i++) {\n        if (ht == hp && text.compare(i, m, pat) == 0) count++;\n        if (i + m < n) {\n            ht = (ht - text[i] * top % MOD + MOD) % MOD;\n            ht = (ht * BASE + text[i + m]) % MOD;\n        }\n    }\n    return count;\n}\n",
+      "c": "#define MOD 1000000007LL\n#define BASE 131LL\n\nint countOccurrences(const char* text, const char* pat) {\n    int n = strlen(text), m = strlen(pat);\n    if (m == 0 || m > n) return 0;\n    long long top = 1;\n    for (int k = 0; k < m - 1; k++) top = top * BASE % MOD;\n    long long hp = 0, ht = 0;\n    for (int i = 0; i < m; i++) {\n        hp = (hp * BASE + (unsigned char)pat[i]) % MOD;\n        ht = (ht * BASE + (unsigned char)text[i]) % MOD;\n    }\n    int count = 0;\n    for (int i = 0; i + m <= n; i++) {\n        if (ht == hp && strncmp(text + i, pat, m) == 0) count++;\n        if (i + m < n) {\n            ht = (ht - (unsigned char)text[i] * top % MOD + MOD) % MOD;\n            ht = (ht * BASE + (unsigned char)text[i + m]) % MOD;\n        }\n    }\n    return count;\n}\n"
+     },
+     "title": "Count a pattern's occurrences with a rolling window",
+     "lines": [
+      {
+       "text": "The same modulus and base as the template.",
+       "at": {
+        "python": [
+         [
+          1,
+          2
+         ]
+        ],
+        "java": [
+         [
+          1,
+          1
+         ]
+        ],
+        "cpp": [
+         [
+          1,
+          1
+         ]
+        ],
+        "c": [
+         [
+          1,
+          2
+         ]
+        ]
+       }
+      },
+      {
+       "text": "An empty pattern, or one longer than the text, has no occurrences here.",
+       "at": {
+        "python": [
+         [
+          6,
+          8
+         ]
+        ],
+        "java": [
+         [
+          4,
+          5
+         ]
+        ],
+        "cpp": [
+         [
+          4,
+          5
+         ]
+        ],
+        "c": [
+         [
+          5,
+          6
+         ]
+        ]
+       }
+      },
+      {
+       "text": "`B^(m-1)`: the place value of the letter that leaves the window.",
+       "at": {
+        "python": [
+         [
+          9,
+          11
+         ]
+        ],
+        "java": [
+         [
+          6,
+          7
+         ]
+        ],
+        "cpp": [
+         [
+          6,
+          7
+         ]
+        ],
+        "c": [
+         [
+          7,
+          8
+         ]
+        ]
+       }
+      },
+      {
+       "text": "Hash the pattern and the first window of the text.",
+       "at": {
+        "python": [
+         [
+          12,
+          15
+         ]
+        ],
+        "java": [
+         [
+          8,
+          11
+         ]
+        ],
+        "cpp": [
+         [
+          8,
+          11
+         ]
+        ],
+        "c": [
+         [
+          9,
+          12
+         ]
+        ]
+       }
+      },
+      {
+       "text": "Every window start, left to right.",
+       "at": {
+        "python": [
+         [
+          16,
+          17
+         ]
+        ],
+        "java": [
+         [
+          13,
+          14
+         ]
+        ],
+        "cpp": [
+         [
+          13,
+          14
+         ]
+        ],
+        "c": [
+         [
+          14,
+          15
+         ]
+        ]
+       }
+      },
+      {
+       "text": "Equal hashes: confirm with a real comparison, so a collision can't produce a wrong count.",
+       "at": {
+        "python": [
+         [
+          18,
+          19
+         ]
+        ],
+        "java": [
+         [
+          15,
+          15
+         ]
+        ],
+        "cpp": [
+         [
+          15,
+          15
+         ]
+        ],
+        "c": [
+         [
+          16,
+          16
+         ]
+        ]
+       },
+       "notes": {
+        "java": "`startsWith(pat, i)` compares the characters starting at `i`.",
+        "cpp": "`compare(i, m, pat)` compares `m` characters starting at `i`.",
+        "c": "`strncmp` compares the first `m` characters."
+       }
+      },
+      {
+       "text": "Slide one place: remove the leaving letter, shift up, add the new letter.",
+       "at": {
+        "python": [
+         [
+          20,
+          22
+         ]
+        ],
+        "java": [
+         [
+          16,
+          18
+         ]
+        ],
+        "cpp": [
+         [
+          16,
+          18
+         ]
+        ],
+        "c": [
+         [
+          17,
+          19
+         ]
+        ]
+       }
+      },
+      {
+       "text": "The number of occurrences. Overlapping ones count.",
+       "at": {
+        "python": [
+         [
+          23,
+          23
+         ]
+        ],
+        "java": [
+         [
+          21,
+          21
+         ]
+        ],
+        "cpp": [
+         [
+          21,
+          21
+         ]
+        ],
+        "c": [
+         [
+          22,
+          22
+         ]
+        ]
+       }
+      }
+     ],
+     "run": {
+      "call": "count_occurrences(\"abababa\", \"aba\"); (\"aaaa\", \"aa\"); (\"abc\", \"d\"); (\"ab\", \"abc\")",
+      "output": "3\n3\n0\n0"
+     }
+    },
+    {
+     "md": "`\"aaaa\"` contains `\"aa\"` three times: at 0, 1 and 2. Overlaps count because the window moves one step at a\ntime.\n\n### Double hashing\n\nRun everything twice with two different moduli (say `10⁹ + 7` and `998244353`) and treat the pair of\nvalues as the hash. Collisions become negligible for any input size you'll meet, at twice the work.\n\n### Hashing other sequences\n\nNothing here is specific to letters. Arrays of numbers, rows of a grid, or paths in a tree can be hashed the\nsame way, as long as each element maps to a number smaller than the base (or the base is large and random)."
+    }
+   ]
+  },
+  {
+   "id": "complexity",
+   "title": "What it costs",
+   "blocks": [
+    {
+     "md": "Building prefix hashes is O(n) time and O(n) space. Each substring comparison is O(1). A rolling window over\na text of length `n` is O(n) in total. Rabin-Karp with confirmation is O(n + m) expected, and O(n · m) in the\nunlucky worst case where many windows collide or match."
+    },
+    {
+     "table": {
+      "head": [
+       "Task",
+       "Direct",
+       "With hashing"
+      ],
+      "rows": [
+       [
+        "q substring comparisons of length up to L",
+        "O(q · L)",
+        "O(n + q)"
+       ],
+       [
+        "distinct windows of length k",
+        "O(n · k) with a set of strings",
+        "O(n) expected"
+       ],
+       [
+        "find a pattern",
+        "O(n · m)",
+        "O(n + m) expected"
+       ],
+       [
+        "longest repeated substring",
+        "O(n³) naively",
+        "O(n log n) with binary search"
+       ]
+      ]
+     }
+    }
+   ]
+  },
+  {
+   "id": "languages",
+   "title": "In your language",
+   "blocks": [
+    {
+     "md": "### Python\n\nIntegers never overflow, so you could skip the modulus, but huge numbers make every operation slow. Keep the\n`% MOD`. `ord(ch)` gives the character code.\n\n### Java\n\n`long` everywhere, and keep products below 2⁶³: with `MOD` around 10⁹, `h * BASE` and `h * pw` are fine. Fix\nnegative results of `%`. Don't use `String.hashCode()`: it uses a fixed base and int overflow, and colliding\nstrings are easy to construct.\n\n### C++\n\n`long long`, with the same negative fix-up. For a modulus of `2⁶¹ - 1`, multiply in `__int128`.\n`std::hash<string>` hashes a whole string, not a substring, so it doesn't help with windows.\n\n### C\n\n`long long` and `%`. Cast characters to `unsigned char` before using them as numbers. Arrays of `n + 1` for\nthe prefixes and powers."
+    }
+   ]
+  },
+  {
+   "id": "pitfalls",
+   "title": "Pitfalls and edge cases",
+   "blocks": [
+    {
+     "md": "- Treating equal hashes as proof. Confirm, or use two moduli.\n- Negative values from `%` in Java, C and C++.\n- Overflow from multiplying before taking the modulus, when `M²` doesn't fit in 64 bits.\n- Off-by-one in prefixes: the window `s[a : a + L]` uses `h[a + L]` and `h[a]`, not `h[a + L - 1]`.\n- Forgetting `pw[L]` and subtracting `h[a]` unshifted.\n- Using letter values that can be 0 (like `ch - 'a'` with `a = 0`): then \"a\", \"aa\" and \"aaa\" all hash to 0. Use\n  the character code, or `ch - 'a' + 1`."
+    }
+   ]
+  },
+  {
+   "id": "check",
+   "title": "Check yourself",
+   "blocks": [
+    {
+     "quiz": [
+      {
+       "q": "How is the hash of `s[a : a + L]` computed from the prefix hashes?",
+       "a": "`h[a + L] - h[a] · B^L`, modulo M. The first `a` letters are inside `h[a + L]` shifted up `L` places, and the subtraction removes them."
+      },
+      {
+       "q": "Two substrings have different hashes. Do you need to compare them character by character?",
+       "a": "No. Equal strings always have equal hashes, so different hashes mean the strings differ."
+      },
+      {
+       "q": "Why can't letters be numbered from 0?",
+       "a": "A letter worth 0 adds nothing, so strings of different lengths made of it (\"a\", \"aa\") all hash the same. Starting from 1 (or using character codes) avoids that."
+      },
+      {
+       "q": "With one modulus near 10⁹, why do collisions become likely among 10⁵ windows?",
+       "a": "There are about 5 × 10⁹ pairs of windows, and each pair collides with probability about 1 in 10⁹. So a handful of collisions is expected."
+      },
+      {
+       "q": "How does the window update when it slides one step right?",
+       "a": "Subtract the leaving letter times B^(m-1), multiply by B, and add the new letter, all modulo M."
+      }
+     ]
+    }
+   ]
+  }
+ ],
+ "leetcode": [
+  {
+   "id": 28,
+   "title": "Find the Index of the First Occurrence in a String",
+   "url": "https://leetcode.com/problems/find-the-index-of-the-first-occurrence-in-a-string/",
+   "difficulty": "easy"
+  },
+  {
+   "id": 187,
+   "title": "Repeated DNA Sequences",
+   "url": "https://leetcode.com/problems/repeated-dna-sequences/",
+   "difficulty": "medium"
+  },
+  {
+   "id": 718,
+   "title": "Maximum Length of Repeated Subarray",
+   "url": "https://leetcode.com/problems/maximum-length-of-repeated-subarray/",
+   "difficulty": "medium"
+  },
+  {
+   "id": 1044,
+   "title": "Longest Duplicate Substring",
+   "url": "https://leetcode.com/problems/longest-duplicate-substring/",
+   "difficulty": "hard"
+  },
+  {
+   "id": 1316,
+   "title": "Distinct Echo Substrings",
+   "url": "https://leetcode.com/problems/distinct-echo-substrings/",
+   "difficulty": "hard"
+  },
+  {
+   "id": 1923,
+   "title": "Longest Common Subpath",
+   "url": "https://leetcode.com/problems/longest-common-subpath/",
+   "difficulty": "hard"
+  },
+  {
+   "id": 2156,
+   "title": "Find Substring With Given Hash Value",
+   "url": "https://leetcode.com/problems/find-substring-with-given-hash-value/",
+   "difficulty": "hard"
+  },
+  {
+   "id": 1062,
+   "title": "Longest Repeating Substring",
+   "url": "https://leetcode.com/problems/longest-repeating-substring/",
+   "difficulty": "medium",
+   "premium": true
+  },
+  {
+   "id": 1698,
+   "title": "Number of Distinct Substrings in a String",
+   "url": "https://leetcode.com/problems/number-of-distinct-substrings-in-a-string/",
+   "difficulty": "medium",
+   "premium": true
+  }
+ ]
+}

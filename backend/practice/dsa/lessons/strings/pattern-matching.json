@@ -1,0 +1,2289 @@
+{
+ "version": 1,
+ "id": "pattern-matching",
+ "topic": "strings",
+ "summary": "Searching a text for a pattern by trying every start position can cost O(n · m). KMP and the Z-function get it\ndown to O(n + m) by remembering how much of the pattern has already matched, so no character is compared from\nscratch twice. The same tables also answer questions about a string's own structure: its repeats, borders and\nperiods.",
+ "minutes": 14,
+ "sections": [
+  {
+   "id": "idea",
+   "title": "The idea",
+   "blocks": [
+    {
+     "md": "Look for `aaaaab` in `aaaaaaaaaaaaaaaaaaaaaaaaaaaaaab`. The obvious way tries each start: compare `a`, `a`, `a`, `a`, `a`, then `b`\nagainst `a`, fail, move one place right, and compare the same `a`s all over again. That's 156 comparisons\nhere, and on texts of length 10⁵ it becomes billions.\n\nThe wasted work is re-reading text you've already matched. After matching five `a`s, you *know* the next\nwindow starts with four `a`s. A good matcher keeps that knowledge in a table built from the pattern alone,\nso it never steps back in the text.\n\nTwo tables do this job:\n\n- The Z-function: `z[i]` is how many letters starting at `i` match the start of the string.\n- The prefix function (KMP): `pi[i]` is the length of the longest proper prefix of `s[0..i]` that's also a\n  suffix of it (a *border*).\n\nBoth are built in O(n) by reusing what's already known, and both turn \"find the pattern in the text\" into\n\"build a table for `pattern + '#' + text`\"."
+    },
+    {
+     "panels": [
+      {
+       "type": "row",
+       "cells": [
+        "a",
+        "a",
+        "b",
+        "x",
+        "a",
+        "a",
+        "b",
+        "x",
+        "a",
+        "a"
+       ],
+       "label": "s",
+       "slots": true
+      },
+      {
+       "type": "row",
+       "cells": [
+        10,
+        1,
+        0,
+        0,
+        6,
+        1,
+        0,
+        0,
+        2,
+        1
+       ],
+       "label": "z",
+       "slots": true
+      }
+     ],
+     "caption": "z[4] = 7: the 7 letters from index 4 repeat the start of the string."
+    },
+    {
+     "key": "Z-function: keep the box `[l, r)`, the rightmost stretch known to match the start. Inside it, start `z[i]` at\n`min(r - i, z[i - l])` and extend. Prefix function: `k = pi[i - 1]`; while `s[i] != s[k]`, fall back to\n`k = pi[k - 1]`; if they match, `k + 1`. Both O(n). For search, run them on `pattern + '#' + text`."
+    }
+   ]
+  },
+  {
+   "id": "signals",
+   "title": "When to reach for it",
+   "blocks": [
+    {
+     "md": "Exact string search with a guaranteed O(n + m) bound, or questions about how a string overlaps with itself:\nrepeating units, borders (prefix = suffix), periods, rotations, the longest prefix that's also a suffix."
+    },
+    {
+     "table": {
+      "head": [
+       "The problem says…",
+       "use"
+      ],
+      "rows": [
+       [
+        "every place the pattern appears in the text",
+        "Z or prefix function on `pattern + '#' + text`"
+       ],
+       [
+        "the longest prefix of `p` that occurs in `t`",
+        "Z on `p + '#' + t`, the largest value after `#`"
+       ],
+       [
+        "the longest prefix that's also a suffix",
+        "`pi` of the last position"
+       ],
+       [
+        "is `s` some block repeated several times?",
+        "the period `n - pi[n - 1]`, if it divides `n`"
+       ],
+       [
+        "is `b` a rotation of `a`?",
+        "search for `b` in `a + a`"
+       ],
+       [
+        "for every position, how much matches the start",
+        "the Z-array itself"
+       ]
+      ]
+     }
+    },
+    {
+     "md": "Not a fit:\n\n- Many different patterns against one text. Build a trie or an Aho-Corasick automaton (Tries topic), or hash.\n- Approximate matching (a few typos allowed). That's dynamic programming or more specialised algorithms.\n- One short search where the language's built-in search is fine. Most library searches are fast in\n  practice; they just don't promise O(n + m) on every input."
+    }
+   ]
+  },
+  {
+   "id": "theory",
+   "title": "Why it works",
+   "blocks": [
+    {
+     "md": "### The Z-box\n\nWhile computing `z[1], z[2], …`, keep the stretch `[l, r)` that reaches furthest right among all matches\nfound so far. By definition, `s[l..r-1]` is a copy of `s[0..r-l-1]`.\n\nNow take a position `i` inside that box. Its letters up to `r` are a copy of the letters at `i - l`. So\nwhatever `z[i - l]` found is also true at `i`, at least up to the box's edge: `z[i]` is at least\n`min(r - i, z[i - l])`. Start from there and compare only beyond it. If the match runs past `r`, the box\nmoves."
+    },
+    {
+     "walk": {
+      "steps": [
+       {
+        "text": "`z[i]` will be how many letters starting at `i` match the start of the string. `z[0]` is the whole string by convention.",
+        "panels": [
+         {
+          "type": "row",
+          "cells": [
+           "a",
+           "a",
+           "b",
+           "x",
+           "a",
+           "a",
+           "b",
+           "x",
+           "a",
+           "a"
+          ],
+          "label": "s",
+          "slots": true
+         },
+         {
+          "type": "row",
+          "cells": [
+           "–",
+           null,
+           null,
+           null,
+           null,
+           null,
+           null,
+           null,
+           null,
+           null
+          ],
+          "label": "z",
+          "slots": true
+         },
+         {
+          "type": "vars",
+          "items": {
+           "box [l, r):": "empty"
+          }
+         }
+        ]
+       },
+       {
+        "text": "`i` = 1: `i` is outside the box, so compare from scratch: 1 letter matches. The match reaches further right than the box did, so the box becomes [1, 2).",
+        "panels": [
+         {
+          "type": "row",
+          "cells": [
+           "a",
+           "a",
+           "b",
+           "x",
+           "a",
+           "a",
+           "b",
+           "x",
+           "a",
+           "a"
+          ],
+          "states": {
+           "0": "mark",
+           "1": "answer"
+          },
+          "pointers": {
+           "i": 1
+          },
+          "label": "s",
+          "slots": true
+         },
+         {
+          "type": "row",
+          "cells": [
+           "–",
+           1,
+           null,
+           null,
+           null,
+           null,
+           null,
+           null,
+           null,
+           null
+          ],
+          "states": {
+           "1": "active"
+          },
+          "label": "z",
+          "slots": true
+         },
+         {
+          "type": "vars",
+          "items": {
+           "box [l, r):": "[1, 2)"
+          }
+         }
+        ]
+       },
+       {
+        "text": "`i` = 2: `i` is outside the box, so compare from scratch: 0 letters match.",
+        "panels": [
+         {
+          "type": "row",
+          "cells": [
+           "a",
+           "a",
+           "b",
+           "x",
+           "a",
+           "a",
+           "b",
+           "x",
+           "a",
+           "a"
+          ],
+          "pointers": {
+           "i": 2
+          },
+          "label": "s",
+          "slots": true
+         },
+         {
+          "type": "row",
+          "cells": [
+           "–",
+           1,
+           0,
+           null,
+           null,
+           null,
+           null,
+           null,
+           null,
+           null
+          ],
+          "states": {
+           "2": "active"
+          },
+          "label": "z",
+          "slots": true
+         },
+         {
+          "type": "vars",
+          "items": {
+           "box [l, r):": "[1, 2)"
+          }
+         }
+        ]
+       },
+       {
+        "text": "`i` = 3: `i` is outside the box, so compare from scratch: 0 letters match.",
+        "panels": [
+         {
+          "type": "row",
+          "cells": [
+           "a",
+           "a",
+           "b",
+           "x",
+           "a",
+           "a",
+           "b",
+           "x",
+           "a",
+           "a"
+          ],
+          "pointers": {
+           "i": 3
+          },
+          "label": "s",
+          "slots": true
+         },
+         {
+          "type": "row",
+          "cells": [
+           "–",
+           1,
+           0,
+           0,
+           null,
+           null,
+           null,
+           null,
+           null,
+           null
+          ],
+          "states": {
+           "3": "active"
+          },
+          "label": "z",
+          "slots": true
+         },
+         {
+          "type": "vars",
+          "items": {
+           "box [l, r):": "empty"
+          }
+         }
+        ]
+       },
+       {
+        "text": "`i` = 4: `i` is outside the box, so compare from scratch: 6 letters match. The match reaches further right than the box did, so the box becomes [4, 10).",
+        "panels": [
+         {
+          "type": "row",
+          "cells": [
+           "a",
+           "a",
+           "b",
+           "x",
+           "a",
+           "a",
+           "b",
+           "x",
+           "a",
+           "a"
+          ],
+          "states": {
+           "0": "mark",
+           "1": "mark",
+           "2": "mark",
+           "3": "mark",
+           "4": "answer",
+           "5": "answer",
+           "6": "answer",
+           "7": "answer",
+           "8": "answer",
+           "9": "answer"
+          },
+          "pointers": {
+           "i": 4
+          },
+          "label": "s",
+          "slots": true
+         },
+         {
+          "type": "row",
+          "cells": [
+           "–",
+           1,
+           0,
+           0,
+           6,
+           null,
+           null,
+           null,
+           null,
+           null
+          ],
+          "states": {
+           "4": "active"
+          },
+          "label": "z",
+          "slots": true
+         },
+         {
+          "type": "vars",
+          "items": {
+           "box [l, r):": "[4, 10)"
+          }
+         }
+        ]
+       },
+       {
+        "text": "`i` = 5: `i` is inside the box [4, 10), which copies the start of the string, so position 5 looks like position 1: at least min(5, z[1] = 1) = 1 letter matches for free. Comparing onward adds nothing.",
+        "panels": [
+         {
+          "type": "row",
+          "cells": [
+           "a",
+           "a",
+           "b",
+           "x",
+           "a",
+           "a",
+           "b",
+           "x",
+           "a",
+           "a"
+          ],
+          "states": {
+           "0": "mark",
+           "5": "answer"
+          },
+          "pointers": {
+           "i": 5
+          },
+          "label": "s",
+          "slots": true
+         },
+         {
+          "type": "row",
+          "cells": [
+           "–",
+           1,
+           0,
+           0,
+           6,
+           1,
+           null,
+           null,
+           null,
+           null
+          ],
+          "states": {
+           "5": "active"
+          },
+          "label": "z",
+          "slots": true
+         },
+         {
+          "type": "vars",
+          "items": {
+           "box [l, r):": "[4, 10)"
+          }
+         }
+        ]
+       },
+       {
+        "text": "`i` = 6: `i` is inside the box [4, 10), which copies the start of the string, so position 6 looks like position 2: at least min(4, z[2] = 0) = 0 letters match for free. Comparing onward adds nothing.",
+        "panels": [
+         {
+          "type": "row",
+          "cells": [
+           "a",
+           "a",
+           "b",
+           "x",
+           "a",
+           "a",
+           "b",
+           "x",
+           "a",
+           "a"
+          ],
+          "pointers": {
+           "i": 6
+          },
+          "label": "s",
+          "slots": true
+         },
+         {
+          "type": "row",
+          "cells": [
+           "–",
+           1,
+           0,
+           0,
+           6,
+           1,
+           0,
+           null,
+           null,
+           null
+          ],
+          "states": {
+           "6": "active"
+          },
+          "label": "z",
+          "slots": true
+         },
+         {
+          "type": "vars",
+          "items": {
+           "box [l, r):": "[4, 10)"
+          }
+         }
+        ]
+       },
+       {
+        "text": "`i` = 7: `i` is inside the box [4, 10), which copies the start of the string, so position 7 looks like position 3: at least min(3, z[3] = 0) = 0 letters match for free. Comparing onward adds nothing.",
+        "panels": [
+         {
+          "type": "row",
+          "cells": [
+           "a",
+           "a",
+           "b",
+           "x",
+           "a",
+           "a",
+           "b",
+           "x",
+           "a",
+           "a"
+          ],
+          "pointers": {
+           "i": 7
+          },
+          "label": "s",
+          "slots": true
+         },
+         {
+          "type": "row",
+          "cells": [
+           "–",
+           1,
+           0,
+           0,
+           6,
+           1,
+           0,
+           0,
+           null,
+           null
+          ],
+          "states": {
+           "7": "active"
+          },
+          "label": "z",
+          "slots": true
+         },
+         {
+          "type": "vars",
+          "items": {
+           "box [l, r):": "[4, 10)"
+          }
+         }
+        ]
+       },
+       {
+        "text": "`i` = 8: `i` is inside the box [4, 10), which copies the start of the string, so position 8 looks like position 4: at least min(2, z[4] = 6) = 2 letters match for free. Comparing onward adds nothing.",
+        "panels": [
+         {
+          "type": "row",
+          "cells": [
+           "a",
+           "a",
+           "b",
+           "x",
+           "a",
+           "a",
+           "b",
+           "x",
+           "a",
+           "a"
+          ],
+          "states": {
+           "0": "mark",
+           "1": "mark",
+           "8": "answer",
+           "9": "answer"
+          },
+          "pointers": {
+           "i": 8
+          },
+          "label": "s",
+          "slots": true
+         },
+         {
+          "type": "row",
+          "cells": [
+           "–",
+           1,
+           0,
+           0,
+           6,
+           1,
+           0,
+           0,
+           2,
+           null
+          ],
+          "states": {
+           "8": "active"
+          },
+          "label": "z",
+          "slots": true
+         },
+         {
+          "type": "vars",
+          "items": {
+           "box [l, r):": "[4, 10)"
+          }
+         }
+        ]
+       },
+       {
+        "text": "`i` = 9: `i` is inside the box [4, 10), which copies the start of the string, so position 9 looks like position 5: at least min(1, z[5] = 1) = 1 letter matches for free. Comparing onward adds nothing.",
+        "panels": [
+         {
+          "type": "row",
+          "cells": [
+           "a",
+           "a",
+           "b",
+           "x",
+           "a",
+           "a",
+           "b",
+           "x",
+           "a",
+           "a"
+          ],
+          "states": {
+           "0": "mark",
+           "9": "answer"
+          },
+          "pointers": {
+           "i": 9
+          },
+          "label": "s",
+          "slots": true
+         },
+         {
+          "type": "row",
+          "cells": [
+           "–",
+           1,
+           0,
+           0,
+           6,
+           1,
+           0,
+           0,
+           2,
+           1
+          ],
+          "states": {
+           "9": "active"
+          },
+          "label": "z",
+          "slots": true
+         },
+         {
+          "type": "vars",
+          "items": {
+           "box [l, r):": "[4, 10)"
+          }
+         }
+        ]
+       }
+      ],
+      "title": "`z_array(\"aabxaabxaa\")`. The box [l, r) is the rightmost stretch known to copy the start of the string.",
+      "legend": [
+       {
+        "state": "answer",
+        "text": "the stretch starting at `i` that matches the start"
+       },
+       {
+        "state": "mark",
+        "text": "the start of the string it matches"
+       },
+       {
+        "state": "active",
+        "text": "the value just worked out"
+       }
+      ]
+     }
+    },
+    {
+     "md": "### Why the Z-function is O(n)\n\nEach comparison that succeeds while extending past the box pushes `r` one step right, and `r` never moves\nleft, so there are at most `n` of those overall. Each position also has at most one failed comparison. So\nthe whole array costs O(n), even though there's a `while` loop inside the `for`.\n\n### Searching with a separator\n\nJoin the pattern, a character that appears in neither string (`#`), and the text. At a position in the text\npart, `z` measures how much matches the start of the joined string, which is the pattern. The `#` can't\nmatch anything, so no value goes beyond the pattern's length. `z[i]` equal to the pattern's length means the\npattern occurs there.\n\n### Borders and the prefix function\n\nA *border* of a string is a proper prefix that's also a suffix: `\"aba\"` is a border of `\"abacaba\"`, and so is\n`\"a\"`. The prefix function stores the longest border of every prefix. The trick that makes it fast: the\nborders of a string are its longest border, the longest border *of that*, and so on. So when the next letter\ndoesn't extend the current border `k`, the next candidate is `pi[k - 1]`, not something found by searching\nagain.\n\nEach step adds at most 1 to `k`, and every fallback lowers it, so the total number of fallbacks across the\nwhole string is at most `n`. O(n) again.\n\n### Periods\n\nIf `s` has a border of length `b`, it also has period `p = n - b`: `s[i] = s[i + p]` everywhere. The longest\nborder gives the shortest period. That's why so many \"repeating\" questions reduce to `pi[n - 1]`."
+    }
+   ]
+  },
+  {
+   "id": "template",
+   "title": "The template",
+   "blocks": [
+    {
+     "md": "The Z-array of a string, and one use of it: the longest prefix of `word` that appears anywhere in `text`.\nBoth strings are lowercase letters, so `#` is safe as a separator."
+    },
+    {
+     "code": {
+      "python": "def z_array(s):\n    n = len(s)\n    z = [0] * n\n    l = r = 0\n    for i in range(1, n):\n        if i < r:\n            z[i] = min(r - i, z[i - l])\n        while i + z[i] < n and s[z[i]] == s[i + z[i]]:\n            z[i] += 1\n        if i + z[i] > r:\n            l, r = i, i + z[i]\n    if n:\n        z[0] = n\n    return z\n\n\ndef longest_prefix_in(word, text):\n    z = z_array(word + \"#\" + text)\n    return max(z[len(word) + 1:], default=0)\n",
+      "java": "static int[] zArray(String s) {\n    int n = s.length();\n    int[] z = new int[n];\n    int l = 0, r = 0;\n    for (int i = 1; i < n; i++) {\n        if (i < r) z[i] = Math.min(r - i, z[i - l]);\n        while (i + z[i] < n && s.charAt(z[i]) == s.charAt(i + z[i])) z[i]++;\n        if (i + z[i] > r) {\n            l = i;\n            r = i + z[i];\n        }\n    }\n    if (n > 0) z[0] = n;\n    return z;\n}\n\nstatic int longestPrefixIn(String word, String text) {\n    int[] z = zArray(word + \"#\" + text);\n    int best = 0;\n    for (int i = word.length() + 1; i < z.length; i++) best = Math.max(best, z[i]);\n    return best;\n}\n",
+      "cpp": "vector<int> zArray(const string& s) {\n    int n = s.size();\n    vector<int> z(n, 0);\n    int l = 0, r = 0;\n    for (int i = 1; i < n; i++) {\n        if (i < r) z[i] = min(r - i, z[i - l]);\n        while (i + z[i] < n && s[z[i]] == s[i + z[i]]) z[i]++;\n        if (i + z[i] > r) {\n            l = i;\n            r = i + z[i];\n        }\n    }\n    if (n > 0) z[0] = n;\n    return z;\n}\n\nint longestPrefixIn(const string& word, const string& text) {\n    vector<int> z = zArray(word + \"#\" + text);\n    int best = 0;\n    for (size_t i = word.size() + 1; i < z.size(); i++) best = max(best, z[i]);\n    return best;\n}\n",
+      "c": "void zArray(const char* s, int n, int* z) {\n    for (int i = 0; i < n; i++) z[i] = 0;\n    int l = 0, r = 0;\n    for (int i = 1; i < n; i++) {\n        if (i < r) z[i] = (r - i < z[i - l]) ? r - i : z[i - l];\n        while (i + z[i] < n && s[z[i]] == s[i + z[i]]) z[i]++;\n        if (i + z[i] > r) {\n            l = i;\n            r = i + z[i];\n        }\n    }\n    if (n > 0) z[0] = n;\n}\n\nint longestPrefixIn(const char* word, const char* text) {\n    int w = strlen(word), t = strlen(text), n = w + 1 + t;\n    char* s = malloc(n + 1);\n    int* z = malloc(n * sizeof(int));\n    memcpy(s, word, w);\n    s[w] = '#';\n    memcpy(s + w + 1, text, t + 1);\n    zArray(s, n, z);\n    int best = 0;\n    for (int i = w + 1; i < n; i++) if (z[i] > best) best = z[i];\n    free(s);\n    free(z);\n    return best;\n}\n"
+     },
+     "title": "Z-function, and the longest prefix found in a text",
+     "lines": [
+      {
+       "text": "One value per position, all 0 to start.",
+       "at": {
+        "python": [
+         [
+          2,
+          3
+         ]
+        ],
+        "java": [
+         [
+          2,
+          3
+         ]
+        ],
+        "cpp": [
+         [
+          2,
+          3
+         ]
+        ],
+        "c": [
+         [
+          2,
+          2
+         ]
+        ]
+       }
+      },
+      {
+       "text": "`[l, r)` is the rightmost stretch known to match the start of the string. Empty for now.",
+       "at": {
+        "python": [
+         [
+          4,
+          4
+         ]
+        ],
+        "java": [
+         [
+          4,
+          4
+         ]
+        ],
+        "cpp": [
+         [
+          4,
+          4
+         ]
+        ],
+        "c": [
+         [
+          3,
+          3
+         ]
+        ]
+       }
+      },
+      {
+       "text": "Positions 1 onward; `z[0]` is set at the end.",
+       "at": {
+        "python": [
+         [
+          5,
+          5
+         ]
+        ],
+        "java": [
+         [
+          5,
+          5
+         ]
+        ],
+        "cpp": [
+         [
+          5,
+          5
+         ]
+        ],
+        "c": [
+         [
+          4,
+          4
+         ]
+        ]
+       }
+      },
+      {
+       "text": "Inside the box, position `i` mirrors position `i - l`, so its match is at least `z[i - l]` long, but only as far as the box is known to go: `r - i`.",
+       "at": {
+        "python": [
+         [
+          6,
+          7
+         ]
+        ],
+        "java": [
+         [
+          6,
+          6
+         ]
+        ],
+        "cpp": [
+         [
+          6,
+          6
+         ]
+        ],
+        "c": [
+         [
+          5,
+          5
+         ]
+        ]
+       }
+      },
+      {
+       "text": "Compare onward from what's already known. Every success here pushes past the old box.",
+       "at": {
+        "python": [
+         [
+          8,
+          9
+         ]
+        ],
+        "java": [
+         [
+          7,
+          7
+         ]
+        ],
+        "cpp": [
+         [
+          7,
+          7
+         ]
+        ],
+        "c": [
+         [
+          6,
+          6
+         ]
+        ]
+       }
+      },
+      {
+       "text": "A match that reaches further right becomes the new box.",
+       "at": {
+        "python": [
+         [
+          10,
+          11
+         ]
+        ],
+        "java": [
+         [
+          8,
+          10
+         ]
+        ],
+        "cpp": [
+         [
+          8,
+          10
+         ]
+        ],
+        "c": [
+         [
+          7,
+          9
+         ]
+        ]
+       }
+      },
+      {
+       "text": "By convention `z[0]` is the whole length.",
+       "at": {
+        "python": [
+         [
+          12,
+          14
+         ]
+        ],
+        "java": [
+         [
+          13,
+          14
+         ]
+        ],
+        "cpp": [
+         [
+          13,
+          14
+         ]
+        ],
+        "c": [
+         [
+          12,
+          12
+         ]
+        ]
+       }
+      },
+      {
+       "text": "Pattern, separator, text. The separator stops any match from running past the word.",
+       "at": {
+        "python": [
+         [
+          18,
+          18
+         ]
+        ],
+        "java": [
+         [
+          18,
+          18
+         ]
+        ],
+        "cpp": [
+         [
+          18,
+          18
+         ]
+        ],
+        "c": [
+         [
+          16,
+          22
+         ]
+        ]
+       },
+       "notes": {
+        "c": "Build the joined string by hand with `malloc` and `memcpy` (copying the text's `'\\0'` too)."
+       }
+      },
+      {
+       "text": "The largest `z` value in the text part is the longest prefix of `word` found there.",
+       "at": {
+        "python": [
+         [
+          19,
+          19
+         ]
+        ],
+        "java": [
+         [
+          19,
+          21
+         ]
+        ],
+        "cpp": [
+         [
+          19,
+          21
+         ]
+        ],
+        "c": [
+         [
+          23,
+          27
+         ]
+        ]
+       },
+       "notes": {
+        "c": "Free both buffers before returning."
+       }
+      }
+     ],
+     "run": {
+      "call": "z_array(\"aabxaabxaa\"); longest_prefix_in(\"abcab\", \"xxabcxabca\"); (\"aab\", \"baaab\"); (\"z\", \"abc\")",
+      "output": "10 1 0 0 6 1 0 0 2 1\n4\n3\n0"
+     }
+    },
+    {
+     "md": "In `\"xxabcxabca\"`, `\"abc\"` appears at index 2 but then a `x` breaks it; at index 6, `\"abca\"` matches before\nthe text ends. So 4 letters of `\"abcab\"` can be found."
+    }
+   ]
+  },
+  {
+   "id": "trace",
+   "title": "Trace it by hand",
+   "blocks": [
+    {
+     "md": "The second search from the example run, on the joined string:"
+    },
+    {
+     "walk": {
+      "steps": [
+       {
+        "text": "`z[i]` will be how many letters starting at `i` match the start of the string. `z[0]` is the whole string by convention.",
+        "panels": [
+         {
+          "type": "row",
+          "cells": [
+           "a",
+           "a",
+           "b",
+           "#",
+           "b",
+           "a",
+           "a",
+           "a",
+           "b"
+          ],
+          "label": "s",
+          "slots": true
+         },
+         {
+          "type": "row",
+          "cells": [
+           "–",
+           null,
+           null,
+           null,
+           null,
+           null,
+           null,
+           null,
+           null
+          ],
+          "label": "z",
+          "slots": true
+         },
+         {
+          "type": "vars",
+          "items": {
+           "box [l, r):": "empty"
+          }
+         }
+        ]
+       },
+       {
+        "text": "`i` = 1: `i` is outside the box, so compare from scratch: 1 letter matches. The match reaches further right than the box did, so the box becomes [1, 2).",
+        "panels": [
+         {
+          "type": "row",
+          "cells": [
+           "a",
+           "a",
+           "b",
+           "#",
+           "b",
+           "a",
+           "a",
+           "a",
+           "b"
+          ],
+          "states": {
+           "0": "mark",
+           "1": "answer"
+          },
+          "pointers": {
+           "i": 1
+          },
+          "label": "s",
+          "slots": true
+         },
+         {
+          "type": "row",
+          "cells": [
+           "–",
+           1,
+           null,
+           null,
+           null,
+           null,
+           null,
+           null,
+           null
+          ],
+          "states": {
+           "1": "active"
+          },
+          "label": "z",
+          "slots": true
+         },
+         {
+          "type": "vars",
+          "items": {
+           "box [l, r):": "[1, 2)"
+          }
+         }
+        ]
+       },
+       {
+        "text": "`i` = 2: `i` is outside the box, so compare from scratch: 0 letters match.",
+        "panels": [
+         {
+          "type": "row",
+          "cells": [
+           "a",
+           "a",
+           "b",
+           "#",
+           "b",
+           "a",
+           "a",
+           "a",
+           "b"
+          ],
+          "pointers": {
+           "i": 2
+          },
+          "label": "s",
+          "slots": true
+         },
+         {
+          "type": "row",
+          "cells": [
+           "–",
+           1,
+           0,
+           null,
+           null,
+           null,
+           null,
+           null,
+           null
+          ],
+          "states": {
+           "2": "active"
+          },
+          "label": "z",
+          "slots": true
+         },
+         {
+          "type": "vars",
+          "items": {
+           "box [l, r):": "[1, 2)"
+          }
+         }
+        ]
+       },
+       {
+        "text": "`i` = 3: `i` is outside the box, so compare from scratch: 0 letters match.",
+        "panels": [
+         {
+          "type": "row",
+          "cells": [
+           "a",
+           "a",
+           "b",
+           "#",
+           "b",
+           "a",
+           "a",
+           "a",
+           "b"
+          ],
+          "pointers": {
+           "i": 3
+          },
+          "label": "s",
+          "slots": true
+         },
+         {
+          "type": "row",
+          "cells": [
+           "–",
+           1,
+           0,
+           0,
+           null,
+           null,
+           null,
+           null,
+           null
+          ],
+          "states": {
+           "3": "active"
+          },
+          "label": "z",
+          "slots": true
+         },
+         {
+          "type": "vars",
+          "items": {
+           "box [l, r):": "empty"
+          }
+         }
+        ]
+       },
+       {
+        "text": "`i` = 4: `i` is outside the box, so compare from scratch: 0 letters match.",
+        "panels": [
+         {
+          "type": "row",
+          "cells": [
+           "a",
+           "a",
+           "b",
+           "#",
+           "b",
+           "a",
+           "a",
+           "a",
+           "b"
+          ],
+          "pointers": {
+           "i": 4
+          },
+          "label": "s",
+          "slots": true
+         },
+         {
+          "type": "row",
+          "cells": [
+           "–",
+           1,
+           0,
+           0,
+           0,
+           null,
+           null,
+           null,
+           null
+          ],
+          "states": {
+           "4": "active"
+          },
+          "label": "z",
+          "slots": true
+         },
+         {
+          "type": "vars",
+          "items": {
+           "box [l, r):": "empty"
+          }
+         }
+        ]
+       },
+       {
+        "text": "`i` = 5: `i` is outside the box, so compare from scratch: 2 letters match. The match reaches further right than the box did, so the box becomes [5, 7).",
+        "panels": [
+         {
+          "type": "row",
+          "cells": [
+           "a",
+           "a",
+           "b",
+           "#",
+           "b",
+           "a",
+           "a",
+           "a",
+           "b"
+          ],
+          "states": {
+           "0": "mark",
+           "1": "mark",
+           "5": "answer",
+           "6": "answer"
+          },
+          "pointers": {
+           "i": 5
+          },
+          "label": "s",
+          "slots": true
+         },
+         {
+          "type": "row",
+          "cells": [
+           "–",
+           1,
+           0,
+           0,
+           0,
+           2,
+           null,
+           null,
+           null
+          ],
+          "states": {
+           "5": "active"
+          },
+          "label": "z",
+          "slots": true
+         },
+         {
+          "type": "vars",
+          "items": {
+           "box [l, r):": "[5, 7)"
+          }
+         }
+        ]
+       },
+       {
+        "text": "`i` = 6: `i` is inside the box [5, 7), which copies the start of the string, so position 6 looks like position 1: at least min(1, z[1] = 1) = 1 letter matches for free. Comparing onward adds 2 more. The match reaches further right than the box did, so the box becomes [6, 9).",
+        "panels": [
+         {
+          "type": "row",
+          "cells": [
+           "a",
+           "a",
+           "b",
+           "#",
+           "b",
+           "a",
+           "a",
+           "a",
+           "b"
+          ],
+          "states": {
+           "0": "mark",
+           "1": "mark",
+           "2": "mark",
+           "6": "answer",
+           "7": "answer",
+           "8": "answer"
+          },
+          "pointers": {
+           "i": 6
+          },
+          "label": "s",
+          "slots": true
+         },
+         {
+          "type": "row",
+          "cells": [
+           "–",
+           1,
+           0,
+           0,
+           0,
+           2,
+           3,
+           null,
+           null
+          ],
+          "states": {
+           "6": "active"
+          },
+          "label": "z",
+          "slots": true
+         },
+         {
+          "type": "vars",
+          "items": {
+           "box [l, r):": "[6, 9)"
+          }
+         }
+        ]
+       },
+       {
+        "text": "`i` = 7: `i` is inside the box [6, 9), which copies the start of the string, so position 7 looks like position 1: at least min(2, z[1] = 1) = 1 letter matches for free. Comparing onward adds nothing.",
+        "panels": [
+         {
+          "type": "row",
+          "cells": [
+           "a",
+           "a",
+           "b",
+           "#",
+           "b",
+           "a",
+           "a",
+           "a",
+           "b"
+          ],
+          "states": {
+           "0": "mark",
+           "7": "answer"
+          },
+          "pointers": {
+           "i": 7
+          },
+          "label": "s",
+          "slots": true
+         },
+         {
+          "type": "row",
+          "cells": [
+           "–",
+           1,
+           0,
+           0,
+           0,
+           2,
+           3,
+           1,
+           null
+          ],
+          "states": {
+           "7": "active"
+          },
+          "label": "z",
+          "slots": true
+         },
+         {
+          "type": "vars",
+          "items": {
+           "box [l, r):": "[6, 9)"
+          }
+         }
+        ]
+       },
+       {
+        "text": "`i` = 8: `i` is inside the box [6, 9), which copies the start of the string, so position 8 looks like position 2: at least min(1, z[2] = 0) = 0 letters match for free. Comparing onward adds nothing. The biggest `z` value after the `#` is 3: the first 3 letters of \"aab\" appear in the text.",
+        "panels": [
+         {
+          "type": "row",
+          "cells": [
+           "a",
+           "a",
+           "b",
+           "#",
+           "b",
+           "a",
+           "a",
+           "a",
+           "b"
+          ],
+          "pointers": {
+           "i": 8
+          },
+          "label": "s",
+          "slots": true
+         },
+         {
+          "type": "row",
+          "cells": [
+           "–",
+           1,
+           0,
+           0,
+           0,
+           2,
+           3,
+           1,
+           0
+          ],
+          "states": {
+           "8": "active"
+          },
+          "label": "z",
+          "slots": true
+         },
+         {
+          "type": "vars",
+          "items": {
+           "box [l, r):": "[6, 9)"
+          }
+         }
+        ]
+       }
+      ],
+      "title": "`longest_prefix_in(\"aab\", \"baaab\")` works on \"aab#baaab\". The `#` stops any match from running past the word.",
+      "legend": [
+       {
+        "state": "answer",
+        "text": "the stretch starting at `i` that matches the start"
+       },
+       {
+        "state": "mark",
+        "text": "the start of the string it matches"
+       },
+       {
+        "state": "active",
+        "text": "the value just worked out"
+       }
+      ]
+     }
+    },
+    {
+     "md": "On paper, keep three things visible: the string, the `z` row, and the current box drawn as a bracket under\nthe string. At each `i`, first write down the free part from the box, then compare onward."
+    }
+   ]
+  },
+  {
+   "id": "examples",
+   "title": "More examples",
+   "blocks": [
+    {
+     "md": "### Is one string a rotation of another?\n\n`\"cdeab\"` is a rotation of `\"abcde\"`: cut it after `\"ab\"` and swap the pieces. Every rotation of `a` appears\ninside `a + a` (`\"abcdeabcde\"` contains `\"cdeab\"` at index 2). So: same length, and `b` occurs in `a + a`.\nWith Z or KMP that's O(n).\n\n### Counting how often each prefix appears\n\nThe Z-array says, for every position, how long a prefix starts there. A prefix of length `L` appears at\nevery position with `z[i] ≥ L`. So with one pass over the Z-array (plus a running total from the longest\nlengths down), you can count every prefix's occurrences at once.\n\n### Why not just use the language's search?\n\nBuilt-in searches like `str.find` or `indexOf` are usually fast, but most don't guarantee linear time. On\ninputs like `aaaaab` inside a long run of `a`s, a naive search does about `n · m` comparisons: for\n`n = 100,000` and `m = 5,000` that's hundreds of millions. When the bound matters, or when you need the\ntables themselves, write Z or KMP."
+    }
+   ]
+  },
+  {
+   "id": "variations",
+   "title": "Variations",
+   "blocks": [
+    {
+     "md": "### The prefix function and every border\n\nKMP's table, and the list of every border of a string, longest first. Each border is found from the previous\none with a single table lookup."
+    },
+    {
+     "walk": {
+      "steps": [
+       {
+        "text": "`pi[0]` is 0: a single letter has no proper prefix that's also a suffix.",
+        "panels": [
+         {
+          "type": "row",
+          "cells": [
+           "a",
+           "b",
+           "a",
+           "c",
+           "a",
+           "b",
+           "a"
+          ],
+          "label": "s",
+          "slots": true
+         },
+         {
+          "type": "row",
+          "cells": [
+           0,
+           null,
+           null,
+           null,
+           null,
+           null,
+           null
+          ],
+          "states": {
+           "0": "active"
+          },
+          "label": "pi",
+          "slots": true
+         },
+         {
+          "type": "vars",
+          "items": {
+           "k:": "0"
+          }
+         }
+        ]
+       },
+       {
+        "text": "Start from `pi[0]` = 0. 'b' doesn't match 'a', so `pi[1]` = 0.",
+        "panels": [
+         {
+          "type": "row",
+          "cells": [
+           "a",
+           "b",
+           "a",
+           "c",
+           "a",
+           "b",
+           "a"
+          ],
+          "states": {
+           "1": "active"
+          },
+          "pointers": {
+           "i": 1
+          },
+          "label": "s",
+          "slots": true
+         },
+         {
+          "type": "row",
+          "cells": [
+           0,
+           0,
+           null,
+           null,
+           null,
+           null,
+           null
+          ],
+          "states": {
+           "1": "active"
+          },
+          "label": "pi",
+          "slots": true
+         },
+         {
+          "type": "vars",
+          "items": {
+           "k:": "0"
+          }
+         }
+        ]
+       },
+       {
+        "text": "Start from `pi[1]` = 0. 'a' matches `s[0]`, so the border grows to 1: \"a\".",
+        "panels": [
+         {
+          "type": "row",
+          "cells": [
+           "a",
+           "b",
+           "a",
+           "c",
+           "a",
+           "b",
+           "a"
+          ],
+          "states": {
+           "2": "active",
+           "0": "mark"
+          },
+          "pointers": {
+           "i": 2
+          },
+          "label": "s",
+          "slots": true
+         },
+         {
+          "type": "row",
+          "cells": [
+           0,
+           0,
+           1,
+           null,
+           null,
+           null,
+           null
+          ],
+          "states": {
+           "2": "active"
+          },
+          "label": "pi",
+          "slots": true
+         },
+         {
+          "type": "vars",
+          "items": {
+           "k:": "1"
+          }
+         }
+        ]
+       },
+       {
+        "text": "Start from `pi[2]` = 1. 'c' doesn't extend it, so fall back through 1 → 0. 'c' doesn't match 'a', so `pi[3]` = 0.",
+        "panels": [
+         {
+          "type": "row",
+          "cells": [
+           "a",
+           "b",
+           "a",
+           "c",
+           "a",
+           "b",
+           "a"
+          ],
+          "states": {
+           "3": "active"
+          },
+          "pointers": {
+           "i": 3
+          },
+          "label": "s",
+          "slots": true
+         },
+         {
+          "type": "row",
+          "cells": [
+           0,
+           0,
+           1,
+           0,
+           null,
+           null,
+           null
+          ],
+          "states": {
+           "3": "active"
+          },
+          "label": "pi",
+          "slots": true
+         },
+         {
+          "type": "vars",
+          "items": {
+           "k:": "0"
+          }
+         }
+        ]
+       },
+       {
+        "text": "Start from `pi[3]` = 0. 'a' matches `s[0]`, so the border grows to 1: \"a\".",
+        "panels": [
+         {
+          "type": "row",
+          "cells": [
+           "a",
+           "b",
+           "a",
+           "c",
+           "a",
+           "b",
+           "a"
+          ],
+          "states": {
+           "4": "active",
+           "0": "mark"
+          },
+          "pointers": {
+           "i": 4
+          },
+          "label": "s",
+          "slots": true
+         },
+         {
+          "type": "row",
+          "cells": [
+           0,
+           0,
+           1,
+           0,
+           1,
+           null,
+           null
+          ],
+          "states": {
+           "4": "active"
+          },
+          "label": "pi",
+          "slots": true
+         },
+         {
+          "type": "vars",
+          "items": {
+           "k:": "1"
+          }
+         }
+        ]
+       },
+       {
+        "text": "Start from `pi[4]` = 1. 'b' matches `s[1]`, so the border grows to 2: \"ab\".",
+        "panels": [
+         {
+          "type": "row",
+          "cells": [
+           "a",
+           "b",
+           "a",
+           "c",
+           "a",
+           "b",
+           "a"
+          ],
+          "states": {
+           "5": "active",
+           "1": "mark"
+          },
+          "pointers": {
+           "i": 5
+          },
+          "label": "s",
+          "slots": true
+         },
+         {
+          "type": "row",
+          "cells": [
+           0,
+           0,
+           1,
+           0,
+           1,
+           2,
+           null
+          ],
+          "states": {
+           "5": "active"
+          },
+          "label": "pi",
+          "slots": true
+         },
+         {
+          "type": "vars",
+          "items": {
+           "k:": "2"
+          }
+         }
+        ]
+       },
+       {
+        "text": "Start from `pi[5]` = 2. 'a' matches `s[2]`, so the border grows to 3: \"aba\".",
+        "panels": [
+         {
+          "type": "row",
+          "cells": [
+           "a",
+           "b",
+           "a",
+           "c",
+           "a",
+           "b",
+           "a"
+          ],
+          "states": {
+           "6": "active",
+           "2": "mark"
+          },
+          "pointers": {
+           "i": 6
+          },
+          "label": "s",
+          "slots": true
+         },
+         {
+          "type": "row",
+          "cells": [
+           0,
+           0,
+           1,
+           0,
+           1,
+           2,
+           3
+          ],
+          "states": {
+           "6": "active"
+          },
+          "label": "pi",
+          "slots": true
+         },
+         {
+          "type": "vars",
+          "items": {
+           "k:": "3"
+          }
+         }
+        ]
+       }
+      ],
+      "title": "`prefix_function(\"abacaba\")`. `pi[i]` is the longest proper prefix of `s[0..i]` that is also a suffix of it.",
+      "legend": [
+       {
+        "state": "active",
+        "text": "position `i` and its value"
+       },
+       {
+        "state": "mark",
+        "text": "the letter `s[k - 1]` it matched"
+       }
+      ]
+     }
+    },
+    {
+     "code": {
+      "python": "def prefix_function(s):\n    pi = [0] * len(s)\n    for i in range(1, len(s)):\n        k = pi[i - 1]\n        while k > 0 and s[i] != s[k]:\n            k = pi[k - 1]\n        if s[i] == s[k]:\n            k += 1\n        pi[i] = k\n    return pi\n\n\ndef borders(s):\n    pi = prefix_function(s)\n    out = []\n    k = pi[-1] if s else 0\n    while k > 0:\n        out.append(k)\n        k = pi[k - 1]\n    return out\n",
+      "java": "static int[] prefixFunction(String s) {\n    int[] pi = new int[s.length()];\n    for (int i = 1; i < s.length(); i++) {\n        int k = pi[i - 1];\n        while (k > 0 && s.charAt(i) != s.charAt(k)) k = pi[k - 1];\n        if (s.charAt(i) == s.charAt(k)) k++;\n        pi[i] = k;\n    }\n    return pi;\n}\n\nstatic List<Integer> borders(String s) {\n    int[] pi = prefixFunction(s);\n    List<Integer> out = new ArrayList<>();\n    int k = s.isEmpty() ? 0 : pi[s.length() - 1];\n    while (k > 0) {\n        out.add(k);\n        k = pi[k - 1];\n    }\n    return out;\n}\n",
+      "cpp": "vector<int> prefixFunction(const string& s) {\n    vector<int> pi(s.size(), 0);\n    for (size_t i = 1; i < s.size(); i++) {\n        int k = pi[i - 1];\n        while (k > 0 && s[i] != s[k]) k = pi[k - 1];\n        if (s[i] == s[k]) k++;\n        pi[i] = k;\n    }\n    return pi;\n}\n\nvector<int> borders(const string& s) {\n    vector<int> pi = prefixFunction(s);\n    vector<int> out;\n    int k = s.empty() ? 0 : pi.back();\n    while (k > 0) {\n        out.push_back(k);\n        k = pi[k - 1];\n    }\n    return out;\n}\n",
+      "c": "void prefixFunction(const char* s, int n, int* pi) {\n    if (n > 0) pi[0] = 0;\n    for (int i = 1; i < n; i++) {\n        int k = pi[i - 1];\n        while (k > 0 && s[i] != s[k]) k = pi[k - 1];\n        if (s[i] == s[k]) k++;\n        pi[i] = k;\n    }\n}\n\nint borders(const char* s, int* out) {\n    int n = strlen(s), m = 0;\n    int* pi = malloc((n > 0 ? n : 1) * sizeof(int));\n    prefixFunction(s, n, pi);\n    int k = n > 0 ? pi[n - 1] : 0;\n    while (k > 0) {\n        out[m++] = k;\n        k = pi[k - 1];\n    }\n    free(pi);\n    return m;\n}\n"
+     },
+     "title": "Prefix function and all borders",
+     "lines": [
+      {
+       "text": "`pi[0] = 0`: one letter has no proper border.",
+       "at": {
+        "python": [
+         [
+          2,
+          2
+         ]
+        ],
+        "java": [
+         [
+          2,
+          2
+         ]
+        ],
+        "cpp": [
+         [
+          2,
+          2
+         ]
+        ],
+        "c": [
+         [
+          2,
+          2
+         ]
+        ]
+       }
+      },
+      {
+       "text": "Fill the table left to right.",
+       "at": {
+        "python": [
+         [
+          3,
+          3
+         ]
+        ],
+        "java": [
+         [
+          3,
+          3
+         ]
+        ],
+        "cpp": [
+         [
+          3,
+          3
+         ]
+        ],
+        "c": [
+         [
+          3,
+          3
+         ]
+        ]
+       }
+      },
+      {
+       "text": "The best candidate is the previous border, extended by one letter.",
+       "at": {
+        "python": [
+         [
+          4,
+          4
+         ]
+        ],
+        "java": [
+         [
+          4,
+          4
+         ]
+        ],
+        "cpp": [
+         [
+          4,
+          4
+         ]
+        ],
+        "c": [
+         [
+          4,
+          4
+         ]
+        ]
+       }
+      },
+      {
+       "text": "If the next letter doesn't extend border `k`, try the next shorter border, `pi[k - 1]`.",
+       "at": {
+        "python": [
+         [
+          5,
+          6
+         ]
+        ],
+        "java": [
+         [
+          5,
+          5
+         ]
+        ],
+        "cpp": [
+         [
+          5,
+          5
+         ]
+        ],
+        "c": [
+         [
+          5,
+          5
+         ]
+        ]
+       }
+      },
+      {
+       "text": "It matches: the border grows by one.",
+       "at": {
+        "python": [
+         [
+          7,
+          8
+         ]
+        ],
+        "java": [
+         [
+          6,
+          6
+         ]
+        ],
+        "cpp": [
+         [
+          6,
+          6
+         ]
+        ],
+        "c": [
+         [
+          6,
+          6
+         ]
+        ]
+       }
+      },
+      {
+       "text": "The longest border of `s[0..i]`.",
+       "at": {
+        "python": [
+         [
+          9,
+          9
+         ]
+        ],
+        "java": [
+         [
+          7,
+          7
+         ]
+        ],
+        "cpp": [
+         [
+          7,
+          7
+         ]
+        ],
+        "c": [
+         [
+          7,
+          7
+         ]
+        ]
+       }
+      },
+      {
+       "text": "The whole table.",
+       "at": {
+        "python": [
+         [
+          10,
+          10
+         ]
+        ],
+        "java": [
+         [
+          9,
+          9
+         ]
+        ],
+        "cpp": [
+         [
+          9,
+          9
+         ]
+        ]
+       }
+      },
+      {
+       "text": "Start from the longest border of the whole string.",
+       "at": {
+        "python": [
+         [
+          14,
+          16
+         ]
+        ],
+        "java": [
+         [
+          13,
+          15
+         ]
+        ],
+        "cpp": [
+         [
+          13,
+          15
+         ]
+        ],
+        "c": [
+         [
+          12,
+          15
+         ]
+        ]
+       },
+       "notes": {
+        "c": "A scratch array for `pi`, freed at the end."
+       }
+      },
+      {
+       "text": "Each border's own longest border is the next one down.",
+       "at": {
+        "python": [
+         [
+          17,
+          19
+         ]
+        ],
+        "java": [
+         [
+          16,
+          18
+         ]
+        ],
+        "cpp": [
+         [
+          16,
+          18
+         ]
+        ],
+        "c": [
+         [
+          16,
+          18
+         ]
+        ]
+       }
+      },
+      {
+       "text": "Every border, longest first.",
+       "at": {
+        "python": [
+         [
+          20,
+          20
+         ]
+        ],
+        "java": [
+         [
+          20,
+          20
+         ]
+        ],
+        "cpp": [
+         [
+          20,
+          20
+         ]
+        ],
+        "c": [
+         [
+          20,
+          21
+         ]
+        ]
+       },
+       "notes": {
+        "c": "C returns how many there are."
+       }
+      }
+     ],
+     "run": {
+      "call": "prefix_function(\"abacaba\"); borders(\"abacaba\"); (\"aaaa\"); (\"abc\")",
+      "output": "0 0 1 0 1 2 3\n3 1\n3 2 1"
+     }
+    },
+    {
+     "md": "`\"abc\"` has no border, so its line is empty. `\"aaaa\"` has three: `\"aaa\"`, `\"aa\"` and `\"a\"`.\n\n### KMP search\n\nTo search with the prefix function, either build `pi` for `pattern + '#' + text` and look for values equal to\nthe pattern's length, or build `pi` for the pattern alone and walk the text with `k` as \"how much of the\npattern is currently matched\", falling back the same way on a mismatch. The second form uses only O(m)\nmemory, which matters for a long text or a stream.\n\n### Z or KMP?\n\nThey're interchangeable for search. Z is often easier to think about (\"how much matches the start\nhere?\"). KMP fits streams and automata, and its borders answer period questions directly."
+    }
+   ]
+  },
+  {
+   "id": "complexity",
+   "title": "What it costs",
+   "blocks": [
+    {
+     "md": "Both tables are O(n) time and O(n) space for a string of length `n`. Search with a separator is O(n + m) time\nand space; KMP search with the pattern's table alone needs O(m) extra space."
+    },
+    {
+     "table": {
+      "head": [
+       "Approach",
+       "Time",
+       "Extra space",
+       "Exact?"
+      ],
+      "rows": [
+       [
+        "Try every start",
+        "O(n · m) worst case",
+        "O(1)",
+        "yes"
+       ],
+       [
+        "Rolling hash (Rabin-Karp)",
+        "O(n + m) expected",
+        "O(1)",
+        "with a check"
+       ],
+       [
+        "Z-function on p + # + t",
+        "O(n + m)",
+        "O(n + m)",
+        "yes"
+       ],
+       [
+        "KMP with the pattern's table",
+        "O(n + m)",
+        "O(m)",
+        "yes"
+       ]
+      ]
+     }
+    }
+   ]
+  },
+  {
+   "id": "languages",
+   "title": "In your language",
+   "blocks": [
+    {
+     "md": "### Python\n\n`str.find` and `in` are fast C code, often quicker than a Python-level KMP for one search. Write Z or KMP\nwhen you need the table itself, or overlapping matches (`str.count` doesn't count overlaps).\n\n### Java\n\n`indexOf` is a simple loop with no linear-time guarantee. Turn strings into `char[]` for tight loops.\n\n### C++\n\n`string::find` has no linear-time guarantee either. `std::boyer_moore_searcher` (C++17) is fast in practice.\nWatch `size_t` versus `int` when you compare `i + z[i] < n`.\n\n### C\n\n`strstr` has no complexity guarantee. Build the joined string yourself, and remember the separator byte and\nthe final `'\\0'`."
+    }
+   ]
+  },
+  {
+   "id": "pitfalls",
+   "title": "Pitfalls and edge cases",
+   "blocks": [
+    {
+     "md": "- A separator that can appear in the strings. Pick something outside the alphabet.\n- Forgetting that `z[0]` is special (it's undefined or `n` by convention, not a real match).\n- In the prefix function, falling back to `pi[k]` instead of `pi[k - 1]`.\n- Taking `n - pi[n - 1]` as the repeating unit without checking that it divides `n`.\n- Counting overlapping matches with a library function that skips overlaps.\n- Empty strings: the arrays are empty, and `pi[n - 1]` doesn't exist."
+    }
+   ]
+  },
+  {
+   "id": "check",
+   "title": "Check yourself",
+   "blocks": [
+    {
+     "quiz": [
+      {
+       "q": "Inside the Z-box, why is `z[i]` at least `min(r - i, z[i - l])`?",
+       "a": "The box `s[l..r-1]` copies the start of the string, so the letters from `i` up to `r` copy the letters from `i - l`. Whatever matched at `i - l` matches at `i` too, as far as the box goes."
+      },
+      {
+       "q": "Why is the Z-function O(n) despite the inner loop?",
+       "a": "Every successful comparison past the box moves `r` right, and `r` never moves back, so there are at most n of them in total."
+      },
+      {
+       "q": "What is the prefix function of \"aabaa\"?",
+       "a": "0 1 0 1 2. The last value 2 is the border \"aa\"."
+      },
+      {
+       "q": "Why put `#` between the pattern and the text?",
+       "a": "So a match starting in the text can't run on into the pattern or past its end; no z value in the text part can exceed the pattern's length."
+      },
+      {
+       "q": "\"abcabcabc\" has longest border \"abcabc\". What's its shortest repeating unit?",
+       "a": "Length 9 - 6 = 3, which divides 9, so \"abc\" repeated three times."
+      }
+     ]
+    }
+   ]
+  }
+ ],
+ "leetcode": [
+  {
+   "id": 28,
+   "title": "Find the Index of the First Occurrence in a String",
+   "url": "https://leetcode.com/problems/find-the-index-of-the-first-occurrence-in-a-string/",
+   "difficulty": "easy"
+  },
+  {
+   "id": 459,
+   "title": "Repeated Substring Pattern",
+   "url": "https://leetcode.com/problems/repeated-substring-pattern/",
+   "difficulty": "easy"
+  },
+  {
+   "id": 796,
+   "title": "Rotate String",
+   "url": "https://leetcode.com/problems/rotate-string/",
+   "difficulty": "easy"
+  },
+  {
+   "id": 1408,
+   "title": "String Matching in an Array",
+   "url": "https://leetcode.com/problems/string-matching-in-an-array/",
+   "difficulty": "easy"
+  },
+  {
+   "id": 686,
+   "title": "Repeated String Match",
+   "url": "https://leetcode.com/problems/repeated-string-match/",
+   "difficulty": "medium"
+  },
+  {
+   "id": 214,
+   "title": "Shortest Palindrome",
+   "url": "https://leetcode.com/problems/shortest-palindrome/",
+   "difficulty": "hard"
+  },
+  {
+   "id": 1392,
+   "title": "Longest Happy Prefix",
+   "url": "https://leetcode.com/problems/longest-happy-prefix/",
+   "difficulty": "hard"
+  },
+  {
+   "id": 2223,
+   "title": "Sum of Scores of Built Strings",
+   "url": "https://leetcode.com/problems/sum-of-scores-of-built-strings/",
+   "difficulty": "hard"
+  },
+  {
+   "id": 3008,
+   "title": "Find Beautiful Indices in the Given Array II",
+   "url": "https://leetcode.com/problems/find-beautiful-indices-in-the-given-array-ii/",
+   "difficulty": "hard"
+  },
+  {
+   "id": 3031,
+   "title": "Minimum Time to Revert Word to Initial State II",
+   "url": "https://leetcode.com/problems/minimum-time-to-revert-word-to-initial-state-ii/",
+   "difficulty": "hard"
+  }
+ ]
+}

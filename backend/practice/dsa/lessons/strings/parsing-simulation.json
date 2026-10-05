@@ -1,0 +1,2889 @@
+{
+ "version": 1,
+ "id": "parsing-simulation",
+ "topic": "strings",
+ "summary": "Some string problems have no clever trick: you read the text one character at a time and follow the rules\nexactly. Doing that well means keeping the state you're in explicit, reading whole tokens with an inner loop,\nchecking bounds before you peek ahead, and testing the edge cases the rules mention.",
+ "minutes": 12,
+ "sections": [
+  {
+   "id": "idea",
+   "title": "The idea",
+   "blocks": [
+    {
+     "md": "Think of a cashier reading a handwritten order: \"2 coffees, 1 tea with milk, 3 muffins\". They read a number,\nthen the item name up to the comma, then start the next item. A comma inside \"tea, no sugar\" written in\nbrackets wouldn't end the item, because they know they're inside brackets. They never jump around; they\nkeep a little bit of memory (am I reading a number? an item? inside brackets?) and decide what each\ncharacter means from that.\n\nThat's what a parser is: a loop over the characters, plus a small amount of *state* that says how to treat\nthe next one. The hard part of these problems is never the algorithm. It's following the rules exactly:\nthe empty field, the trailing separator, the sign with no digits after it, the number that's too big."
+    },
+    {
+     "panels": [
+      {
+       "type": "row",
+       "cells": [
+        "i",
+        "d",
+        ",",
+        "\"",
+        "L",
+        "e",
+        "e",
+        ",",
+        " ",
+        "A",
+        "n",
+        "n",
+        "\"",
+        ",",
+        "\"",
+        "5",
+        "\"",
+        "\"",
+        " ",
+        "t",
+        "a",
+        "l",
+        "l",
+        "\""
+       ],
+       "states": {
+        "0": "found",
+        "1": "found",
+        "2": "dim",
+        "3": "dim",
+        "4": "found",
+        "5": "found",
+        "6": "found",
+        "7": "found",
+        "8": "found",
+        "9": "found",
+        "10": "found",
+        "11": "found",
+        "12": "dim",
+        "13": "dim",
+        "14": "dim",
+        "15": "found",
+        "16": "found",
+        "17": "found",
+        "18": "found",
+        "19": "found",
+        "20": "found",
+        "21": "found",
+        "22": "found",
+        "23": "dim"
+       },
+       "label": "line",
+       "slots": true
+      }
+     ],
+     "caption": "The comma inside the quotes is data; the other commas and the quotes are punctuation."
+    },
+    {
+     "key": "Walk the string with an index. Keep the state in named variables (a flag, a mode, a partial token). Read\nmulti-character tokens with an inner loop that stops at the first character that doesn't belong. Check\n`i + 1 < n` before looking ahead. Finish the last token after the loop."
+    }
+   ]
+  },
+  {
+   "id": "signals",
+   "title": "When to reach for it",
+   "blocks": [
+    {
+     "md": "The statement is mostly rules: a format to read (numbers, versions, encoded lists, CSV, IP addresses), a\nlayout to produce (justified text, a zigzag, a table), or a process to imitate step by step. Constraints\nare usually small enough that O(n) or even O(n²) is fine, and the risk is in the details."
+    },
+    {
+     "table": {
+      "head": [
+       "The problem says…",
+       "the state you keep"
+      ],
+      "rows": [
+       [
+        "read a number with an optional sign and limits",
+        "sign, value so far, whether any digit was seen"
+       ],
+       [
+        "split fields, with quotes or escapes",
+        "inside quotes or not, the field so far"
+       ],
+       [
+        "compare dotted versions",
+        "a position in each string, the current part's value"
+       ],
+       [
+        "decode `length#text` records",
+        "where the next record starts"
+       ],
+       [
+        "lay text out in rows or lines",
+        "the current row or line, and its width so far"
+       ],
+       [
+        "format a number for display",
+        "how many digits are left to write"
+       ]
+      ]
+     }
+    },
+    {
+     "md": "Not a fit for a hand-written loop:\n\n- Nested structure (brackets inside brackets, expressions with precedence). Use a stack (Stack & Queue\n  topic) or recursion.\n- Real-world formats in production code. Use the library parser (`csv`, `json`, `ipaddress`), which already\n  handles the cases you'd forget."
+    }
+   ]
+  },
+  {
+   "id": "theory",
+   "title": "How to get it right",
+   "blocks": [
+    {
+     "md": "### Tokens: read while it still belongs\n\nMost formats are made of tokens: a number, a word, an operator. The reliable way to read one is an inner loop\nthat starts at the first character and keeps going while the next character still belongs, then leaves the\nindex on the first character that doesn't. The outer loop never has to undo anything."
+    },
+    {
+     "walk": {
+      "steps": [
+       {
+        "text": "`i` starts at the first character. Each step reads one whole token, or skips one space.",
+        "panels": [
+         {
+          "type": "row",
+          "cells": [
+           "1",
+           "2",
+           "+",
+           "␣",
+           "3",
+           "*",
+           "(",
+           "4",
+           "5",
+           "-",
+           "6",
+           ")"
+          ],
+          "pointers": {
+           "i": 0
+          },
+          "label": "text",
+          "slots": true
+         },
+         {
+          "type": "vars",
+          "items": {
+           "tokens:": "none yet"
+          }
+         }
+        ]
+       },
+       {
+        "text": "A digit at 0. Keep reading while the characters are digits: \"12\" is one number token, and `i` jumps to 2.",
+        "panels": [
+         {
+          "type": "row",
+          "cells": [
+           "1",
+           "2",
+           "+",
+           "␣",
+           "3",
+           "*",
+           "(",
+           "4",
+           "5",
+           "-",
+           "6",
+           ")"
+          ],
+          "states": {
+           "0": "answer",
+           "1": "answer"
+          },
+          "pointers": {
+           "i": 2
+          },
+          "label": "text",
+          "slots": true
+         },
+         {
+          "type": "vars",
+          "items": {
+           "tokens:": "12"
+          }
+         }
+        ]
+       },
+       {
+        "text": "'+' at 2 is a token on its own.",
+        "panels": [
+         {
+          "type": "row",
+          "cells": [
+           "1",
+           "2",
+           "+",
+           "␣",
+           "3",
+           "*",
+           "(",
+           "4",
+           "5",
+           "-",
+           "6",
+           ")"
+          ],
+          "states": {
+           "0": "answer",
+           "1": "answer",
+           "2": "answer"
+          },
+          "pointers": {
+           "i": 3
+          },
+          "label": "text",
+          "slots": true
+         },
+         {
+          "type": "vars",
+          "items": {
+           "tokens:": "12 +"
+          }
+         }
+        ]
+       },
+       {
+        "text": "A space at 3: it separates tokens but isn't one. Skip it.",
+        "panels": [
+         {
+          "type": "row",
+          "cells": [
+           "1",
+           "2",
+           "+",
+           "␣",
+           "3",
+           "*",
+           "(",
+           "4",
+           "5",
+           "-",
+           "6",
+           ")"
+          ],
+          "states": {
+           "0": "answer",
+           "1": "answer",
+           "2": "answer",
+           "3": "dim"
+          },
+          "pointers": {
+           "i": 4
+          },
+          "label": "text",
+          "slots": true
+         },
+         {
+          "type": "vars",
+          "items": {
+           "tokens:": "12 +"
+          }
+         }
+        ]
+       },
+       {
+        "text": "A digit at 4, and the next character isn't one: the number \"3\".",
+        "panels": [
+         {
+          "type": "row",
+          "cells": [
+           "1",
+           "2",
+           "+",
+           "␣",
+           "3",
+           "*",
+           "(",
+           "4",
+           "5",
+           "-",
+           "6",
+           ")"
+          ],
+          "states": {
+           "0": "answer",
+           "1": "answer",
+           "2": "answer",
+           "3": "dim",
+           "4": "answer"
+          },
+          "pointers": {
+           "i": 5
+          },
+          "label": "text",
+          "slots": true
+         },
+         {
+          "type": "vars",
+          "items": {
+           "tokens:": "12 + 3"
+          }
+         }
+        ]
+       },
+       {
+        "text": "'*' at 5 is a token on its own.",
+        "panels": [
+         {
+          "type": "row",
+          "cells": [
+           "1",
+           "2",
+           "+",
+           "␣",
+           "3",
+           "*",
+           "(",
+           "4",
+           "5",
+           "-",
+           "6",
+           ")"
+          ],
+          "states": {
+           "0": "answer",
+           "1": "answer",
+           "2": "answer",
+           "3": "dim",
+           "4": "answer",
+           "5": "answer"
+          },
+          "pointers": {
+           "i": 6
+          },
+          "label": "text",
+          "slots": true
+         },
+         {
+          "type": "vars",
+          "items": {
+           "tokens:": "12 + 3 *"
+          }
+         }
+        ]
+       },
+       {
+        "text": "'(' at 6 is a token on its own.",
+        "panels": [
+         {
+          "type": "row",
+          "cells": [
+           "1",
+           "2",
+           "+",
+           "␣",
+           "3",
+           "*",
+           "(",
+           "4",
+           "5",
+           "-",
+           "6",
+           ")"
+          ],
+          "states": {
+           "0": "answer",
+           "1": "answer",
+           "2": "answer",
+           "3": "dim",
+           "4": "answer",
+           "5": "answer",
+           "6": "answer"
+          },
+          "pointers": {
+           "i": 7
+          },
+          "label": "text",
+          "slots": true
+         },
+         {
+          "type": "vars",
+          "items": {
+           "tokens:": "12 + 3 * ("
+          }
+         }
+        ]
+       },
+       {
+        "text": "A digit at 7. Keep reading while the characters are digits: \"45\" is one number token, and `i` jumps to 9.",
+        "panels": [
+         {
+          "type": "row",
+          "cells": [
+           "1",
+           "2",
+           "+",
+           "␣",
+           "3",
+           "*",
+           "(",
+           "4",
+           "5",
+           "-",
+           "6",
+           ")"
+          ],
+          "states": {
+           "0": "answer",
+           "1": "answer",
+           "2": "answer",
+           "3": "dim",
+           "4": "answer",
+           "5": "answer",
+           "6": "answer",
+           "7": "answer",
+           "8": "answer"
+          },
+          "pointers": {
+           "i": 9
+          },
+          "label": "text",
+          "slots": true
+         },
+         {
+          "type": "vars",
+          "items": {
+           "tokens:": "12 + 3 * ( 45"
+          }
+         }
+        ]
+       },
+       {
+        "text": "'-' at 9 is a token on its own.",
+        "panels": [
+         {
+          "type": "row",
+          "cells": [
+           "1",
+           "2",
+           "+",
+           "␣",
+           "3",
+           "*",
+           "(",
+           "4",
+           "5",
+           "-",
+           "6",
+           ")"
+          ],
+          "states": {
+           "0": "answer",
+           "1": "answer",
+           "2": "answer",
+           "3": "dim",
+           "4": "answer",
+           "5": "answer",
+           "6": "answer",
+           "7": "answer",
+           "8": "answer",
+           "9": "answer"
+          },
+          "pointers": {
+           "i": 10
+          },
+          "label": "text",
+          "slots": true
+         },
+         {
+          "type": "vars",
+          "items": {
+           "tokens:": "12 + 3 * ( 45 -"
+          }
+         }
+        ]
+       },
+       {
+        "text": "A digit at 10, and the next character isn't one: the number \"6\".",
+        "panels": [
+         {
+          "type": "row",
+          "cells": [
+           "1",
+           "2",
+           "+",
+           "␣",
+           "3",
+           "*",
+           "(",
+           "4",
+           "5",
+           "-",
+           "6",
+           ")"
+          ],
+          "states": {
+           "0": "answer",
+           "1": "answer",
+           "2": "answer",
+           "3": "dim",
+           "4": "answer",
+           "5": "answer",
+           "6": "answer",
+           "7": "answer",
+           "8": "answer",
+           "9": "answer",
+           "10": "answer"
+          },
+          "pointers": {
+           "i": 11
+          },
+          "label": "text",
+          "slots": true
+         },
+         {
+          "type": "vars",
+          "items": {
+           "tokens:": "12 + 3 * ( 45 - 6"
+          }
+         }
+        ]
+       },
+       {
+        "text": "')' at 11 is a token on its own.",
+        "panels": [
+         {
+          "type": "row",
+          "cells": [
+           "1",
+           "2",
+           "+",
+           "␣",
+           "3",
+           "*",
+           "(",
+           "4",
+           "5",
+           "-",
+           "6",
+           ")"
+          ],
+          "states": {
+           "0": "answer",
+           "1": "answer",
+           "2": "answer",
+           "3": "dim",
+           "4": "answer",
+           "5": "answer",
+           "6": "answer",
+           "7": "answer",
+           "8": "answer",
+           "9": "answer",
+           "10": "answer",
+           "11": "answer"
+          },
+          "pointers": {},
+          "label": "text",
+          "slots": true
+         },
+         {
+          "type": "vars",
+          "items": {
+           "tokens:": "12 + 3 * ( 45 - 6 )"
+          }
+         }
+        ]
+       }
+      ],
+      "title": "Splitting \"12+ 3*(45-6)\" into tokens: numbers, operators and brackets, with spaces thrown away.",
+      "legend": [
+       {
+        "state": "answer",
+        "text": "part of a token"
+       },
+       {
+        "state": "dim",
+        "text": "a space, skipped"
+       }
+      ]
+     }
+    },
+    {
+     "md": "### State machines\n\nWhen the meaning of a character depends on what came before (inside quotes or not, before or after a sign),\nwrite the states down and decide what every kind of character does in every state. If a cell of that table\nis blank, the rules haven't told you yet, and you should check the statement. For a CSV line with quotes:"
+    },
+    {
+     "table": {
+      "head": [
+       "state",
+       "next character",
+       "action"
+      ],
+      "rows": [
+       [
+        "outside quotes",
+        "`,`",
+        "finish the field; stay outside"
+       ],
+       [
+        "outside quotes",
+        "`\"`",
+        "go inside quotes"
+       ],
+       [
+        "outside quotes",
+        "anything else",
+        "copy it"
+       ],
+       [
+        "inside quotes",
+        "`\"` then `\"`",
+        "copy one `\"`; skip both"
+       ],
+       [
+        "inside quotes",
+        "`\"` then anything else",
+        "go outside quotes"
+       ],
+       [
+        "inside quotes",
+        "anything else (even `,`)",
+        "copy it"
+       ]
+      ]
+     }
+    },
+    {
+     "md": "Six rules, no special cases left over. The code is a direct copy of the table.\n\n### Peeking ahead\n\nSome rules need the next character (`\"\"` is an escaped quote; `_` counts only if a digit follows). Always\ncheck that the next index exists before reading it, and decide what happens at the end of the string: in\nC the next character is the terminating `'\\0'`, which conveniently matches nothing.\n\n### The last token\n\nA loop that finishes a token when it sees a separator never sees a separator after the last token. Finish\nit after the loop. Forgetting this loses the last field, the last word or the last number, and it's the most\ncommon bug in parsing code.\n\n### Limits and overflow\n\nWhen digits build a number (`value = value * 10 + d`), check for overflow *before* the multiplication would\npass the limit, or build in a wider type and clamp. When a number can be far too long for any integer type\n(version parts, big IDs), compare it as a string: strip leading zeros, then compare lengths, then compare\ndigit by digit."
+    }
+   ]
+  },
+  {
+   "id": "template",
+   "title": "The template",
+   "blocks": [
+    {
+     "md": "Split one line of comma-separated values into fields. A field may be wrapped in double quotes, and then it\ncan contain commas; inside quotes, `\"\"` stands for one `\"`. An empty line is one empty field."
+    },
+    {
+     "code": {
+      "python": "def split_csv(line):\n    fields, cur = [], []\n    quoted = False\n    i = 0\n    while i < len(line):\n        ch = line[i]\n        if quoted:\n            if ch == '\"':\n                if i + 1 < len(line) and line[i + 1] == '\"':\n                    cur.append('\"')\n                    i += 1\n                else:\n                    quoted = False\n            else:\n                cur.append(ch)\n        elif ch == '\"':\n            quoted = True\n        elif ch == ',':\n            fields.append(\"\".join(cur))\n            cur = []\n        else:\n            cur.append(ch)\n        i += 1\n    fields.append(\"\".join(cur))\n    return fields\n",
+      "java": "static List<String> splitCsv(String line) {\n    List<String> fields = new ArrayList<>();\n    StringBuilder cur = new StringBuilder();\n    boolean quoted = false;\n    for (int i = 0; i < line.length(); i++) {\n        char ch = line.charAt(i);\n        if (quoted) {\n            if (ch == '\"') {\n                if (i + 1 < line.length() && line.charAt(i + 1) == '\"') {\n                    cur.append('\"');\n                    i++;\n                } else {\n                    quoted = false;\n                }\n            } else {\n                cur.append(ch);\n            }\n        } else if (ch == '\"') {\n            quoted = true;\n        } else if (ch == ',') {\n            fields.add(cur.toString());\n            cur.setLength(0);\n        } else {\n            cur.append(ch);\n        }\n    }\n    fields.add(cur.toString());\n    return fields;\n}\n",
+      "cpp": "vector<string> splitCsv(const string& line) {\n    vector<string> fields;\n    string cur;\n    bool quoted = false;\n    for (size_t i = 0; i < line.size(); i++) {\n        char ch = line[i];\n        if (quoted) {\n            if (ch == '\"') {\n                if (i + 1 < line.size() && line[i + 1] == '\"') {\n                    cur += '\"';\n                    i++;\n                } else {\n                    quoted = false;\n                }\n            } else {\n                cur += ch;\n            }\n        } else if (ch == '\"') {\n            quoted = true;\n        } else if (ch == ',') {\n            fields.push_back(cur);\n            cur.clear();\n        } else {\n            cur += ch;\n        }\n    }\n    fields.push_back(cur);\n    return fields;\n}\n",
+      "c": "int splitCsv(const char* line, char* out) {\n    int count = 0, w = 0;\n    bool quoted = false;\n    for (int i = 0; line[i] != '\\0'; i++) {\n        char ch = line[i];\n        if (quoted) {\n            if (ch == '\"') {\n                if (line[i + 1] == '\"') {\n                    out[w++] = '\"';\n                    i++;\n                } else {\n                    quoted = false;\n                }\n            } else {\n                out[w++] = ch;\n            }\n        } else if (ch == '\"') {\n            quoted = true;\n        } else if (ch == ',') {\n            out[w++] = '\\0';\n            count++;\n        } else {\n            out[w++] = ch;\n        }\n    }\n    out[w] = '\\0';\n    return count + 1;\n}\n"
+     },
+     "title": "Split a CSV line, with quotes",
+     "lines": [
+      {
+       "text": "The fields so far, the field being built, and whether we're inside quotes.",
+       "at": {
+        "python": [
+         [
+          2,
+          4
+         ]
+        ],
+        "java": [
+         [
+          2,
+          4
+         ]
+        ],
+        "cpp": [
+         [
+          2,
+          4
+         ]
+        ],
+        "c": [
+         [
+          2,
+          3
+         ]
+        ]
+       },
+       "notes": {
+        "c": "C writes each field into `out`, ending each with `'\\0'`, and counts them."
+       }
+      },
+      {
+       "text": "One character at a time.",
+       "at": {
+        "python": [
+         [
+          5,
+          6
+         ]
+        ],
+        "java": [
+         [
+          5,
+          6
+         ]
+        ],
+        "cpp": [
+         [
+          5,
+          6
+         ]
+        ],
+        "c": [
+         [
+          4,
+          5
+         ]
+        ]
+       }
+      },
+      {
+       "text": "Inside quotes, `\"\"` is an escaped quote: copy one and skip the second.",
+       "at": {
+        "python": [
+         [
+          9,
+          11
+         ]
+        ],
+        "java": [
+         [
+          9,
+          11
+         ]
+        ],
+        "cpp": [
+         [
+          9,
+          11
+         ]
+        ],
+        "c": [
+         [
+          8,
+          10
+         ]
+        ]
+       }
+      },
+      {
+       "text": "Inside quotes, a lone `\"` ends the quoted part.",
+       "at": {
+        "python": [
+         [
+          12,
+          13
+         ]
+        ],
+        "java": [
+         [
+          12,
+          13
+         ]
+        ],
+        "cpp": [
+         [
+          12,
+          13
+         ]
+        ],
+        "c": [
+         [
+          11,
+          12
+         ]
+        ]
+       },
+       "notes": {
+        "c": "At the very end of the string the next character is `'\\0'`, which isn't a quote, so this is safe."
+       }
+      },
+      {
+       "text": "Anything else inside quotes, including a comma, is data.",
+       "at": {
+        "python": [
+         [
+          14,
+          15
+         ]
+        ],
+        "java": [
+         [
+          15,
+          16
+         ]
+        ],
+        "cpp": [
+         [
+          15,
+          16
+         ]
+        ],
+        "c": [
+         [
+          14,
+          15
+         ]
+        ]
+       }
+      },
+      {
+       "text": "Outside quotes, a `\"` starts a quoted part. The quote itself isn't data.",
+       "at": {
+        "python": [
+         [
+          16,
+          17
+         ]
+        ],
+        "java": [
+         [
+          18,
+          19
+         ]
+        ],
+        "cpp": [
+         [
+          18,
+          19
+         ]
+        ],
+        "c": [
+         [
+          17,
+          18
+         ]
+        ]
+       }
+      },
+      {
+       "text": "Outside quotes, a comma ends the current field.",
+       "at": {
+        "python": [
+         [
+          18,
+          20
+         ]
+        ],
+        "java": [
+         [
+          20,
+          22
+         ]
+        ],
+        "cpp": [
+         [
+          20,
+          22
+         ]
+        ],
+        "c": [
+         [
+          19,
+          21
+         ]
+        ]
+       }
+      },
+      {
+       "text": "Anything else outside quotes is data.",
+       "at": {
+        "python": [
+         [
+          21,
+          22
+         ]
+        ],
+        "java": [
+         [
+          23,
+          24
+         ]
+        ],
+        "cpp": [
+         [
+          23,
+          24
+         ]
+        ],
+        "c": [
+         [
+          22,
+          23
+         ]
+        ]
+       }
+      },
+      {
+       "text": "Move on. The escape case already moved one extra place.",
+       "at": {
+        "python": [
+         [
+          23,
+          23
+         ]
+        ]
+       }
+      },
+      {
+       "text": "The line ends without a comma, so the last field is finished here. This also makes an empty line one empty field, and a trailing comma an empty last field.",
+       "at": {
+        "python": [
+         [
+          24,
+          24
+         ]
+        ],
+        "java": [
+         [
+          27,
+          27
+         ]
+        ],
+        "cpp": [
+         [
+          27,
+          27
+         ]
+        ],
+        "c": [
+         [
+          26,
+          26
+         ]
+        ]
+       }
+      },
+      {
+       "text": "All the fields, in order.",
+       "at": {
+        "python": [
+         [
+          25,
+          25
+         ]
+        ],
+        "java": [
+         [
+          28,
+          28
+         ]
+        ],
+        "cpp": [
+         [
+          28,
+          28
+         ]
+        ],
+        "c": [
+         [
+          27,
+          27
+         ]
+        ]
+       },
+       "notes": {
+        "c": "C returns how many fields it wrote."
+       }
+      }
+     ],
+     "run": {
+      "call": "split_csv('a,\"b,c\",\"say \"\"hi\"\"\",'); (''); ('x,,y'); ('\"\",z')",
+      "output": "[a] [b,c] [say \"hi\"] []\n[]\n[x] [] [y]\n[] [z]"
+     }
+    },
+    {
+     "md": "Each field is printed in brackets so empty ones show up. The trailing comma in the first line makes an empty\nfourth field, and `\"\"` on its own is an empty quoted field."
+    }
+   ]
+  },
+  {
+   "id": "trace",
+   "title": "Trace it by hand",
+   "blocks": [
+    {
+     "md": "A line with a comma inside quotes and an escaped quote:"
+    },
+    {
+     "walk": {
+      "steps": [
+       {
+        "text": "Outside quotes, with an empty field started.",
+        "panels": [
+         {
+          "type": "row",
+          "cells": [
+           "i",
+           "d",
+           ",",
+           "\"",
+           "L",
+           "e",
+           "e",
+           ",",
+           " ",
+           "A",
+           "n",
+           "n",
+           "\"",
+           ",",
+           "\"",
+           "5",
+           "\"",
+           "\"",
+           " ",
+           "t",
+           "a",
+           "l",
+           "l",
+           "\""
+          ],
+          "pointers": {
+           "i": 0
+          },
+          "label": "line",
+          "slots": true
+         },
+         {
+          "type": "vars",
+          "items": {
+           "state:": "outside quotes",
+           "current field:": "(empty)",
+           "fields:": "none yet"
+          }
+         }
+        ]
+       },
+       {
+        "text": "'i': an ordinary character, copied.",
+        "panels": [
+         {
+          "type": "row",
+          "cells": [
+           "i",
+           "d",
+           ",",
+           "\"",
+           "L",
+           "e",
+           "e",
+           ",",
+           " ",
+           "A",
+           "n",
+           "n",
+           "\"",
+           ",",
+           "\"",
+           "5",
+           "\"",
+           "\"",
+           " ",
+           "t",
+           "a",
+           "l",
+           "l",
+           "\""
+          ],
+          "states": {
+           "0": "found"
+          },
+          "pointers": {
+           "i": 1
+          },
+          "label": "line",
+          "slots": true
+         },
+         {
+          "type": "vars",
+          "items": {
+           "state:": "outside quotes",
+           "current field:": "i",
+           "fields:": "none yet"
+          }
+         }
+        ]
+       },
+       {
+        "text": "'d': an ordinary character, copied.",
+        "panels": [
+         {
+          "type": "row",
+          "cells": [
+           "i",
+           "d",
+           ",",
+           "\"",
+           "L",
+           "e",
+           "e",
+           ",",
+           " ",
+           "A",
+           "n",
+           "n",
+           "\"",
+           ",",
+           "\"",
+           "5",
+           "\"",
+           "\"",
+           " ",
+           "t",
+           "a",
+           "l",
+           "l",
+           "\""
+          ],
+          "states": {
+           "0": "found",
+           "1": "found"
+          },
+          "pointers": {
+           "i": 2
+          },
+          "label": "line",
+          "slots": true
+         },
+         {
+          "type": "vars",
+          "items": {
+           "state:": "outside quotes",
+           "current field:": "id",
+           "fields:": "none yet"
+          }
+         }
+        ]
+       },
+       {
+        "text": "A comma outside quotes ends the field \"id\". Start a new one.",
+        "panels": [
+         {
+          "type": "row",
+          "cells": [
+           "i",
+           "d",
+           ",",
+           "\"",
+           "L",
+           "e",
+           "e",
+           ",",
+           " ",
+           "A",
+           "n",
+           "n",
+           "\"",
+           ",",
+           "\"",
+           "5",
+           "\"",
+           "\"",
+           " ",
+           "t",
+           "a",
+           "l",
+           "l",
+           "\""
+          ],
+          "states": {
+           "0": "found",
+           "1": "found",
+           "2": "dim"
+          },
+          "pointers": {
+           "i": 3
+          },
+          "label": "line",
+          "slots": true
+         },
+         {
+          "type": "vars",
+          "items": {
+           "state:": "outside quotes",
+           "current field:": "(empty)",
+           "fields:": "id"
+          }
+         }
+        ]
+       },
+       {
+        "text": "A quote outside quotes: the quoted part starts. The quote itself isn't copied.",
+        "panels": [
+         {
+          "type": "row",
+          "cells": [
+           "i",
+           "d",
+           ",",
+           "\"",
+           "L",
+           "e",
+           "e",
+           ",",
+           " ",
+           "A",
+           "n",
+           "n",
+           "\"",
+           ",",
+           "\"",
+           "5",
+           "\"",
+           "\"",
+           " ",
+           "t",
+           "a",
+           "l",
+           "l",
+           "\""
+          ],
+          "states": {
+           "0": "found",
+           "1": "found",
+           "2": "dim",
+           "3": "dim"
+          },
+          "pointers": {
+           "i": 4
+          },
+          "label": "line",
+          "slots": true
+         },
+         {
+          "type": "vars",
+          "items": {
+           "state:": "inside quotes",
+           "current field:": "(empty)",
+           "fields:": "id"
+          }
+         }
+        ]
+       },
+       {
+        "text": "'L' inside quotes: copied.",
+        "panels": [
+         {
+          "type": "row",
+          "cells": [
+           "i",
+           "d",
+           ",",
+           "\"",
+           "L",
+           "e",
+           "e",
+           ",",
+           " ",
+           "A",
+           "n",
+           "n",
+           "\"",
+           ",",
+           "\"",
+           "5",
+           "\"",
+           "\"",
+           " ",
+           "t",
+           "a",
+           "l",
+           "l",
+           "\""
+          ],
+          "states": {
+           "0": "found",
+           "1": "found",
+           "2": "dim",
+           "3": "dim",
+           "4": "found"
+          },
+          "pointers": {
+           "i": 5
+          },
+          "label": "line",
+          "slots": true
+         },
+         {
+          "type": "vars",
+          "items": {
+           "state:": "inside quotes",
+           "current field:": "L",
+           "fields:": "id"
+          }
+         }
+        ]
+       },
+       {
+        "text": "'e' inside quotes: copied.",
+        "panels": [
+         {
+          "type": "row",
+          "cells": [
+           "i",
+           "d",
+           ",",
+           "\"",
+           "L",
+           "e",
+           "e",
+           ",",
+           " ",
+           "A",
+           "n",
+           "n",
+           "\"",
+           ",",
+           "\"",
+           "5",
+           "\"",
+           "\"",
+           " ",
+           "t",
+           "a",
+           "l",
+           "l",
+           "\""
+          ],
+          "states": {
+           "0": "found",
+           "1": "found",
+           "2": "dim",
+           "3": "dim",
+           "4": "found",
+           "5": "found"
+          },
+          "pointers": {
+           "i": 6
+          },
+          "label": "line",
+          "slots": true
+         },
+         {
+          "type": "vars",
+          "items": {
+           "state:": "inside quotes",
+           "current field:": "Le",
+           "fields:": "id"
+          }
+         }
+        ]
+       },
+       {
+        "text": "'e' inside quotes: copied.",
+        "panels": [
+         {
+          "type": "row",
+          "cells": [
+           "i",
+           "d",
+           ",",
+           "\"",
+           "L",
+           "e",
+           "e",
+           ",",
+           " ",
+           "A",
+           "n",
+           "n",
+           "\"",
+           ",",
+           "\"",
+           "5",
+           "\"",
+           "\"",
+           " ",
+           "t",
+           "a",
+           "l",
+           "l",
+           "\""
+          ],
+          "states": {
+           "0": "found",
+           "1": "found",
+           "2": "dim",
+           "3": "dim",
+           "4": "found",
+           "5": "found",
+           "6": "found"
+          },
+          "pointers": {
+           "i": 7
+          },
+          "label": "line",
+          "slots": true
+         },
+         {
+          "type": "vars",
+          "items": {
+           "state:": "inside quotes",
+           "current field:": "Lee",
+           "fields:": "id"
+          }
+         }
+        ]
+       },
+       {
+        "text": "A comma inside quotes: copied, because here it's data.",
+        "panels": [
+         {
+          "type": "row",
+          "cells": [
+           "i",
+           "d",
+           ",",
+           "\"",
+           "L",
+           "e",
+           "e",
+           ",",
+           " ",
+           "A",
+           "n",
+           "n",
+           "\"",
+           ",",
+           "\"",
+           "5",
+           "\"",
+           "\"",
+           " ",
+           "t",
+           "a",
+           "l",
+           "l",
+           "\""
+          ],
+          "states": {
+           "0": "found",
+           "1": "found",
+           "2": "dim",
+           "3": "dim",
+           "4": "found",
+           "5": "found",
+           "6": "found",
+           "7": "found"
+          },
+          "pointers": {
+           "i": 8
+          },
+          "label": "line",
+          "slots": true
+         },
+         {
+          "type": "vars",
+          "items": {
+           "state:": "inside quotes",
+           "current field:": "Lee,",
+           "fields:": "id"
+          }
+         }
+        ]
+       },
+       {
+        "text": "A space inside quotes: copied.",
+        "panels": [
+         {
+          "type": "row",
+          "cells": [
+           "i",
+           "d",
+           ",",
+           "\"",
+           "L",
+           "e",
+           "e",
+           ",",
+           " ",
+           "A",
+           "n",
+           "n",
+           "\"",
+           ",",
+           "\"",
+           "5",
+           "\"",
+           "\"",
+           " ",
+           "t",
+           "a",
+           "l",
+           "l",
+           "\""
+          ],
+          "states": {
+           "0": "found",
+           "1": "found",
+           "2": "dim",
+           "3": "dim",
+           "4": "found",
+           "5": "found",
+           "6": "found",
+           "7": "found",
+           "8": "found"
+          },
+          "pointers": {
+           "i": 9
+          },
+          "label": "line",
+          "slots": true
+         },
+         {
+          "type": "vars",
+          "items": {
+           "state:": "inside quotes",
+           "current field:": "Lee, ",
+           "fields:": "id"
+          }
+         }
+        ]
+       },
+       {
+        "text": "'A' inside quotes: copied.",
+        "panels": [
+         {
+          "type": "row",
+          "cells": [
+           "i",
+           "d",
+           ",",
+           "\"",
+           "L",
+           "e",
+           "e",
+           ",",
+           " ",
+           "A",
+           "n",
+           "n",
+           "\"",
+           ",",
+           "\"",
+           "5",
+           "\"",
+           "\"",
+           " ",
+           "t",
+           "a",
+           "l",
+           "l",
+           "\""
+          ],
+          "states": {
+           "0": "found",
+           "1": "found",
+           "2": "dim",
+           "3": "dim",
+           "4": "found",
+           "5": "found",
+           "6": "found",
+           "7": "found",
+           "8": "found",
+           "9": "found"
+          },
+          "pointers": {
+           "i": 10
+          },
+          "label": "line",
+          "slots": true
+         },
+         {
+          "type": "vars",
+          "items": {
+           "state:": "inside quotes",
+           "current field:": "Lee, A",
+           "fields:": "id"
+          }
+         }
+        ]
+       },
+       {
+        "text": "'n' inside quotes: copied.",
+        "panels": [
+         {
+          "type": "row",
+          "cells": [
+           "i",
+           "d",
+           ",",
+           "\"",
+           "L",
+           "e",
+           "e",
+           ",",
+           " ",
+           "A",
+           "n",
+           "n",
+           "\"",
+           ",",
+           "\"",
+           "5",
+           "\"",
+           "\"",
+           " ",
+           "t",
+           "a",
+           "l",
+           "l",
+           "\""
+          ],
+          "states": {
+           "0": "found",
+           "1": "found",
+           "2": "dim",
+           "3": "dim",
+           "4": "found",
+           "5": "found",
+           "6": "found",
+           "7": "found",
+           "8": "found",
+           "9": "found",
+           "10": "found"
+          },
+          "pointers": {
+           "i": 11
+          },
+          "label": "line",
+          "slots": true
+         },
+         {
+          "type": "vars",
+          "items": {
+           "state:": "inside quotes",
+           "current field:": "Lee, An",
+           "fields:": "id"
+          }
+         }
+        ]
+       },
+       {
+        "text": "'n' inside quotes: copied.",
+        "panels": [
+         {
+          "type": "row",
+          "cells": [
+           "i",
+           "d",
+           ",",
+           "\"",
+           "L",
+           "e",
+           "e",
+           ",",
+           " ",
+           "A",
+           "n",
+           "n",
+           "\"",
+           ",",
+           "\"",
+           "5",
+           "\"",
+           "\"",
+           " ",
+           "t",
+           "a",
+           "l",
+           "l",
+           "\""
+          ],
+          "states": {
+           "0": "found",
+           "1": "found",
+           "2": "dim",
+           "3": "dim",
+           "4": "found",
+           "5": "found",
+           "6": "found",
+           "7": "found",
+           "8": "found",
+           "9": "found",
+           "10": "found",
+           "11": "found"
+          },
+          "pointers": {
+           "i": 12
+          },
+          "label": "line",
+          "slots": true
+         },
+         {
+          "type": "vars",
+          "items": {
+           "state:": "inside quotes",
+           "current field:": "Lee, Ann",
+           "fields:": "id"
+          }
+         }
+        ]
+       },
+       {
+        "text": "A quote inside quotes with no partner: the quoted part ends here.",
+        "panels": [
+         {
+          "type": "row",
+          "cells": [
+           "i",
+           "d",
+           ",",
+           "\"",
+           "L",
+           "e",
+           "e",
+           ",",
+           " ",
+           "A",
+           "n",
+           "n",
+           "\"",
+           ",",
+           "\"",
+           "5",
+           "\"",
+           "\"",
+           " ",
+           "t",
+           "a",
+           "l",
+           "l",
+           "\""
+          ],
+          "states": {
+           "0": "found",
+           "1": "found",
+           "2": "dim",
+           "3": "dim",
+           "4": "found",
+           "5": "found",
+           "6": "found",
+           "7": "found",
+           "8": "found",
+           "9": "found",
+           "10": "found",
+           "11": "found",
+           "12": "dim"
+          },
+          "pointers": {
+           "i": 13
+          },
+          "label": "line",
+          "slots": true
+         },
+         {
+          "type": "vars",
+          "items": {
+           "state:": "outside quotes",
+           "current field:": "Lee, Ann",
+           "fields:": "id"
+          }
+         }
+        ]
+       },
+       {
+        "text": "A comma outside quotes ends the field \"Lee, Ann\". Start a new one.",
+        "panels": [
+         {
+          "type": "row",
+          "cells": [
+           "i",
+           "d",
+           ",",
+           "\"",
+           "L",
+           "e",
+           "e",
+           ",",
+           " ",
+           "A",
+           "n",
+           "n",
+           "\"",
+           ",",
+           "\"",
+           "5",
+           "\"",
+           "\"",
+           " ",
+           "t",
+           "a",
+           "l",
+           "l",
+           "\""
+          ],
+          "states": {
+           "0": "found",
+           "1": "found",
+           "2": "dim",
+           "3": "dim",
+           "4": "found",
+           "5": "found",
+           "6": "found",
+           "7": "found",
+           "8": "found",
+           "9": "found",
+           "10": "found",
+           "11": "found",
+           "12": "dim",
+           "13": "dim"
+          },
+          "pointers": {
+           "i": 14
+          },
+          "label": "line",
+          "slots": true
+         },
+         {
+          "type": "vars",
+          "items": {
+           "state:": "outside quotes",
+           "current field:": "(empty)",
+           "fields:": "id | Lee, Ann"
+          }
+         }
+        ]
+       },
+       {
+        "text": "A quote outside quotes: the quoted part starts. The quote itself isn't copied.",
+        "panels": [
+         {
+          "type": "row",
+          "cells": [
+           "i",
+           "d",
+           ",",
+           "\"",
+           "L",
+           "e",
+           "e",
+           ",",
+           " ",
+           "A",
+           "n",
+           "n",
+           "\"",
+           ",",
+           "\"",
+           "5",
+           "\"",
+           "\"",
+           " ",
+           "t",
+           "a",
+           "l",
+           "l",
+           "\""
+          ],
+          "states": {
+           "0": "found",
+           "1": "found",
+           "2": "dim",
+           "3": "dim",
+           "4": "found",
+           "5": "found",
+           "6": "found",
+           "7": "found",
+           "8": "found",
+           "9": "found",
+           "10": "found",
+           "11": "found",
+           "12": "dim",
+           "13": "dim",
+           "14": "dim"
+          },
+          "pointers": {
+           "i": 15
+          },
+          "label": "line",
+          "slots": true
+         },
+         {
+          "type": "vars",
+          "items": {
+           "state:": "inside quotes",
+           "current field:": "(empty)",
+           "fields:": "id | Lee, Ann"
+          }
+         }
+        ]
+       },
+       {
+        "text": "'5' inside quotes: copied.",
+        "panels": [
+         {
+          "type": "row",
+          "cells": [
+           "i",
+           "d",
+           ",",
+           "\"",
+           "L",
+           "e",
+           "e",
+           ",",
+           " ",
+           "A",
+           "n",
+           "n",
+           "\"",
+           ",",
+           "\"",
+           "5",
+           "\"",
+           "\"",
+           " ",
+           "t",
+           "a",
+           "l",
+           "l",
+           "\""
+          ],
+          "states": {
+           "0": "found",
+           "1": "found",
+           "2": "dim",
+           "3": "dim",
+           "4": "found",
+           "5": "found",
+           "6": "found",
+           "7": "found",
+           "8": "found",
+           "9": "found",
+           "10": "found",
+           "11": "found",
+           "12": "dim",
+           "13": "dim",
+           "14": "dim",
+           "15": "found"
+          },
+          "pointers": {
+           "i": 16
+          },
+          "label": "line",
+          "slots": true
+         },
+         {
+          "type": "vars",
+          "items": {
+           "state:": "inside quotes",
+           "current field:": "5",
+           "fields:": "id | Lee, Ann"
+          }
+         }
+        ]
+       },
+       {
+        "text": "A quote inside quotes, followed by another quote: that pair is an escaped quote. Add one `\"` to the field and skip both.",
+        "panels": [
+         {
+          "type": "row",
+          "cells": [
+           "i",
+           "d",
+           ",",
+           "\"",
+           "L",
+           "e",
+           "e",
+           ",",
+           " ",
+           "A",
+           "n",
+           "n",
+           "\"",
+           ",",
+           "\"",
+           "5",
+           "\"",
+           "\"",
+           " ",
+           "t",
+           "a",
+           "l",
+           "l",
+           "\""
+          ],
+          "states": {
+           "0": "found",
+           "1": "found",
+           "2": "dim",
+           "3": "dim",
+           "4": "found",
+           "5": "found",
+           "6": "found",
+           "7": "found",
+           "8": "found",
+           "9": "found",
+           "10": "found",
+           "11": "found",
+           "12": "dim",
+           "13": "dim",
+           "14": "dim",
+           "15": "found",
+           "16": "found",
+           "17": "found"
+          },
+          "pointers": {
+           "i": 18
+          },
+          "label": "line",
+          "slots": true
+         },
+         {
+          "type": "vars",
+          "items": {
+           "state:": "inside quotes",
+           "current field:": "5\"",
+           "fields:": "id | Lee, Ann"
+          }
+         }
+        ]
+       },
+       {
+        "text": "A space inside quotes: copied.",
+        "panels": [
+         {
+          "type": "row",
+          "cells": [
+           "i",
+           "d",
+           ",",
+           "\"",
+           "L",
+           "e",
+           "e",
+           ",",
+           " ",
+           "A",
+           "n",
+           "n",
+           "\"",
+           ",",
+           "\"",
+           "5",
+           "\"",
+           "\"",
+           " ",
+           "t",
+           "a",
+           "l",
+           "l",
+           "\""
+          ],
+          "states": {
+           "0": "found",
+           "1": "found",
+           "2": "dim",
+           "3": "dim",
+           "4": "found",
+           "5": "found",
+           "6": "found",
+           "7": "found",
+           "8": "found",
+           "9": "found",
+           "10": "found",
+           "11": "found",
+           "12": "dim",
+           "13": "dim",
+           "14": "dim",
+           "15": "found",
+           "16": "found",
+           "17": "found",
+           "18": "found"
+          },
+          "pointers": {
+           "i": 19
+          },
+          "label": "line",
+          "slots": true
+         },
+         {
+          "type": "vars",
+          "items": {
+           "state:": "inside quotes",
+           "current field:": "5\" ",
+           "fields:": "id | Lee, Ann"
+          }
+         }
+        ]
+       },
+       {
+        "text": "'t' inside quotes: copied.",
+        "panels": [
+         {
+          "type": "row",
+          "cells": [
+           "i",
+           "d",
+           ",",
+           "\"",
+           "L",
+           "e",
+           "e",
+           ",",
+           " ",
+           "A",
+           "n",
+           "n",
+           "\"",
+           ",",
+           "\"",
+           "5",
+           "\"",
+           "\"",
+           " ",
+           "t",
+           "a",
+           "l",
+           "l",
+           "\""
+          ],
+          "states": {
+           "0": "found",
+           "1": "found",
+           "2": "dim",
+           "3": "dim",
+           "4": "found",
+           "5": "found",
+           "6": "found",
+           "7": "found",
+           "8": "found",
+           "9": "found",
+           "10": "found",
+           "11": "found",
+           "12": "dim",
+           "13": "dim",
+           "14": "dim",
+           "15": "found",
+           "16": "found",
+           "17": "found",
+           "18": "found",
+           "19": "found"
+          },
+          "pointers": {
+           "i": 20
+          },
+          "label": "line",
+          "slots": true
+         },
+         {
+          "type": "vars",
+          "items": {
+           "state:": "inside quotes",
+           "current field:": "5\" t",
+           "fields:": "id | Lee, Ann"
+          }
+         }
+        ]
+       },
+       {
+        "text": "'a' inside quotes: copied.",
+        "panels": [
+         {
+          "type": "row",
+          "cells": [
+           "i",
+           "d",
+           ",",
+           "\"",
+           "L",
+           "e",
+           "e",
+           ",",
+           " ",
+           "A",
+           "n",
+           "n",
+           "\"",
+           ",",
+           "\"",
+           "5",
+           "\"",
+           "\"",
+           " ",
+           "t",
+           "a",
+           "l",
+           "l",
+           "\""
+          ],
+          "states": {
+           "0": "found",
+           "1": "found",
+           "2": "dim",
+           "3": "dim",
+           "4": "found",
+           "5": "found",
+           "6": "found",
+           "7": "found",
+           "8": "found",
+           "9": "found",
+           "10": "found",
+           "11": "found",
+           "12": "dim",
+           "13": "dim",
+           "14": "dim",
+           "15": "found",
+           "16": "found",
+           "17": "found",
+           "18": "found",
+           "19": "found",
+           "20": "found"
+          },
+          "pointers": {
+           "i": 21
+          },
+          "label": "line",
+          "slots": true
+         },
+         {
+          "type": "vars",
+          "items": {
+           "state:": "inside quotes",
+           "current field:": "5\" ta",
+           "fields:": "id | Lee, Ann"
+          }
+         }
+        ]
+       },
+       {
+        "text": "'l' inside quotes: copied.",
+        "panels": [
+         {
+          "type": "row",
+          "cells": [
+           "i",
+           "d",
+           ",",
+           "\"",
+           "L",
+           "e",
+           "e",
+           ",",
+           " ",
+           "A",
+           "n",
+           "n",
+           "\"",
+           ",",
+           "\"",
+           "5",
+           "\"",
+           "\"",
+           " ",
+           "t",
+           "a",
+           "l",
+           "l",
+           "\""
+          ],
+          "states": {
+           "0": "found",
+           "1": "found",
+           "2": "dim",
+           "3": "dim",
+           "4": "found",
+           "5": "found",
+           "6": "found",
+           "7": "found",
+           "8": "found",
+           "9": "found",
+           "10": "found",
+           "11": "found",
+           "12": "dim",
+           "13": "dim",
+           "14": "dim",
+           "15": "found",
+           "16": "found",
+           "17": "found",
+           "18": "found",
+           "19": "found",
+           "20": "found",
+           "21": "found"
+          },
+          "pointers": {
+           "i": 22
+          },
+          "label": "line",
+          "slots": true
+         },
+         {
+          "type": "vars",
+          "items": {
+           "state:": "inside quotes",
+           "current field:": "5\" tal",
+           "fields:": "id | Lee, Ann"
+          }
+         }
+        ]
+       },
+       {
+        "text": "'l' inside quotes: copied.",
+        "panels": [
+         {
+          "type": "row",
+          "cells": [
+           "i",
+           "d",
+           ",",
+           "\"",
+           "L",
+           "e",
+           "e",
+           ",",
+           " ",
+           "A",
+           "n",
+           "n",
+           "\"",
+           ",",
+           "\"",
+           "5",
+           "\"",
+           "\"",
+           " ",
+           "t",
+           "a",
+           "l",
+           "l",
+           "\""
+          ],
+          "states": {
+           "0": "found",
+           "1": "found",
+           "2": "dim",
+           "3": "dim",
+           "4": "found",
+           "5": "found",
+           "6": "found",
+           "7": "found",
+           "8": "found",
+           "9": "found",
+           "10": "found",
+           "11": "found",
+           "12": "dim",
+           "13": "dim",
+           "14": "dim",
+           "15": "found",
+           "16": "found",
+           "17": "found",
+           "18": "found",
+           "19": "found",
+           "20": "found",
+           "21": "found",
+           "22": "found"
+          },
+          "pointers": {
+           "i": 23
+          },
+          "label": "line",
+          "slots": true
+         },
+         {
+          "type": "vars",
+          "items": {
+           "state:": "inside quotes",
+           "current field:": "5\" tall",
+           "fields:": "id | Lee, Ann"
+          }
+         }
+        ]
+       },
+       {
+        "text": "A quote inside quotes with no partner: the quoted part ends here.",
+        "panels": [
+         {
+          "type": "row",
+          "cells": [
+           "i",
+           "d",
+           ",",
+           "\"",
+           "L",
+           "e",
+           "e",
+           ",",
+           " ",
+           "A",
+           "n",
+           "n",
+           "\"",
+           ",",
+           "\"",
+           "5",
+           "\"",
+           "\"",
+           " ",
+           "t",
+           "a",
+           "l",
+           "l",
+           "\""
+          ],
+          "states": {
+           "0": "found",
+           "1": "found",
+           "2": "dim",
+           "3": "dim",
+           "4": "found",
+           "5": "found",
+           "6": "found",
+           "7": "found",
+           "8": "found",
+           "9": "found",
+           "10": "found",
+           "11": "found",
+           "12": "dim",
+           "13": "dim",
+           "14": "dim",
+           "15": "found",
+           "16": "found",
+           "17": "found",
+           "18": "found",
+           "19": "found",
+           "20": "found",
+           "21": "found",
+           "22": "found",
+           "23": "dim"
+          },
+          "pointers": {},
+          "label": "line",
+          "slots": true
+         },
+         {
+          "type": "vars",
+          "items": {
+           "state:": "outside quotes",
+           "current field:": "5\" tall",
+           "fields:": "id | Lee, Ann"
+          }
+         }
+        ]
+       },
+       {
+        "text": "The line ends, which closes the last field. Fields: id | Lee, Ann | 5\" tall.",
+        "panels": [
+         {
+          "type": "row",
+          "cells": [
+           "i",
+           "d",
+           ",",
+           "\"",
+           "L",
+           "e",
+           "e",
+           ",",
+           " ",
+           "A",
+           "n",
+           "n",
+           "\"",
+           ",",
+           "\"",
+           "5",
+           "\"",
+           "\"",
+           " ",
+           "t",
+           "a",
+           "l",
+           "l",
+           "\""
+          ],
+          "states": {
+           "0": "found",
+           "1": "found",
+           "2": "dim",
+           "3": "dim",
+           "4": "found",
+           "5": "found",
+           "6": "found",
+           "7": "found",
+           "8": "found",
+           "9": "found",
+           "10": "found",
+           "11": "found",
+           "12": "dim",
+           "13": "dim",
+           "14": "dim",
+           "15": "found",
+           "16": "found",
+           "17": "found",
+           "18": "found",
+           "19": "found",
+           "20": "found",
+           "21": "found",
+           "22": "found",
+           "23": "dim"
+          },
+          "pointers": {},
+          "label": "line",
+          "slots": true
+         },
+         {
+          "type": "vars",
+          "items": {
+           "state:": "outside quotes",
+           "current field:": "(empty)",
+           "fields:": "id | Lee, Ann | 5\" tall"
+          }
+         }
+        ],
+        "result": "id | Lee, Ann | 5\" tall"
+       }
+      ],
+      "title": "`split_csv('id,\"Lee, Ann\",\"5\"\" tall\"')`, one character per step.",
+      "legend": [
+       {
+        "state": "found",
+        "text": "copied into a field"
+       },
+       {
+        "state": "dim",
+        "text": "punctuation: read, not copied"
+       }
+      ]
+     }
+    },
+    {
+     "md": "On paper, write the line once, and under it the state (in or out of quotes) after each character. Mark every\ncharacter as data or punctuation. The fields are the runs of data between punctuation commas."
+    }
+   ]
+  },
+  {
+   "id": "examples",
+   "title": "More examples",
+   "blocks": [
+    {
+     "md": "### Reading a number carefully\n\n\"Skip spaces, read an optional sign, read digits, stop at anything else, clamp to the 32-bit range\" is a\nsmall state machine: before the sign, after the sign, in the digits. The edge cases are where the marks go:\nno digits at all (the answer is 0), a sign with nothing after it, two signs, leading zeros, and a value\nthat passes `2³¹ - 1` partway through. Build the value in a 64-bit integer, or check\n`value > (LIMIT - d) / 10` before multiplying.\n\n### Laying text out\n\nProblems that *produce* text (wrapping words into lines, padding columns, drawing a zigzag) are simulations\ntoo. Work in two phases: first decide what goes on each line (which words, or which characters), then format\neach line. Mixing the two is how off-by-one errors in spacing creep in.\n\n### Length-prefixed records\n\nWriting each string as `length#string` lets the strings contain anything, including `#`. Reading it back is\na loop: read digits up to the `#`, then take exactly that many characters, whatever they are. The length tells\nyou where the next record starts; you never search for a separator inside the data."
+    }
+   ]
+  },
+  {
+   "id": "variations",
+   "title": "Variations",
+   "blocks": [
+    {
+     "md": "### Producing text: thousands separators\n\nFormatting is parsing in reverse. Write the digits of `|n|`, putting a comma before every digit whose\ndistance from the end is a multiple of three, then put the sign back."
+    },
+    {
+     "code": {
+      "python": "def add_commas(n):\n    digits = str(abs(n))\n    out = []\n    for i, ch in enumerate(digits):\n        if i > 0 and (len(digits) - i) % 3 == 0:\n            out.append(\",\")\n        out.append(ch)\n    return (\"-\" if n < 0 else \"\") + \"\".join(out)\n",
+      "java": "static String addCommas(long n) {\n    String digits = Long.toString(Math.abs(n));\n    StringBuilder out = new StringBuilder();\n    for (int i = 0; i < digits.length(); i++) {\n        if (i > 0 && (digits.length() - i) % 3 == 0)\n            out.append(',');\n        out.append(digits.charAt(i));\n    }\n    return (n < 0 ? \"-\" : \"\") + out;\n}\n",
+      "cpp": "string addCommas(long long n) {\n    string digits = to_string(n < 0 ? -n : n);\n    string out;\n    for (size_t i = 0; i < digits.size(); i++) {\n        if (i > 0 && (digits.size() - i) % 3 == 0)\n            out += ',';\n        out += digits[i];\n    }\n    return (n < 0 ? \"-\" : \"\") + out;\n}\n",
+      "c": "void addCommas(long long n, char* out) {\n    char digits[24];\n    unsigned long long mag = n < 0 ? 0ULL - (unsigned long long)n : (unsigned long long)n;\n    sprintf(digits, \"%llu\", mag);\n    int len = strlen(digits), w = 0;\n    if (n < 0) out[w++] = '-';\n    for (int i = 0; i < len; i++) {\n        if (i > 0 && (len - i) % 3 == 0)\n            out[w++] = ',';\n        out[w++] = digits[i];\n    }\n    out[w] = '\\0';\n}\n"
+     },
+     "title": "Add thousands separators",
+     "lines": [
+      {
+       "text": "The digits of the absolute value.",
+       "at": {
+        "python": [
+         [
+          2,
+          2
+         ]
+        ],
+        "java": [
+         [
+          2,
+          2
+         ]
+        ],
+        "cpp": [
+         [
+          2,
+          2
+         ]
+        ],
+        "c": [
+         [
+          2,
+          4
+         ]
+        ]
+       },
+       "notes": {
+        "java": "`Math.abs(Long.MIN_VALUE)` is still negative; the full range would need special handling.",
+        "cpp": "`-n` overflows for the smallest `long long`; the full range would need special handling.",
+        "c": "Negating as `unsigned long long` handles even the smallest `long long`."
+       }
+      },
+      {
+       "text": "Copy the digits left to right.",
+       "at": {
+        "python": [
+         [
+          3,
+          4
+         ],
+         [
+          7,
+          7
+         ]
+        ],
+        "java": [
+         [
+          3,
+          4
+         ],
+         [
+          7,
+          7
+         ]
+        ],
+        "cpp": [
+         [
+          3,
+          4
+         ],
+         [
+          7,
+          7
+         ]
+        ],
+        "c": [
+         [
+          5,
+          5
+         ],
+         [
+          7,
+          7
+         ],
+         [
+          10,
+          10
+         ],
+         [
+          12,
+          12
+         ]
+        ]
+       }
+      },
+      {
+       "text": "A comma goes before a digit when the number of digits from it to the end is a multiple of 3, except before the first digit.",
+       "at": {
+        "python": [
+         [
+          5,
+          6
+         ]
+        ],
+        "java": [
+         [
+          5,
+          6
+         ]
+        ],
+        "cpp": [
+         [
+          5,
+          6
+         ]
+        ],
+        "c": [
+         [
+          8,
+          9
+         ]
+        ]
+       }
+      },
+      {
+       "text": "Put the minus sign back for negative numbers.",
+       "at": {
+        "python": [
+         [
+          8,
+          8
+         ]
+        ],
+        "java": [
+         [
+          9,
+          9
+         ]
+        ],
+        "cpp": [
+         [
+          9,
+          9
+         ]
+        ],
+        "c": [
+         [
+          6,
+          6
+         ]
+        ]
+       }
+      }
+     ],
+     "run": {
+      "call": "add_commas(1234567); (-1000); (999); (0); (9876543210)",
+      "output": "1,234,567\n-1,000\n999\n0\n9,876,543,210"
+     }
+    },
+    {
+     "md": "### Tokenize first, then work on tokens\n\nWhen a format has several kinds of token, split the text into a list of tokens first (as in the tokenizer\nwalkthrough), then solve the problem on the list. Each phase is short and easy to test, and the second\nphase doesn't have to think about spaces or digit-by-digit reading.\n\n### Comparing without converting\n\nTo compare two numbers written as strings, possibly longer than any integer type: strip leading zeros, then\nthe longer one is bigger, and equal lengths compare character by character (`\"9\" > \"1\"` as characters too)."
+    }
+   ]
+  },
+  {
+   "id": "complexity",
+   "title": "What it costs",
+   "blocks": [
+    {
+     "md": "One pass over the input, with O(1) work per character: O(n) time. Extra space is the output (the fields, the\ntokens, the formatted text). Watch out for hidden costs: building strings by repeated `+` in a loop can be\nO(n²) in some languages, and so can calling `strlen` inside a loop condition in C."
+    },
+    {
+     "table": {
+      "head": [
+       "Approach",
+       "Time",
+       "Notes"
+      ],
+      "rows": [
+       [
+        "One pass with explicit state",
+        "O(n)",
+        "the usual answer"
+       ],
+       [
+        "`split` and fix-ups afterwards",
+        "O(n)",
+        "breaks on quotes and escapes"
+       ],
+       [
+        "Regular expressions",
+        "O(n) usually",
+        "fine for simple formats, hard to get exactly right"
+       ],
+       [
+        "Repeated `str + ch` in a loop",
+        "O(n²) in Java and C",
+        "use a builder"
+       ]
+      ]
+     }
+    }
+   ]
+  },
+  {
+   "id": "languages",
+   "title": "In your language",
+   "blocks": [
+    {
+     "md": "### Python\n\nCollect characters in a list and `\"\".join` once. `str.isdigit()` also accepts some non-ASCII digits; for\nstrict parsing test `\"0\" <= ch <= \"9\"`. The `csv` module handles real CSV.\n\n### Java\n\n`StringBuilder` for building, `Character.isDigit` (same non-ASCII caveat as Python), `charAt` for reading.\n`Integer.parseInt` throws on anything unexpected, which is a valid strategy if you catch it.\n\n### C++\n\n`std::string` with `+=` is amortised O(1) per character. `isdigit` takes an `unsigned char` value; passing a\nnegative `char` is undefined. `std::stoll` throws on bad input or overflow.\n\n### C\n\nWrite into a caller-provided buffer and terminate it with `'\\0'`. `strtol` parses numbers and reports\noverflow through `errno`. Make sure every buffer has room for the terminator."
+    }
+   ]
+  },
+  {
+   "id": "pitfalls",
+   "title": "Pitfalls and edge cases",
+   "blocks": [
+    {
+     "md": "- Forgetting the last token after the loop.\n- Reading `s[i + 1]` without checking `i + 1 < n`.\n- Empty input, a trailing separator, two separators in a row: each usually means an empty field.\n- Signs without digits, digits without a sign, leading zeros.\n- Overflow while building a number from digits.\n- Using `split` on formats where the separator can appear inside quotes or escapes.\n- Building strings with `+` in a loop in Java or C."
+    }
+   ]
+  },
+  {
+   "id": "check",
+   "title": "Check yourself",
+   "blocks": [
+    {
+     "quiz": [
+      {
+       "q": "What fields does `split_csv` give for `a,,` and why?",
+       "a": "Three: \"a\", \"\" and \"\". Each comma outside quotes ends a field, and the line's end finishes the last one, which is empty."
+      },
+      {
+       "q": "Why does the CSV loop need a state flag at all?",
+       "a": "A comma means \"end of field\" outside quotes but is ordinary data inside them. The flag says which meaning applies."
+      },
+      {
+       "q": "Inside quotes the code sees `\"`. How does it decide what that quote means?",
+       "a": "It peeks at the next character. Another `\"` means an escaped quote (copy one, skip both); anything else, or the end, means the quoted part is over."
+      },
+      {
+       "q": "A tokenizer reads digits with an inner loop. Where should that loop leave the index?",
+       "a": "On the first character that isn't a digit, so the outer loop handles it next without skipping or re-reading anything."
+      },
+      {
+       "q": "How do you compare \"0012\" and \"9\" as numbers if they might be too long for any integer type?",
+       "a": "Strip leading zeros (\"12\" and \"9\"). The longer one is bigger, so 12 > 9. Equal lengths would compare digit by digit."
+      }
+     ]
+    }
+   ]
+  }
+ ],
+ "leetcode": [
+  {
+   "id": 1556,
+   "title": "Thousand Separator",
+   "url": "https://leetcode.com/problems/thousand-separator/",
+   "difficulty": "easy"
+  },
+  {
+   "id": 1592,
+   "title": "Rearrange Spaces Between Words",
+   "url": "https://leetcode.com/problems/rearrange-spaces-between-words/",
+   "difficulty": "easy"
+  },
+  {
+   "id": 2042,
+   "title": "Check if Numbers Are Ascending in a Sentence",
+   "url": "https://leetcode.com/problems/check-if-numbers-are-ascending-in-a-sentence/",
+   "difficulty": "easy"
+  },
+  {
+   "id": 6,
+   "title": "Zigzag Conversion",
+   "url": "https://leetcode.com/problems/zigzag-conversion/",
+   "difficulty": "medium"
+  },
+  {
+   "id": 8,
+   "title": "String to Integer (atoi)",
+   "url": "https://leetcode.com/problems/string-to-integer-atoi/",
+   "difficulty": "medium"
+  },
+  {
+   "id": 165,
+   "title": "Compare Version Numbers",
+   "url": "https://leetcode.com/problems/compare-version-numbers/",
+   "difficulty": "medium"
+  },
+  {
+   "id": 468,
+   "title": "Validate IP Address",
+   "url": "https://leetcode.com/problems/validate-ip-address/",
+   "difficulty": "medium"
+  },
+  {
+   "id": 722,
+   "title": "Remove Comments",
+   "url": "https://leetcode.com/problems/remove-comments/",
+   "difficulty": "medium"
+  },
+  {
+   "id": 68,
+   "title": "Text Justification",
+   "url": "https://leetcode.com/problems/text-justification/",
+   "difficulty": "hard"
+  },
+  {
+   "id": 65,
+   "title": "Valid Number",
+   "url": "https://leetcode.com/problems/valid-number/",
+   "difficulty": "hard"
+  },
+  {
+   "id": 591,
+   "title": "Tag Validator",
+   "url": "https://leetcode.com/problems/tag-validator/",
+   "difficulty": "hard"
+  },
+  {
+   "id": 271,
+   "title": "Encode and Decode Strings",
+   "url": "https://leetcode.com/problems/encode-and-decode-strings/",
+   "difficulty": "medium",
+   "premium": true
+  }
+ ]
+}

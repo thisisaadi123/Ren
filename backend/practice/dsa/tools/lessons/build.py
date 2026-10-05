@@ -16,7 +16,7 @@ from concurrent.futures import ThreadPoolExecutor
 
 import lesson
 
-TOPICS = {"arrays-hashing": "arrays_lessons", "sorting": "sorting_lessons", "two-pointers": "two_pointers_lessons"}
+TOPICS = {"arrays-hashing": "arrays_lessons", "sorting": "sorting_lessons", "two-pointers": "two_pointers_lessons", "strings": "strings_lessons"}
 BUILD = os.path.join(lesson.DSA, "build", "lessons")
 JAVA_BINS = [os.environ.get("JAVA_HOME") and os.path.join(os.environ["JAVA_HOME"], "bin"), "/opt/homebrew/opt/openjdk@21/bin", "/opt/homebrew/opt/openjdk/bin"]
 JAVA = next((d for d in JAVA_BINS if d and os.path.exists(os.path.join(d, "javac"))), "")

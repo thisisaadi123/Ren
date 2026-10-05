@@ -1,0 +1,1420 @@
+{
+ "version": 1,
+ "id": "expand-center",
+ "topic": "strings",
+ "summary": "Every palindrome has a middle: a letter for odd lengths, a gap between two letters for even ones. Stand at each\nof the 2n - 1 possible middles and grow outward while the two ends match. That finds the longest palindrome around\nevery center in O(n²) time and O(1) space, with no table.",
+ "minutes": 11,
+ "sections": [
+  {
+   "id": "idea",
+   "title": "The idea",
+   "blocks": [
+    {
+     "md": "Fold a strip of paper with a word on it. If the letters that land on top of each other all match, the word\nis a palindrome, and the fold line is its middle. \"racecar\" folds on the \"e\". \"noon\" folds in the gap\nbetween the two o's.\n\nTurn that around. Pick a fold line anywhere in a string, and check the letters on either side: one step out,\ntwo steps out, and so on, for as long as they match. The stretch you've covered is the longest palindrome\nwith that middle. The first mismatch ends it, because any longer stretch around the same middle contains\nthe mismatched pair.\n\nA string of `n` letters has `n` letter middles and `n - 1` gap middles. Grow from each one and you've seen\nthe longest palindrome around every possible middle, which means you've seen every palindrome there is."
+    },
+    {
+     "panels": [
+      {
+       "type": "row",
+       "cells": [
+        "r",
+        "a",
+        "c",
+        "e",
+        "c",
+        "a",
+        "r"
+       ],
+       "states": {
+        "3": "active"
+       },
+       "label": "odd length: the middle is a letter",
+       "slots": true
+      },
+      {
+       "type": "row",
+       "cells": [
+        "n",
+        "o",
+        "o",
+        "n"
+       ],
+       "states": {
+        "1": "active",
+        "2": "active"
+       },
+       "label": "even length: the middle is a gap",
+       "slots": true
+      }
+     ],
+     "caption": "Two kinds of middle. Forgetting the gaps is the classic bug: it misses every even-length palindrome."
+    },
+    {
+     "key": "For each of the `2n - 1` centers, start `lo` and `hi` on it (the same letter, or the two letters around a gap)\nand move them outward while `s[lo] == s[hi]`. The palindrome is `s[lo + 1 .. hi - 1]`, length `hi - lo - 1`.\nO(n²) time worst case, O(1) extra space."
+    }
+   ]
+  },
+  {
+   "id": "signals",
+   "title": "When to reach for it",
+   "blocks": [
+    {
+     "md": "The question is about palindromic *substrings* (contiguous pieces): the longest one, how many there are, the\nlongest around a position, or palindromes with a twist (one mismatch allowed, a custom notion of\n\"matching\"). With `n` up to a few thousand, O(n²) is fine."
+    },
+    {
+     "table": {
+      "head": [
+       "The problem says…",
+       "at each center"
+      ],
+      "rows": [
+       [
+        "the longest palindromic substring",
+        "keep the longest span"
+       ],
+       [
+        "how many palindromic substrings",
+        "every step of growth is one more palindrome"
+       ],
+       [
+        "palindromes allowing one mismatch",
+        "grow past the first mismatch, stop at the second"
+       ],
+       [
+        "pairs that \"match\" in a custom way",
+        "replace `==` with your own test"
+       ]
+      ]
+     }
+    },
+    {
+     "md": "Not a fit:\n\n- Palindromic *subsequences* (letters may be skipped). Growing from a center only sees contiguous text.\n  That's dynamic programming.\n- Is the whole string a palindrome? Two pointers from the ends (*Palindrome checks*) is simpler.\n- `n` around 10⁵ or more and you need every center. O(n²) is too slow; Manacher's algorithm gets the same\n  answers in O(n) by reusing work, or use hashing with binary search."
+    }
+   ]
+  },
+  {
+   "id": "theory",
+   "title": "Why it works",
+   "blocks": [
+    {
+     "md": "### Every palindrome has exactly one center\n\nA palindrome of odd length `2r + 1` is centred on its middle letter, and one of even length `2r` on the gap\nbetween its two middle letters. Number the centers `0, 1, …, 2n - 2`: even `c` is the letter `c / 2`, odd\n`c` is the gap after letter `c / 2`. So \"every palindrome\" means \"every center, and every radius up to the\nlongest at that center\".\n\n### Palindromes around one center are nested\n\nIf `s[lo..hi]` is a palindrome, so is `s[lo + 1..hi - 1]`: strip one letter from each end and the rest still\nreads the same both ways. So the palindromes at one center are a nested family, and growing outward finds\nthem in order. The first mismatch ends the family, since every longer candidate contains that pair."
+    },
+    {
+     "walk": {
+      "steps": [
+       {
+        "text": "A single letter is a palindrome on its own. Start with `lo` and `hi` both on index 4.",
+        "panels": [
+         {
+          "type": "row",
+          "cells": [
+           "x",
+           "a",
+           "b",
+           "a",
+           "c",
+           "a",
+           "b",
+           "a",
+           "y"
+          ],
+          "states": {
+           "4": "found"
+          },
+          "pointers": {
+           "lo": 4,
+           "hi": 4
+          },
+          "label": "s",
+          "slots": true
+         },
+         {
+          "type": "vars",
+          "items": {
+           "palindrome:": "c"
+          }
+         }
+        ]
+       },
+       {
+        "text": "Step out one place each way: 'a' and 'a' match, so \"aca\" is a palindrome too.",
+        "panels": [
+         {
+          "type": "row",
+          "cells": [
+           "x",
+           "a",
+           "b",
+           "a",
+           "c",
+           "a",
+           "b",
+           "a",
+           "y"
+          ],
+          "states": {
+           "4": "found",
+           "3": "active",
+           "5": "active"
+          },
+          "pointers": {
+           "lo": 3,
+           "hi": 5
+          },
+          "label": "s",
+          "slots": true
+         },
+         {
+          "type": "vars",
+          "items": {
+           "palindrome:": "aca"
+          }
+         }
+        ]
+       },
+       {
+        "text": "Step out one place each way: 'b' and 'b' match, so \"bacab\" is a palindrome too.",
+        "panels": [
+         {
+          "type": "row",
+          "cells": [
+           "x",
+           "a",
+           "b",
+           "a",
+           "c",
+           "a",
+           "b",
+           "a",
+           "y"
+          ],
+          "states": {
+           "3": "found",
+           "4": "found",
+           "5": "found",
+           "2": "active",
+           "6": "active"
+          },
+          "pointers": {
+           "lo": 2,
+           "hi": 6
+          },
+          "label": "s",
+          "slots": true
+         },
+         {
+          "type": "vars",
+          "items": {
+           "palindrome:": "bacab"
+          }
+         }
+        ]
+       },
+       {
+        "text": "Step out one place each way: 'a' and 'a' match, so \"abacaba\" is a palindrome too.",
+        "panels": [
+         {
+          "type": "row",
+          "cells": [
+           "x",
+           "a",
+           "b",
+           "a",
+           "c",
+           "a",
+           "b",
+           "a",
+           "y"
+          ],
+          "states": {
+           "2": "found",
+           "3": "found",
+           "4": "found",
+           "5": "found",
+           "6": "found",
+           "1": "active",
+           "7": "active"
+          },
+          "pointers": {
+           "lo": 1,
+           "hi": 7
+          },
+          "label": "s",
+          "slots": true
+         },
+         {
+          "type": "vars",
+          "items": {
+           "palindrome:": "abacaba"
+          }
+         }
+        ]
+       },
+       {
+        "text": "Step out again: 'x' and 'y' differ. Stop. Every longer string around this center would contain this mismatched pair, so \"abacaba\" (length 7) is the longest palindrome here.",
+        "panels": [
+         {
+          "type": "row",
+          "cells": [
+           "x",
+           "a",
+           "b",
+           "a",
+           "c",
+           "a",
+           "b",
+           "a",
+           "y"
+          ],
+          "states": {
+           "1": "found",
+           "2": "found",
+           "3": "found",
+           "4": "found",
+           "5": "found",
+           "6": "found",
+           "7": "found",
+           "0": "mark",
+           "8": "mark"
+          },
+          "pointers": {
+           "lo": 0,
+           "hi": 8
+          },
+          "label": "s",
+          "slots": true
+         },
+         {
+          "type": "vars",
+          "items": {
+           "palindrome:": "abacaba"
+          }
+         }
+        ]
+       }
+      ],
+      "title": "Growing the palindrome centred on the 'c' at index 4 of \"xabacabay\".",
+      "legend": [
+       {
+        "state": "found",
+        "text": "known to be a palindrome"
+       },
+       {
+        "state": "active",
+        "text": "the new pair: equal"
+       },
+       {
+        "state": "mark",
+        "text": "the new pair: different"
+       }
+      ]
+     }
+    },
+    {
+     "md": "### Starting positions\n\nFor center `c`, the code starts with `lo = c // 2` and `hi = c // 2 + c % 2`. On a letter center that's the\nsame index twice (a single letter always matches itself, so the first step grows to length 1). On a gap\ncenter it's the two letters around the gap, which might not match, giving length 0. After the loop, the\npalindrome is everything strictly between `lo` and `hi`, so its length is `hi - lo - 1`.\n\n### Cost\n\nEach center grows at most to the nearer end of the string, so the total is O(n²) in the worst case. That\nhappens on strings like `\"aaaa…\"`, where every center grows all the way. On ordinary text most centers stop\nafter a step or two, so it's usually much faster than the bound. No arrays are needed beyond the answer."
+    }
+   ]
+  },
+  {
+   "id": "template",
+   "title": "The template",
+   "blocks": [
+    {
+     "md": "For every center of `s`, the length of the longest palindrome centred there. This one array answers most\nquestions about palindromic substrings."
+    },
+    {
+     "code": {
+      "python": "def longest_at_centers(s):\n    n = len(s)\n    out = []\n    for c in range(2 * n - 1):\n        lo, hi = c // 2, c // 2 + c % 2\n        while lo >= 0 and hi < n and s[lo] == s[hi]:\n            lo, hi = lo - 1, hi + 1\n        out.append(hi - lo - 1)\n    return out\n",
+      "java": "static int[] longestAtCenters(String s) {\n    int n = s.length();\n    int[] out = new int[Math.max(0, 2 * n - 1)];\n    for (int c = 0; c < 2 * n - 1; c++) {\n        int lo = c / 2, hi = c / 2 + c % 2;\n        while (lo >= 0 && hi < n && s.charAt(lo) == s.charAt(hi)) {\n            lo--;\n            hi++;\n        }\n        out[c] = hi - lo - 1;\n    }\n    return out;\n}\n",
+      "cpp": "vector<int> longestAtCenters(const string& s) {\n    int n = s.size();\n    vector<int> out;\n    for (int c = 0; c < 2 * n - 1; c++) {\n        int lo = c / 2, hi = c / 2 + c % 2;\n        while (lo >= 0 && hi < n && s[lo] == s[hi]) {\n            lo--;\n            hi++;\n        }\n        out.push_back(hi - lo - 1);\n    }\n    return out;\n}\n",
+      "c": "int longestAtCenters(const char* s, int* out) {\n    int n = strlen(s);\n    for (int c = 0; c < 2 * n - 1; c++) {\n        int lo = c / 2, hi = c / 2 + c % 2;\n        while (lo >= 0 && hi < n && s[lo] == s[hi]) {\n            lo--;\n            hi++;\n        }\n        out[c] = hi - lo - 1;\n    }\n    return n > 0 ? 2 * n - 1 : 0;\n}\n"
+     },
+     "title": "Longest palindrome at every center",
+     "lines": [
+      {
+       "text": "The string's length, and room for one answer per center.",
+       "at": {
+        "python": [
+         [
+          2,
+          3
+         ]
+        ],
+        "java": [
+         [
+          2,
+          3
+         ]
+        ],
+        "cpp": [
+         [
+          2,
+          3
+         ]
+        ],
+        "c": [
+         [
+          2,
+          2
+         ]
+        ]
+       },
+       "notes": {
+        "java": "`Math.max(0, …)` keeps an empty string from asking for an array of size -1."
+       }
+      },
+      {
+       "text": "`2n - 1` centers: `n` letters and `n - 1` gaps between them.",
+       "at": {
+        "python": [
+         [
+          4,
+          4
+         ]
+        ],
+        "java": [
+         [
+          4,
+          4
+         ]
+        ],
+        "cpp": [
+         [
+          4,
+          4
+         ]
+        ],
+        "c": [
+         [
+          3,
+          3
+         ]
+        ]
+       }
+      },
+      {
+       "text": "On a letter (even `c`), both pointers start on it. On a gap (odd `c`), they start on the two letters around it.",
+       "at": {
+        "python": [
+         [
+          5,
+          5
+         ]
+        ],
+        "java": [
+         [
+          5,
+          5
+         ]
+        ],
+        "cpp": [
+         [
+          5,
+          5
+         ]
+        ],
+        "c": [
+         [
+          4,
+          4
+         ]
+        ]
+       }
+      },
+      {
+       "text": "Move outward while both pointers are inside the string and their letters match.",
+       "at": {
+        "python": [
+         [
+          6,
+          7
+         ]
+        ],
+        "java": [
+         [
+          6,
+          8
+         ]
+        ],
+        "cpp": [
+         [
+          6,
+          8
+         ]
+        ],
+        "c": [
+         [
+          5,
+          7
+         ]
+        ]
+       }
+      },
+      {
+       "text": "The palindrome is strictly between `lo` and `hi`.",
+       "at": {
+        "python": [
+         [
+          8,
+          8
+         ]
+        ],
+        "java": [
+         [
+          10,
+          10
+         ]
+        ],
+        "cpp": [
+         [
+          10,
+          10
+         ]
+        ],
+        "c": [
+         [
+          9,
+          9
+         ]
+        ]
+       }
+      },
+      {
+       "text": "One length per center.",
+       "at": {
+        "python": [
+         [
+          9,
+          9
+         ]
+        ],
+        "java": [
+         [
+          12,
+          12
+         ]
+        ],
+        "cpp": [
+         [
+          12,
+          12
+         ]
+        ],
+        "c": [
+         [
+          11,
+          11
+         ]
+        ]
+       },
+       "notes": {
+        "c": "C writes into the caller's `out` and returns how many centers there were."
+       }
+      }
+     ],
+     "run": {
+      "call": "longest_at_centers(\"abaab\"); (\"aaaa\"); (\"x\"); (\"\")",
+      "output": "1 0 3 0 1 4 1 0 1\n1 2 3 4 3 2 1\n1"
+     }
+    },
+    {
+     "md": "In `\"aaaa\"` every center grows to the edge: 1, 2, 3, 4, 3, 2, 1. That's the worst case for the running time.\nAn empty string has no centers and prints an empty line."
+    }
+   ]
+  },
+  {
+   "id": "trace",
+   "title": "Trace it by hand",
+   "blocks": [
+    {
+     "md": "The first example, one center per step. The bars collect the answer:"
+    },
+    {
+     "walk": {
+      "steps": [
+       {
+        "text": "Center `c` sits on letter `c // 2` when `c` is even, and in the gap after that letter when `c` is odd.",
+        "panels": [
+         {
+          "type": "row",
+          "cells": [
+           "a",
+           "b",
+           "a",
+           "a",
+           "b"
+          ],
+          "label": "s",
+          "slots": true
+         },
+         {
+          "type": "bars",
+          "values": [
+           null,
+           null,
+           null,
+           null,
+           null,
+           null,
+           null,
+           null,
+           null
+          ],
+          "labels": [
+           "0",
+           "1",
+           "2",
+           "3",
+           "4",
+           "5",
+           "6",
+           "7",
+           "8"
+          ],
+          "label": "longest palindrome at each center",
+          "max": 4
+         }
+        ]
+       },
+       {
+        "text": "Center 0, on 'a' (index 0): it's at the end of the string, so it can't grow past the letter itself: 1.",
+        "panels": [
+         {
+          "type": "row",
+          "cells": [
+           "a",
+           "b",
+           "a",
+           "a",
+           "b"
+          ],
+          "states": {
+           "0": "answer"
+          },
+          "label": "s",
+          "slots": true
+         },
+         {
+          "type": "bars",
+          "values": [
+           1,
+           null,
+           null,
+           null,
+           null,
+           null,
+           null,
+           null,
+           null
+          ],
+          "labels": [
+           "0",
+           "1",
+           "2",
+           "3",
+           "4",
+           "5",
+           "6",
+           "7",
+           "8"
+          ],
+          "states": {
+           "0": "active"
+          },
+          "label": "longest palindrome at each center",
+          "max": 4
+         }
+        ]
+       },
+       {
+        "text": "Center 1, in the gap between index 0 and 1: 'a' and 'b' differ, so nothing even-length is centred here: 0.",
+        "panels": [
+         {
+          "type": "row",
+          "cells": [
+           "a",
+           "b",
+           "a",
+           "a",
+           "b"
+          ],
+          "label": "s",
+          "slots": true
+         },
+         {
+          "type": "bars",
+          "values": [
+           1,
+           0,
+           null,
+           null,
+           null,
+           null,
+           null,
+           null,
+           null
+          ],
+          "labels": [
+           "0",
+           "1",
+           "2",
+           "3",
+           "4",
+           "5",
+           "6",
+           "7",
+           "8"
+          ],
+          "states": {
+           "1": "active"
+          },
+          "label": "longest palindrome at each center",
+          "max": 4
+         }
+        ]
+       },
+       {
+        "text": "Center 2, on 'b' (index 1): it grows to \"aba\": 3.",
+        "panels": [
+         {
+          "type": "row",
+          "cells": [
+           "a",
+           "b",
+           "a",
+           "a",
+           "b"
+          ],
+          "states": {
+           "0": "answer",
+           "1": "answer",
+           "2": "answer"
+          },
+          "label": "s",
+          "slots": true
+         },
+         {
+          "type": "bars",
+          "values": [
+           1,
+           0,
+           3,
+           null,
+           null,
+           null,
+           null,
+           null,
+           null
+          ],
+          "labels": [
+           "0",
+           "1",
+           "2",
+           "3",
+           "4",
+           "5",
+           "6",
+           "7",
+           "8"
+          ],
+          "states": {
+           "2": "active"
+          },
+          "label": "longest palindrome at each center",
+          "max": 4
+         }
+        ]
+       },
+       {
+        "text": "Center 3, in the gap between index 1 and 2: 'b' and 'a' differ, so nothing even-length is centred here: 0.",
+        "panels": [
+         {
+          "type": "row",
+          "cells": [
+           "a",
+           "b",
+           "a",
+           "a",
+           "b"
+          ],
+          "label": "s",
+          "slots": true
+         },
+         {
+          "type": "bars",
+          "values": [
+           1,
+           0,
+           3,
+           0,
+           null,
+           null,
+           null,
+           null,
+           null
+          ],
+          "labels": [
+           "0",
+           "1",
+           "2",
+           "3",
+           "4",
+           "5",
+           "6",
+           "7",
+           "8"
+          ],
+          "states": {
+           "3": "active"
+          },
+          "label": "longest palindrome at each center",
+          "max": 4
+         }
+        ]
+       },
+       {
+        "text": "Center 4, on 'a' (index 2): the neighbours don't match, so just the letter itself: 1.",
+        "panels": [
+         {
+          "type": "row",
+          "cells": [
+           "a",
+           "b",
+           "a",
+           "a",
+           "b"
+          ],
+          "states": {
+           "2": "answer"
+          },
+          "label": "s",
+          "slots": true
+         },
+         {
+          "type": "bars",
+          "values": [
+           1,
+           0,
+           3,
+           0,
+           1,
+           null,
+           null,
+           null,
+           null
+          ],
+          "labels": [
+           "0",
+           "1",
+           "2",
+           "3",
+           "4",
+           "5",
+           "6",
+           "7",
+           "8"
+          ],
+          "states": {
+           "4": "active"
+          },
+          "label": "longest palindrome at each center",
+          "max": 4
+         }
+        ]
+       },
+       {
+        "text": "Center 5, in the gap between index 2 and 3: it grows to \"baab\": 4.",
+        "panels": [
+         {
+          "type": "row",
+          "cells": [
+           "a",
+           "b",
+           "a",
+           "a",
+           "b"
+          ],
+          "states": {
+           "1": "answer",
+           "2": "answer",
+           "3": "answer",
+           "4": "answer"
+          },
+          "label": "s",
+          "slots": true
+         },
+         {
+          "type": "bars",
+          "values": [
+           1,
+           0,
+           3,
+           0,
+           1,
+           4,
+           null,
+           null,
+           null
+          ],
+          "labels": [
+           "0",
+           "1",
+           "2",
+           "3",
+           "4",
+           "5",
+           "6",
+           "7",
+           "8"
+          ],
+          "states": {
+           "5": "active"
+          },
+          "label": "longest palindrome at each center",
+          "max": 4
+         }
+        ]
+       },
+       {
+        "text": "Center 6, on 'a' (index 3): the neighbours don't match, so just the letter itself: 1.",
+        "panels": [
+         {
+          "type": "row",
+          "cells": [
+           "a",
+           "b",
+           "a",
+           "a",
+           "b"
+          ],
+          "states": {
+           "3": "answer"
+          },
+          "label": "s",
+          "slots": true
+         },
+         {
+          "type": "bars",
+          "values": [
+           1,
+           0,
+           3,
+           0,
+           1,
+           4,
+           1,
+           null,
+           null
+          ],
+          "labels": [
+           "0",
+           "1",
+           "2",
+           "3",
+           "4",
+           "5",
+           "6",
+           "7",
+           "8"
+          ],
+          "states": {
+           "6": "active"
+          },
+          "label": "longest palindrome at each center",
+          "max": 4
+         }
+        ]
+       },
+       {
+        "text": "Center 7, in the gap between index 3 and 4: 'a' and 'b' differ, so nothing even-length is centred here: 0.",
+        "panels": [
+         {
+          "type": "row",
+          "cells": [
+           "a",
+           "b",
+           "a",
+           "a",
+           "b"
+          ],
+          "label": "s",
+          "slots": true
+         },
+         {
+          "type": "bars",
+          "values": [
+           1,
+           0,
+           3,
+           0,
+           1,
+           4,
+           1,
+           0,
+           null
+          ],
+          "labels": [
+           "0",
+           "1",
+           "2",
+           "3",
+           "4",
+           "5",
+           "6",
+           "7",
+           "8"
+          ],
+          "states": {
+           "7": "active"
+          },
+          "label": "longest palindrome at each center",
+          "max": 4
+         }
+        ]
+       },
+       {
+        "text": "Center 8, on 'b' (index 4): it's at the end of the string, so it can't grow past the letter itself: 1. The tallest bar, 4, is the longest palindrome in the whole string.",
+        "panels": [
+         {
+          "type": "row",
+          "cells": [
+           "a",
+           "b",
+           "a",
+           "a",
+           "b"
+          ],
+          "states": {
+           "4": "answer"
+          },
+          "label": "s",
+          "slots": true
+         },
+         {
+          "type": "bars",
+          "values": [
+           1,
+           0,
+           3,
+           0,
+           1,
+           4,
+           1,
+           0,
+           1
+          ],
+          "labels": [
+           "0",
+           "1",
+           "2",
+           "3",
+           "4",
+           "5",
+           "6",
+           "7",
+           "8"
+          ],
+          "states": {
+           "8": "active"
+          },
+          "label": "longest palindrome at each center",
+          "max": 4
+         }
+        ]
+       }
+      ],
+      "title": "`longest_at_centers(\"abaab\")`: 5 letter centers and 4 gap centers, 9 in all.",
+      "legend": [
+       {
+        "state": "answer",
+        "text": "the palindrome found at this center"
+       },
+       {
+        "state": "active",
+        "text": "the value just recorded"
+       }
+      ]
+     }
+    },
+    {
+     "md": "On paper, write the string with a small gap between letters and number the 2n - 1 positions (letters and\ngaps). At each one, draw an arc outward as far as the letters match."
+    }
+   ]
+  },
+  {
+   "id": "examples",
+   "title": "More examples",
+   "blocks": [
+    {
+     "md": "### A different kind of \"match\"\n\nIn DNA, a stretch is called palindromic when reading one strand forwards gives the same as reading its\npartner strand backwards: each base pairs with its complement (A with T, C with G). So the check at each\nstep is `comp[s[lo]] == s[hi]` instead of `s[lo] == s[hi]`. A base is never its own complement, so only gap\ncenters can grow. In `TGAATTCAGCTGCA` the longest such stretch is `TGAATTCA`, at index 0. Nothing else about the\nloop changes.\n\n### Comparing to checking every substring\n\nThe direct approach checks every substring for being a palindrome: O(n²) substrings, O(n) to check each,\nO(n³) total. For `n = 2,000` that's billions of steps against at most about 2,000,000 for growing from\ncenters. The saving comes from nesting: a center reuses the check of the smaller palindrome inside, instead\nof starting over for each length.\n\n### Manacher's algorithm\n\nWhen a center sits inside a big palindrome found earlier, its mirror image on the other side of that\npalindrome has already been grown, and the two must look the same as far as the big palindrome reaches.\nManacher's algorithm uses that to skip ahead, and gets every center's answer in O(n) total. It's worth\nknowing exists for `n` around 10⁵; for interviews the plain version is usually what's expected."
+    }
+   ]
+  },
+  {
+   "id": "variations",
+   "title": "Variations",
+   "blocks": [
+    {
+     "md": "### One mismatch allowed\n\nThe longest substring that becomes a palindrome if you change at most one letter. Growing still works,\nbecause the property is still nested: if a stretch has at most one mismatched pair, so does every stretch\ninside it with the same center. So grow past the first mismatch, counting it, and stop at the second."
+    },
+    {
+     "code": {
+      "python": "def longest_one_fix(s):\n    n, best = len(s), 0\n    for c in range(2 * n - 1):\n        lo, hi = c // 2, c // 2 + c % 2\n        fixes = 0\n        while lo >= 0 and hi < n:\n            if s[lo] != s[hi]:\n                if fixes == 1:\n                    break\n                fixes += 1\n            lo, hi = lo - 1, hi + 1\n        best = max(best, hi - lo - 1)\n    return best\n",
+      "java": "static int longestOneFix(String s) {\n    int n = s.length(), best = 0;\n    for (int c = 0; c < 2 * n - 1; c++) {\n        int lo = c / 2, hi = c / 2 + c % 2;\n        int fixes = 0;\n        while (lo >= 0 && hi < n) {\n            if (s.charAt(lo) != s.charAt(hi)) {\n                if (fixes == 1) break;\n                fixes++;\n            }\n            lo--;\n            hi++;\n        }\n        best = Math.max(best, hi - lo - 1);\n    }\n    return best;\n}\n",
+      "cpp": "int longestOneFix(const string& s) {\n    int n = s.size(), best = 0;\n    for (int c = 0; c < 2 * n - 1; c++) {\n        int lo = c / 2, hi = c / 2 + c % 2;\n        int fixes = 0;\n        while (lo >= 0 && hi < n) {\n            if (s[lo] != s[hi]) {\n                if (fixes == 1) break;\n                fixes++;\n            }\n            lo--;\n            hi++;\n        }\n        best = max(best, hi - lo - 1);\n    }\n    return best;\n}\n",
+      "c": "int longestOneFix(const char* s) {\n    int n = strlen(s), best = 0;\n    for (int c = 0; c < 2 * n - 1; c++) {\n        int lo = c / 2, hi = c / 2 + c % 2;\n        int fixes = 0;\n        while (lo >= 0 && hi < n) {\n            if (s[lo] != s[hi]) {\n                if (fixes == 1) break;\n                fixes++;\n            }\n            lo--;\n            hi++;\n        }\n        if (hi - lo - 1 > best) best = hi - lo - 1;\n    }\n    return best;\n}\n"
+     },
+     "title": "Longest palindrome with one letter changed",
+     "lines": [
+      {
+       "text": "Length and best answer so far.",
+       "at": {
+        "python": [
+         [
+          2,
+          2
+         ]
+        ],
+        "java": [
+         [
+          2,
+          2
+         ]
+        ],
+        "cpp": [
+         [
+          2,
+          2
+         ]
+        ],
+        "c": [
+         [
+          2,
+          2
+         ]
+        ]
+       }
+      },
+      {
+       "text": "Every letter and every gap, starting the same way as the template.",
+       "at": {
+        "python": [
+         [
+          3,
+          4
+         ]
+        ],
+        "java": [
+         [
+          3,
+          4
+         ]
+        ],
+        "cpp": [
+         [
+          3,
+          4
+         ]
+        ],
+        "c": [
+         [
+          3,
+          4
+         ]
+        ]
+       }
+      },
+      {
+       "text": "How many mismatched pairs this center has used.",
+       "at": {
+        "python": [
+         [
+          5,
+          5
+         ]
+        ],
+        "java": [
+         [
+          5,
+          5
+         ]
+        ],
+        "cpp": [
+         [
+          5,
+          5
+         ]
+        ],
+        "c": [
+         [
+          5,
+          5
+         ]
+        ]
+       }
+      },
+      {
+       "text": "Move outward while inside the string.",
+       "at": {
+        "python": [
+         [
+          6,
+          6
+         ],
+         [
+          11,
+          11
+         ]
+        ],
+        "java": [
+         [
+          6,
+          6
+         ],
+         [
+          11,
+          12
+         ]
+        ],
+        "cpp": [
+         [
+          6,
+          6
+         ],
+         [
+          11,
+          12
+         ]
+        ],
+        "c": [
+         [
+          6,
+          6
+         ],
+         [
+          11,
+          12
+         ]
+        ]
+       }
+      },
+      {
+       "text": "A mismatched pair. The first one is allowed (change one of the two letters); the second one ends this center.",
+       "at": {
+        "python": [
+         [
+          7,
+          10
+         ]
+        ],
+        "java": [
+         [
+          7,
+          9
+         ]
+        ],
+        "cpp": [
+         [
+          7,
+          9
+         ]
+        ],
+        "c": [
+         [
+          7,
+          9
+         ]
+        ]
+       }
+      },
+      {
+       "text": "Everything strictly between `lo` and `hi` has at most one mismatched pair.",
+       "at": {
+        "python": [
+         [
+          12,
+          12
+         ]
+        ],
+        "java": [
+         [
+          14,
+          14
+         ]
+        ],
+        "cpp": [
+         [
+          14,
+          14
+         ]
+        ],
+        "c": [
+         [
+          14,
+          14
+         ]
+        ]
+       }
+      },
+      {
+       "text": "The longest such substring.",
+       "at": {
+        "python": [
+         [
+          13,
+          13
+         ]
+        ],
+        "java": [
+         [
+          16,
+          16
+         ]
+        ],
+        "cpp": [
+         [
+          16,
+          16
+         ]
+        ],
+        "c": [
+         [
+          16,
+          16
+         ]
+        ]
+       }
+      }
+     ],
+     "run": {
+      "call": "longest_one_fix(\"abcda\"); (\"abcd\"); (\"racecar\"); (\"ab\"); (\"\")",
+      "output": "5\n3\n7\n2\n0"
+     }
+    },
+    {
+     "md": "`\"abcd\"` gives 3: `\"abc\"` becomes `\"aba\"` by changing one letter. Any two letters can become a\npalindrome with one change, so `\"ab\"` gives 2.\n\n### Counting instead of measuring\n\nThe growth loop passes through every palindrome at its center, one per step. So questions that count\npalindromic substrings, or need all of them, can do their work inside the loop instead of only at the end.\n\n### Using the radius array\n\nMany problems need \"is `s[i..j]` a palindrome?\" for lots of pairs. A substring is a palindrome exactly when\nthe longest palindrome at its center is at least as long as the substring, so after one O(n²) (or Manacher\nO(n)) pass, each such question is a single lookup."
+    }
+   ]
+  },
+  {
+   "id": "complexity",
+   "title": "What it costs",
+   "blocks": [
+    {
+     "md": "O(n²) time in the worst case (every center grows to an edge, as in `\"aaaa…\"`), usually far less on real text.\nO(1) extra space besides the answer. Manacher's algorithm brings the time down to O(n)."
+    },
+    {
+     "table": {
+      "head": [
+       "Approach",
+       "Time",
+       "Extra space"
+      ],
+      "rows": [
+       [
+        "Check every substring",
+        "O(n³)",
+        "O(1)"
+       ],
+       [
+        "Dynamic programming table `pal[i][j]`",
+        "O(n²)",
+        "O(n²)"
+       ],
+       [
+        "Expand around every center",
+        "O(n²) worst, often near O(n)",
+        "O(1)"
+       ],
+       [
+        "Manacher's algorithm",
+        "O(n)",
+        "O(n)"
+       ]
+      ]
+     }
+    }
+   ]
+  },
+  {
+   "id": "languages",
+   "title": "In your language",
+   "blocks": [
+    {
+     "md": "### Python\n\n`s[lo + 1:hi]` gives the palindrome after the loop. Building the answer as a slice each time is O(n); store the\nindices and slice once at the end. `s == s[::-1]` checks a whole string, but inside the loop compare single\ncharacters.\n\n### Java\n\n`charAt` in the loop; `substring(lo + 1, hi)` at the end. Avoid building substrings inside the loop, which\nmakes it O(n³).\n\n### C++\n\n`s.substr(start, length)` takes a length, not an end index: `s.substr(lo + 1, hi - lo - 1)`. Cast `size()`\nto `int` before computing `2 * n - 1`, or an empty string wraps around to a huge unsigned number.\n\n### C\n\n`strlen` once, before the loop. Copy a palindrome out with `memcpy` plus a `'\\0'`, or just report its start\nand length."
+    }
+   ]
+  },
+  {
+   "id": "pitfalls",
+   "title": "Pitfalls and edge cases",
+   "blocks": [
+    {
+     "md": "- Only trying letter centers, which misses every even-length palindrome.\n- Off by one in the length: after the loop the palindrome is `hi - lo - 1` long, not `hi - lo + 1`.\n- Checking bounds after reading `s[lo]` and `s[hi]` instead of before.\n- Building substrings inside the growth loop, which adds a factor of `n`.\n- `2 * n - 1` with an unsigned length in C++ on an empty string.\n- Using it for subsequences, where letters can be skipped."
+    }
+   ]
+  },
+  {
+   "id": "check",
+   "title": "Check yourself",
+   "blocks": [
+    {
+     "quiz": [
+      {
+       "q": "How many centers does a string of length 6 have, and why?",
+       "a": "11: six letters for odd-length palindromes, and five gaps between letters for even-length ones."
+      },
+      {
+       "q": "Why can growing stop at the first mismatch?",
+       "a": "Every longer stretch around the same center contains that mismatched pair at matching positions, so none of them can be a palindrome."
+      },
+      {
+       "q": "After the loop, `lo = 1` and `hi = 6`. Where is the palindrome and how long is it?",
+       "a": "Strictly between them: indices 2 to 5, length 6 - 1 - 1 = 4."
+      },
+      {
+       "q": "What input makes this O(n²), and what makes it fast?",
+       "a": "A string of one repeated letter, where every center grows to the edge. Text where neighbours rarely match stops almost every center after one step."
+      },
+      {
+       "q": "Why does \"one mismatch allowed\" still work with growing?",
+       "a": "Mismatched pairs only accumulate as you grow, so if a stretch has at most one, every smaller stretch around the same center does too. The valid stretches are still nested."
+      }
+     ]
+    }
+   ]
+  }
+ ],
+ "leetcode": [
+  {
+   "id": 5,
+   "title": "Longest Palindromic Substring",
+   "url": "https://leetcode.com/problems/longest-palindromic-substring/",
+   "difficulty": "medium"
+  },
+  {
+   "id": 647,
+   "title": "Palindromic Substrings",
+   "url": "https://leetcode.com/problems/palindromic-substrings/",
+   "difficulty": "medium"
+  },
+  {
+   "id": 2472,
+   "title": "Maximum Number of Non-overlapping Palindrome Substrings",
+   "url": "https://leetcode.com/problems/maximum-number-of-non-overlapping-palindrome-substrings/",
+   "difficulty": "hard"
+  },
+  {
+   "id": 1745,
+   "title": "Palindrome Partitioning IV",
+   "url": "https://leetcode.com/problems/palindrome-partitioning-iv/",
+   "difficulty": "hard"
+  },
+  {
+   "id": 1960,
+   "title": "Maximum Product of the Length of Two Palindromic Substrings",
+   "url": "https://leetcode.com/problems/maximum-product-of-the-length-of-two-palindromic-substrings/",
+   "difficulty": "hard"
+  }
+ ]
+}

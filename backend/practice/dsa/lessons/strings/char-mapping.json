@@ -1,0 +1,1233 @@
+{
+ "version": 1,
+ "id": "char-mapping",
+ "topic": "strings",
+ "summary": "Some questions ask whether one string can be turned into another by consistently replacing letters: every `a`\nbecomes the same thing, every time. Walk the two strings side by side, record each letter's partner in a map, and\nstop at the first pair that contradicts what's already recorded. When the replacement has to be one-to-one, keep a\nsecond map going the other way.",
+ "minutes": 9,
+ "sections": [
+  {
+   "id": "idea",
+   "title": "The idea",
+   "blocks": [
+    {
+     "md": "Picture two seating charts for the same dinner, one written with guests' first names and one with initials\nsomeone made up. If the same person always gets the same initials, and no two people share initials, the\ncharts describe the same seating. To check, read them side by side, seat by seat, and keep a list: \"Ana is\nAK, Ben is BJ…\". The moment Ana shows up as somebody else, or AK shows up for someone who isn't Ana, the\ncharts disagree.\n\nStrings work the same way. `\"paper\"` and `\"title\"` have the same *shape*: p→t, a→i, e→l, r→e, and the second\np is a t again. `\"foo\"` and `\"bar\"` don't: the two o's would have to become both a and r."
+    },
+    {
+     "panels": [
+      {
+       "type": "row",
+       "cells": [
+        "p",
+        "a",
+        "p",
+        "e",
+        "r"
+       ],
+       "label": "s",
+       "slots": true
+      },
+      {
+       "type": "row",
+       "cells": [
+        "t",
+        "i",
+        "t",
+        "l",
+        "e"
+       ],
+       "label": "t",
+       "slots": true
+      },
+      {
+       "type": "vars",
+       "items": {
+        "p:": "t",
+        "a:": "i",
+        "e:": "l",
+        "r:": "e"
+       },
+       "label": "s → t"
+      }
+     ],
+     "caption": "Each letter of s always sits over the same letter of t, and no two letters of s share one."
+    },
+    {
+     "key": "Walk both strings together. For each pair `(a, b)`: if `a` already maps to something other than `b`, fail; if\n`b` is already the image of something other than `a`, fail (only when the mapping must be one-to-one).\nOtherwise record the pair. O(n) time, space bounded by the alphabet."
+    }
+   ]
+  },
+  {
+   "id": "signals",
+   "title": "When to reach for it",
+   "blocks": [
+    {
+     "md": "\"Isomorphic\", \"follows the pattern\", \"consistent replacement\", \"cipher\", \"substitution\", \"rename every letter\".\nThe two sequences have the same length (or the same number of words), and the question is whether position\n`i` in one can be explained by a fixed rule from position `i` in the other."
+    },
+    {
+     "table": {
+      "head": [
+       "what's being mapped",
+       "what to keep",
+       "example"
+      ],
+      "rows": [
+       [
+        "`s` letters to `t` letters, one-to-one",
+        "two maps (or a map and a set of used targets)",
+        "same shape: \"paper\" / \"title\""
+       ],
+       [
+        "`s` letters to `t` letters, many-to-one allowed",
+        "one map, `s` to `t`",
+        "\"abc\" can become \"xxy\""
+       ],
+       [
+        "letters to whole words, one-to-one",
+        "two maps: letter to word, word to letter",
+        "\"abba\" / \"dog cat cat dog\""
+       ],
+       [
+        "a fixed substitution you're given",
+        "one lookup table, built once",
+        "decoding with a key"
+       ]
+      ]
+     }
+    },
+    {
+     "md": "Not a fit:\n\n- The mapping can change over time (repaint every `x` as `y`, then later every `y` as `z`). That's a question\n  about chains and cycles of replacements, closer to a graph problem.\n- Order doesn't matter, only counts (anagrams). Use a signature.\n- Close but not exact matches (spelling suggestions). That's edit distance."
+    }
+   ]
+  },
+  {
+   "id": "theory",
+   "title": "Why it works",
+   "blocks": [
+    {
+     "md": "### A function, checked as you go\n\n\"Replace letters consistently\" means there's a function `f` from letters of `s` to letters of `t` with\n`f(s[i]) = t[i]` at every position. A function is only defined by the pairs it's forced to have, so walk the\npositions and record `f(s[i]) = t[i]` the first time `s[i]` appears. Every later appearance must agree. If all\npositions agree, the recorded pairs *are* such a function; if one disagrees, no function can satisfy both\npositions.\n\n### One-to-one needs the other direction too\n\n\"Different letters must stay different\" means `f` must never send two letters to the same place. The forward\nmap can't see that: in `\"badc\"` and `\"baba\"`, b→b, a→a, d→b, c→a is a perfectly good function, but b and d\nboth land on b. Keeping a second map from `t` back to `s` catches it the moment it happens."
+    },
+    {
+     "walk": {
+      "steps": [
+       {
+        "text": "Both maps start empty. Each position pairs a letter of `s` with the letter of `t` below it.",
+        "panels": [
+         {
+          "type": "row",
+          "cells": [
+           "b",
+           "a",
+           "d",
+           "c"
+          ],
+          "label": "s",
+          "slots": true
+         },
+         {
+          "type": "row",
+          "cells": [
+           "b",
+           "a",
+           "b",
+           "a"
+          ],
+          "label": "t",
+          "slots": true
+         },
+         {
+          "type": "vars",
+          "items": {
+           "–:": "empty"
+          },
+          "label": "s → t"
+         },
+         {
+          "type": "vars",
+          "items": {
+           "–:": "empty"
+          },
+          "label": "t → s"
+         }
+        ]
+       },
+       {
+        "text": "Position 0: 'b' over 'b'. New pair: record 'b' → 'b' and 'b' → 'b'.",
+        "panels": [
+         {
+          "type": "row",
+          "cells": [
+           "b",
+           "a",
+           "d",
+           "c"
+          ],
+          "states": {
+           "0": "active"
+          },
+          "label": "s",
+          "slots": true
+         },
+         {
+          "type": "row",
+          "cells": [
+           "b",
+           "a",
+           "b",
+           "a"
+          ],
+          "states": {
+           "0": "active"
+          },
+          "label": "t",
+          "slots": true
+         },
+         {
+          "type": "vars",
+          "items": {
+           "b:": "b"
+          },
+          "label": "s → t"
+         },
+         {
+          "type": "vars",
+          "items": {
+           "b:": "b"
+          },
+          "label": "t → s"
+         }
+        ]
+       },
+       {
+        "text": "Position 1: 'a' over 'a'. New pair: record 'a' → 'a' and 'a' → 'a'.",
+        "panels": [
+         {
+          "type": "row",
+          "cells": [
+           "b",
+           "a",
+           "d",
+           "c"
+          ],
+          "states": {
+           "0": "found",
+           "1": "active"
+          },
+          "label": "s",
+          "slots": true
+         },
+         {
+          "type": "row",
+          "cells": [
+           "b",
+           "a",
+           "b",
+           "a"
+          ],
+          "states": {
+           "0": "found",
+           "1": "active"
+          },
+          "label": "t",
+          "slots": true
+         },
+         {
+          "type": "vars",
+          "items": {
+           "b:": "b",
+           "a:": "a"
+          },
+          "label": "s → t"
+         },
+         {
+          "type": "vars",
+          "items": {
+           "b:": "b",
+           "a:": "a"
+          },
+          "label": "t → s"
+         }
+        ]
+       },
+       {
+        "text": "Position 2: 'd' over 'b'. Going forward 'd' is new, but 'b' in `t` already comes from 'b' in `s`. Two letters of `s` can't share one letter of `t`. Not the same shape.",
+        "panels": [
+         {
+          "type": "row",
+          "cells": [
+           "b",
+           "a",
+           "d",
+           "c"
+          ],
+          "states": {
+           "0": "found",
+           "1": "found",
+           "2": "mark"
+          },
+          "label": "s",
+          "slots": true
+         },
+         {
+          "type": "row",
+          "cells": [
+           "b",
+           "a",
+           "b",
+           "a"
+          ],
+          "states": {
+           "0": "found",
+           "1": "found",
+           "2": "mark"
+          },
+          "label": "t",
+          "slots": true
+         },
+         {
+          "type": "vars",
+          "items": {
+           "b:": "b",
+           "a:": "a"
+          },
+          "label": "s → t"
+         },
+         {
+          "type": "vars",
+          "items": {
+           "b:": "b",
+           "a:": "a"
+          },
+          "label": "t → s"
+         }
+        ],
+        "result": "false"
+       }
+      ],
+      "title": "`same_shape(\"badc\", \"baba\")`. The forward map alone wouldn't catch the problem.",
+      "legend": [
+       {
+        "state": "active",
+        "text": "the pair being checked"
+       },
+       {
+        "state": "found",
+        "text": "checked, consistent"
+       },
+       {
+        "state": "mark",
+        "text": "the pair that breaks a map"
+       }
+      ]
+     }
+    },
+    {
+     "md": "### The shape code\n\nAnother way to see the same thing: replace every letter by the order in which it first appeared. `\"paper\"`\nbecomes 0 1 0 2 3, and so does `\"title\"`. Two strings have the same shape exactly when their codes match,\nwhich turns the question into comparing (or hashing) the codes. That's handy for grouping many words by\nshape at once.\n\n### Space\n\nWith an alphabet of size σ, each map needs at most σ entries, and fixed-size arrays (128 for ASCII) beat hash\nmaps. With words instead of letters, use hash maps."
+    }
+   ]
+  },
+  {
+   "id": "template",
+   "title": "The template",
+   "blocks": [
+    {
+     "md": "Do `s` and `t` have the same shape? That is, can each letter of `s` be replaced by a letter of `t`,\nconsistently and one-to-one, to turn `s` into `t`? Characters are ASCII."
+    },
+    {
+     "code": {
+      "python": "def same_shape(s, t):\n    if len(s) != len(t):\n        return False\n    to_t, to_s = {}, {}\n    for a, b in zip(s, t):\n        if to_t.setdefault(a, b) != b:\n            return False\n        if to_s.setdefault(b, a) != a:\n            return False\n    return True\n",
+      "java": "static boolean sameShape(String s, String t) {\n    if (s.length() != t.length()) return false;\n    int[] toT = new int[128], toS = new int[128];\n    Arrays.fill(toT, -1);\n    Arrays.fill(toS, -1);\n    for (int i = 0; i < s.length(); i++) {\n        char a = s.charAt(i), b = t.charAt(i);\n        if (toT[a] == -1) toT[a] = b;\n        else if (toT[a] != b) return false;\n        if (toS[b] == -1) toS[b] = a;\n        else if (toS[b] != a) return false;\n    }\n    return true;\n}\n",
+      "cpp": "bool sameShape(const string& s, const string& t) {\n    if (s.size() != t.size()) return false;\n    array<int, 128> toT, toS;\n    toT.fill(-1);\n    toS.fill(-1);\n    for (size_t i = 0; i < s.size(); i++) {\n        int a = s[i], b = t[i];\n        if (toT[a] == -1) toT[a] = b;\n        else if (toT[a] != b) return false;\n        if (toS[b] == -1) toS[b] = a;\n        else if (toS[b] != a) return false;\n    }\n    return true;\n}\n",
+      "c": "bool sameShape(const char* s, const char* t) {\n    if (strlen(s) != strlen(t)) return false;\n    int toT[128], toS[128];\n    for (int k = 0; k < 128; k++) toT[k] = toS[k] = -1;\n    for (int i = 0; s[i] != '\\0'; i++) {\n        int a = s[i], b = t[i];\n        if (toT[a] == -1) toT[a] = b;\n        else if (toT[a] != b) return false;\n        if (toS[b] == -1) toS[b] = a;\n        else if (toS[b] != a) return false;\n    }\n    return true;\n}\n"
+     },
+     "title": "Same shape (isomorphic strings)",
+     "lines": [
+      {
+       "text": "Different lengths can't line up position by position.",
+       "at": {
+        "python": [
+         [
+          2,
+          3
+         ]
+        ],
+        "java": [
+         [
+          2,
+          2
+         ]
+        ],
+        "cpp": [
+         [
+          2,
+          2
+         ]
+        ],
+        "c": [
+         [
+          2,
+          2
+         ]
+        ]
+       }
+      },
+      {
+       "text": "What each letter of `s` has become, and what each letter of `t` came from. Nothing yet.",
+       "at": {
+        "python": [
+         [
+          4,
+          4
+         ]
+        ],
+        "java": [
+         [
+          3,
+          5
+         ]
+        ],
+        "cpp": [
+         [
+          3,
+          5
+         ]
+        ],
+        "c": [
+         [
+          3,
+          4
+         ]
+        ]
+       },
+       "notes": {
+        "java": "-1 means \"no partner yet\"; character codes are 0 to 127.",
+        "cpp": "-1 means \"no partner yet\"; character codes are 0 to 127.",
+        "c": "-1 means \"no partner yet\"; character codes are 0 to 127."
+       }
+      },
+      {
+       "text": "Walk both strings together.",
+       "at": {
+        "python": [
+         [
+          5,
+          5
+         ]
+        ],
+        "java": [
+         [
+          6,
+          7
+         ]
+        ],
+        "cpp": [
+         [
+          6,
+          7
+         ]
+        ],
+        "c": [
+         [
+          5,
+          6
+         ]
+        ]
+       }
+      },
+      {
+       "text": "The first time `a` appears, record its partner. After that, it must be the same partner.",
+       "at": {
+        "python": [
+         [
+          6,
+          7
+         ]
+        ],
+        "java": [
+         [
+          8,
+          9
+         ]
+        ],
+        "cpp": [
+         [
+          8,
+          9
+         ]
+        ],
+        "c": [
+         [
+          7,
+          8
+         ]
+        ]
+       },
+       "notes": {
+        "python": "`setdefault` stores `b` only if `a` is new, and returns whatever is stored."
+       }
+      },
+      {
+       "text": "The same check from `t`'s side: `b` must always come from the same letter. This is what makes the mapping one-to-one.",
+       "at": {
+        "python": [
+         [
+          8,
+          9
+         ]
+        ],
+        "java": [
+         [
+          10,
+          11
+         ]
+        ],
+        "cpp": [
+         [
+          10,
+          11
+         ]
+        ],
+        "c": [
+         [
+          9,
+          10
+         ]
+        ]
+       }
+      },
+      {
+       "text": "Every position agreed with both maps.",
+       "at": {
+        "python": [
+         [
+          10,
+          10
+         ]
+        ],
+        "java": [
+         [
+          13,
+          13
+         ]
+        ],
+        "cpp": [
+         [
+          13,
+          13
+         ]
+        ],
+        "c": [
+         [
+          12,
+          12
+         ]
+        ]
+       }
+      }
+     ],
+     "run": {
+      "call": "same_shape(\"paper\", \"title\"); (\"foo\", \"bar\"); (\"badc\", \"baba\"); (\"ab\", \"ab\"); (\"ab\", \"a\")",
+      "output": "true\nfalse\nfalse\ntrue\nfalse"
+     }
+    }
+   ]
+  },
+  {
+   "id": "trace",
+   "title": "Trace it by hand",
+   "blocks": [
+    {
+     "md": "The first example, which passes:"
+    },
+    {
+     "walk": {
+      "steps": [
+       {
+        "text": "Both maps start empty. Each position pairs a letter of `s` with the letter of `t` below it.",
+        "panels": [
+         {
+          "type": "row",
+          "cells": [
+           "p",
+           "a",
+           "p",
+           "e",
+           "r"
+          ],
+          "label": "s",
+          "slots": true
+         },
+         {
+          "type": "row",
+          "cells": [
+           "t",
+           "i",
+           "t",
+           "l",
+           "e"
+          ],
+          "label": "t",
+          "slots": true
+         },
+         {
+          "type": "vars",
+          "items": {
+           "–:": "empty"
+          },
+          "label": "s → t"
+         },
+         {
+          "type": "vars",
+          "items": {
+           "–:": "empty"
+          },
+          "label": "t → s"
+         }
+        ]
+       },
+       {
+        "text": "Position 0: 'p' over 't'. New pair: record 'p' → 't' and 't' → 'p'.",
+        "panels": [
+         {
+          "type": "row",
+          "cells": [
+           "p",
+           "a",
+           "p",
+           "e",
+           "r"
+          ],
+          "states": {
+           "0": "active"
+          },
+          "label": "s",
+          "slots": true
+         },
+         {
+          "type": "row",
+          "cells": [
+           "t",
+           "i",
+           "t",
+           "l",
+           "e"
+          ],
+          "states": {
+           "0": "active"
+          },
+          "label": "t",
+          "slots": true
+         },
+         {
+          "type": "vars",
+          "items": {
+           "p:": "t"
+          },
+          "label": "s → t"
+         },
+         {
+          "type": "vars",
+          "items": {
+           "t:": "p"
+          },
+          "label": "t → s"
+         }
+        ]
+       },
+       {
+        "text": "Position 1: 'a' over 'i'. New pair: record 'a' → 'i' and 'i' → 'a'.",
+        "panels": [
+         {
+          "type": "row",
+          "cells": [
+           "p",
+           "a",
+           "p",
+           "e",
+           "r"
+          ],
+          "states": {
+           "0": "found",
+           "1": "active"
+          },
+          "label": "s",
+          "slots": true
+         },
+         {
+          "type": "row",
+          "cells": [
+           "t",
+           "i",
+           "t",
+           "l",
+           "e"
+          ],
+          "states": {
+           "0": "found",
+           "1": "active"
+          },
+          "label": "t",
+          "slots": true
+         },
+         {
+          "type": "vars",
+          "items": {
+           "p:": "t",
+           "a:": "i"
+          },
+          "label": "s → t"
+         },
+         {
+          "type": "vars",
+          "items": {
+           "t:": "p",
+           "i:": "a"
+          },
+          "label": "t → s"
+         }
+        ]
+       },
+       {
+        "text": "Position 2: 'p' over 't'. This pair was seen before, and it agrees.",
+        "panels": [
+         {
+          "type": "row",
+          "cells": [
+           "p",
+           "a",
+           "p",
+           "e",
+           "r"
+          ],
+          "states": {
+           "0": "found",
+           "1": "found",
+           "2": "active"
+          },
+          "label": "s",
+          "slots": true
+         },
+         {
+          "type": "row",
+          "cells": [
+           "t",
+           "i",
+           "t",
+           "l",
+           "e"
+          ],
+          "states": {
+           "0": "found",
+           "1": "found",
+           "2": "active"
+          },
+          "label": "t",
+          "slots": true
+         },
+         {
+          "type": "vars",
+          "items": {
+           "p:": "t",
+           "a:": "i"
+          },
+          "label": "s → t"
+         },
+         {
+          "type": "vars",
+          "items": {
+           "t:": "p",
+           "i:": "a"
+          },
+          "label": "t → s"
+         }
+        ]
+       },
+       {
+        "text": "Position 3: 'e' over 'l'. New pair: record 'e' → 'l' and 'l' → 'e'.",
+        "panels": [
+         {
+          "type": "row",
+          "cells": [
+           "p",
+           "a",
+           "p",
+           "e",
+           "r"
+          ],
+          "states": {
+           "0": "found",
+           "1": "found",
+           "2": "found",
+           "3": "active"
+          },
+          "label": "s",
+          "slots": true
+         },
+         {
+          "type": "row",
+          "cells": [
+           "t",
+           "i",
+           "t",
+           "l",
+           "e"
+          ],
+          "states": {
+           "0": "found",
+           "1": "found",
+           "2": "found",
+           "3": "active"
+          },
+          "label": "t",
+          "slots": true
+         },
+         {
+          "type": "vars",
+          "items": {
+           "p:": "t",
+           "a:": "i",
+           "e:": "l"
+          },
+          "label": "s → t"
+         },
+         {
+          "type": "vars",
+          "items": {
+           "t:": "p",
+           "i:": "a",
+           "l:": "e"
+          },
+          "label": "t → s"
+         }
+        ]
+       },
+       {
+        "text": "Position 4: 'r' over 'e'. New pair: record 'r' → 'e' and 'e' → 'r'. Every position agreed with both maps: the same shape.",
+        "panels": [
+         {
+          "type": "row",
+          "cells": [
+           "p",
+           "a",
+           "p",
+           "e",
+           "r"
+          ],
+          "states": {
+           "0": "found",
+           "1": "found",
+           "2": "found",
+           "3": "found",
+           "4": "active"
+          },
+          "label": "s",
+          "slots": true
+         },
+         {
+          "type": "row",
+          "cells": [
+           "t",
+           "i",
+           "t",
+           "l",
+           "e"
+          ],
+          "states": {
+           "0": "found",
+           "1": "found",
+           "2": "found",
+           "3": "found",
+           "4": "active"
+          },
+          "label": "t",
+          "slots": true
+         },
+         {
+          "type": "vars",
+          "items": {
+           "p:": "t",
+           "a:": "i",
+           "e:": "l",
+           "r:": "e"
+          },
+          "label": "s → t"
+         },
+         {
+          "type": "vars",
+          "items": {
+           "t:": "p",
+           "i:": "a",
+           "l:": "e",
+           "e:": "r"
+          },
+          "label": "t → s"
+         }
+        ],
+        "result": "true"
+       }
+      ],
+      "title": "`same_shape(\"paper\", \"title\")`. One map from `s` to `t` and one from `t` back to `s`.",
+      "legend": [
+       {
+        "state": "active",
+        "text": "the pair being checked"
+       },
+       {
+        "state": "found",
+        "text": "checked, consistent"
+       }
+      ]
+     }
+    },
+    {
+     "md": "On paper, draw two columns, `s → t` and `t → s`. Each new pair adds a line to both. Before adding, look the\nletter up in its column; a different partner already written there is your answer."
+    }
+   ]
+  },
+  {
+   "id": "examples",
+   "title": "More examples",
+   "blocks": [
+    {
+     "md": "### Grouping words by shape\n\nWhich of `['moon', 'feet', 'noon', 'abcd', 'deed', 'loop']` have the same shape as `moon`? Work out each word's shape code once:"
+    },
+    {
+     "table": {
+      "head": [
+       "word",
+       "shape code"
+      ],
+      "rows": [
+       [
+        "moon",
+        "0 1 1 2"
+       ],
+       [
+        "feet",
+        "0 1 1 2"
+       ],
+       [
+        "noon",
+        "0 1 1 0"
+       ],
+       [
+        "abcd",
+        "0 1 2 3"
+       ],
+       [
+        "deed",
+        "0 1 1 0"
+       ],
+       [
+        "loop",
+        "0 1 1 2"
+       ]
+      ]
+     }
+    },
+    {
+     "md": "`moon` is 0 1 1 2, so the matches are moon, feet, loop. With many words, put the codes in a hash map\n(see *Group by key*) instead of comparing pairs.\n\n### Letters to words\n\nThe same check works when one side is letters and the other is whole words: `\"abba\"` against\n`\"dog cat cat dog\"`. Split the sentence into words, check the counts match, then run the two maps with\nwords as the values. Hash maps replace the fixed arrays.\n\n### Decoding with a key\n\nA substitution key like `\"the quick brown fox jumps over lazy dog\"` defines a cipher: the first new letter in the key stands for `a`, the next\nnew one for `b`, and so on. Build the table once by walking the key and skipping letters you've already\nassigned, then decode by looking each letter up: `\"vkbs bs t suepuv\"` reads `\"this is a secret\"`. Building the table is the\nsame first-appearance bookkeeping as the shape code."
+    }
+   ]
+  },
+  {
+   "id": "variations",
+   "title": "Variations",
+   "blocks": [
+    {
+     "md": "### Many-to-one allowed\n\nSometimes different letters *may* merge: \"can `s` be turned into `t` by replacing each letter with some\nletter, the same one every time?\". Then only the forward check matters. `\"abc\"` can become `\"xxy\"` (a and b\nboth become x), but `\"aa\"` can't become `\"ab\"`."
+    },
+    {
+     "code": {
+      "python": "def maps_into(s, t):\n    if len(s) != len(t):\n        return False\n    to_t = {}\n    for a, b in zip(s, t):\n        if to_t.setdefault(a, b) != b:\n            return False\n    return True\n",
+      "java": "static boolean mapsInto(String s, String t) {\n    if (s.length() != t.length()) return false;\n    int[] toT = new int[128];\n    Arrays.fill(toT, -1);\n    for (int i = 0; i < s.length(); i++) {\n        char a = s.charAt(i), b = t.charAt(i);\n        if (toT[a] == -1) toT[a] = b;\n        else if (toT[a] != b) return false;\n    }\n    return true;\n}\n",
+      "cpp": "bool mapsInto(const string& s, const string& t) {\n    if (s.size() != t.size()) return false;\n    array<int, 128> toT;\n    toT.fill(-1);\n    for (size_t i = 0; i < s.size(); i++) {\n        int a = s[i], b = t[i];\n        if (toT[a] == -1) toT[a] = b;\n        else if (toT[a] != b) return false;\n    }\n    return true;\n}\n",
+      "c": "bool mapsInto(const char* s, const char* t) {\n    if (strlen(s) != strlen(t)) return false;\n    int toT[128];\n    for (int k = 0; k < 128; k++) toT[k] = -1;\n    for (int i = 0; s[i] != '\\0'; i++) {\n        int a = s[i], b = t[i];\n        if (toT[a] == -1) toT[a] = b;\n        else if (toT[a] != b) return false;\n    }\n    return true;\n}\n"
+     },
+     "title": "Can s be mapped onto t (merging allowed)?",
+     "lines": [
+      {
+       "text": "Lengths must match.",
+       "at": {
+        "python": [
+         [
+          2,
+          3
+         ]
+        ],
+        "java": [
+         [
+          2,
+          2
+         ]
+        ],
+        "cpp": [
+         [
+          2,
+          2
+         ]
+        ],
+        "c": [
+         [
+          2,
+          2
+         ]
+        ]
+       }
+      },
+      {
+       "text": "Only the forward map.",
+       "at": {
+        "python": [
+         [
+          4,
+          4
+         ]
+        ],
+        "java": [
+         [
+          3,
+          4
+         ]
+        ],
+        "cpp": [
+         [
+          3,
+          4
+         ]
+        ],
+        "c": [
+         [
+          3,
+          4
+         ]
+        ]
+       }
+      },
+      {
+       "text": "Walk both strings together.",
+       "at": {
+        "python": [
+         [
+          5,
+          5
+         ]
+        ],
+        "java": [
+         [
+          5,
+          6
+         ]
+        ],
+        "cpp": [
+         [
+          5,
+          6
+         ]
+        ],
+        "c": [
+         [
+          5,
+          6
+         ]
+        ]
+       }
+      },
+      {
+       "text": "Each letter of `s` must always become the same letter of `t`.",
+       "at": {
+        "python": [
+         [
+          6,
+          7
+         ]
+        ],
+        "java": [
+         [
+          7,
+          8
+         ]
+        ],
+        "cpp": [
+         [
+          7,
+          8
+         ]
+        ],
+        "c": [
+         [
+          7,
+          8
+         ]
+        ]
+       }
+      },
+      {
+       "text": "A consistent function exists.",
+       "at": {
+        "python": [
+         [
+          8,
+          8
+         ]
+        ],
+        "java": [
+         [
+          10,
+          10
+         ]
+        ],
+        "cpp": [
+         [
+          10,
+          10
+         ]
+        ],
+        "c": [
+         [
+          10,
+          10
+         ]
+        ]
+       }
+      }
+     ],
+     "run": {
+      "call": "maps_into(\"foo\", \"bar\"); (\"abc\", \"xxy\"); (\"aa\", \"ab\"); (\"badc\", \"baba\")",
+      "output": "false\ntrue\nfalse\ntrue"
+     }
+    },
+    {
+     "md": "`\"badc\"` → `\"baba\"` passes here: merging b and d into b is allowed. That's exactly the case the backward map\nexists to reject.\n\n### A set instead of the second map\n\nFor one-to-one, the backward map can be replaced by a set of letters already used as targets: when `a` is new,\nits target `b` must not be in the set yet. It catches the same cases.\n\n### Mapping both ways at once\n\nWhen either string may be rewritten, ask whether both reduce to the same shape code. That's symmetric and\navoids deciding which direction the mapping goes."
+    }
+   ]
+  },
+  {
+   "id": "complexity",
+   "title": "What it costs",
+   "blocks": [
+    {
+     "md": "One pass over `n` positions with O(1) work each: O(n) time. Space is O(σ) for alphabet size σ, which is\nconstant for ASCII. With words instead of letters, it's O(total length of the words) for hashing them."
+    },
+    {
+     "table": {
+      "head": [
+       "Approach",
+       "Time",
+       "Extra space"
+      ],
+      "rows": [
+       [
+        "Try every possible mapping",
+        "exponential",
+        "O(σ)"
+       ],
+       [
+        "Compare every pair of positions",
+        "O(n²)",
+        "O(1)"
+       ],
+       [
+        "Two maps, one pass",
+        "O(n)",
+        "O(σ)"
+       ],
+       [
+        "Shape codes, then compare",
+        "O(n)",
+        "O(n) for the codes"
+       ]
+      ]
+     }
+    }
+   ]
+  },
+  {
+   "id": "languages",
+   "title": "In your language",
+   "blocks": [
+    {
+     "md": "### Python\n\n`dict.setdefault(a, b)` stores and returns in one call. `zip(s, t)` pairs positions (and silently stops at the\nshorter one, so check lengths first). For the shape code, `[first.setdefault(c, len(first)) for c in w]`.\n\n### Java\n\n`int[128]` filled with -1 via `Arrays.fill`. With words, `HashMap<String, String>` and `equals`, never `==`,\nto compare strings.\n\n### C++\n\n`array<int, 128>` with `fill(-1)`. Store characters as `int` (or `unsigned char`) so a non-ASCII byte doesn't\nindex with a negative number. `unordered_map<string, string>` for words.\n\n### C\n\n`int map[128]` initialised in a loop (`memset` with -1 also works, since every byte becomes 0xFF). Check\n`strlen` of both before the loop."
+    }
+   ]
+  },
+  {
+   "id": "pitfalls",
+   "title": "Pitfalls and edge cases",
+   "blocks": [
+    {
+     "md": "- Checking only one direction when the mapping must be one-to-one.\n- Checking only that each letter maps consistently, but forgetting the lengths.\n- Comparing words with `==` in Java.\n- Indexing an array with a `char` that can be negative (bytes above 127 in C and C++).\n- Treating matching letter counts as the same shape. `\"aab\"` and `\"abb\"` both have one letter twice and one\n  once, but their shape codes are 0 0 1 and 0 1 1. Compare positions, not counts.\n- Empty strings: two empty strings have the same shape."
+    }
+   ]
+  },
+  {
+   "id": "check",
+   "title": "Check yourself",
+   "blocks": [
+    {
+     "quiz": [
+      {
+       "q": "Why isn't a map from `s` to `t` enough for \"same shape\"?",
+       "a": "It checks that each letter of s always becomes the same letter, but not that different letters stay different. Two letters of s could both become the same letter of t."
+      },
+      {
+       "q": "Do \"egg\" and \"add\" have the same shape? \"egg\" and \"adb\"?",
+       "a": "\"egg\" and \"add\": yes, e→a, g→d. \"egg\" and \"adb\": no, the two g's would have to become both d and b."
+      },
+      {
+       "q": "What's the shape code of \"banana\"?",
+       "a": "0 1 2 1 2 1: b first, then a, then n, repeating."
+      },
+      {
+       "q": "maps_into(\"abc\", \"zzz\"): true or false?",
+       "a": "True. Merging is allowed, so a, b and c can all become z."
+      },
+      {
+       "q": "How much memory do the two maps need for ASCII strings of length 10⁶?",
+       "a": "Two arrays of 128 entries. The size depends on the alphabet, not the length."
+      }
+     ]
+    }
+   ]
+  }
+ ],
+ "leetcode": [
+  {
+   "id": 205,
+   "title": "Isomorphic Strings",
+   "url": "https://leetcode.com/problems/isomorphic-strings/",
+   "difficulty": "easy"
+  },
+  {
+   "id": 290,
+   "title": "Word Pattern",
+   "url": "https://leetcode.com/problems/word-pattern/",
+   "difficulty": "easy"
+  },
+  {
+   "id": 2325,
+   "title": "Decode the Message",
+   "url": "https://leetcode.com/problems/decode-the-message/",
+   "difficulty": "easy"
+  },
+  {
+   "id": 890,
+   "title": "Find and Replace Pattern",
+   "url": "https://leetcode.com/problems/find-and-replace-pattern/",
+   "difficulty": "medium"
+  },
+  {
+   "id": 291,
+   "title": "Word Pattern II",
+   "url": "https://leetcode.com/problems/word-pattern-ii/",
+   "difficulty": "medium",
+   "premium": true
+  },
+  {
+   "id": 1153,
+   "title": "String Transforms Into Another String",
+   "url": "https://leetcode.com/problems/string-transforms-into-another-string/",
+   "difficulty": "hard",
+   "premium": true
+  }
+ ]
+}
