@@ -71,6 +71,7 @@ There's no framework and no build step.
 - **Auth:** passwords are hashed with scrypt. The session is an HMAC-signed, HttpOnly, SameSite=Lax cookie (`ren_session`) that lasts 7 days.
 - **DSA judge:** `backend/practice/dsa/tools/judge.mjs` runs submissions with local toolchains (`python3`, `javac`/`java`, `clang++`, `clang`) and compares answers.
 - **SQL judge:** `backend/practice/sql/tools/judge.mjs` runs each query in a child process against a fresh in-memory database using Node's built-in `node:sqlite`. An authorizer stops anything except reads (and row writes for change problems).
+- **Judge server:** `judge/server.mjs` runs the DSA judge for the hosted site on a separate Linux server, with every run inside a [bubblewrap](https://github.com/containers/bubblewrap) sandbox. See [`judge/README.md`](judge/README.md).
 - **Content pipeline:** Node and Python scripts that check every problem, its tests and its reference solution before it's published.
 
 ---
@@ -118,7 +119,7 @@ Log in with the seed account from `.env`, or sign up for a new one.
 
 ## Running code locally
 
-**Run** and **Submit** execute the code people type, so the server only allows them for requests from the same machine, and only one run per account at a time.
+**Run** and **Submit** execute the code people type. Locally, DSA runs only for requests from the same machine. Each account runs one thing at a time, and at most 30 a minute.
 
 - **Python** needs `python3`.
 - **Java** needs a JDK (`javac` and `java`).
@@ -126,7 +127,7 @@ Log in with the seed account from `.env`, or sign up for a new one.
 
 Languages whose toolchain is missing show as unavailable in the editor.
 
-**Submit** checks against every test, hidden ones included. Generated tests and their expected answers live in `backend/practice/dsa/build/`, which is gitignored (about 500 MB). Build it once after cloning:
+**Submit** checks against every test, hidden ones included. Generated tests and their expected answers live in `backend/practice/dsa/build/`, which is gitignored (about 1.5 GB). Build it once after cloning:
 
 ```sh
 npm run check:dsa -- --write-expected --jobs 6 --quiet
@@ -156,6 +157,13 @@ The repo is ready for Vercel as it is. `vercel.json` sends every request to `ser
    | `SEED_PASSWORD` | The demo account's password |
    | `SEED_NAME` | The demo account's display name |
 
+   For DSA Run and Submit, also add these two once the [judge server](judge/README.md) is set up:
+
+   | Name | Value |
+   |---|---|
+   | `JUDGE_URL` | The judge server's address, e.g. `https://129-146-0-1.sslip.io` |
+   | `JUDGE_SECRET` | The secret `judge/setup.sh` printed |
+
    `PORT` isn't needed on Vercel.
 
 5. Click **Deploy**.
@@ -170,11 +178,12 @@ The Node.js version comes from `engines` in `package.json` (22.13 or newer).
 | Home, Practice, DSA sheet, SQL sheet | Yes |
 | Pattern lessons and written solutions | Yes |
 | Problem statements, examples, starter code | Yes |
-| **Run / Submit (DSA and SQL)** | **No.** Turned off on purpose, see below |
+| SQL Run / Submit | Yes. Runs on Vercel |
+| **DSA Run / Submit** | **Yes, once the [judge server](judge/README.md) is connected** (`JUDGE_URL`). Until then, the languages show as "soon" |
 | Seed account | Yes. It works on every server instance |
 | Accounts from sign up | Only until that server instance shuts down |
 
-**Why Run and Submit are off:** they execute whatever code is typed in. Vercel's runtime passes requests to the function over localhost, so the "same machine only" check would let anyone on the internet run code on the server. When `server.js` sees the `VERCEL` environment variable, Run and Submit answer *"Running code isn't available on the hosted site yet."* Turning them on needs a proper sandboxed runner (see [Roadmap](#roadmap)).
+**Why DSA needs its own server:** Vercel has no Python, Java or C compilers, the hidden tests are too big for a function, and code people type must never run unsandboxed next to the site's secrets. SQL is different: queries run in a throwaway read-only SQLite database, so they can run on Vercel safely. The judge server ([`judge/README.md`](judge/README.md)) runs on a free Oracle Cloud VM. It uses the same judge as your Mac and locks every run in a sandbox. Without `JUDGE_URL`, DSA Run and Submit on Vercel answer *"Running code isn't available on the hosted site yet."* If the judge server is down, they answer *"The code runner is offline right now."*
 
 **Why sign ups don't last:** accounts are stored in memory. Vercel starts and stops server instances as traffic changes, and each one has its own memory. Use the seed account for demos until there's a database.
 
@@ -196,6 +205,7 @@ vercel --prod   # production
 Ren/
 ├── server.js                 # Dev server + API; also the Vercel function
 ├── vercel.json               # Sends every request on Vercel to server.js
+├── judge/                    # Judge server for DSA Run/Submit on the hosted site (see judge/README.md)
 ├── package.json
 ├── .env.example              # Copy to .env
 │
@@ -293,7 +303,7 @@ Signed-in pages (`app`, `practice`, `dsa`, `learn`, `problem`, `sql`, `sql-probl
 ## Roadmap
 
 - [ ] A database for accounts and progress (accounts are in memory for now)
-- [ ] A sandboxed code runner, so Run and Submit work on the hosted site
+- [x] A sandboxed judge server, so Run and Submit work on the hosted site
 - [ ] Google sign in and password reset emails
 - [ ] The rest of the DSA bank (276 problems), solutions from Linked List onward, and more pattern lessons
 - [ ] System design practice

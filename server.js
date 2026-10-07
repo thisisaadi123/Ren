@@ -11,11 +11,11 @@
 //   GET  /api/dsa/problem?id=               -> 200 { problem for the page } | 401 | 404
 //   GET  /api/dsa/solution?id=              -> 200 { the written-out solution } | 401 | 404
 //   GET  /api/dsa/lesson?id=<pattern>       -> 200 { the pattern's lesson, its problems } | 401 | 404
-//   POST /api/dsa/run    { id, lang, code, cases } -> 200 { cases } (this machine only)
+//   POST /api/dsa/run    { id, lang, code, cases } -> 200 { cases } (judge server, or this machine)
 //   POST /api/dsa/submit { id, lang, code }        -> 200 { verdict, passed, total }
 //   GET  /api/sql                           -> 200 { tracks, topics } | 401
 //   GET  /api/sql/problem?id=               -> 200 { problem for the page } | 401 | 404
-//   POST /api/sql/run    { id, code }       -> 200 { cases } (this machine only)
+//   POST /api/sql/run    { id, code }       -> 200 { cases }
 //   POST /api/sql/submit { id, code }       -> 200 { verdict, passed, total }
 //
 // Accounts are kept in memory only: nothing is written to disk, and every
@@ -245,8 +245,8 @@ const api = {
   "GET /api/dsa/problem": async (req, res) => {
     if (!currentUser(req)) return send(res, 401, { error: "Not signed in." });
     const id = new URL(req.url, "http://localhost").searchParams.get("id");
-    const judge = await import("./backend/practice/dsa/tools/judge.mjs");
-    send(res, 200, await judge.problemView(id));
+    const judge = await import(DSA_JUDGE);
+    send(res, 200, await withLanguages(await judge.problemView(id)));
   },
 
   "GET /api/dsa/solution": async (req, res) => {
@@ -290,37 +290,116 @@ const api = {
 
 /* Running code ---------------------------------------------------------------- */
 
-// Run and Submit execute the code people type, so they only answer requests
-// from this machine (a dev server can be reachable from the local network),
-// and each account runs one thing at a time. They're off on Vercel: its
-// runtime hands requests to the function over localhost, so the address
-// check alone would let anyone on the internet run code there.
+// Run and Submit execute the code people type, one run per account at a time.
+// - SQL runs here: a read-only, in-memory SQLite database in a child process
+//   that is killed after a few seconds (backend/practice/sql/tools/judge.mjs).
+// - DSA runs on the judge server (judge/README.md) when JUDGE_URL is set.
+//   Without one it runs only for requests from this machine, and never on
+//   Vercel: its runtime hands requests to the function over localhost, so the
+//   address check alone would let anyone on the internet run code there.
 const running = new Set();
 const HOSTED = Boolean(process.env.VERCEL);
+const JUDGE_URL = (process.env.JUDGE_URL || "").replace(/\/+$/, "");
+const JUDGE_SECRET = process.env.JUDGE_SECRET || "";
 const fromThisMachine = (req) => !HOSTED && ["127.0.0.1", "::1", "::ffff:127.0.0.1"].includes(req.socket.remoteAddress);
 
 const DSA_JUDGE = "./backend/practice/dsa/tools/judge.mjs";
 const SQL_JUDGE = "./backend/practice/sql/tools/judge.mjs";
 
+// At most RUNS_PER_MINUTE runs per account, so nobody can use up the host.
+const RUNS_PER_MINUTE = 30;
+const recentRuns = new Map(); // user id -> times of their runs in the last minute
+function tooManyRuns(userId) {
+  const now = Date.now();
+  const times = (recentRuns.get(userId) || []).filter((t) => now - t < 60_000);
+  const over = times.length >= RUNS_PER_MINUTE;
+  if (!over) times.push(now);
+  recentRuns.set(userId, times);
+  return over;
+}
+
 async function judgeCode(req, res, action, module = DSA_JUDGE) {
   const user = currentUser(req);
   if (!user) return send(res, 401, { error: "Not signed in." });
-  if (!fromThisMachine(req)) {
+  const remote = module === DSA_JUDGE && JUDGE_URL;
+  if (module === DSA_JUDGE && !remote && !fromThisMachine(req)) {
     const error = HOSTED ? "Running code isn't available on the hosted site yet." : "Code only runs on the machine the server is on.";
     return send(res, 403, { error });
   }
   if (running.has(user.id)) return send(res, 429, { error: "Your last run is still going." });
+  if (tooManyRuns(user.id)) return send(res, 429, { error: "That's a lot of runs. Wait a minute, then try again." });
   const body = await readJson(req, 200_000);
+  const input = { id: body.id, lang: body.lang, code: body.code, cases: body.cases };
   running.add(user.id);
   try {
+    if (remote) return await askJudge(res, action, user.id, input);
     const judge = await import(module);
-    send(res, 200, await judge[action]({ id: body.id, lang: body.lang, code: body.code, cases: body.cases }));
+    send(res, 200, await judge[action](input));
   } catch (err) {
     if (err.name === "JudgeError") return send(res, err.status, { error: err.message });
     throw err;
   } finally {
     running.delete(user.id);
   }
+}
+
+/* The judge server ----------------------------------------------------------- */
+
+// DSA Run and Submit on the judge server (judge/server.mjs), which has every
+// toolchain and the hidden tests. Its answer goes to the page as it is.
+const JUDGE_OFFLINE = "The code runner is offline right now. Try again in a minute.";
+
+function judgeFetch(pathname, options = {}) {
+  return fetch(`${JUDGE_URL}${pathname}`, {
+    ...options,
+    headers: { "Content-Type": "application/json", Authorization: `Bearer ${JUDGE_SECRET}`, ...options.headers },
+  });
+}
+
+async function askJudge(res, action, userId, input) {
+  let reply;
+  let data;
+  try {
+    reply = await judgeFetch(`/${action}`, {
+      method: "POST",
+      body: JSON.stringify({ userId, ...input }),
+      signal: AbortSignal.timeout(55_000),
+    });
+    data = await reply.json();
+  } catch {
+    return send(res, 503, { error: JUDGE_OFFLINE });
+  }
+  // A 401 from the judge means the secrets don't match, not that this person
+  // is signed out, so the page mustn't treat it as one.
+  if (reply.status === 401) {
+    console.error("The judge server refused JUDGE_SECRET.");
+    return send(res, 503, { error: JUDGE_OFFLINE });
+  }
+  send(res, reply.status, data);
+}
+
+// The languages the judge server can run, asked at most every 5 minutes. If
+// it can't be reached, the last answer stands and it's asked again in a minute.
+let judgeLangs = { until: 0, ids: new Set() };
+async function judgeLanguages() {
+  if (Date.now() < judgeLangs.until) return judgeLangs.ids;
+  try {
+    const reply = await judgeFetch("/languages", { signal: AbortSignal.timeout(3000) });
+    const data = await reply.json();
+    if (!reply.ok) throw new Error(data.error);
+    judgeLangs = { until: Date.now() + 5 * 60_000, ids: new Set(data.languages) };
+  } catch {
+    judgeLangs = { ...judgeLangs, until: Date.now() + 60_000 };
+  }
+  return judgeLangs.ids;
+}
+
+// Which languages the problem page offers: the ones the judge server has, or
+// on Vercel without one, none (this machine's toolchains don't count there).
+async function withLanguages(view) {
+  if (!JUDGE_URL && !HOSTED) return view;
+  const ids = JUDGE_URL ? await judgeLanguages() : new Set();
+  return { ...view, languages: view.languages.map((l) => ({ ...l, available: l.starter !== "" && ids.has(l.id) })) };
 }
 
 /* DSA sheet ----------------------------------------------------------------- */

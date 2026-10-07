@@ -75,12 +75,13 @@ export async function runSolution({ lang, file, meta, tests, limitMs, buildDir }
   let proc;
   if (lang === "python") {
     const input = tests.map((t) => JSON.stringify({ id: t.id, args: t.args }, (_k, x) => (typeof x === "bigint" ? `\u0000${x}` : x)).replace(/"\\u0000(-?\d+)"/g, "$1")).join("\n") + "\n";
-    proc = await runLines("python3", [PY_RUNNER, "solve", file, specOf(meta)], { input, quietMs });
+    const jail = { ro: [TOOLS, path.dirname(file)] };
+    proc = await runLines("python3", [PY_RUNNER, "solve", file, specOf(meta)], { input, quietMs, jail });
   } else if (lang === "cpp" || lang === "c" || lang === "java") {
     if (!handles(lang, meta)) return tests.map((t) => ({ id: t.id, error: `${LANGS[lang].label} can't run this kind of problem` }));
     const built = await BUILDERS[lang]({ file, meta, buildDir });
     if (built.error) return tests.map((t) => ({ id: t.id, error: built.error }));
-    proc = await runLines(built.cmd, built.args, { input: encodeTests(tests, meta), quietMs });
+    proc = await runLines(built.cmd, built.args, { input: encodeTests(tests, meta), quietMs, jail: { ro: [built.dir] } });
   } else {
     throw new Error(whyUnavailable(lang));
   }
@@ -148,13 +149,13 @@ const BUILDERS = {
     const main = cppHarness(meta);
     const dir = buildDirFor(buildDir, "cpp", source, main);
     const bin = path.join(dir, "run");
-    if (existsSync(bin)) return { cmd: bin, args: [] };
+    if (existsSync(bin)) return { cmd: bin, args: [], dir };
     mkdirSync(path.join(dir, "include", "bits"), { recursive: true });
     writeFileSync(path.join(dir, "include", "bits", "stdc++.h"), BITS_STDCXX);
     writeFileSync(path.join(dir, "solution.cpp"), source);
     writeFileSync(path.join(dir, "main.cpp"), main);
-    const { code, out } = await runOnce("clang++", ["-std=c++17", "-O2", "-I", path.join(dir, "include"), "-o", bin, "main.cpp"], { cwd: dir });
-    return code === 0 ? { cmd: bin, args: [] } : { error: compileError(out) };
+    const { code, out } = await runOnce("clang++", ["-std=c++17", "-O2", "-I", path.join(dir, "include"), "-o", bin, "main.cpp"], { cwd: dir, jail: { rw: [dir], cwd: dir } });
+    return code === 0 ? { cmd: bin, args: [], dir } : { error: compileError(out) };
   },
 
   async c({ file, meta, buildDir }) {
@@ -162,12 +163,12 @@ const BUILDERS = {
     const main = cHarness(meta);
     const dir = buildDirFor(buildDir, "c", source, main);
     const bin = path.join(dir, "run");
-    if (existsSync(bin)) return { cmd: bin, args: [] };
+    if (existsSync(bin)) return { cmd: bin, args: [], dir };
     mkdirSync(dir, { recursive: true });
     writeFileSync(path.join(dir, "solution.c"), source);
     writeFileSync(path.join(dir, "main.c"), main);
-    const { code, out } = await runOnce("clang", ["-std=c11", "-O2", "-o", bin, "main.c", "-lm"], { cwd: dir });
-    return code === 0 ? { cmd: bin, args: [] } : { error: compileError(out) };
+    const { code, out } = await runOnce("clang", ["-std=c11", "-O2", "-o", bin, "main.c", "-lm"], { cwd: dir, jail: { rw: [dir], cwd: dir } });
+    return code === 0 ? { cmd: bin, args: [], dir } : { error: compileError(out) };
   },
 
   async java({ file, meta, buildDir }) {
@@ -175,13 +176,17 @@ const BUILDERS = {
     const source = readFileSync(file, "utf8");
     const main = javaHarness(meta);
     const dir = buildDirFor(buildDir, "java", source, main);
-    const run = { cmd: javaTool("java"), args: ["-XX:+UseSerialGC", "-cp", dir, "Main"] };
+    const run = { cmd: javaTool("java"), args: ["-XX:+UseSerialGC", "-cp", dir, "Main"], dir };
     if (existsSync(path.join(dir, "Main.class"))) return run;
     mkdirSync(dir, { recursive: true });
     // The imports go on the solution's first line, so its line numbers stay put.
     writeFileSync(path.join(dir, "Solution.java"), JAVA_IMPORTS + source);
     writeFileSync(path.join(dir, "Main.java"), main);
-    const { code, out } = await runOnce(javaTool("javac"), ["-encoding", "UTF-8", "-nowarn", "-d", dir, "Main.java", "Solution.java"], { cwd: dir });
+    // -proc:none: no annotation processors, so compiling never runs any code.
+    const { code, out } = await runOnce(javaTool("javac"), ["-encoding", "UTF-8", "-nowarn", "-proc:none", "-d", dir, "Main.java", "Solution.java"], {
+      cwd: dir,
+      jail: { rw: [dir], cwd: dir },
+    });
     return code === 0 ? run : { error: compileError(out) };
   },
 };
