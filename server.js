@@ -1,6 +1,7 @@
 // Ren — dev server: serves design/ and a small auth API.
 // Run with `npm start`, then open http://localhost:3000. The only package it
-// uses is `yaml` (a dev dependency), to read the DSA bank for /api/dsa.
+// uses is `yaml`, to read the DSA and SQL banks. On Vercel, vercel.json sends
+// every request to this file, which exports the same handler `npm start` uses.
 //
 //   POST /api/signup   { email, password }  -> 201 { user }  (signs in)
 //   POST /api/login    { email, password }  -> 200 { user }
@@ -103,7 +104,9 @@ function seedProgress() {
   };
 }
 
-// The seed user is rebuilt from .env on every start.
+// The seed user is rebuilt from .env on every start. Its id comes from the
+// email, so a session stays valid when a different server instance (Vercel
+// runs several) answers the next request.
 function ensureSeedUser() {
   const email = (process.env.SEED_EMAIL || "").trim().toLowerCase();
   const password = process.env.SEED_PASSWORD || "";
@@ -112,7 +115,7 @@ function ensureSeedUser() {
     return;
   }
   USERS.push({
-    id: crypto.randomUUID(),
+    id: crypto.createHash("sha256").update(`seed:${email}`).digest("hex").slice(0, 32),
     email,
     name: process.env.SEED_NAME || "",
     password: hashPassword(password),
@@ -289,9 +292,12 @@ const api = {
 
 // Run and Submit execute the code people type, so they only answer requests
 // from this machine (a dev server can be reachable from the local network),
-// and each account runs one thing at a time.
+// and each account runs one thing at a time. They're off on Vercel: its
+// runtime hands requests to the function over localhost, so the address
+// check alone would let anyone on the internet run code there.
 const running = new Set();
-const fromThisMachine = (req) => ["127.0.0.1", "::1", "::ffff:127.0.0.1"].includes(req.socket.remoteAddress);
+const HOSTED = Boolean(process.env.VERCEL);
+const fromThisMachine = (req) => !HOSTED && ["127.0.0.1", "::1", "::ffff:127.0.0.1"].includes(req.socket.remoteAddress);
 
 const DSA_JUDGE = "./backend/practice/dsa/tools/judge.mjs";
 const SQL_JUDGE = "./backend/practice/sql/tools/judge.mjs";
@@ -299,7 +305,10 @@ const SQL_JUDGE = "./backend/practice/sql/tools/judge.mjs";
 async function judgeCode(req, res, action, module = DSA_JUDGE) {
   const user = currentUser(req);
   if (!user) return send(res, 401, { error: "Not signed in." });
-  if (!fromThisMachine(req)) return send(res, 403, { error: "Code only runs on the machine the server is on." });
+  if (!fromThisMachine(req)) {
+    const error = HOSTED ? "Running code isn't available on the hosted site yet." : "Code only runs on the machine the server is on.";
+    return send(res, 403, { error });
+  }
   if (running.has(user.id)) return send(res, 429, { error: "Your last run is still going." });
   const body = await readJson(req, 200_000);
   running.add(user.id);
@@ -529,7 +538,7 @@ function serveStatic(req, res, pathname) {
 
 /* Server ------------------------------------------------------------------ */
 
-const server = http.createServer(async (req, res) => {
+async function handler(req, res) {
   let pathname;
   try {
     pathname = decodeURIComponent(new URL(req.url, "http://localhost").pathname);
@@ -551,14 +560,20 @@ const server = http.createServer(async (req, res) => {
 
   if (req.method !== "GET" && req.method !== "HEAD") return send(res, 405, { error: "Method not allowed." });
   serveStatic(req, res, pathname);
-});
-
-server.on("error", (err) => {
-  if (err.code !== "EADDRINUSE") throw err;
-  console.error(`Port ${PORT} is already in use; Ren may already be running at http://localhost:${PORT}.`);
-  console.error(`Stop the other server, or set a different PORT in .env.`);
-  process.exit(1);
-});
+}
 
 ensureSeedUser();
-server.listen(PORT, () => console.log(`Ren is running at http://localhost:${PORT}`));
+
+// Vercel imports this file and calls the handler; `npm start` runs it.
+module.exports = handler;
+
+if (require.main === module) {
+  const server = http.createServer(handler);
+  server.on("error", (err) => {
+    if (err.code !== "EADDRINUSE") throw err;
+    console.error(`Port ${PORT} is already in use; Ren may already be running at http://localhost:${PORT}.`);
+    console.error(`Stop the other server, or set a different PORT in .env.`);
+    process.exit(1);
+  });
+  server.listen(PORT, () => console.log(`Ren is running at http://localhost:${PORT}`));
+}
